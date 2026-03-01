@@ -1,45 +1,21 @@
 /**
- * Playground — Space Shooter entry point
- * Montre l'assemblage complet du framework GWEN.
+ * Point d'entrée GWEN — Space Shooter
+ * Assemblage final minimaliste selon ENGINE.md
  */
 
-import { Engine, SceneManager, UIManager } from '@gwen/engine-core';
-import { InputPlugin } from '@gwen/plugin-input';
+import { configureEngine, engine, scenes } from '../engine.config';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { GameScene } from './scenes/GameScene';
 
-// 1. Créer le moteur
-const engine = new Engine({
-  maxEntities: 2000,
-  targetFPS: 60,
-  debug: false,
-});
+// 1. Configuration des services globaux
+configureEngine();
 
-// 2. SceneManager — enregistrer en premier
-const scenes = new SceneManager();
-engine.registerSystem(scenes);
+// 2. Enregistrement des scènes
+scenes.register(new MainMenuScene());
+scenes.register(new GameScene(scenes));
 
-// 3. UI
-engine.registerSystem(new UIManager());
+// 3. Choix de la scène de départ
+scenes.loadScene('MainMenu', engine.getAPI());
 
-// 4. Input — capture en onBeforeUpdate (step 1 du game loop)
-engine.registerSystem(new InputPlugin());
-
-// 4. Scènes
-scenes
-  .register(new MainMenuScene(scenes))
-  .register(new GameScene(scenes));
-
-// 5. Démarrer sur le menu
-scenes.loadSceneImmediate('MainMenu', engine.getAPI());
-
-// 6. Lancer la boucle
+// 4. Lancement de la boucle
 engine.start();
-
-// Debug panel (DEV only)
-if (import.meta.env.DEV) {
-  setInterval(() => {
-    const s = engine.getStats();
-    console.log(`[GWEN] FPS:${s.fps} | Entities:${s.entityCount} | Frame:${s.frameCount}`);
-  }, 3000);
-}
