@@ -2,17 +2,18 @@
 //!
 //! Exports for JavaScript interop via wasm-bindgen.
 
-use wasm_bindgen::prelude::*;
-use crate::entity::{EntityManager, EntityId};
 use crate::component::{ComponentStorage, ComponentTypeId};
-use crate::query::QuerySystem;
+use crate::entity::{EntityId, EntityManager};
 use crate::gameloop::GameLoop;
+use crate::query::QuerySystem;
+use wasm_bindgen::prelude::*;
 
 /// Main engine exported to JavaScript
 #[wasm_bindgen]
 pub struct Engine {
     entity_manager: EntityManager,
     component_storage: ComponentStorage,
+    #[allow(dead_code)] // Reserved for future JS query API
     query_system: QuerySystem,
     gameloop: GameLoop,
 }
@@ -39,8 +40,12 @@ impl Engine {
 
     /// Delete an entity by ID
     pub fn delete_entity(&mut self, entity_id: u32) -> bool {
-        if self.entity_manager.is_alive(EntityId::from_parts(entity_id, 0)) {
-            self.entity_manager.delete_entity(EntityId::from_parts(entity_id, 0))
+        if self
+            .entity_manager
+            .is_alive(EntityId::from_parts(entity_id, 0))
+        {
+            self.entity_manager
+                .delete_entity(EntityId::from_parts(entity_id, 0))
         } else {
             false
         }
@@ -53,7 +58,8 @@ impl Engine {
 
     /// Check if entity is alive
     pub fn is_alive(&self, entity_id: u32) -> bool {
-        self.entity_manager.is_alive(EntityId::from_parts(entity_id, 0))
+        self.entity_manager
+            .is_alive(EntityId::from_parts(entity_id, 0))
     }
 
     // === Component API ===
@@ -120,4 +126,3 @@ impl Engine {
         )
     }
 }
-

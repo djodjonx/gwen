@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use gwen_core::component::{ComponentStorage, ComponentHandle, ComponentTypeId};
+    use gwen_core::component::{ComponentStorage, ComponentHandle};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     struct Position {
@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_add_component() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let pos = Position { x: 1.0, y: 2.0 };
         assert!(pos_handle.add(&mut storage, 0, pos));
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn test_get_component() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let original = Position { x: 1.0, y: 2.0 };
         pos_handle.add(&mut storage, 0, original);
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn test_get_mutable_component() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let original = Position { x: 1.0, y: 2.0 };
         pos_handle.add(&mut storage, 0, original);
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn test_remove_component() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let pos = Position { x: 1.0, y: 2.0 };
         pos_handle.add(&mut storage, 0, pos);
@@ -88,8 +88,8 @@ mod tests {
     #[test]
     fn test_multiple_component_types() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
-        let mut vel_handle = ComponentHandle::<Velocity>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let vel_handle = ComponentHandle::<Velocity>::new(&mut storage);
 
         let pos = Position { x: 1.0, y: 2.0 };
         let vel = Velocity { vx: 3.0, vy: 4.0 };
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_multiple_entities_same_type() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let pos0 = Position { x: 0.0, y: 0.0 };
         let pos1 = Position { x: 1.0, y: 1.0 };
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_cannot_add_duplicate() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let pos = Position { x: 1.0, y: 2.0 };
         assert!(pos_handle.add(&mut storage, 0, pos));
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_add_1k_components() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         let start = std::time::Instant::now();
         for i in 0..1000 {
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn test_get_1k_components() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         for i in 0..1000 {
             let pos = Position { x: i as f32, y: i as f32 };
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_remove_1k_components() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         for i in 0..1000 {
             let pos = Position { x: i as f32, y: i as f32 };
@@ -200,9 +200,9 @@ mod tests {
     #[test]
     fn test_three_component_types() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
-        let mut vel_handle = ComponentHandle::<Velocity>::new(&mut storage);
-        let mut health_handle = ComponentHandle::<Health>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let vel_handle = ComponentHandle::<Velocity>::new(&mut storage);
+        let health_handle = ComponentHandle::<Health>::new(&mut storage);
 
         // Entity 0: has Position, Velocity
         let pos0 = Position { x: 1.0, y: 2.0 };
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_mixed_operations() {
         let mut storage = ComponentStorage::new();
-        let mut pos_handle = ComponentHandle::<Position>::new(&mut storage);
+        let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         // Add 100
         for i in 0..100 {

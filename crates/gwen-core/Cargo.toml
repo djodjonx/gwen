@@ -16,10 +16,3 @@ web-sys = { version = "0.3.64", features = [
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
-
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-strip = true
-

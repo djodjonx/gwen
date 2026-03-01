@@ -1,7 +1,7 @@
 //! Transform component - Hierarchical entity transforms
 
 use crate::entity::EntityId;
-use crate::transform_math::{Vec2, Mat3};
+use crate::transform_math::{Mat3, Vec2};
 use std::collections::HashMap;
 
 /// 2D Transform component for entities
@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct Transform {
     // Local transform (relative to parent)
     pub position: Vec2,
-    pub rotation: f32,      // radians
+    pub rotation: f32, // radians
     pub scale: Vec2,
 
     // Cached world transform
@@ -166,8 +166,8 @@ impl Transform {
         let m = self.world_matrix.as_array();
         self.world_rotation = (m[3]).atan2(m[0]);
         self.world_scale = Vec2::new(
-            ((m[0] * m[0] + m[3] * m[3]).sqrt()),
-            ((m[1] * m[1] + m[4] * m[4]).sqrt()),
+            (m[0] * m[0] + m[3] * m[3]).sqrt(),
+            (m[1] * m[1] + m[4] * m[4]).sqrt(),
         );
 
         self.dirty = false;
@@ -191,6 +191,7 @@ impl Transform {
 pub struct TransformSystem {
     transforms: HashMap<EntityId, Transform>,
     root_entities: Vec<EntityId>,
+    #[allow(dead_code)] // Reserved for future O(1) index lookup
     entity_to_index: HashMap<EntityId, usize>,
     update_order: Vec<EntityId>,
 }
@@ -272,7 +273,7 @@ impl TransformSystem {
         let update_order = self.update_order.clone();
 
         for entity in update_order {
-            let (parent, should_update_as_root) = {
+            let (parent, _should_update_as_root) = {
                 if let Some(transform) = self.transforms.get(&entity) {
                     (transform.parent(), false)
                 } else {
@@ -392,7 +393,10 @@ mod tests {
         let parent = entity(1);
         let child = entity(2);
 
-        ts.add_transform(parent, Transform::new(Vec2::new(10.0, 10.0), 0.0, Vec2::one()));
+        ts.add_transform(
+            parent,
+            Transform::new(Vec2::new(10.0, 10.0), 0.0, Vec2::one()),
+        );
         ts.add_transform(child, Transform::new(Vec2::new(5.0, 5.0), 0.0, Vec2::one()));
 
         ts.set_parent(child, Some(parent));
@@ -455,4 +459,3 @@ mod tests {
         }
     }
 }
-

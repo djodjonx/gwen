@@ -73,10 +73,7 @@ impl EventBus {
     /// Get count of handlers for event type
     pub fn handler_count<E: Event>(&self) -> usize {
         let type_id = TypeId::of::<E>();
-        self.handlers
-            .get(&type_id)
-            .map(|h| h.len())
-            .unwrap_or(0)
+        self.handlers.get(&type_id).map(|h| h.len()).unwrap_or(0)
     }
 
     /// Get count of queued events
@@ -119,6 +116,7 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct OtherEvent {
+        #[allow(dead_code)]
         name: String,
     }
 
@@ -226,7 +224,9 @@ mod tests {
         let mut bus = EventBus::new();
 
         bus.emit(TestEvent { value: 1 });
-        bus.emit(OtherEvent { name: "test".to_string() });
+        bus.emit(OtherEvent {
+            name: "test".to_string(),
+        });
         bus.emit(TestEvent { value: 2 });
 
         assert_eq!(bus.queue_size(), 3);
@@ -235,4 +235,3 @@ mod tests {
         assert_eq!(bus.queue_size(), 0);
     }
 }
-

@@ -1,7 +1,5 @@
 //! Transform math - 2D vectors and matrices
 
-use std::f32::consts::PI;
-
 /// 2D vector
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(C)]
@@ -109,22 +107,14 @@ impl Mat3 {
     /// Identity matrix
     pub fn identity() -> Self {
         Mat3 {
-            m: [
-                1.0, 0.0, 0.0,
-                0.0, 1.0, 0.0,
-                0.0, 0.0, 1.0,
-            ],
+            m: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         }
     }
 
     /// Translation matrix
     pub fn translate(x: f32, y: f32) -> Self {
         Mat3 {
-            m: [
-                1.0, 0.0, x,
-                0.0, 1.0, y,
-                0.0, 0.0, 1.0,
-            ],
+            m: [1.0, 0.0, x, 0.0, 1.0, y, 0.0, 0.0, 1.0],
         }
     }
 
@@ -133,22 +123,14 @@ impl Mat3 {
         let cos = angle.cos();
         let sin = angle.sin();
         Mat3 {
-            m: [
-                cos, -sin, 0.0,
-                sin,  cos, 0.0,
-                0.0,  0.0, 1.0,
-            ],
+            m: [cos, -sin, 0.0, sin, cos, 0.0, 0.0, 0.0, 1.0],
         }
     }
 
     /// Scale matrix
     pub fn scale(sx: f32, sy: f32) -> Self {
         Mat3 {
-            m: [
-                sx,  0.0, 0.0,
-                0.0, sy,  0.0,
-                0.0, 0.0, 1.0,
-            ],
+            m: [sx, 0.0, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 1.0],
         }
     }
 
@@ -156,12 +138,18 @@ impl Mat3 {
     pub fn transform(position: Vec2, rotation: f32, scale: Vec2) -> Self {
         let cos = rotation.cos();
         let sin = rotation.sin();
-        
+
         Mat3 {
             m: [
-                scale.x * cos, -scale.y * sin, position.x,
-                scale.x * sin,  scale.y * cos, position.y,
-                0.0,            0.0,           1.0,
+                scale.x * cos,
+                -scale.y * sin,
+                position.x,
+                scale.x * sin,
+                scale.y * cos,
+                position.y,
+                0.0,
+                0.0,
+                1.0,
             ],
         }
     }
@@ -169,7 +157,7 @@ impl Mat3 {
     /// Multiply two matrices
     pub fn multiply(self, other: Mat3) -> Mat3 {
         let mut result = [0.0; 9];
-        
+
         for i in 0..3 {
             for j in 0..3 {
                 for k in 0..3 {
@@ -177,7 +165,7 @@ impl Mat3 {
                 }
             }
         }
-        
+
         Mat3 { m: result }
     }
 
@@ -291,7 +279,7 @@ mod tests {
         let t = Mat3::translate(10.0, 0.0);
         let s = Mat3::scale(2.0, 2.0);
         let combined = t.multiply(s);
-        
+
         let v = Vec2::new(1.0, 1.0);
         let result = combined.transform_vec2(v);
         assert!((result.x - 12.0).abs() < 0.01);
@@ -303,7 +291,7 @@ mod tests {
         let m = Mat3::translate(5.0, 10.0);
         let inv = m.inverse().unwrap();
         let combined = m.multiply(inv);
-        
+
         let identity = Mat3::identity();
         for i in 0..9 {
             assert!((combined.m[i] - identity.m[i]).abs() < 0.01);
@@ -319,4 +307,3 @@ mod tests {
         assert!((result.y - 22.0).abs() < 0.01);
     }
 }
-

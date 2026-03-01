@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use gwen_core::entity::*;
-    use gwen_core::component::*;
-    use gwen_core::query::*;
     use gwen_core::allocator::*;
+    use gwen_core::component::*;
+    use gwen_core::entity::*;
     use gwen_core::gameloop::*;
+    use gwen_core::query::*;
 
     // === Edge Cases ===
 
@@ -126,13 +126,19 @@ mod tests {
         let mut storage = ComponentStorage::new();
 
         #[derive(Clone, Copy)]
-        struct Position { x: f32, y: f32 }
-
-        impl gwen_core::events::Event for Position {
-            fn as_any(&self) -> &dyn std::any::Any { self }
+        #[allow(dead_code)]
+        struct Position {
+            x: f32,
+            y: f32,
         }
 
-        let mut handle = ComponentHandle::<Position>::new(&mut storage);
+        impl gwen_core::events::Event for Position {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+
+        let handle = ComponentHandle::<Position>::new(&mut storage);
 
         let e = em.create_entity();
         handle.add(&mut storage, e.index(), Position { x: 1.0, y: 2.0 });
@@ -143,12 +149,12 @@ mod tests {
     #[test]
     fn test_multiple_systems_lifecycle() {
         let mut em = EntityManager::new(100);
-        let mut storage = ComponentStorage::new();
-        let mut qs = QuerySystem::new();
+        let _storage = ComponentStorage::new();
+        let _qs = QuerySystem::new();
         let mut loop_obj = GameLoop::new(60);
 
         // Create entity
-        let e = em.create_entity();
+        let _e = em.create_entity();
 
         // Update game loop
         loop_obj.tick(0.016);
@@ -178,10 +184,10 @@ mod tests {
         let mut qs = QuerySystem::new();
 
         // Update archetype
-        qs.update_entity_archetype(0, vec![
-            ComponentTypeId::from_raw(0),
-            ComponentTypeId::from_raw(1),
-        ]);
+        qs.update_entity_archetype(
+            0,
+            vec![ComponentTypeId::from_raw(0), ComponentTypeId::from_raw(1)],
+        );
 
         // Query should find it
         let query = QueryId::new(vec![ComponentTypeId::from_raw(0)]);
@@ -226,18 +232,19 @@ mod tests {
         let mut qs = QuerySystem::new();
 
         // Create entities with different combinations
-        qs.update_entity_archetype(0, vec![
-            ComponentTypeId::from_raw(0),
-            ComponentTypeId::from_raw(1),
-            ComponentTypeId::from_raw(2),
-        ]);
-        qs.update_entity_archetype(1, vec![
-            ComponentTypeId::from_raw(0),
-            ComponentTypeId::from_raw(1),
-        ]);
-        qs.update_entity_archetype(2, vec![
-            ComponentTypeId::from_raw(0),
-        ]);
+        qs.update_entity_archetype(
+            0,
+            vec![
+                ComponentTypeId::from_raw(0),
+                ComponentTypeId::from_raw(1),
+                ComponentTypeId::from_raw(2),
+            ],
+        );
+        qs.update_entity_archetype(
+            1,
+            vec![ComponentTypeId::from_raw(0), ComponentTypeId::from_raw(1)],
+        );
+        qs.update_entity_archetype(2, vec![ComponentTypeId::from_raw(0)]);
 
         // Query for [0, 1]
         let query = QueryId::new(vec![
@@ -254,7 +261,7 @@ mod tests {
     #[test]
     fn test_component_storage_large_entity_set() {
         let mut storage = ComponentStorage::new();
-        let mut handle = ComponentHandle::<u32>::new(&mut storage);
+        let handle = ComponentHandle::<u32>::new(&mut storage);
 
         // Add components to many entities
         for i in 0..5000 {
@@ -300,4 +307,3 @@ mod tests {
         assert!(elapsed.as_millis() < 500);
     }
 }
-
