@@ -1,239 +1,233 @@
 /**
  * WasmBridge tests
  *
- * Ces tests valident le bridge en mode TS-only (WASM inactif) et vérifient
- * que l'Engine intègre correctement le bridge dans sa boucle de jeu.
- *
- * Les tests en mode WASM réel sont couverts par wasm_bindgen_tests.rs.
+ * Le WASM est obligatoire — les méthodes du bridge throw si non initialisé.
+ * Les tests avec mock utilisent _injectMockWasmEngine().
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getWasmBridge,
-  initWasm,
+  _injectMockWasmEngine,
   _resetWasmBridge,
   type WasmBridge,
+  type WasmEngine,
+  type WasmEntityId,
 } from '../src/wasm-bridge';
 import { Engine } from '../src/engine';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Mock helper ───────────────────────────────────────────────────────────────
 
-function freshBridge(): WasmBridge {
-  _resetWasmBridge();
-  return getWasmBridge();
+function createMockEngine(): WasmEngine {
+  return {
+    create_entity: vi.fn((): WasmEntityId => ({ index: 0, generation: 0 })),
+    delete_entity: vi.fn(() => true),
+    is_alive: vi.fn(() => true),
+    count_entities: vi.fn(() => 0),
+    register_component_type: vi.fn(() => 0),
+    add_component: vi.fn(() => true),
+    remove_component: vi.fn(() => true),
+    has_component: vi.fn(() => false),
+    get_component_raw: vi.fn(() => new Uint8Array(0)),
+    update_entity_archetype: vi.fn(),
+    query_entities: vi.fn(() => new Uint32Array(0)),
+    tick: vi.fn(),
+    frame_count: vi.fn(() => BigInt(1)),
+    delta_time: vi.fn(() => 0.016),
+    total_time: vi.fn(() => 1.0),
+    stats: vi.fn(() => '{"entities":0,"frame":1}'),
+  };
 }
 
-// ── Mode TS-only (WASM inactif) ───────────────────────────────────────────────
+// ── Sans WASM (non initialisé) ────────────────────────────────────────────────
 
-describe('WasmBridge — TS-only mode (no WASM loaded)', () => {
+describe('WasmBridge — non initialisé', () => {
+  beforeEach(() => _resetWasmBridge());
+
+  it('isActive() returns false', () => {
+    expect(getWasmBridge().isActive()).toBe(false);
+  });
+
+  it('engine() throws', () => {
+    expect(() => getWasmBridge().engine()).toThrow('WASM');
+  });
+
+  it('createEntity() throws', () => {
+    expect(() => getWasmBridge().createEntity()).toThrow('WASM');
+  });
+
+  it('deleteEntity() throws', () => {
+    expect(() => getWasmBridge().deleteEntity(0, 0)).toThrow('WASM');
+  });
+
+  it('isAlive() throws', () => {
+    expect(() => getWasmBridge().isAlive(0, 0)).toThrow('WASM');
+  });
+
+  it('countEntities() throws', () => {
+    expect(() => getWasmBridge().countEntities()).toThrow('WASM');
+  });
+
+  it('registerComponentType() throws', () => {
+    expect(() => getWasmBridge().registerComponentType()).toThrow('WASM');
+  });
+
+  it('addComponent() throws', () => {
+    expect(() => getWasmBridge().addComponent(0, 0, 0, new Uint8Array(4))).toThrow('WASM');
+  });
+
+  it('tick() throws', () => {
+    expect(() => getWasmBridge().tick(16)).toThrow('WASM');
+  });
+
+  it('stats() throws', () => {
+    expect(() => getWasmBridge().stats()).toThrow('WASM');
+  });
+});
+
+// ── Avec mock injecté ─────────────────────────────────────────────────────────
+
+describe('WasmBridge — avec mock injecté', () => {
   let bridge: WasmBridge;
+  let mock: WasmEngine;
 
   beforeEach(() => {
-    bridge = freshBridge();
+    _resetWasmBridge();
+    mock = createMockEngine();
+    _injectMockWasmEngine(mock);
+    bridge = getWasmBridge();
   });
 
-  it('isActive() returns false when WASM is not loaded', () => {
-    expect(bridge.isActive()).toBe(false);
+  afterEach(() => _resetWasmBridge());
+
+  it('isActive() returns true', () => {
+    expect(bridge.isActive()).toBe(true);
   });
 
-  it('engine() returns null', () => {
-    expect(bridge.engine()).toBeNull();
+  it('engine() returns the mock', () => {
+    expect(bridge.engine()).toBe(mock);
   });
 
-  it('createEntity() returns null', () => {
-    expect(bridge.createEntity()).toBeNull();
+  it('createEntity() delegates to mock', () => {
+    const id = bridge.createEntity();
+    expect(mock.create_entity).toHaveBeenCalled();
+    expect(id).toEqual({ index: 0, generation: 0 });
   });
 
-  it('deleteEntity() returns false', () => {
-    expect(bridge.deleteEntity(0, 0)).toBe(false);
+  it('deleteEntity() delegates to mock', () => {
+    bridge.deleteEntity(0, 0);
+    expect(mock.delete_entity).toHaveBeenCalledWith(0, 0);
   });
 
-  it('isAlive() returns false', () => {
-    expect(bridge.isAlive(0, 0)).toBe(false);
+  it('isAlive() delegates to mock', () => {
+    bridge.isAlive(0, 0);
+    expect(mock.is_alive).toHaveBeenCalledWith(0, 0);
   });
 
-  it('countEntities() returns 0', () => {
-    expect(bridge.countEntities()).toBe(0);
+  it('registerComponentType() delegates to mock', () => {
+    const id = bridge.registerComponentType();
+    expect(mock.register_component_type).toHaveBeenCalled();
+    expect(id).toBe(0);
   });
 
-  it('registerComponentType() returns null', () => {
-    expect(bridge.registerComponentType()).toBeNull();
+  it('addComponent() delegates to mock', () => {
+    const data = new Uint8Array([1, 2, 3]);
+    bridge.addComponent(0, 0, 1, data);
+    expect(mock.add_component).toHaveBeenCalledWith(0, 0, 1, data);
   });
 
-  it('addComponent() returns false', () => {
-    expect(bridge.addComponent(0, 0, 0, new Uint8Array(4))).toBe(false);
+  it('removeComponent() delegates to mock', () => {
+    bridge.removeComponent(0, 0, 1);
+    expect(mock.remove_component).toHaveBeenCalledWith(0, 0, 1);
   });
 
-  it('removeComponent() returns false', () => {
-    expect(bridge.removeComponent(0, 0, 0)).toBe(false);
+  it('hasComponent() delegates to mock', () => {
+    bridge.hasComponent(0, 0, 1);
+    expect(mock.has_component).toHaveBeenCalledWith(0, 0, 1);
   });
 
-  it('hasComponent() returns false', () => {
-    expect(bridge.hasComponent(0, 0, 0)).toBe(false);
+  it('getComponentRaw() delegates to mock', () => {
+    bridge.getComponentRaw(0, 0, 1);
+    expect(mock.get_component_raw).toHaveBeenCalledWith(0, 0, 1);
   });
 
-  it('getComponentRaw() returns empty Uint8Array', () => {
-    const raw = bridge.getComponentRaw(0, 0, 0);
-    expect(raw).toBeInstanceOf(Uint8Array);
-    expect(raw.length).toBe(0);
+  it('updateEntityArchetype() passes Uint32Array to mock', () => {
+    bridge.updateEntityArchetype(0, [1, 2, 3]);
+    expect(mock.update_entity_archetype).toHaveBeenCalledWith(0, new Uint32Array([1, 2, 3]));
   });
 
-  it('updateEntityArchetype() is a no-op', () => {
-    expect(() => bridge.updateEntityArchetype(0, [0, 1])).not.toThrow();
+  it('queryEntities() returns array from mock', () => {
+    (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(new Uint32Array([0, 1, 2]));
+    const result = bridge.queryEntities([0]);
+    expect(result).toEqual([0, 1, 2]);
   });
 
-  it('queryEntities() returns empty array', () => {
-    expect(bridge.queryEntities([0, 1])).toEqual([]);
+  it('tick() delegates to mock', () => {
+    bridge.tick(16.5);
+    expect(mock.tick).toHaveBeenCalledWith(16.5);
   });
 
-  it('tick() is a no-op', () => {
-    expect(() => bridge.tick(16)).not.toThrow();
-  });
-
-  it('stats() returns null', () => {
-    expect(bridge.stats()).toBeNull();
+  it('stats() returns mock stats string', () => {
+    const s = bridge.stats();
+    expect(s).toBe('{"entities":0,"frame":1}');
   });
 });
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 
 describe('WasmBridge — singleton', () => {
-  it('getWasmBridge() always returns the same instance', () => {
+  it('getWasmBridge() toujours la même instance', () => {
     _resetWasmBridge();
     const a = getWasmBridge();
     const b = getWasmBridge();
     expect(a).toBe(b);
   });
 
-  it('_resetWasmBridge() sets bridge back to inactive', async () => {
+  it('_resetWasmBridge() remet isActive() à false', () => {
+    _injectMockWasmEngine(createMockEngine());
+    expect(getWasmBridge().isActive()).toBe(true);
     _resetWasmBridge();
     expect(getWasmBridge().isActive()).toBe(false);
   });
 });
 
-// ── initWasm graceful failure ─────────────────────────────────────────────────
-
-describe('initWasm — graceful failure', () => {
-  beforeEach(() => _resetWasmBridge());
-
-  it('returns false when URL is invalid', async () => {
-    const result = await initWasm('/non-existent/gwen_core.js');
-    expect(result).toBe(false);
-    expect(getWasmBridge().isActive()).toBe(false);
-  });
-
-  it('bridge stays in TS-only mode after failed init', async () => {
-    await initWasm('/bad-url.js');
-    const bridge = getWasmBridge();
-    // All operations should still work safely (no throw)
-    expect(() => bridge.createEntity()).not.toThrow();
-    expect(() => bridge.tick(16)).not.toThrow();
-    expect(() => bridge.queryEntities([0])).not.toThrow();
-  });
-
-  it('de-duplicates concurrent initWasm calls', async () => {
-    _resetWasmBridge();
-    const [r1, r2, r3] = await Promise.all([
-      initWasm('/bad.js'),
-      initWasm('/bad.js'),
-      initWasm('/bad.js'),
-    ]);
-    expect(r1).toBe(false);
-    expect(r2).toBe(false);
-    expect(r3).toBe(false);
-  });
-});
-
-// ── Intégration dans Engine ───────────────────────────────────────────────────
+// ── Intégration Engine ────────────────────────────────────────────────────────
 
 describe('Engine — WASM bridge integration', () => {
-  beforeEach(() => _resetWasmBridge());
+  beforeEach(() => {
+    _resetWasmBridge();
+    _injectMockWasmEngine(createMockEngine());
+  });
+  afterEach(() => _resetWasmBridge());
 
-  it('getWasmBridge() is accessible from Engine instance', () => {
+  it('getWasmBridge() accessible depuis Engine', () => {
     const engine = new Engine({ maxEntities: 100 });
     expect(engine.getWasmBridge()).toBe(getWasmBridge());
+    engine.stop();
   });
 
-  it('getStats() includes wasmActive: false when WASM not loaded', () => {
+  it('getStats() wasmActive: true avec mock', () => {
     const engine = new Engine({ maxEntities: 100 });
-    const stats = engine.getStats();
-    expect(stats.wasmActive).toBe(false);
-    expect(stats.wasmStats).toBeNull();
+    expect(engine.getStats().wasmActive).toBe(true);
+    engine.stop();
   });
 
-  it('Engine tick does not throw when WASM is inactive', () => {
-    // We can't call start() in a test env (no requestAnimationFrame),
-    // but we can verify the bridge tick path doesn't break anything
+  it('start() throw si WASM non initialisé', () => {
+    _resetWasmBridge();
     const engine = new Engine({ maxEntities: 100 });
-    const bridge = engine.getWasmBridge();
-    expect(() => bridge.tick(16)).not.toThrow();
+    expect(() => engine.start()).toThrow('WASM');
+    engine.stop();
   });
 
-  it('Engine with WASM bridge mock — tick is forwarded', () => {
+  it('bridge tick est appelé à chaque tick engine (via mock tick)', () => {
+    const mock = createMockEngine();
     _resetWasmBridge();
-    const bridge = getWasmBridge();
-
-    // Inject a mock WASM engine via the internal state
-    const mockTick = vi.fn();
-    const mockEngine = {
-      create_entity: vi.fn(() => ({ index: 0, generation: 0 })),
-      delete_entity: vi.fn(() => true),
-      is_alive: vi.fn(() => true),
-      count_entities: vi.fn(() => 0),
-      register_component_type: vi.fn(() => 0),
-      add_component: vi.fn(() => true),
-      remove_component: vi.fn(() => true),
-      has_component: vi.fn(() => false),
-      get_component_raw: vi.fn(() => new Uint8Array(0)),
-      update_entity_archetype: vi.fn(),
-      query_entities: vi.fn(() => new Uint32Array(0)),
-      tick: mockTick,
-      frame_count: vi.fn(() => BigInt(1)),
-      delta_time: vi.fn(() => 0.016),
-      total_time: vi.fn(() => 1.0),
-      stats: vi.fn(() => '{"entities":0,"frame":1,"elapsed":1.000}'),
-    };
-
-    // Inject mock via module internals (test-only)
-    (bridge as any)._injectMockEngine = undefined; // not available, use side channel
-
-    // Instead test the bridge methods directly with mock
-    // (full WASM integration is tested via wasm_bindgen_tests.rs)
-    expect(bridge.isActive()).toBe(false); // still inactive without real WASM
-  });
-
-  it('getStats() wasmStats is a JSON string when WASM active (mock)', () => {
-    // Simulate an active bridge via a manually wired mock
-    const mockStats = '{"entities":5,"frame":10,"elapsed":0.160}';
-    const bridge = getWasmBridge() as any;
-
-    // Temporarily inject a mock engine
-    (globalThis as any).__gwenMockEngine = {
-      stats: () => mockStats,
-      tick: vi.fn(),
-    };
-
-    // Verify null path works (no WASM)
-    expect(bridge.stats()).toBeNull();
-
-    // Clean up
-    delete (globalThis as any).__gwenMockEngine;
-  });
-});
-
-// ── WasmEntityId ──────────────────────────────────────────────────────────────
-
-describe('WasmEntityId contract', () => {
-  it('bridge returns null for createEntity() in TS-only mode', () => {
-    _resetWasmBridge();
-    const id = getWasmBridge().createEntity();
-    expect(id).toBeNull();
-  });
-
-  it('bridge stale-ID: deleteEntity with wrong generation returns false', () => {
-    _resetWasmBridge();
-    // In TS-only mode this returns false — stale ID never accepted
-    expect(getWasmBridge().deleteEntity(0, 999)).toBe(false);
+    _injectMockWasmEngine(mock);
+    const engine = new Engine({ maxEntities: 100 });
+    // On simule un tick interne
+    (engine as any).tick(performance.now());
+    expect(mock.tick).toHaveBeenCalled();
+    engine.stop();
   });
 });
 

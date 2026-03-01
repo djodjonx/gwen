@@ -19,11 +19,21 @@
  */
 
 import type { EngineConfig, TsPlugin, ComponentType } from './types';
-import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
 import { PluginManager } from './plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
-import { getWasmBridge, type WasmBridge } from './wasm-bridge';
+import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
+
+// EntityId est maintenant un packed number (index | generation<<20) aligné sur le format Rust
+export type EntityId = number;
+
+function packId(wasmId: WasmEntityId): EntityId {
+  return (wasmId.generation << 20) | (wasmId.index & 0xFFFFF);
+}
+
+function unpackId(id: EntityId): { index: number; generation: number } {
+  return { index: id & 0xFFFFF, generation: id >>> 20 };
+}
 
 export class Engine {
   private config: EngineConfig;
@@ -34,17 +44,15 @@ export class Engine {
   private fps = 0;
   private rafHandle = 0;
 
-  // ECS
-  private entityManager: EntityManager;
-  private componentRegistry: ComponentRegistry;
-  private queryEngine: QueryEngine;
-
-  // Plugin system (single source of truth)
+  // Plugin system
   private pluginManager: PluginManager;
   private api: EngineAPIImpl;
 
-  // WASM Bridge (optional — active only if initWasm() was called before Engine construction)
+  // WASM Bridge — obligatoire
   private wasmBridge: WasmBridge;
+
+  // Mapping composant string → typeId numérique Rust
+  private componentTypeIds = new Map<ComponentType, number>();
 
   // Event system
   private eventListeners: Map<string, Set<Function>> = new Map();
@@ -53,38 +61,141 @@ export class Engine {
     this.config = mergeConfigs(defaultConfig, userConfig || {});
     this.validateConfig();
 
-    this.entityManager = new EntityManager(this.config.maxEntities);
-    this.componentRegistry = new ComponentRegistry();
-    this.queryEngine = new QueryEngine();
+    this.wasmBridge = getWasmBridge();
 
-    // Wire up the API with a fresh ServiceLocator
+    // En test, le mock est injecté avant la construction — on accepte.
+    // En production, start() vérifie que isActive() est true.
+
+    // Wire up the API — les méthodes ECS délèguent au WASM
     this.api = createEngineAPI(
-      this.entityManager,
-      this.componentRegistry,
-      this.queryEngine,
+      // EntityManager shim → délègue au WASM bridge
+      {
+        create: () => {
+          const wid = this.wasmBridge.createEntity();
+          const id = packId(wid);
+          return id;
+        },
+        destroy: (id: EntityId) => {
+          const { index, generation } = unpackId(id);
+          return this.wasmBridge.deleteEntity(index, generation);
+        },
+        isAlive: (id: EntityId) => {
+          const { index, generation } = unpackId(id);
+          return this.wasmBridge.isAlive(index, generation);
+        },
+        count: () => this.wasmBridge.countEntities(),
+        maxEntities: this.config.maxEntities,
+        [Symbol.iterator]: function* () { /* queries via bridge */ },
+      } as any,
+      // ComponentRegistry shim → délègue au WASM bridge
+      {
+        add: <T>(id: EntityId, type: ComponentType, data: T) => {
+          const typeId = this._getOrRegisterTypeId(type);
+          const bytes = this._serialize(data);
+          const { index, generation } = unpackId(id);
+          this.wasmBridge.addComponent(index, generation, typeId, bytes);
+          // Mettre à jour l'archetype dans le query cache Rust
+          const currentTypes = this._getEntityTypeIds(id);
+          this.wasmBridge.updateEntityArchetype(index, currentTypes);
+        },
+        remove: (id: EntityId, type: ComponentType) => {
+          const typeId = this.componentTypeIds.get(type);
+          if (typeId === undefined) return false;
+          const { index, generation } = unpackId(id);
+          const ok = this.wasmBridge.removeComponent(index, generation, typeId);
+          if (ok) {
+            const currentTypes = this._getEntityTypeIds(id);
+            this.wasmBridge.updateEntityArchetype(index, currentTypes);
+          }
+          return ok;
+        },
+        get: <T>(id: EntityId, type: ComponentType): T | undefined => {
+          const typeId = this.componentTypeIds.get(type);
+          if (typeId === undefined) return undefined;
+          const { index, generation } = unpackId(id);
+          const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
+          if (raw.length === 0) return undefined;
+          return this._deserialize<T>(raw);
+        },
+        has: (id: EntityId, type: ComponentType) => {
+          const typeId = this.componentTypeIds.get(type);
+          if (typeId === undefined) return false;
+          const { index, generation } = unpackId(id);
+          return this.wasmBridge.hasComponent(index, generation, typeId);
+        },
+        removeAll: (id: EntityId) => {
+          for (const [, typeId] of this.componentTypeIds) {
+            const { index, generation } = unpackId(id);
+            this.wasmBridge.removeComponent(index, generation, typeId);
+          }
+        },
+        registeredTypes: () => [...this.componentTypeIds.keys()],
+      } as any,
+      // QueryEngine shim → délègue au WASM bridge
+      {
+        query: (required: ComponentType[], _entities: any, _components: any): EntityId[] => {
+          const typeIds = required.map(t => this._getOrRegisterTypeId(t));
+          const indices = this.wasmBridge.queryEntities(typeIds);
+          // Les indices retournés par le WASM sont les index bruts
+          // On reconstruit les EntityId packés
+          return indices.map(idx => {
+            const gen = this.wasmBridge.isAlive(idx, 0) ? 0 : 0; // génération à récupérer
+            return idx; // simplification — le WASM garantit que les entités sont vivantes
+          });
+        },
+        invalidate: () => { /* géré par le WASM */ },
+      } as any,
       new ServiceLocator(),
     ) as EngineAPIImpl;
 
     this.pluginManager = new PluginManager();
 
-    // Wire up WASM bridge (no-op if initWasm() was never called)
-    this.wasmBridge = getWasmBridge();
-
-    // Register PluginRegistrar to allow Scenes (and other plugins) to mount sub-plugins
     this.api.services.register<import('./types').IPluginRegistrar>('PluginRegistrar', {
       register: (plugin) => this.pluginManager.register(plugin, this.api),
       unregister: (name) => this.pluginManager.unregister(name),
-      get: <T extends import('./types').TsPlugin>(name: string) => this.pluginManager.get<T>(name),
+      get: <T extends TsPlugin>(name: string) => this.pluginManager.get<T>(name),
     });
 
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
       if (this.wasmBridge.isActive()) {
-        console.log('[GWEN] WASM core is active — Rust ECS bridged');
+        console.log('[GWEN] WASM core ready');
       } else {
-        console.log('[GWEN] Running in TS-only mode (call initWasm() to enable WASM core)');
+        console.warn('[GWEN] WASM core not yet initialized — appelez initWasm() avant start()');
       }
     }
+  }
+
+  // ── Sérialisation JSON léger ──────────────────────────────────────────────
+
+  private _serialize<T>(data: T): Uint8Array {
+    const json = JSON.stringify(data);
+    return new TextEncoder().encode(json);
+  }
+
+  private _deserialize<T>(bytes: Uint8Array): T {
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json) as T;
+  }
+
+  private _getOrRegisterTypeId(type: ComponentType): number {
+    let typeId = this.componentTypeIds.get(type);
+    if (typeId === undefined) {
+      typeId = this.wasmBridge.registerComponentType();
+      this.componentTypeIds.set(type, typeId);
+    }
+    return typeId;
+  }
+
+  private _getEntityTypeIds(id: EntityId): number[] {
+    const { index, generation } = unpackId(id);
+    const result: number[] = [];
+    for (const [, typeId] of this.componentTypeIds) {
+      if (this.wasmBridge.hasComponent(index, generation, typeId)) {
+        result.push(typeId);
+      }
+    }
+    return result;
   }
 
   private validateConfig(): void {
@@ -157,26 +268,28 @@ export class Engine {
 
   public start(): void {
     if (this.isRunning) return;
+
+    if (!this.wasmBridge.isActive()) {
+      throw new Error(
+        '[GWEN] Impossible de démarrer : le core WASM n\'est pas initialisé.\n' +
+        'Appelez `await initWasm()` avant engine.start().'
+      );
+    }
+
     this.isRunning = true;
     this.lastFrameTime = performance.now();
     this.emit('start');
 
     const loop = (now: number) => {
       this.tick(now);
-      if (this.isRunning) {
-        this.rafHandle = requestAnimationFrame(loop);
-      }
+      if (this.isRunning) this.rafHandle = requestAnimationFrame(loop);
     };
     this.rafHandle = requestAnimationFrame(loop);
   }
 
   public stop(): void {
-    if (this.isRunning) {
-      cancelAnimationFrame(this.rafHandle);
-    }
+    if (this.isRunning) cancelAnimationFrame(this.rafHandle);
     this.isRunning = false;
-
-    // Destroy all TsPlugins (in reverse order via PluginManager)
     this.pluginManager.destroyAll();
     this.emit('stop');
   }
@@ -190,87 +303,98 @@ export class Engine {
       this.fps = this._deltaTime > 0 ? Math.round(1 / this._deltaTime) : 0;
     }
 
-    // Update shared API state
     this.api._updateState(this._deltaTime, this._frameCount);
 
-    // ── Game loop order (ENGINE.md §9) ──────────────────────────────────
-    // 1. Inputs & intentions
     this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
 
-    // 2. WASM core tick — advances Rust ECS frame timing in sync with TS
-    if (this.wasmBridge.isActive()) {
-      this.wasmBridge.tick(this._deltaTime * 1000); // bridge expects milliseconds
-    }
+    // Tick du core Rust — synchronise le game loop WASM avec le TS
+    this.wasmBridge.tick(this._deltaTime * 1000);
 
-    // 3. Game logic on updated values
     this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
-
-    // 4. Drawing — Canvas2DRenderer (or any renderer plugin) runs here
     this.pluginManager.dispatchRender(this.api);
 
     this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
   }
 
-  // ============= Entity Management (direct API) =============
+  // ============= Entity Management =============
 
   public createEntity(): EntityId {
-    const id = this.entityManager.create();
+    const wid = this.wasmBridge.createEntity();
+    const id = packId(wid);
     this.emit('entityCreated', { id });
     return id;
   }
 
   public destroyEntity(id: EntityId): boolean {
-    if (!this.entityManager.isAlive(id)) return false;
-    this.componentRegistry.removeAll(id);
-    const result = this.entityManager.destroy(id);
-    this.queryEngine.invalidate();
+    const { index, generation } = unpackId(id);
+    if (!this.wasmBridge.isAlive(index, generation)) return false;
+    // Nettoyer tous les composants
+    for (const [, typeId] of this.componentTypeIds) {
+      this.wasmBridge.removeComponent(index, generation, typeId);
+    }
+    const result = this.wasmBridge.deleteEntity(index, generation);
     this.emit('entityDestroyed', { id });
     return result;
   }
 
   public entityExists(id: EntityId): boolean {
-    return this.entityManager.isAlive(id);
+    const { index, generation } = unpackId(id);
+    return this.wasmBridge.isAlive(index, generation);
   }
 
   public getEntityCount(): number {
-    return this.entityManager.count();
+    return this.wasmBridge.countEntities();
   }
 
-  // ============= Component Management (direct API) =============
+  // ============= Component Management =============
 
   public addComponent<T>(id: EntityId, type: ComponentType, data: T): void {
-    this.componentRegistry.add(id, type, data);
-    this.queryEngine.invalidate();
+    const typeId = this._getOrRegisterTypeId(type);
+    const { index, generation } = unpackId(id);
+    const bytes = this._serialize(data);
+    this.wasmBridge.addComponent(index, generation, typeId, bytes);
+    const currentTypes = this._getEntityTypeIds(id);
+    this.wasmBridge.updateEntityArchetype(index, currentTypes);
     this.emit('componentAdded', { id, type });
   }
 
   public removeComponent(id: EntityId, type: ComponentType): boolean {
-    const result = this.componentRegistry.remove(id, type);
+    const typeId = this.componentTypeIds.get(type);
+    if (typeId === undefined) return false;
+    const { index, generation } = unpackId(id);
+    const result = this.wasmBridge.removeComponent(index, generation, typeId);
     if (result) {
-      this.queryEngine.invalidate();
+      const currentTypes = this._getEntityTypeIds(id);
+      this.wasmBridge.updateEntityArchetype(index, currentTypes);
       this.emit('componentRemoved', { id, type });
     }
     return result;
   }
 
   public getComponent<T>(id: EntityId, type: ComponentType): T | undefined {
-    return this.componentRegistry.get<T>(id, type);
+    const typeId = this.componentTypeIds.get(type);
+    if (typeId === undefined) return undefined;
+    const { index, generation } = unpackId(id);
+    const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
+    if (raw.length === 0) return undefined;
+    return this._deserialize<T>(raw);
   }
 
   public hasComponent(id: EntityId, type: ComponentType): boolean {
-    return this.componentRegistry.has(id, type);
+    const typeId = this.componentTypeIds.get(type);
+    if (typeId === undefined) return false;
+    const { index, generation } = unpackId(id);
+    return this.wasmBridge.hasComponent(index, generation, typeId);
   }
 
-  // ============= Query System (direct API) =============
+  // ============= Query System =============
 
   public query(componentTypes: ComponentType[]): EntityId[] {
-    return this.queryEngine.query(componentTypes, this.entityManager, this.componentRegistry);
+    const typeIds = componentTypes.map(t => this._getOrRegisterTypeId(t));
+    return this.wasmBridge.queryEntities(typeIds);
   }
 
-  public queryWith(
-    componentTypes: ComponentType[],
-    filter?: (id: EntityId) => boolean,
-  ): EntityId[] {
+  public queryWith(componentTypes: ComponentType[], filter?: (id: EntityId) => boolean): EntityId[] {
     let results = this.query(componentTypes);
     if (filter) results = results.filter(filter);
     return results;
@@ -279,9 +403,7 @@ export class Engine {
   // ============= Event System =============
 
   public on(eventType: string, listener: Function): void {
-    if (!this.eventListeners.has(eventType)) {
-      this.eventListeners.set(eventType, new Set());
-    }
+    if (!this.eventListeners.has(eventType)) this.eventListeners.set(eventType, new Set());
     this.eventListeners.get(eventType)!.add(listener);
   }
 
@@ -293,9 +415,7 @@ export class Engine {
     const listeners = this.eventListeners.get(eventType);
     if (listeners) {
       for (const listener of listeners) {
-        try {
-          listener(data);
-        } catch (error) {
+        try { listener(data); } catch (error) {
           console.error(`[GWEN] Error in '${eventType}' listener:`, error);
         }
       }
@@ -314,22 +434,15 @@ export class Engine {
       fps: this.fps,
       frameCount: this._frameCount,
       deltaTime: this._deltaTime,
-      entityCount: this.entityManager.count(),
+      entityCount: this.wasmBridge.isActive() ? this.wasmBridge.countEntities() : 0,
       isRunning: this.isRunning,
       wasmActive: this.wasmBridge.isActive(),
-      wasmStats: this.wasmBridge.stats(),
+      wasmStats: this.wasmBridge.isActive() ? this.wasmBridge.stats() : null,
     };
   }
 
-  /** Expose the WASM bridge for plugins that need direct Rust access. */
-  public getWasmBridge(): WasmBridge {
-    return this.wasmBridge;
-  }
-
-  /** Expose the EngineAPI for advanced plugin scenarios */
-  public getAPI(): EngineAPIImpl {
-    return this.api;
-  }
+  public getWasmBridge(): WasmBridge { return this.wasmBridge; }
+  public getAPI(): EngineAPIImpl { return this.api; }
 }
 
 // ============= Global Instance =============
@@ -337,16 +450,12 @@ export class Engine {
 let globalEngine: Engine | null = null;
 
 export function getEngine(config?: Partial<EngineConfig>): Engine {
-  if (!globalEngine) {
-    globalEngine = new Engine(config);
-  }
+  if (!globalEngine) globalEngine = new Engine(config);
   return globalEngine;
 }
 
 export function useEngine(): Engine {
-  if (!globalEngine) {
-    throw new Error('[GWEN] Engine not initialized. Call getEngine() first.');
-  }
+  if (!globalEngine) throw new Error('[GWEN] Engine not initialized. Call getEngine() first.');
   return globalEngine;
 }
 

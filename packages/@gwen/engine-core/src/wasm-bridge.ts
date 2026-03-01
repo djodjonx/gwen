@@ -1,29 +1,17 @@
 /**
  * WASM Bridge — pont entre @gwen/engine-core (TypeScript) et gwen_core.wasm (Rust)
  *
- * Stratégie : chargement optionnel et transparent.
- *  - Si le .wasm est fourni via `initWasm(url)`, le bridge délègue les opérations
- *    ECS intensives au core Rust (entity lifecycle, queries, component CRUD).
- *  - Sinon l'engine fonctionne entièrement en TS pur (mode fallback).
+ * Le cœur Rust/WASM est OBLIGATOIRE. Il n'existe pas de fallback TS.
+ * Appeler `await initWasm()` AVANT de créer l'Engine — une erreur est levée sinon.
  *
- * L'API exposée est identique dans les deux cas — le reste du framework
- * n'a pas besoin de savoir si le WASM est actif ou non.
- *
- * Utilisation :
  * ```typescript
- * import { initWasm, getWasmBridge } from '@gwen/engine-core';
- *
- * await initWasm('/assets/gwen_core.wasm');  // une seule fois au démarrage
- *
- * const bridge = getWasmBridge();
- * if (bridge.isActive()) {
- *   console.log(bridge.stats()); // stats depuis le core Rust
- * }
+ * await initWasm();          // résolution automatique depuis @gwen/engine-core/wasm/
+ * const engine = getEngine();
+ * engine.start();
  * ```
  */
 
 // ── Types du module wasm-bindgen généré ──────────────────────────────────────
-// On importe via un chemin dynamique pour ne pas bloquer si le .wasm est absent.
 
 /** Handle opaque d'une entité Rust (index + generation). */
 export interface WasmEntityId {
@@ -70,12 +58,11 @@ export interface WasmEngine {
 
 let _wasmEngine: WasmEngine | null = null;
 let _wasmModule: GwenCoreWasm | null = null;
-let _initPromise: Promise<boolean> | null = null;
+let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
 
 // URL de base résolue au moment du bundling — pointe vers wasm/ co-publié dans @gwen/engine-core.
 // import.meta.url fonctionne avec Vite, Rollup, esbuild (ESM natif).
-// Null en environnement sans support ESM (ex: Jest CJS legacy).
 const _pkgWasmBase: string | null = (() => {
   try {
     return new URL('../wasm/', import.meta.url).href;
@@ -87,92 +74,71 @@ const _pkgWasmBase: string | null = (() => {
 // ── Initialisation ────────────────────────────────────────────────────────────
 
 /**
- * Charge et initialise le module WASM gwen_core.
+ * Charge et initialise le module WASM gwen_core. **Obligatoire** avant tout
+ * usage de l'Engine.
  *
- * **Sans argument** : résout automatiquement les artefacts depuis le dossier
- * `wasm/` co-publié dans `@gwen/engine-core`. L'utilisateur final n'a pas
- * besoin de connaître les chemins ou d'avoir Rust installé.
+ * **Sans argument** : résout automatiquement depuis `@gwen/engine-core/wasm/`
+ * (artefacts pré-compilés, publiés dans le package — pas besoin de Rust).
  *
  * ```typescript
- * // Usage minimal — zéro configuration
+ * // Usage standard — zéro configuration
  * await initWasm();
  *
- * // Usage explicite (playground dev, chemin custom)
+ * // Usage explicite (chemin custom, CDN, etc.)
  * await initWasm('/wasm/gwen_core.js', '/wasm/gwen_core_bg.wasm');
  * ```
  *
- * Les fichiers wasm-bindgen (.js + .wasm) servis statiquement ne peuvent pas
- * être importés via import() dynamique sous Vite (erreur "file is in /public").
- * On les charge via :
- *   1. Un <script type="module"> injecté dans le DOM pour le glue JS
- *   2. fetch() + WebAssembly pour le .wasm
- *
- * @param jsUrl    URL du glue JS wasm-bindgen. Si omis, résolu depuis le package.
- * @param wasmUrl  URL du binaire .wasm. Si omis, résolu depuis le package.
- * @param maxEntities  Capacité maximale d'entités (défaut: 10 000)
- * @returns `true` si le WASM a été chargé avec succès, `false` sinon
+ * @throws {Error} Si le WASM ne peut pas être chargé.
  */
 export async function initWasm(
   jsUrl?: string,
   wasmUrl?: string,
   maxEntities = 10_000,
-): Promise<boolean> {
-  if (_wasmEngine) return true;
+): Promise<void> {
+  if (_wasmEngine) return;
   if (_initPromise) return _initPromise;
 
   _maxEntities = maxEntities;
 
-  // Résolution automatique depuis le package si pas de chemin fourni
   const resolvedJsUrl = jsUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core.js` : null);
   const resolvedWasmUrl = wasmUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core_bg.wasm` : null);
 
   if (!resolvedJsUrl) {
-    console.warn('[GWEN] initWasm(): impossible de résoudre l\'URL du glue WASM — mode TS-only');
-    _initPromise = Promise.resolve(false);
-    return false;
+    throw new Error(
+      '[GWEN] initWasm(): impossible de résoudre l\'URL du glue WASM.\n' +
+      'Assurez-vous que @gwen/engine-core est correctement installé.'
+    );
   }
 
   _initPromise = (async () => {
-    try {
-      // ── Charger le glue JS wasm-bindgen via un module script tag ──────
-      // On ne peut pas faire import() sur un fichier /public sous Vite,
-      // mais on peut l'injecter comme <script type="module"> et exposer
-      // son export via une promesse sur window.__gwenWasmGlue.
+    const glue = await loadWasmGlue(resolvedJsUrl);
 
-      const glue = await loadWasmGlue(resolvedJsUrl);
+    const wasmInput = resolvedWasmUrl ? fetch(resolvedWasmUrl) : undefined;
 
-      // ── Initialiser le module WASM ─────────────────────────────────────
-      // glue.default est la fonction init() générée par wasm-bindgen.
-      // On lui passe soit l'URL du .wasm soit un fetch() Response.
-      const wasmInput = resolvedWasmUrl
-        ? fetch(resolvedWasmUrl)
-        : undefined;
-
-      if (typeof glue.default === 'function') {
-        await glue.default(wasmInput);
-      } else if (typeof glue.initSync === 'function') {
-        // fallback synchrone (rare)
-        const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
-        glue.initSync(buf);
-      }
-
-      // ── Instancier l'Engine Rust ───────────────────────────────────────
-      if (typeof glue.Engine !== 'function') {
-        throw new Error('[GWEN] wasm glue loaded but Engine class not found');
-      }
-
-      _wasmModule = glue as GwenCoreWasm;
-      _wasmEngine = new glue.Engine(maxEntities);
-
-      console.log('[GWEN] WASM core loaded — Rust ECS active');
-      return true;
-    } catch (err) {
-      console.warn('[GWEN] WASM core unavailable — running in TS-only mode', err);
-      _wasmEngine = null;
-      _wasmModule = null;
-      return false;
+    if (typeof glue.default === 'function') {
+      await glue.default(wasmInput);
+    } else if (typeof glue.initSync === 'function') {
+      const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
+      glue.initSync(buf);
+    } else {
+      throw new Error('[GWEN] Le glue WASM ne contient pas de fonction init() — fichier corrompu ?');
     }
-  })();
+
+    if (typeof glue.Engine !== 'function') {
+      throw new Error('[GWEN] Le glue WASM est chargé mais la classe Engine est introuvable.');
+    }
+
+    _wasmModule = glue as GwenCoreWasm;
+    _wasmEngine = new glue.Engine(maxEntities);
+
+    console.log('[GWEN] WASM core loaded — Rust ECS active');
+  })().catch(err => {
+    // Nettoyer pour permettre une nouvelle tentative
+    _initPromise = null;
+    _wasmEngine = null;
+    _wasmModule = null;
+    throw err;
+  });
 
   return _initPromise;
 }
@@ -180,16 +146,13 @@ export async function initWasm(
 /**
  * Charge un module ES via un <script type="module"> injecté dans le DOM.
  * Contourne la restriction Vite sur import() des fichiers /public.
- * Compatible navigateur et SSR (dans SSR on ne peut pas faire ça — retourne {}).
  */
 async function loadWasmGlue(jsUrl: string): Promise<any> {
-  // Environnement Node / SSR — pas de DOM
   if (typeof document === 'undefined') {
-    throw new Error('[GWEN] WASM requires a browser environment');
+    throw new Error('[GWEN] initWasm() requiert un environnement navigateur (pas de DOM détecté).');
   }
 
   return new Promise<any>((resolve, reject) => {
-    // Clé unique par URL pour éviter les doublons
     const key = `__gwenGlue_${jsUrl.replace(/\W/g, '_')}`;
 
     if ((window as any)[key]) {
@@ -197,7 +160,6 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
       return;
     }
 
-    // Créer un script wrapper qui importe le glue et l'expose sur window
     const blob = new Blob([
       `import * as glue from '${new URL(jsUrl, location.href).href}';`,
       `window['${key}'] = glue;`,
@@ -206,7 +168,6 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
 
     const blobUrl = URL.createObjectURL(blob);
 
-    // Exposer le resolve pour que le script blob puisse l'appeler
     (window as any)[`${key}__resolve`] = () => {
       URL.revokeObjectURL(blobUrl);
       script.remove();
@@ -219,73 +180,58 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
     script.onerror = (e) => {
       URL.revokeObjectURL(blobUrl);
       script.remove();
-      reject(new Error(`[GWEN] Failed to load wasm glue: ${jsUrl} — ${e}`));
+      reject(new Error(`[GWEN] Impossible de charger le glue WASM: ${jsUrl}\n${e}`));
     };
 
     document.head.appendChild(script);
   });
 }
 
-
 // ── Bridge public ─────────────────────────────────────────────────────────────
 
 /**
- * Interface unifiée exposée au reste du framework.
- * Toutes les méthodes sont présentes qu'on soit en mode WASM ou TS pur.
+ * Interface du bridge WASM. Toutes les méthodes lèvent une erreur si
+ * `initWasm()` n'a pas été appelé au préalable.
  */
 export interface WasmBridge {
-  /** True si le core Rust/WASM est actif. */
+  /** True si le core Rust/WASM est initialisé et prêt. */
   isActive(): boolean;
 
-  /** Accès direct au WasmEngine (null si inactif). */
-  engine(): WasmEngine | null;
+  /** Accès direct au WasmEngine Rust. Throw si non initialisé. */
+  engine(): WasmEngine;
 
   // ── Entity ──
-
-  /** Crée une entité. Retourne le WasmEntityId si WASM actif, null sinon. */
-  createEntity(): WasmEntityId | null;
-
-  /** Supprime une entité. Retourne false si stale ou WASM inactif. */
+  createEntity(): WasmEntityId;
   deleteEntity(index: number, generation: number): boolean;
-
-  /** Vérifie si une entité est vivante (stale-ID safe). */
   isAlive(index: number, generation: number): boolean;
-
-  /** Nombre d'entités vivantes dans le core Rust. */
   countEntities(): number;
 
   // ── Component ──
-
-  /** Enregistre un nouveau type de composant. Retourne l'ID numérique. */
-  registerComponentType(): number | null;
-
-  /** Ajoute un composant (bytes) à une entité. */
+  registerComponentType(): number;
   addComponent(index: number, generation: number, typeId: number, data: Uint8Array): boolean;
-
-  /** Supprime un composant d'une entité. */
   removeComponent(index: number, generation: number, typeId: number): boolean;
-
-  /** Vérifie si une entité possède un composant. */
   hasComponent(index: number, generation: number, typeId: number): boolean;
-
-  /** Retourne les bytes bruts d'un composant (vide si absent). */
   getComponentRaw(index: number, generation: number, typeId: number): Uint8Array;
 
   // ── Query ──
-
-  /** Met à jour l'archétype d'une entité dans le query cache Rust. */
   updateEntityArchetype(index: number, typeIds: number[]): void;
-
-  /** Interroge les entités ayant TOUS les typeIds spécifiés. */
   queryEntities(typeIds: number[]): number[];
 
   // ── GameLoop ──
-
-  /** Avance le game loop Rust d'un delta en millisecondes. */
   tick(deltaMs: number): void;
 
-  /** Statistiques JSON du core Rust. */
-  stats(): string | null;
+  // ── Stats ──
+  stats(): string;
+}
+
+function requireWasm(): WasmEngine {
+  if (!_wasmEngine) {
+    throw new Error(
+      '[GWEN] Le core WASM n\'est pas initialisé.\n' +
+      'Appelez `await initWasm()` avant de démarrer l\'Engine.'
+    );
+  }
+  return _wasmEngine;
 }
 
 class WasmBridgeImpl implements WasmBridge {
@@ -293,93 +239,81 @@ class WasmBridgeImpl implements WasmBridge {
     return _wasmEngine !== null;
   }
 
-  engine(): WasmEngine | null {
-    return _wasmEngine;
+  engine(): WasmEngine {
+    return requireWasm();
   }
 
-  // ── Entity ──
-
-  createEntity(): WasmEntityId | null {
-    if (!_wasmEngine) return null;
-    return _wasmEngine.create_entity();
+  createEntity(): WasmEntityId {
+    return requireWasm().create_entity();
   }
 
   deleteEntity(index: number, generation: number): boolean {
-    if (!_wasmEngine) return false;
-    return _wasmEngine.delete_entity(index, generation);
+    return requireWasm().delete_entity(index, generation);
   }
 
   isAlive(index: number, generation: number): boolean {
-    if (!_wasmEngine) return false;
-    return _wasmEngine.is_alive(index, generation);
+    return requireWasm().is_alive(index, generation);
   }
 
   countEntities(): number {
-    if (!_wasmEngine) return 0;
-    return _wasmEngine.count_entities();
+    return requireWasm().count_entities();
   }
 
-  // ── Component ──
-
-  registerComponentType(): number | null {
-    if (!_wasmEngine) return null;
-    return _wasmEngine.register_component_type();
+  registerComponentType(): number {
+    return requireWasm().register_component_type();
   }
 
   addComponent(index: number, generation: number, typeId: number, data: Uint8Array): boolean {
-    if (!_wasmEngine) return false;
-    return _wasmEngine.add_component(index, generation, typeId, data);
+    return requireWasm().add_component(index, generation, typeId, data);
   }
 
   removeComponent(index: number, generation: number, typeId: number): boolean {
-    if (!_wasmEngine) return false;
-    return _wasmEngine.remove_component(index, generation, typeId);
+    return requireWasm().remove_component(index, generation, typeId);
   }
 
   hasComponent(index: number, generation: number, typeId: number): boolean {
-    if (!_wasmEngine) return false;
-    return _wasmEngine.has_component(index, generation, typeId);
+    return requireWasm().has_component(index, generation, typeId);
   }
 
   getComponentRaw(index: number, generation: number, typeId: number): Uint8Array {
-    if (!_wasmEngine) return new Uint8Array(0);
-    return _wasmEngine.get_component_raw(index, generation, typeId);
+    return requireWasm().get_component_raw(index, generation, typeId);
   }
 
-  // ── Query ──
-
   updateEntityArchetype(index: number, typeIds: number[]): void {
-    if (!_wasmEngine) return;
-    _wasmEngine.update_entity_archetype(index, new Uint32Array(typeIds));
+    requireWasm().update_entity_archetype(index, new Uint32Array(typeIds));
   }
 
   queryEntities(typeIds: number[]): number[] {
-    if (!_wasmEngine) return [];
-    const result = _wasmEngine.query_entities(new Uint32Array(typeIds));
-    return Array.from(result);
+    return Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
   }
-
-  // ── GameLoop ──
 
   tick(deltaMs: number): void {
-    _wasmEngine?.tick(deltaMs);
+    requireWasm().tick(deltaMs);
   }
 
-  stats(): string | null {
-    if (!_wasmEngine) return null;
-    return _wasmEngine.stats();
+  stats(): string {
+    return requireWasm().stats();
   }
 }
 
 // Singleton
 const _bridge = new WasmBridgeImpl();
 
-/** Retourne le singleton WasmBridge. Toujours disponible (pas de throw si WASM inactif). */
+/** Retourne le singleton WasmBridge. */
 export function getWasmBridge(): WasmBridge {
   return _bridge;
 }
 
-/** Reset complet — utile pour les tests. */
+/**
+ * Injecte un WasmEngine mock directement — réservé aux tests unitaires.
+ * Permet de tester l'Engine sans navigateur réel.
+ */
+export function _injectMockWasmEngine(mock: WasmEngine): void {
+  _wasmEngine = mock;
+  _initPromise = Promise.resolve();
+}
+
+/** Reset complet — réservé aux tests unitaires. */
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
   _wasmModule = null;

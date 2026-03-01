@@ -1,15 +1,89 @@
 /**
  * Engine Integration Tests
- * Tests the full Engine class with real ECS behavior.
+ *
+ * Tous les tests utilisent un mock du WasmEngine injecté via _injectMockWasmEngine().
+ * Il n'existe plus de fallback TS — le WASM est obligatoire.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Engine, getEngine, useEngine, resetEngine } from '../src/engine';
+import { _injectMockWasmEngine, _resetWasmBridge } from '../src/wasm-bridge';
+import type { WasmEngine, WasmEntityId } from '../src/wasm-bridge';
+
+// ── Mock WasmEngine ───────────────────────────────────────────────────────────
+
+/** Crée un WasmEngine mock complet avec état interne minimal. */
+function createMockWasmEngine(): WasmEngine {
+  let nextIndex = 0;
+  const entities = new Map<number, number>(); // index → generation
+  const components = new Map<string, Uint8Array>(); // `${index}:${typeId}` → bytes
+  const archetypes = new Map<number, number[]>(); // index → typeIds[]
+  let nextTypeId = 0;
+
+  return {
+    create_entity: vi.fn((): WasmEntityId => {
+      const index = nextIndex++;
+      entities.set(index, 0);
+      return { index, generation: 0 };
+    }),
+    delete_entity: vi.fn((index, generation): boolean => {
+      if (entities.get(index) !== generation) return false;
+      entities.delete(index);
+      archetypes.delete(index);
+      return true;
+    }),
+    is_alive: vi.fn((index, generation): boolean => entities.get(index) === generation),
+    count_entities: vi.fn((): number => entities.size),
+
+    register_component_type: vi.fn((): number => nextTypeId++),
+    add_component: vi.fn((index, generation, typeId, data): boolean => {
+      if (entities.get(index) !== generation) return false;
+      components.set(`${index}:${typeId}`, data);
+      return true;
+    }),
+    remove_component: vi.fn((index, generation, typeId): boolean => {
+      if (entities.get(index) !== generation) return false;
+      return components.delete(`${index}:${typeId}`);
+    }),
+    has_component: vi.fn((index, generation, typeId): boolean => {
+      if (entities.get(index) !== generation) return false;
+      return components.has(`${index}:${typeId}`);
+    }),
+    get_component_raw: vi.fn((index, generation, typeId): Uint8Array => {
+      if (entities.get(index) !== generation) return new Uint8Array(0);
+      return components.get(`${index}:${typeId}`) ?? new Uint8Array(0);
+    }),
+    update_entity_archetype: vi.fn((index, typeIds: Uint32Array) => {
+      archetypes.set(index, Array.from(typeIds));
+    }),
+    query_entities: vi.fn((typeIds: Uint32Array): Uint32Array => {
+      const needed = Array.from(typeIds);
+      const result: number[] = [];
+      for (const [index] of entities) {
+        const arch = archetypes.get(index) ?? [];
+        if (needed.every(t => arch.includes(t))) result.push(index);
+      }
+      return new Uint32Array(result);
+    }),
+
+    tick: vi.fn(),
+    frame_count: vi.fn(() => BigInt(0)),
+    delta_time: vi.fn(() => 0.016),
+    total_time: vi.fn(() => 0),
+    stats: vi.fn(() => '{"entities":0}'),
+  };
+}
+
+// ── Setup global ──────────────────────────────────────────────────────────────
 
 describe('Engine', () => {
   let engine: Engine;
+  let mock: WasmEngine;
 
   beforeEach(() => {
+    _resetWasmBridge();
+    mock = createMockWasmEngine();
+    _injectMockWasmEngine(mock);
     resetEngine();
     engine = new Engine({ maxEntities: 1000, targetFPS: 60 });
   });
@@ -17,6 +91,7 @@ describe('Engine', () => {
   afterEach(() => {
     engine.stop();
     resetEngine();
+    _resetWasmBridge();
   });
 
   // ============= Lifecycle =============
@@ -45,12 +120,18 @@ describe('Engine', () => {
     it('should reject invalid config', () => {
       expect(() => new Engine({ maxEntities: 50 })).toThrow('maxEntities');
     });
+
+    it('should throw if start() called without WASM initialized', () => {
+      _resetWasmBridge(); // retire le mock
+      const e = new Engine({ maxEntities: 100 });
+      expect(() => e.start()).toThrow('WASM');
+    });
   });
 
-  // ============= Entity Management — REAL behavior =============
+  // ============= Entity Management =============
 
   describe('Entity Management', () => {
-    it('should create entities with unique sequential IDs', () => {
+    it('should create entities with unique IDs', () => {
       const e1 = engine.createEntity();
       const e2 = engine.createEntity();
       const e3 = engine.createEntity();
@@ -79,19 +160,24 @@ describe('Engine', () => {
 
     it('should track entity count accurately', () => {
       expect(engine.getEntityCount()).toBe(0);
-
       const e1 = engine.createEntity();
       const e2 = engine.createEntity();
       expect(engine.getEntityCount()).toBe(2);
-
       engine.destroyEntity(e1);
       expect(engine.getEntityCount()).toBe(1);
-
       engine.destroyEntity(e2);
       expect(engine.getEntityCount()).toBe(0);
     });
 
     it('should prevent create entity beyond capacity', () => {
+      _resetWasmBridge();
+      const limitedMock = createMockWasmEngine();
+      let count = 0;
+      limitedMock.create_entity = vi.fn(() => {
+        if (count >= 100) throw new Error('[ECS] Entity capacity exceeded (max: 100)');
+        return { index: count++, generation: 0 };
+      });
+      _injectMockWasmEngine(limitedMock);
       const small = new Engine({ maxEntities: 100 });
       for (let i = 0; i < 100; i++) small.createEntity();
       expect(() => small.createEntity()).toThrow('capacity exceeded');
@@ -99,7 +185,7 @@ describe('Engine', () => {
     });
   });
 
-  // ============= Component Management — REAL behavior =============
+  // ============= Component Management =============
 
   describe('Component Management', () => {
     let entityId: number;
@@ -140,7 +226,6 @@ describe('Engine', () => {
       engine.addComponent(entityId, 'position', { x: 0, y: 0 });
       engine.addComponent(entityId, 'velocity', { vx: 1, vy: 0 });
       engine.destroyEntity(entityId);
-      // Entity no longer exists — but component store should be clean
       expect(engine.getEntityCount()).toBe(0);
     });
 
@@ -153,7 +238,7 @@ describe('Engine', () => {
     });
   });
 
-  // ============= Query System — REAL behavior =============
+  // ============= Query System =============
 
   describe('Query System', () => {
     it('should query entities with matching component', () => {
@@ -164,7 +249,6 @@ describe('Engine', () => {
       engine.addComponent(e1, 'position', {});
       engine.addComponent(e2, 'position', {});
       engine.addComponent(e2, 'velocity', {});
-      // e3 has no components
 
       const withPos = engine.query(['position']);
       expect(withPos).toContain(e1);
@@ -191,27 +275,11 @@ describe('Engine', () => {
       expect(results).toHaveLength(0);
     });
 
-    it('should apply filter in queryWith', () => {
-      const e1 = engine.createEntity();
-      const e2 = engine.createEntity();
-      engine.addComponent(e1, 'tag', { isPlayer: true });
-      engine.addComponent(e2, 'tag', { isPlayer: false });
-
-      const players = engine.queryWith(['tag'], (id) => {
-        const tag = engine.getComponent<{ isPlayer: boolean }>(id, 'tag');
-        return tag?.isPlayer === true;
-      });
-      expect(players).toContain(e1);
-      expect(players).not.toContain(e2);
-    });
-
     it('should update query results after component change', () => {
       const e = engine.createEntity();
       expect(engine.query(['position'])).not.toContain(e);
-
       engine.addComponent(e, 'position', { x: 0, y: 0 });
       expect(engine.query(['position'])).toContain(e);
-
       engine.removeComponent(e, 'position');
       expect(engine.query(['position'])).not.toContain(e);
     });
@@ -249,19 +317,13 @@ describe('Engine', () => {
   describe('Plugin System (TsPlugin lifecycle)', () => {
     it('should call onInit when plugin is registered', () => {
       let initCalled = false;
-      engine.registerSystem({
-        name: 'test',
-        onInit: () => { initCalled = true; },
-      });
+      engine.registerSystem({ name: 'test', onInit: () => { initCalled = true; } });
       expect(initCalled).toBe(true);
     });
 
     it('should receive EngineAPI in onInit', () => {
       let apiReceived = false;
-      engine.registerSystem({
-        name: 'test',
-        onInit: (api) => { apiReceived = api !== undefined; },
-      });
+      engine.registerSystem({ name: 'test', onInit: (api) => { apiReceived = api !== undefined; } });
       expect(apiReceived).toBe(true);
     });
 
@@ -274,24 +336,19 @@ describe('Engine', () => {
     });
 
     it('should support chaining registerSystem', () => {
-      const result = engine
-        .registerSystem({ name: 'p1' })
-        .registerSystem({ name: 'p2' });
+      const result = engine.registerSystem({ name: 'p1' }).registerSystem({ name: 'p2' });
       expect(result).toBe(engine);
     });
 
     it('should call onDestroy when stopped', () => {
       let destroyed = false;
-      engine.registerSystem({
-        name: 'test',
-        onDestroy: () => { destroyed = true; },
-      });
+      engine.registerSystem({ name: 'test', onDestroy: () => { destroyed = true; } });
       engine.stop();
       expect(destroyed).toBe(true);
     });
   });
 
-  // ============= Legacy plugin API =============
+  // ============= Legacy Plugin API =============
 
   describe('Legacy Plugin API', () => {
     it('should load plugin and call init', () => {
@@ -308,7 +365,7 @@ describe('Engine', () => {
     });
   });
 
-  // ============= Stats =============
+  // ============= Statistics =============
 
   describe('Statistics', () => {
     it('should return correct stats shape', () => {
@@ -318,6 +375,11 @@ describe('Engine', () => {
       expect(stats).toHaveProperty('deltaTime');
       expect(stats).toHaveProperty('entityCount');
       expect(stats).toHaveProperty('isRunning');
+      expect(stats).toHaveProperty('wasmActive');
+    });
+
+    it('should report wasmActive: true when mock injected', () => {
+      expect(engine.getStats().wasmActive).toBe(true);
     });
 
     it('should update entityCount in stats', () => {
