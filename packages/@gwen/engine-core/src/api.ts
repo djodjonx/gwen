@@ -1,0 +1,147 @@
+/**
+ * EngineAPI & ServiceLocator
+ *
+ * Exposes ECS operations and service injection to TsPlugins.
+ * This module can be used independently for advanced plugin scenarios.
+ *
+ * Architecture (ENGINE.md §5):
+ *  - Pure DI (constructor): preferred for testable plugins
+ *  - ServiceLocator (api.services): for runtime cross-plugin communication
+ *    Rule: resolve services only in onInit(), never in onUpdate()
+ */
+
+import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType } from './types';
+import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
+
+// ============= ServiceLocator =============
+
+export class ServiceLocator implements IServiceLocator {
+  private registry = new Map<string, unknown>();
+
+  register<T>(name: string, instance: T): void {
+    if (this.registry.has(name)) {
+      console.warn(`[GWEN:ServiceLocator] '${name}' already registered — overwriting.`);
+    }
+    this.registry.set(name, instance);
+  }
+
+  get<T>(name: string): T {
+    if (!this.registry.has(name)) {
+      throw new Error(
+        `[GWEN:ServiceLocator] Service '${name}' not found. ` +
+        `Available: [${[...this.registry.keys()].join(', ')}]`
+      );
+    }
+    return this.registry.get(name) as T;
+  }
+
+  has(name: string): boolean {
+    return this.registry.has(name);
+  }
+
+  /** List all registered service names (debug / introspection). */
+  list(): string[] {
+    return [...this.registry.keys()];
+  }
+
+  /** Remove a service (useful for hot-reload scenarios). */
+  unregister(name: string): boolean {
+    return this.registry.delete(name);
+  }
+}
+
+// ============= EngineAPI Implementation =============
+
+export interface EngineState {
+  deltaTime: number;
+  frameCount: number;
+}
+
+/**
+ * Concrete implementation of EngineAPI.
+ * Wraps the internal ECS and exposes a clean surface to plugins.
+ */
+export class EngineAPIImpl implements EngineAPI {
+  readonly services: IServiceLocator;
+
+  constructor(
+    private entityManager: EntityManager,
+    private components: ComponentRegistry,
+    private queryEngine: QueryEngine,
+    services: IServiceLocator,
+    private state: EngineState,
+  ) {
+    this.services = services;
+  }
+
+  get deltaTime(): number {
+    return this.state.deltaTime;
+  }
+
+  get frameCount(): number {
+    return this.state.frameCount;
+  }
+
+  // ── Entity operations ──────────────────────────────────────────────────
+
+  createEntity(): EntityId {
+    return this.entityManager.create();
+  }
+
+  destroyEntity(id: EntityId): boolean {
+    if (!this.entityManager.isAlive(id)) return false;
+    this.components.removeAll(id);
+    const result = this.entityManager.destroy(id);
+    this.queryEngine.invalidate();
+    return result;
+  }
+
+  // ── Component operations ───────────────────────────────────────────────
+
+  addComponent<T>(id: EntityId, type: ComponentType, data: T): void {
+    this.components.add(id, type, data);
+    this.queryEngine.invalidate();
+  }
+
+  getComponent<T>(id: EntityId, type: ComponentType): T | undefined {
+    return this.components.get<T>(id, type);
+  }
+
+  hasComponent(id: EntityId, type: ComponentType): boolean {
+    return this.components.has(id, type);
+  }
+
+  removeComponent(id: EntityId, type: ComponentType): boolean {
+    const result = this.components.remove(id, type);
+    if (result) this.queryEngine.invalidate();
+    return result;
+  }
+
+  // ── Query ──────────────────────────────────────────────────────────────
+
+  query(componentTypes: ComponentType[]): EntityId[] {
+    return this.queryEngine.query(componentTypes, this.entityManager, this.components);
+  }
+
+  // ── State update (called by Engine each frame) ─────────────────────────
+
+  /** @internal */
+  _updateState(deltaTime: number, frameCount: number): void {
+    this.state.deltaTime = deltaTime;
+    this.state.frameCount = frameCount;
+  }
+}
+
+/**
+ * Factory — creates a fully wired EngineAPI for a given ECS context.
+ */
+export function createEngineAPI(
+  entityManager: EntityManager,
+  components: ComponentRegistry,
+  queryEngine: QueryEngine,
+  services?: IServiceLocator,
+): EngineAPIImpl {
+  const locator = services ?? new ServiceLocator();
+  const state: EngineState = { deltaTime: 0, frameCount: 0 };
+  return new EngineAPIImpl(entityManager, components, queryEngine, locator, state);
+}
