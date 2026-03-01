@@ -11,11 +11,11 @@ import { GameScene } from './scenes/GameScene';
 configureEngine();
 
 // 2. Enregistrement des scènes
-scenes.register(new MainMenuScene());
+scenes.register(new MainMenuScene(scenes));
 scenes.register(new GameScene(scenes));
 
 // 3. Choix de la scène de départ
-scenes.loadScene('MainMenu', engine.getAPI());
+scenes.loadSceneImmediate('MainMenu', engine.getAPI());
 
 // 4. Lancement de la boucle
 engine.start();

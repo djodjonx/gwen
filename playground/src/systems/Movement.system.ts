@@ -7,9 +7,9 @@ export class MovementSystem implements TsPlugin {
   onUpdate(api: EngineAPI, dt: number): void {
     const movables = api.query([C.POSITION.name, C.VELOCITY.name]);
     for (const id of movables) {
-      const pos = api.getComponent<Position>(id, C.POSITION)!;
-      const vel = api.getComponent<Velocity>(id, C.VELOCITY)!;
-      api.addComponent<Position>(id, C.POSITION, {
+      const pos = api.getComponent(id, C.POSITION)!;
+      const vel = api.getComponent(id, C.VELOCITY)!;
+      api.addComponent(id, C.POSITION, {
         x: pos.x + vel.vx * dt,
         y: pos.y + vel.vy * dt,
       });

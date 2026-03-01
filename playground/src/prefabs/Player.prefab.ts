@@ -9,11 +9,11 @@ export const PlayerPrefab = definePrefab({
     const H = 640;
 
     const id = api.createEntity();
-    api.addComponent<Position>(id, C.POSITION, { x: W / 2, y: H - 80 });
-    api.addComponent<Velocity>(id, C.VELOCITY, { vx: 0, vy: 0 });
-    api.addComponent<Tag>(id, C.TAG, { type: 'player' });
-    api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, { elapsed: 0, cooldown: 0.25 });
-    api.addComponent<Collider>(id, C.COLLIDER, { radius: 14 });
+    api.addComponent(id, C.POSITION, { x: W / 2, y: H - 80 });
+    api.addComponent(id, C.VELOCITY, { vx: 0, vy: 0 });
+    api.addComponent(id, C.TAG, { type: 'player' });
+    api.addComponent(id, C.SHOOT_TIMER, { elapsed: 0, cooldown: 0.25 });
+    api.addComponent(id, C.COLLIDER, { radius: 14 });
     return id;
   }
 });

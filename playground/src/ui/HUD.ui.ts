@@ -15,7 +15,7 @@ export const HUD = defineUI({
     </div>
   `,
   onUpdate: (dom, entityId, api: EngineAPI) => {
-    const score = api.getComponent<ScoreData>(entityId, C.SCORE);
+    const score = api.getComponent(entityId, C.SCORE);
     if (!score) return;
     dom.elements['score-val'].textContent = String(score.value);
     dom.elements['lives-val'].textContent = '♥'.repeat(Math.max(0, score.lives));

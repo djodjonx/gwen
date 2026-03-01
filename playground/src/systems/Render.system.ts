@@ -30,8 +30,8 @@ export class RenderSystem implements TsPlugin {
 
     const renderable = api.query([C.POSITION.name, C.TAG.name]);
     for (const id of renderable) {
-      const pos = api.getComponent<Position>(id, C.POSITION)!;
-      const tag = api.getComponent<Tag>(id, C.TAG)!;
+      const pos = api.getComponent(id, C.POSITION)!;
+      const tag = api.getComponent(id, C.TAG)!;
 
       ctx.save();
       ctx.translate(pos.x, pos.y);
