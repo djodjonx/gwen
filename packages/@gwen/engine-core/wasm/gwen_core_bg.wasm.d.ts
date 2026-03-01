@@ -16,6 +16,7 @@ export const engine_remove_component: (a: number, b: number, c: number, d: numbe
 export const engine_has_component: (a: number, b: number, c: number, d: number) => number;
 export const engine_get_component_raw: (a: number, b: number, c: number, d: number) => [number, number];
 export const engine_update_entity_archetype: (a: number, b: number, c: number, d: number) => void;
+export const engine_remove_entity_from_query: (a: number, b: number) => void;
 export const engine_get_entity_generation: (a: number, b: number) => number;
 export const engine_query_entities: (a: number, b: number, c: number) => [number, number];
 export const engine_tick: (a: number, b: number) => void;

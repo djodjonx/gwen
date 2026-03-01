@@ -12,11 +12,13 @@ export class AiControllerSystem implements GwenPlugin<'AiControllerSystem'> {
       const tag = api.getComponent(id, C.TAG);
       if (tag?.type !== 'enemy') continue;
 
-      const timer = api.getComponent(id, C.SHOOT_TIMER)!;
+      const timer = api.getComponent(id, C.SHOOT_TIMER);
+      if (!timer) continue;
       const elapsed = timer.elapsed + dt;
 
       if (elapsed >= timer.cooldown) {
-        const pos = api.getComponent(id, C.POSITION)!;
+        const pos = api.getComponent(id, C.POSITION);
+        if (!pos) continue;
         api.prefabs.instantiate('Bullet', pos.x, pos.y + 16, 0, 350, 'enemy-bullet');
         api.addComponent(id, C.SHOOT_TIMER, { ...timer, elapsed: 0 });
       } else {

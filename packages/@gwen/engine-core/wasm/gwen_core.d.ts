@@ -83,6 +83,12 @@ export class Engine {
      */
     remove_component(index: number, generation: number, component_type_id: number): boolean;
     /**
+     * Remove an entity from the query system cache.
+     * Must be called after delete_entity so the query system stops returning
+     * the destroyed entity in subsequent queries.
+     */
+    remove_entity_from_query(index: number): void;
+    /**
      * Reset frame timing
      */
     reset_frame(): void;
@@ -152,6 +158,7 @@ export interface InitOutput {
     readonly engine_has_component: (a: number, b: number, c: number, d: number) => number;
     readonly engine_get_component_raw: (a: number, b: number, c: number, d: number) => [number, number];
     readonly engine_update_entity_archetype: (a: number, b: number, c: number, d: number) => void;
+    readonly engine_remove_entity_from_query: (a: number, b: number) => void;
     readonly engine_get_entity_generation: (a: number, b: number) => number;
     readonly engine_query_entities: (a: number, b: number, c: number) => [number, number];
     readonly engine_tick: (a: number, b: number) => void;

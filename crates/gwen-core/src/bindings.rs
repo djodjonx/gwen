@@ -207,6 +207,13 @@ impl Engine {
         self.query_system.update_entity_archetype(index, types);
     }
 
+    /// Remove an entity from the query system cache.
+    /// Must be called after delete_entity so the query system stops returning
+    /// the destroyed entity in subsequent queries.
+    pub fn remove_entity_from_query(&mut self, index: u32) {
+        self.query_system.remove_entity(index);
+    }
+
     /// Get the current generation for a slot index.
     /// Returns u32::MAX if the index is out of bounds.
     /// Used by the TS bridge to reconstruct packed EntityIds from query results.

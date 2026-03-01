@@ -42,6 +42,7 @@ export interface WasmEngine {
 
   // Query
   update_entity_archetype(index: number, typeIds: Uint32Array): void;
+  remove_entity_from_query(index: number): void;
   query_entities(typeIds: Uint32Array): Uint32Array;
   get_entity_generation(index: number): number;
 
@@ -225,6 +226,7 @@ export interface WasmBridge {
 
   // ── Query ──
   updateEntityArchetype(index: number, typeIds: number[]): void;
+  removeEntityFromQuery(index: number): void;
   queryEntities(typeIds: number[]): number[];
   getEntityGeneration(index: number): number;
 
@@ -292,6 +294,10 @@ class WasmBridgeImpl implements WasmBridge {
 
   updateEntityArchetype(index: number, typeIds: number[]): void {
     requireWasm().update_entity_archetype(index, new Uint32Array(typeIds));
+  }
+
+  removeEntityFromQuery(index: number): void {
+    requireWasm().remove_entity_from_query(index);
   }
 
   queryEntities(typeIds: number[]): number[] {

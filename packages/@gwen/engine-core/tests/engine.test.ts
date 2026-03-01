@@ -56,6 +56,9 @@ function createMockWasmEngine(): WasmEngine {
     update_entity_archetype: vi.fn((index, typeIds: Uint32Array) => {
       archetypes.set(index, Array.from(typeIds));
     }),
+    remove_entity_from_query: vi.fn((index: number) => {
+      archetypes.delete(index);
+    }),
     query_entities: vi.fn((typeIds: Uint32Array): Uint32Array => {
       const needed = Array.from(typeIds);
       const result: number[] = [];

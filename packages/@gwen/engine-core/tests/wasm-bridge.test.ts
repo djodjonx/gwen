@@ -30,6 +30,7 @@ function createMockEngine(): WasmEngine {
     has_component: vi.fn(() => false),
     get_component_raw: vi.fn(() => new Uint8Array(0)),
     update_entity_archetype: vi.fn(),
+    remove_entity_from_query: vi.fn(),
     query_entities: vi.fn(() => new Uint32Array(0)),
     get_entity_generation: vi.fn(() => 0),
     tick: vi.fn(),

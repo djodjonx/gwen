@@ -328,6 +328,8 @@ export class Engine {
       this.wasmBridge.removeComponent(index, generation, typeId);
     }
     const result = this.wasmBridge.deleteEntity(index, generation);
+    // Retirer du query cache Rust — sinon l'entité détruite continue d'apparaître dans les queries
+    this.wasmBridge.removeEntityFromQuery(index);
     this.emit('entityDestroyed', { id });
     return result;
   }

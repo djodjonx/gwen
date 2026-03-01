@@ -221,6 +221,18 @@ export class Engine {
         return ret !== 0;
     }
     /**
+     * Remove an entity from the query system cache.
+     * Must be called after delete_entity so the query system stops returning
+     * the destroyed entity in subsequent queries.
+     * @param {number} index
+     */
+    remove_entity_from_query(index) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        wasm.engine_remove_entity_from_query(this.__wbg_ptr, index);
+    }
+    /**
      * Reset frame timing
      */
     reset_frame() {
