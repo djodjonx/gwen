@@ -1,29 +1,17 @@
 import { type EngineAPI } from '@gwen/engine-core';
 import type { GwenPlugin } from '@gwen/engine-core';
+import type { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 import type { GwenServices } from '../../engine.config';
 import { COMPONENTS as C } from '../components';
 
-/**
- * RenderSystem — dessine les entités sur le canvas.
- * Récupère le contexte 2D via le service 'renderer' (Canvas2DRenderer).
- */
 export class RenderSystem implements GwenPlugin<'RenderSystem'> {
   readonly name = 'RenderSystem' as const;
   private ctx!: CanvasRenderingContext2D;
-  private canvas!: HTMLCanvasElement;
 
   onInit(api: EngineAPI<GwenServices>): void {
-    // Récupère le renderer via le service locator — typé sans cast
-    const renderer = api.services.get('renderer');
-    // Canvas2DRenderer expose son canvas et son contexte via des getters publics
-    this.canvas = (renderer as any).canvas as HTMLCanvasElement;
-    this.ctx = (renderer as any).ctx as CanvasRenderingContext2D;
-
-    // Fallback si le renderer n'expose pas encore ces getters
-    if (!this.canvas) {
-      this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-      this.ctx = this.canvas.getContext('2d')!;
-    }
+    // renderer est Canvas2DRenderer — typé sans cast grâce à GwenServices
+    const renderer: Canvas2DRenderer = api.services.get('renderer');
+    this.ctx = renderer.ctx;
   }
 
   onRender(api: EngineAPI<GwenServices>): void {

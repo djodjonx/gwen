@@ -94,7 +94,7 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
     };
   }
 
-  onInit(_api: EngineAPI): void {
+  onInit(api: EngineAPI): void {
     if (typeof this.config.canvas === 'string') {
       const el = document.getElementById(this.config.canvas);
       if (!el || !(el instanceof HTMLCanvasElement)) {
@@ -110,6 +110,10 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
     this._ctx = ctx;
 
     this.applyPixelRatio();
+
+    // Enregistre ce renderer dans le service locator pour que les systèmes
+    // de scène puissent le récupérer via api.services.get('renderer')
+    api.services.register('renderer', this);
   }
 
   onRender(api: EngineAPI): void {
