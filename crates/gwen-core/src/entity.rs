@@ -12,8 +12,7 @@ pub struct EntityManager {
 
 impl EntityManager {
     /// Create a new entity manager
-    pub fn new(max_entities: u32) -> Self {
+    pub fn new(_max_entities: u32) -> Self {
         EntityManager {}
     }
 }
-
