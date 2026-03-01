@@ -18,7 +18,7 @@ import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
-export const gwenConfig = defineConfig({
+export default defineConfig({
   engine: {
     maxEntities: 2_000,
     targetFPS: 60,
@@ -31,6 +31,4 @@ export const gwenConfig = defineConfig({
   ],
 });
 
-// GwenServices est généré automatiquement par `gwen prepare` dans .gwen/gwen.d.ts
-// Pas besoin de l'exporter ici.
 

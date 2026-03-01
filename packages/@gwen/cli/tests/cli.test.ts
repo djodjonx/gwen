@@ -46,6 +46,24 @@ describe('prepare', () => {
     const content = fs.readFileSync(dts, 'utf-8');
     expect(content).toContain('GwenServices');
     expect(content).toContain('__GWEN_VERSION__');
+    expect(content).toContain('declare global');
+  });
+
+  it('uses import default when export default defineConfig', async () => {
+    const src = `import { defineConfig } from '@gwen/engine-core';\nexport default defineConfig({ engine: { maxEntities: 100, targetFPS: 60 } });`;
+    writeConfig(tmp, src, 'gwen.config.ts');
+    await prepare({ projectDir: tmp });
+    const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
+    expect(dts).toContain("import type _cfg from '../gwen.config'");
+    expect(dts).toContain('default export');
+  });
+
+  it('uses named import when export const gwenConfig = defineConfig', async () => {
+    const src = `import { defineConfig } from '@gwen/engine-core';\nexport const gwenConfig = defineConfig({ engine: { maxEntities: 100, targetFPS: 60 } });`;
+    writeConfig(tmp, src, 'gwen.config.ts');
+    await prepare({ projectDir: tmp });
+    const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
+    expect(dts).toContain("import type { gwenConfig as _cfg }");
   });
 
   it('creates tsconfig.json if absent and sets extends', async () => {

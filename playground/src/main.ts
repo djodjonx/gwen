@@ -4,7 +4,7 @@
  */
 
 import { initWasm, createEngine } from '@gwen/engine-core';
-import { gwenConfig } from '../gwen.config';
+import gwenConfig from '../gwen.config';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { GameScene } from './scenes/GameScene';
 

@@ -146,21 +146,27 @@ function generateDts(projectDir: string, configPath: string): string {
   const relConfig = path.relative(path.join(projectDir, '.gwen'), configPath)
     .replace(/\\/g, '/').replace(/\.ts$/, '');
 
-  // Détecter le nom de la variable exportée (gwenConfig, config, default...)
   const source = fs.readFileSync(configPath, 'utf-8');
-  const configVarName = detectConfigExportName(source);
+  const exportStyle = detectConfigExportStyle(source);
+
+  // Import de la config selon le style d'export
+  const configImport = exportStyle.type === 'default'
+    ? `import type _cfg from '${relConfig}';`
+    : `import type { ${exportStyle.name} as _cfg } from '${relConfig}';`;
+
+  const displayName = exportStyle.type === 'default' ? 'default export' : exportStyle.name;
 
   return `/**
  * GWEN — Types globaux auto-générés
  * Généré par \`gwen prepare\` — NE PAS MODIFIER
  * Source : gwen.config.ts
  *
- * GwenServices est inféré automatiquement depuis ${configVarName}.
+ * GwenServices est inféré automatiquement depuis le ${displayName}.
  * Vous n'avez pas besoin de l'exporter depuis gwen.config.ts.
  */
 
 import type { GwenConfigServices } from '@gwen/engine-core';
-import type { ${configVarName} as _cfg } from '${relConfig}';
+${configImport}
 
 type _GwenServices = GwenConfigServices<typeof _cfg>;
 
@@ -171,7 +177,7 @@ declare global {
    *
    * @example
    * onInit(api: EngineAPI<GwenServices>) {
-   *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+   *   const kb = api.services.get('keyboard'); // ✅ KeyboardInput
    * }
    */
   type GwenServices = _GwenServices;
@@ -185,20 +191,16 @@ export {};
 }
 
 /**
- * Détecte le nom de la variable exportée par defineConfig() dans gwen.config.ts.
- * Exemples reconnus :
- *   export const gwenConfig = defineConfig(...)
- *   export const config = defineConfig(...)
- *   export default defineConfig(...)
+ * Détecte le style d'export de defineConfig() dans gwen.config.ts.
+ *
+ *   export default defineConfig(...)          → { type: 'default' }
+ *   export const gwenConfig = defineConfig(…) → { type: 'named', name: 'gwenConfig' }
  */
-function detectConfigExportName(source: string): string {
-  // export const <name> = defineConfig(
+function detectConfigExportStyle(source: string): { type: 'default' } | { type: 'named'; name: string } {
+  if (/export\s+default\s+defineConfig\s*\(/.test(source)) return { type: 'default' };
   const match = source.match(/export\s+const\s+(\w+)\s*=\s*defineConfig\s*\(/);
-  if (match) return match[1];
-  // export default defineConfig( → on utilise "default"
-  if (/export\s+default\s+defineConfig\s*\(/.test(source)) return 'default';
-  // fallback
-  return 'gwenConfig';
+  if (match) return { type: 'named', name: match[1] };
+  return { type: 'default' }; // fallback
 }
 
 // ── S'assurer que tsconfig.json étend .gwen/tsconfig.generated.json ──────────
