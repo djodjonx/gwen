@@ -21,7 +21,8 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
 
 // ============= Types =============
 
@@ -48,8 +49,14 @@ interface SoundTrack {
 
 // ============= AudioPlugin =============
 
-export class AudioPlugin implements TsPlugin {
-  readonly name = 'AudioPlugin';
+export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlugin }> {
+  readonly name = 'AudioPlugin' as const;
+
+  /**
+   * Déclare le service 'audio' injecté dans api.services.
+   * Utilisé par TypeScript pour l'inférence — jamais lu à runtime.
+   */
+  readonly provides = { audio: {} as AudioPlugin };
 
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;

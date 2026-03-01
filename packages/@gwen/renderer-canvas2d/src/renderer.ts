@@ -15,7 +15,8 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI, EntityId } from '@gwen/engine-core';
+import type { EngineAPI, EntityId } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
 
 // ============= Component Types =============
 
@@ -65,8 +66,14 @@ export interface Canvas2DRendererConfig {
 
 // ============= Canvas2DRenderer =============
 
-export class Canvas2DRenderer implements TsPlugin {
-  readonly name = 'Canvas2DRenderer';
+export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { renderer: Canvas2DRenderer }> {
+  readonly name = 'Canvas2DRenderer' as const;
+
+  /**
+   * Déclare le service 'renderer' injecté dans api.services.
+   * Utilisé par TypeScript pour l'inférence — jamais lu à runtime.
+   */
+  readonly provides = { renderer: {} as Canvas2DRenderer };
 
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;

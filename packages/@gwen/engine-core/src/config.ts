@@ -1,4 +1,5 @@
-import type { EngineConfig } from './types';
+import type { EngineConfig, WasmPlugin, TsPlugin } from './types';
+import type { AnyGwenPlugin, MergeProvides } from './plugin';
 
 /**
  * Default engine configuration - Pure logic, no rendering concerns
@@ -27,22 +28,70 @@ export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>
 }
 
 /**
- * Configuration builder for type-safe config
+ * Résultat typé de defineConfig() — expose le ServiceMap inféré des plugins.
  *
- * Nuxt-like style: explicit wasm vs ts plugin separation
+ * `Services` est l'intersection des `provides` de tous les plugins déclarés.
+ */
+export interface TypedEngineConfig<Services extends Record<string, unknown>> {
+  readonly _services: Services; // type fantôme — jamais lu à runtime
+  readonly maxEntities?: number;
+  readonly targetFPS?: number;
+  readonly debug?: boolean;
+  readonly enableStats?: boolean;
+  readonly plugins?: TsPlugin[];
+  readonly wasmPlugins?: WasmPlugin[];
+}
+
+/**
+ * Définit la configuration d'un projet GWEN avec inférence complète des services.
  *
- * @example
+ * Les services exposés par chaque plugin sont automatiquement fusionnés dans
+ * `TypedEngineConfig<Services>`, ce qui permet à `api.services.get()` d'être
+ * fortement typé partout dans le projet.
+ *
  * ```typescript
- * const config = defineConfig({
+ * // gwen.config.ts
+ * export default defineConfig({
+ *   plugins: [new InputPlugin(), new AudioPlugin()],
  *   wasmPlugins: [Physics2D({ gravity: 9.81 })],
- *   tsPlugins: [Input(), Audio()],
- *   engine: { maxEntities: 10000, targetFPS: 60 },
+ *   maxEntities: 10_000,
+ *   targetFPS: 60,
  * });
+ *
+ * // Dans un système / plugin
+ * onInit(api: EngineAPI<GwenServices>) {
+ *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+ *   const au = api.services.get('audio');    // → AudioManager  ✅
+ * }
+ * ```
+ *
+ * @param config Configuration du projet. `plugins` accepte tout plugin
+ *   implémentant `GwenPlugin` (avec `provides`) ou `TsPlugin` (sans typage).
+ */
+export function defineConfig<
+  const Plugins extends readonly AnyGwenPlugin[],
+>(config: {
+  plugins?: [...Plugins];
+  wasmPlugins?: WasmPlugin[];
+  maxEntities?: number;
+  targetFPS?: number;
+  debug?: boolean;
+  enableStats?: boolean;
+}): TypedEngineConfig<MergeProvides<Plugins>> {
+  return config as any;
+}
+
+/**
+ * Extrait le type `Services` d'une `TypedEngineConfig`.
+ *
+ * ```typescript
+ * const config = defineConfig({ plugins: [new InputPlugin()] });
+ * export type GwenServices = GwenConfigServices<typeof config>;
+ * // → { keyboard: KeyboardInput; mouse: MouseInput; ... }
  * ```
  */
-export function defineConfig(config: Partial<EngineConfig>): Partial<EngineConfig> {
-  return config;
-}
+export type GwenConfigServices<C> =
+  C extends TypedEngineConfig<infer S> ? S : Record<string, unknown>;
 
 /**
  * Advanced builder with chaining
@@ -133,5 +182,4 @@ export class ConfigBuilder {
     return mergeConfigs(defaultConfig, this.config);
   }
 }
-
 

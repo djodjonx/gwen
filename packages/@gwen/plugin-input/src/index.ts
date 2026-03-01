@@ -16,7 +16,8 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
@@ -28,6 +29,13 @@ export type { KeyState } from './keyboard';
 export type { MouseButton, MouseButtonState, MousePosition } from './mouse';
 export type { GamepadAxis } from './gamepad';
 
+/** Services exposés par InputPlugin dans api.services */
+export interface InputPluginServices {
+  keyboard: KeyboardInput;
+  mouse: MouseInput;
+  gamepad: GamepadInput;
+}
+
 export interface InputPluginConfig {
   /** Canvas element for mouse position offset. */
   canvas?: HTMLCanvasElement;
@@ -37,8 +45,18 @@ export interface InputPluginConfig {
   gamepadDeadzone?: number;
 }
 
-export class InputPlugin implements TsPlugin {
-  readonly name = 'InputPlugin';
+export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices> {
+  readonly name = 'InputPlugin' as const;
+
+  /**
+   * Déclare les services que ce plugin injecte dans `api.services`.
+   * Utilisé par TypeScript pour l'inférence — jamais lu à runtime.
+   */
+  readonly provides = {
+    keyboard: {} as KeyboardInput,
+    mouse: {} as MouseInput,
+    gamepad: {} as GamepadInput,
+  };
 
   private keyboard!: KeyboardInput;
   private mouse!: MouseInput;
@@ -60,17 +78,14 @@ export class InputPlugin implements TsPlugin {
     this.keyboard.attach(this.target);
     this.mouse.attach(this.target, this.config.canvas);
 
-    // Register as services so other plugins can consume them
     api.services.register('keyboard', this.keyboard);
     api.services.register('mouse', this.mouse);
     api.services.register('gamepad', this.gamepad);
   }
 
   onBeforeUpdate(_api: EngineAPI, _dt: number): void {
-    // Update input states BEFORE game logic reads them
     this.keyboard.update();
     this.mouse.update();
-    // Gamepad is poll-based — no update needed
   }
 
   onDestroy(): void {

@@ -37,14 +37,42 @@ export interface ComponentAccessor<T> {
 
 // ============= Service Locator =============
 
-export interface ServiceLocator {
-  /** Register a singleton service by name */
+/**
+ * Service locator typé sur un map de services `M`.
+ *
+ * Quand `M` est inféré depuis les plugins déclarés dans `defineConfig()`,
+ * `get()` et `register()` sont fortement typés sur les clés/valeurs du map.
+ *
+ * ```typescript
+ * // Avec plugins typés :
+ * api.services.get('keyboard')  // → KeyboardInput  ✅
+ * api.services.get('audio')     // → AudioManager   ✅
+ * api.services.get('unknown')   // → TS error       ❌
+ *
+ * // Sans plugins typés (fallback rétro-compat) :
+ * api.services.get<MyService>('anything')  // → MyService (cast explicite)
+ * ```
+ */
+export interface TypedServiceLocator<M extends Record<string, unknown> = Record<string, unknown>> {
+  /** Enregistre un service. La clé et la valeur sont typées si M est inféré. */
+  register<K extends keyof M & string>(name: K, instance: M[K]): void;
+  /** Enregistre un service avec une clé arbitraire (rétro-compat) */
   register<T>(name: string, instance: T): void;
-  /** Retrieve a service — throws if not registered */
+
+  /** Récupère un service typé par sa clé */
+  get<K extends keyof M & string>(name: K): M[K];
+  /** Récupère un service avec cast explicite (rétro-compat) */
   get<T>(name: string): T;
-  /** Check if a service is registered */
+
+  /** Vérifie si un service est enregistré */
   has(name: string): boolean;
 }
+
+/**
+ * Alias non typé pour la rétro-compatibilité.
+ * Les anciens plugins utilisent `ServiceLocator` sans paramètre de type.
+ */
+export type ServiceLocator = TypedServiceLocator<Record<string, unknown>>;
 
 export interface IPluginRegistrar {
   register(plugin: TsPlugin): void;
@@ -57,9 +85,19 @@ export interface IPluginRegistrar {
 
 /**
  * The API surface exposed to all TsPlugins during lifecycle callbacks.
- * Provides access to ECS, services, and engine state.
+ *
+ * Le paramètre générique `M` représente le map des services disponibles.
+ * Il est inféré automatiquement depuis les plugins déclarés dans `defineConfig()`.
+ *
+ * ```typescript
+ * // Sans typage explicite — rétro-compat, services non typés
+ * onInit(api: EngineAPI) { ... }
+ *
+ * // Avec typage inféré via defineConfig()
+ * onInit(api: EngineAPI<{ keyboard: KeyboardInput; audio: AudioManager }>) { ... }
+ * ```
  */
-export interface EngineAPI {
+export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Query entities by required component types */
   query(componentTypes: ComponentType[]): EntityId[];
 
@@ -93,8 +131,8 @@ export interface EngineAPI {
   removeComponent(id: EntityId, type: ComponentType | import('./schema').ComponentDefinition<any>): boolean;
 
 
-  /** Service locator — inject dependencies between plugins */
-  services: ServiceLocator;
+  /** Service locator — typé sur les services des plugins déclarés */
+  services: TypedServiceLocator<M>;
 
   /** Prefab manager — instantiate pre-assembled entities */
   readonly prefabs: import('./prefab').PrefabManager;
@@ -124,16 +162,16 @@ export interface TsPlugin {
   readonly name: string;
 
   /** Called once when plugin is registered */
-  onInit?(api: EngineAPI): void;
+  onInit?(api: EngineAPI<any>): void;
 
   /** Called at start of each frame — use for input capture */
-  onBeforeUpdate?(api: EngineAPI, deltaTime: number): void;
+  onBeforeUpdate?(api: EngineAPI<any>, deltaTime: number): void;
 
   /** Called after WASM update — use for game logic */
-  onUpdate?(api: EngineAPI, deltaTime: number): void;
+  onUpdate?(api: EngineAPI<any>, deltaTime: number): void;
 
   /** Called after all updates — use for rendering */
-  onRender?(api: EngineAPI): void;
+  onRender?(api: EngineAPI<any>): void;
 
   /** Called when plugin is removed or engine stops */
   onDestroy?(): void;
