@@ -14,6 +14,11 @@ impl ComponentTypeId {
     pub fn raw(self) -> u32 {
         self.0
     }
+
+    /// Create from raw ID (for testing)
+    pub fn from_raw(raw: u32) -> Self {
+        ComponentTypeId(raw)
+    }
 }
 
 /// Registry for component types
