@@ -1,3 +1,5 @@
 node_modules/
 dist/
 .vite/
+# WASM artefacts générés par wasm-pack (reconstruits via: wasm-pack build)
+public/wasm/

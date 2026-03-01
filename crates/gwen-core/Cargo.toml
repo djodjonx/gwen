@@ -16,3 +16,12 @@ web-sys = { version = "0.3.64", features = [
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+# wasm-opt bundled with older wasm-pack doesn't support bulk-memory — skip it.
+# The .wasm produced by rustc is already valid and loads fine in all modern browsers.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
+

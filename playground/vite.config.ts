@@ -14,5 +14,15 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    headers: {
+      // Required for SharedArrayBuffer + WASM threads (future-proofing)
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  // Ensure .wasm files in public/ are served with correct MIME type
+  assetsInclude: ['**/*.wasm'],
+  build: {
+    target: 'esnext', // Required for top-level await + WASM
   },
 });
