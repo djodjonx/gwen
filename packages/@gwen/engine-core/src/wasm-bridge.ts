@@ -78,8 +78,14 @@ let _maxEntities = 10_000;
 /**
  * Charge et initialise le module WASM gwen_core.
  *
- * @param wasmUrl  URL vers le fichier `.wasm` (ex: `/assets/gwen_core_bg.wasm`)
- * @param jsUrl    URL vers le fichier JS wasm-bindgen (ex: `/assets/gwen_core.js`)
+ * Les fichiers wasm-bindgen (.js + .wasm) sont dans /public et servis
+ * statiquement — ils ne peuvent pas être importés via import() dynamique
+ * sous Vite (erreur "file is in /public"). On les charge via :
+ *   1. Un <script type="module"> injecté dans le DOM pour le glue JS
+ *   2. fetch() + WebAssembly pour le .wasm
+ *
+ * @param jsUrl    URL du glue JS wasm-bindgen (ex: '/wasm/gwen_core.js')
+ * @param wasmUrl  URL du binaire .wasm (ex: '/wasm/gwen_core_bg.wasm')
  * @param maxEntities  Capacité maximale d'entités (défaut: 10 000)
  * @returns `true` si le WASM a été chargé avec succès, `false` sinon
  */
@@ -88,26 +94,41 @@ export async function initWasm(
   wasmUrl?: string,
   maxEntities = 10_000,
 ): Promise<boolean> {
-  if (_wasmEngine) return true; // Already initialized
-
-  if (_initPromise) return _initPromise; // De-dup concurrent calls
+  if (_wasmEngine) return true;
+  if (_initPromise) return _initPromise;
 
   _maxEntities = maxEntities;
 
   _initPromise = (async () => {
     try {
-      // Dynamic import of the wasm-bindgen JS glue
-      const mod = await import(/* @vite-ignore */ jsUrl) as any;
+      // ── Charger le glue JS wasm-bindgen via un module script tag ──────
+      // On ne peut pas faire import() sur un fichier /public sous Vite,
+      // mais on peut l'injecter comme <script type="module"> et exposer
+      // son export via une promesse sur window.__gwenWasmGlue.
+      const glue = await loadWasmGlue(jsUrl);
 
-      // wasm-bindgen init function (may receive the .wasm URL or fetch it itself)
-      if (typeof mod.default === 'function') {
-        await mod.default(wasmUrl);
-      } else if (typeof mod.init === 'function') {
-        await mod.init(wasmUrl);
+      // ── Initialiser le module WASM ─────────────────────────────────────
+      // glue.default est la fonction init() générée par wasm-bindgen.
+      // On lui passe soit l'URL du .wasm soit un fetch() Response.
+      const wasmInput = wasmUrl
+        ? fetch(wasmUrl)
+        : undefined;
+
+      if (typeof glue.default === 'function') {
+        await glue.default(wasmInput);
+      } else if (typeof glue.initSync === 'function') {
+        // fallback synchrone (rare)
+        const buf = await (await fetch(wasmUrl!)).arrayBuffer();
+        glue.initSync(buf);
       }
 
-      _wasmModule = mod as GwenCoreWasm;
-      _wasmEngine = new mod.Engine(maxEntities);
+      // ── Instancier l'Engine Rust ───────────────────────────────────────
+      if (typeof glue.Engine !== 'function') {
+        throw new Error('[GWEN] wasm glue loaded but Engine class not found');
+      }
+
+      _wasmModule = glue as GwenCoreWasm;
+      _wasmEngine = new glue.Engine(maxEntities);
 
       console.log('[GWEN] WASM core loaded — Rust ECS active');
       return true;
@@ -121,6 +142,56 @@ export async function initWasm(
 
   return _initPromise;
 }
+
+/**
+ * Charge un module ES via un <script type="module"> injecté dans le DOM.
+ * Contourne la restriction Vite sur import() des fichiers /public.
+ * Compatible navigateur et SSR (dans SSR on ne peut pas faire ça — retourne {}).
+ */
+async function loadWasmGlue(jsUrl: string): Promise<any> {
+  // Environnement Node / SSR — pas de DOM
+  if (typeof document === 'undefined') {
+    throw new Error('[GWEN] WASM requires a browser environment');
+  }
+
+  return new Promise<any>((resolve, reject) => {
+    // Clé unique par URL pour éviter les doublons
+    const key = `__gwenGlue_${jsUrl.replace(/\W/g, '_')}`;
+
+    if ((window as any)[key]) {
+      resolve((window as any)[key]);
+      return;
+    }
+
+    // Créer un script wrapper qui importe le glue et l'expose sur window
+    const blob = new Blob([
+      `import * as glue from '${new URL(jsUrl, location.href).href}';`,
+      `window['${key}'] = glue;`,
+      `window['${key}__resolve']?.();`,
+    ], { type: 'text/javascript' });
+
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Exposer le resolve pour que le script blob puisse l'appeler
+    (window as any)[`${key}__resolve`] = () => {
+      URL.revokeObjectURL(blobUrl);
+      script.remove();
+      resolve((window as any)[key]);
+    };
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = blobUrl;
+    script.onerror = (e) => {
+      URL.revokeObjectURL(blobUrl);
+      script.remove();
+      reject(new Error(`[GWEN] Failed to load wasm glue: ${jsUrl} — ${e}`));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
 
 // ── Bridge public ─────────────────────────────────────────────────────────────
 
