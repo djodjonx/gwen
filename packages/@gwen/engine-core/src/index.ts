@@ -3,6 +3,7 @@
 // Types (source of truth for shared types)
 export * from './types';
 export * from './config';
+export * from './schema';
 
 // ECS internals
 export { EntityManager, ComponentRegistry, QueryEngine } from './ecs';

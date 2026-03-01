@@ -62,17 +62,29 @@ export interface EngineAPI {
   /** Destroy an entity and remove all its components */
   destroyEntity(id: EntityId): boolean;
 
-  /** Add / update a component on an entity */
+  /** Add / update a component on an entity (string type) */
   addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
+  /** Add / update a component using a ComponentDefinition DSL */
+  addComponent<D extends import('./schema').ComponentDefinition<any>>(
+    id: EntityId,
+    type: D,
+    data: import('./schema').InferComponent<D>
+  ): void;
 
-  /** Get a component from an entity */
+  /** Get a component from an entity (string type) */
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
+  /** Get a component using a ComponentDefinition DSL */
+  getComponent<D extends import('./schema').ComponentDefinition<any>>(
+    id: EntityId,
+    type: D
+  ): import('./schema').InferComponent<D> | undefined;
 
   /** Check if an entity has a component */
-  hasComponent(id: EntityId, type: ComponentType): boolean;
+  hasComponent(id: EntityId, type: ComponentType | import('./schema').ComponentDefinition<any>): boolean;
 
   /** Remove a component from an entity */
-  removeComponent(id: EntityId, type: ComponentType): boolean;
+  removeComponent(id: EntityId, type: ComponentType | import('./schema').ComponentDefinition<any>): boolean;
+
 
   /** Service locator — inject dependencies between plugins */
   services: ServiceLocator;

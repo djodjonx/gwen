@@ -11,6 +11,7 @@
  */
 
 import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType } from './types';
+import type { ComponentDefinition, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 
 // ============= ServiceLocator =============
@@ -98,21 +99,36 @@ export class EngineAPIImpl implements EngineAPI {
 
   // ── Component operations ───────────────────────────────────────────────
 
-  addComponent<T>(id: EntityId, type: ComponentType, data: T): void {
-    this.components.add(id, type, data);
+  addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
+  addComponent<D extends ComponentDefinition<any>>(
+    id: EntityId,
+    type: D,
+    data: InferComponent<D>
+  ): void;
+  addComponent(id: EntityId, type: string | ComponentDefinition<any>, data: any): void {
+    const typeName = typeof type === 'string' ? type : type.name;
+    this.components.add(id, typeName, data);
     this.queryEngine.invalidate();
   }
 
-  getComponent<T>(id: EntityId, type: ComponentType): T | undefined {
-    return this.components.get<T>(id, type);
+  getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
+  getComponent<D extends ComponentDefinition<any>>(
+    id: EntityId,
+    type: D
+  ): InferComponent<D> | undefined;
+  getComponent(id: EntityId, type: string | ComponentDefinition<any>): any {
+    const typeName = typeof type === 'string' ? type : type.name;
+    return this.components.get(id, typeName);
   }
 
-  hasComponent(id: EntityId, type: ComponentType): boolean {
-    return this.components.has(id, type);
+  hasComponent(id: EntityId, type: string | ComponentDefinition<any>): boolean {
+    const typeName = typeof type === 'string' ? type : type.name;
+    return this.components.has(id, typeName);
   }
 
-  removeComponent(id: EntityId, type: ComponentType): boolean {
-    const result = this.components.remove(id, type);
+  removeComponent(id: EntityId, type: string | ComponentDefinition<any>): boolean {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const result = this.components.remove(id, typeName);
     if (result) this.queryEngine.invalidate();
     return result;
   }
