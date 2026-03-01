@@ -10,7 +10,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseConfigFile } from './config-parser.js';
-import type { InlineConfig } from 'vite';
+
+// On évite l'import type de Vite au top-level — jiti v2 ne le résout pas bien
+// Le type est inféré dynamiquement à runtime
+type InlineConfig = Record<string, unknown>;
 
 export interface ViteConfigOptions {
   mode: 'development' | 'production';
@@ -32,14 +35,16 @@ export async function buildViteConfig(
   // Construire les alias de packages (monorepo dev ou node_modules)
   const alias = buildAliases(projectDir);
 
-  // Résoudre le point d'entrée (src/main.ts par défaut)
-  const entryPoint = resolveEntry(projectDir);
 
   // Headers COOP/COEP requis pour SharedArrayBuffer (WASM threads)
   const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
   };
+
+  // Détecter si le projet a un crate Rust custom (pas juste le workspace monorepo)
+  // Un crate valide doit avoir [package] dans son Cargo.toml (pas seulement [workspace])
+  const hasCustomCrate = parsed.rustCratePath !== null && isRustPackage(parsed.rustCratePath);
 
   const config: InlineConfig = {
     root: projectDir,
@@ -53,6 +58,10 @@ export async function buildViteConfig(
 
     plugins: gwenPlugin
       ? [gwenPlugin({
+          // cratePath seulement si un crate Rust custom est présent dans le projet
+          // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
+          // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
+          ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
           wasmOutDir: 'public/wasm',
           watch: options.mode === 'development',
           wasmMode: options.mode === 'development' ? 'debug' : 'release',
@@ -140,17 +149,16 @@ function buildAliases(projectDir: string): Record<string, string> {
   return alias;
 }
 
-// ── Point d'entrée ────────────────────────────────────────────────────────────
+// ── Détection crate Rust valide ───────────────────────────────────────────────
 
-function resolveEntry(projectDir: string): string {
-  const candidates = [
-    path.join(projectDir, 'src', 'main.ts'),
-    path.join(projectDir, 'src', 'index.ts'),
-    path.join(projectDir, 'main.ts'),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return path.join(projectDir, 'src', 'main.ts');
+/**
+ * Retourne true si le dossier contient un Cargo.toml avec [package].
+ * Un dossier avec seulement [workspace] (monorepo racine) retourne false.
+ */
+function isRustPackage(dir: string): boolean {
+  const cargoPath = path.join(dir, 'Cargo.toml');
+  if (!fs.existsSync(cargoPath)) return false;
+  const content = fs.readFileSync(cargoPath, 'utf-8');
+  return content.includes('[package]');
 }
 

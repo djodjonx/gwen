@@ -90,10 +90,17 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
   function resolveCratePath(root: string): string | null {
     if (cratePath) return path.resolve(root, cratePath);
-    // Walk up to find Cargo.toml
+    // Walk up to find a Cargo.toml with a [package] section.
+    // Stop as soon as we find ANY Cargo.toml — if it's workspace-only, we don't compile.
     let dir = root;
     for (let i = 0; i < 4; i++) {
-      if (fs.existsSync(path.join(dir, 'Cargo.toml'))) return dir;
+      const cargo = path.join(dir, 'Cargo.toml');
+      if (fs.existsSync(cargo)) {
+        const content = fs.readFileSync(cargo, 'utf-8');
+        if (content.includes('[package]')) return dir;
+        // Found a workspace-only Cargo.toml → stop, no custom crate here
+        return null;
+      }
       dir = path.dirname(dir);
     }
     return null;
