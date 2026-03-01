@@ -95,6 +95,9 @@ export interface EngineAPI {
   /** Service locator — inject dependencies between plugins */
   services: ServiceLocator;
 
+  /** Prefab manager — instantiate pre-assembled entities */
+  readonly prefabs: import('./prefab').PrefabManager;
+
   /** Current delta time in seconds */
   readonly deltaTime: number;
 

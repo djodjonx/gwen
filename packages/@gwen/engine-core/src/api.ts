@@ -13,6 +13,7 @@
 import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType } from './types';
 import type { ComponentDefinition, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
+import { PrefabManager } from './prefab';
 
 // ============= ServiceLocator =============
 
@@ -64,6 +65,7 @@ export interface EngineState {
  */
 export class EngineAPIImpl implements EngineAPI {
   readonly services: IServiceLocator;
+  readonly prefabs: PrefabManager;
 
   constructor(
     private entityManager: EntityManager,
@@ -73,6 +75,8 @@ export class EngineAPIImpl implements EngineAPI {
     private state: EngineState,
   ) {
     this.services = services;
+    this.prefabs = new PrefabManager();
+    this.prefabs._setAPI(this);
   }
 
   get deltaTime(): number {
