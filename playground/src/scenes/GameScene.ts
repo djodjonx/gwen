@@ -1,4 +1,4 @@
-import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { Scene, EngineAPI, SceneManager, GwenPlugin } from '@gwen/engine-core';
 import type { GwenServices } from '../../gwen.config';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
@@ -12,19 +12,19 @@ import { HudSystem }        from '../systems/HudSystem';
 
 export class GameScene implements Scene {
   readonly name = 'Game';
+  readonly plugins: GwenPlugin[];
 
-  /** Plugins actifs uniquement pendant cette scène */
-  readonly plugins = [
-    MovementSystem,
-    makePlayerSystem(this.scenes),
-    AiSystem,
-    SpawnerSystem,
-    makeCollisionSystem(this.scenes),
-    makeRenderSystem(),
-    HudSystem,
-  ];
-
-  constructor(private scenes: SceneManager) {}
+  constructor(private scenes: SceneManager) {
+    this.plugins = [
+      MovementSystem,
+      makePlayerSystem(this.scenes),
+      AiSystem,
+      SpawnerSystem,
+      makeCollisionSystem(this.scenes),
+      makeRenderSystem(),
+      HudSystem,
+    ];
+  }
 
   onEnter(api: EngineAPI<GwenServices>) {
     // Enregistrer les prefabs
