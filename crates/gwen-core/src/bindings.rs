@@ -1,19 +1,61 @@
 //! wasm-bindgen exports
 //!
 //! Exports for JavaScript interop via wasm-bindgen.
+//!
+//! # Stale-ID safety
+//! All entity operations take both `index` and `generation` so that JS
+//! cannot accidentally use a recycled slot (the classic stale-ID bug).
+//! `create_entity` returns a `JsEntityId` struct exposing both fields.
 
 use crate::component::{ComponentStorage, ComponentTypeId};
 use crate::entity::{EntityId, EntityManager};
 use crate::gameloop::GameLoop;
-use crate::query::QuerySystem;
+use crate::query::{QueryId, QuerySystem};
 use wasm_bindgen::prelude::*;
+
+// ─── Opaque entity handle exposed to JS ──────────────────────────────────────
+
+/// Entity handle returned to JavaScript.
+/// Carries both `index` and `generation` so JS can pass them back and
+/// the engine can detect stale (dangling) references.
+#[wasm_bindgen]
+pub struct JsEntityId {
+    index: u32,
+    generation: u32,
+}
+
+#[wasm_bindgen]
+impl JsEntityId {
+    /// Slot index (stable while entity lives and after slot is recycled)
+    #[wasm_bindgen(getter)]
+    pub fn index(&self) -> u32 {
+        self.index
+    }
+
+    /// Generation counter – incremented every time the slot is reused.
+    /// Use this to detect dangling references.
+    #[wasm_bindgen(getter)]
+    pub fn generation(&self) -> u32 {
+        self.generation
+    }
+}
+
+impl From<EntityId> for JsEntityId {
+    fn from(id: EntityId) -> Self {
+        JsEntityId {
+            index: id.index(),
+            generation: id.generation(),
+        }
+    }
+}
+
+// ─── Main Engine ─────────────────────────────────────────────────────────────
 
 /// Main engine exported to JavaScript
 #[wasm_bindgen]
 pub struct Engine {
     entity_manager: EntityManager,
     component_storage: ComponentStorage,
-    #[allow(dead_code)] // Reserved for future JS query API
     query_system: QuerySystem,
     gameloop: GameLoop,
 }
@@ -33,22 +75,17 @@ impl Engine {
 
     // === Entity API ===
 
-    /// Create a new entity
-    pub fn create_entity(&mut self) -> u32 {
-        self.entity_manager.create_entity().index()
+    /// Create a new entity. Returns a `JsEntityId` with both `index` and
+    /// `generation` – keep the whole object, not just the index.
+    pub fn create_entity(&mut self) -> JsEntityId {
+        self.entity_manager.create_entity().into()
     }
 
-    /// Delete an entity by ID
-    pub fn delete_entity(&mut self, entity_id: u32) -> bool {
-        if self
-            .entity_manager
-            .is_alive(EntityId::from_parts(entity_id, 0))
-        {
-            self.entity_manager
-                .delete_entity(EntityId::from_parts(entity_id, 0))
-        } else {
-            false
-        }
+    /// Delete an entity. Requires the full `{index, generation}` pair so
+    /// that stale handles are correctly rejected.
+    pub fn delete_entity(&mut self, index: u32, generation: u32) -> bool {
+        let id = EntityId::from_parts(index, generation);
+        self.entity_manager.delete_entity(id)
     }
 
     /// Get count of live entities
@@ -56,29 +93,116 @@ impl Engine {
         self.entity_manager.count_entities()
     }
 
-    /// Check if entity is alive
-    pub fn is_alive(&self, entity_id: u32) -> bool {
+    /// Check if entity is alive. Requires `{index, generation}` – returns
+    /// `false` for any stale handle whose generation no longer matches.
+    pub fn is_alive(&self, index: u32, generation: u32) -> bool {
         self.entity_manager
-            .is_alive(EntityId::from_parts(entity_id, 0))
+            .is_alive(EntityId::from_parts(index, generation))
     }
 
     // === Component API ===
 
-    /// Register a component type (returns type ID)
+    /// Register a component type (returns numeric type ID)
     pub fn register_component_type(&mut self) -> u32 {
         let type_id = self.component_storage.register_component_type::<u32>();
         type_id.raw()
     }
 
-    /// Check if entity has component
-    pub fn has_component(&self, entity_id: u32, component_type_id: u32) -> bool {
+    /// Add a raw-byte component to an entity.
+    /// `data` must match the size that was registered for this type.
+    pub fn add_component(
+        &mut self,
+        index: u32,
+        generation: u32,
+        component_type_id: u32,
+        data: &[u8],
+    ) -> bool {
+        if !self
+            .entity_manager
+            .is_alive(EntityId::from_parts(index, generation))
+        {
+            return false;
+        }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage.has_component(entity_id, type_id)
+        self.component_storage.add_component(index, type_id, data)
+    }
+
+    /// Remove a component from an entity.
+    pub fn remove_component(
+        &mut self,
+        index: u32,
+        generation: u32,
+        component_type_id: u32,
+    ) -> bool {
+        if !self
+            .entity_manager
+            .is_alive(EntityId::from_parts(index, generation))
+        {
+            return false;
+        }
+        let type_id = ComponentTypeId::from_raw(component_type_id);
+        self.component_storage.remove_component(index, type_id)
+    }
+
+    /// Check if entity has component
+    pub fn has_component(&self, index: u32, generation: u32, component_type_id: u32) -> bool {
+        if !self
+            .entity_manager
+            .is_alive(EntityId::from_parts(index, generation))
+        {
+            return false;
+        }
+        let type_id = ComponentTypeId::from_raw(component_type_id);
+        self.component_storage.has_component(index, type_id)
+    }
+
+    /// Get raw component bytes for an entity (returns empty Vec if not found).
+    /// On the TypeScript side, use a DataView over the returned Uint8Array.
+    pub fn get_component_raw(
+        &self,
+        index: u32,
+        generation: u32,
+        component_type_id: u32,
+    ) -> Vec<u8> {
+        if !self
+            .entity_manager
+            .is_alive(EntityId::from_parts(index, generation))
+        {
+            return Vec::new();
+        }
+        let type_id = ComponentTypeId::from_raw(component_type_id);
+        self.component_storage
+            .get_component(index, type_id)
+            .map(|bytes| bytes.to_vec())
+            .unwrap_or_default()
+    }
+
+    // === Query API ===
+
+    /// Update the archetype of an entity after component changes.
+    /// Pass the full list of component type IDs currently on the entity.
+    pub fn update_entity_archetype(&mut self, index: u32, component_type_ids: &[u32]) {
+        let types: Vec<ComponentTypeId> = component_type_ids
+            .iter()
+            .map(|&id| ComponentTypeId::from_raw(id))
+            .collect();
+        self.query_system.update_entity_archetype(index, types);
+    }
+
+    /// Query entities that have ALL the listed component types.
+    /// Returns a flat `Uint32Array` of entity indices.
+    pub fn query_entities(&mut self, component_type_ids: &[u32]) -> Vec<u32> {
+        let types: Vec<ComponentTypeId> = component_type_ids
+            .iter()
+            .map(|&id| ComponentTypeId::from_raw(id))
+            .collect();
+        let query_id = QueryId::new(types);
+        self.query_system.query(query_id).entities().to_vec()
     }
 
     // === Game Loop API ===
 
-    /// Update game loop (call every frame)
+    /// Update game loop (call every frame with delta in milliseconds)
     pub fn tick(&mut self, delta_ms: f32) {
         let delta_seconds = delta_ms / 1000.0;
         self.gameloop.tick(delta_seconds);
@@ -89,12 +213,12 @@ impl Engine {
         self.gameloop.frame_count()
     }
 
-    /// Get delta time for current frame
+    /// Get delta time for current frame (in seconds)
     pub fn delta_time(&self) -> f32 {
         self.gameloop.delta_time()
     }
 
-    /// Get total elapsed time
+    /// Get total elapsed time (in seconds)
     pub fn total_time(&self) -> f32 {
         self.gameloop.total_time()
     }
