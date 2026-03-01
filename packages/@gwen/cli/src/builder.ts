@@ -119,7 +119,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     log(verbose, `[gwen build] [dry-run] Skipping WASM step`);
     result.wasmBuilt = true;
     result.wasmOutputDir = wasmOutDir;
-  } else if (parsed.rustCratePath) {
+  } else if (parsed.rustCratePath && isRustPackage(parsed.rustCratePath)) {
     // ── 2a. Projet avec crate Rust custom → wasm-pack build ────────────────
     log(verbose, `[gwen build] Rust crate detected: ${parsed.rustCratePath}`);
     const wasmBuildResult = buildWasmFromCrate(parsed.rustCratePath, wasmOutDir, mode, verbose);
@@ -134,7 +134,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     }
   } else {
     // ── 2b. Projet standard → copie les artefacts pré-compilés du package ──
-    log(verbose, `[gwen build] No Cargo.toml found — using pre-compiled WASM from @gwen/engine-core`);
+    log(verbose, `[gwen build] No custom Rust crate — using pre-compiled WASM from @gwen/engine-core`);
     const copyResult = copyPrecompiledWasm(wasmOutDir, verbose);
     if (!copyResult.success) {
       result.warnings.push(...copyResult.warnings);
@@ -209,6 +209,18 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   }
 
   return result;
+}
+
+// ── Détection crate Rust valide ───────────────────────────────────────────────
+
+/**
+ * Retourne true si le dossier contient un Cargo.toml avec [package].
+ * Un dossier avec seulement [workspace] (monorepo racine) retourne false.
+ */
+function isRustPackage(dir: string): boolean {
+  const cargo = path.join(dir, 'Cargo.toml');
+  if (!fs.existsSync(cargo)) return false;
+  return fs.readFileSync(cargo, 'utf-8').includes('[package]');
 }
 
 // ── Copie des artefacts pré-compilés depuis @gwen/engine-core ─────────────────
