@@ -51,12 +51,13 @@ export class GameScene implements Scene {
       .register(BulletPrefab);
 
     // 2. Enregistrement de l'UI globale
-    const uiManager = api.services.get<any>('PluginManager').get('UIManager');
+    const registrar = api.services.get<import('@gwen/engine-core').IPluginRegistrar>('PluginRegistrar');
+    const uiManager = registrar?.get<import('@gwen/engine-core').UIManager>('UIManager');
     if (uiManager) uiManager.register(HUD);
 
     // 3. Initialisation du Score & HUD (Entité Singleton)
     const scoreEntity = api.createEntity();
-    api.addComponent<ScoreData>(scoreEntity, C.SCORE, { value: 0, lives: 3 });
+    api.addComponent(scoreEntity, C.SCORE, { value: 0, lives: 3 });
     api.addComponent(scoreEntity, UIComponent, { uiName: HUD.name });
 
     // 4. Instantiation du Joueur

@@ -49,6 +49,7 @@ export interface ServiceLocator {
 export interface IPluginRegistrar {
   register(plugin: TsPlugin): void;
   unregister(name: string): boolean;
+  get<T extends TsPlugin = TsPlugin>(name: string): T | undefined;
 }
 
 
