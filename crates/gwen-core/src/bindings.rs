@@ -58,6 +58,10 @@ pub struct Engine {
     component_storage: ComponentStorage,
     query_system: QuerySystem,
     gameloop: GameLoop,
+    /// Monotonically increasing counter used by `register_component_type`.
+    /// Each call returns a fresh ID regardless of the underlying Rust type,
+    /// because JS does not have Rust's `TypeId` concept.
+    next_js_type_id: u32,
 }
 
 #[wasm_bindgen]
@@ -70,6 +74,7 @@ impl Engine {
             component_storage: ComponentStorage::new(),
             query_system: QuerySystem::new(),
             gameloop: GameLoop::new(60),
+            next_js_type_id: 0,
         }
     }
 
@@ -102,10 +107,18 @@ impl Engine {
 
     // === Component API ===
 
-    /// Register a component type (returns numeric type ID)
+    /// Register a new component type and return a unique numeric type ID.
+    ///
+    /// Each call returns a fresh, monotonically increasing ID.  Unlike the
+    /// native Rust API (which uses `std::any::TypeId`), this counter is
+    /// JS-friendly: callers just keep the returned number and pass it back.
+    ///
+    /// The actual column is created lazily on the first `add_component` call,
+    /// using the byte-slice length to determine the element size.
     pub fn register_component_type(&mut self) -> u32 {
-        let type_id = self.component_storage.register_component_type::<u32>();
-        type_id.raw()
+        let id = self.next_js_type_id;
+        self.next_js_type_id += 1;
+        id
     }
 
     /// Add a raw-byte component to an entity.

@@ -43,18 +43,18 @@ impl ComponentRegistry {
     /// Register a new component type
     pub fn register<T: 'static>(&mut self) -> ComponentTypeId {
         let rust_type_id = TypeId::of::<T>();
-        
+
         if let Some(&id) = self.rust_type_ids.get(&rust_type_id) {
             return id;
         }
 
         let id = ComponentTypeId(self.next_id);
         self.next_id += 1;
-        
+
         self.type_sizes.insert(id, std::mem::size_of::<T>());
         self.type_names.insert(id, std::any::type_name::<T>().to_string());
         self.rust_type_ids.insert(rust_type_id, id);
-        
+
         id
     }
 
@@ -201,22 +201,34 @@ impl ComponentStorage {
         }
     }
 
+    /// Register a raw component type by numeric ID and element size.
+    ///
+    /// Used by the WASM/JS API where Rust's `TypeId` is unavailable.
+    /// Idempotent: calling twice with the same `id` is a no-op.
+    pub fn register_raw(&mut self, id: ComponentTypeId, element_size: usize) {
+        self.columns
+            .entry(id)
+            .or_insert_with(|| ComponentColumn::new(id, element_size));
+    }
+
     /// Register a new component type
     pub fn register_component_type<T: 'static>(&mut self) -> ComponentTypeId {
         self.registry.register::<T>()
     }
 
-    /// Add a component to an entity
+    /// Add a component to an entity.
+    ///
+    /// Works for both Rust-registered types (via `register_component_type`)
+    /// and raw JS types (via `register_raw`).  For raw types the element
+    /// size is inferred from `data.len()`.
     pub fn add_component(&mut self, entity_id: u32, type_id: ComponentTypeId, data: &[u8]) -> bool {
-        let element_size = match self.registry.size(type_id) {
-            Some(size) => size,
-            None => return false, // Type not registered
-        };
+        // Try Rust registry first, fall back to data.len() for raw JS types
+        let element_size = self.registry.size(type_id).unwrap_or(data.len());
 
         let column = self.columns
             .entry(type_id)
             .or_insert_with(|| ComponentColumn::new(type_id, element_size));
-        
+
         column.add(entity_id, data)
     }
 
