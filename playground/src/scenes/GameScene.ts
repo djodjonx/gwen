@@ -1,88 +1,142 @@
 /**
  * Scène de jeu — Space Shooter
- *
- * Systèmes intégrés :
- *   PlayerSystem   — déplacement par InputPlugin
- *   ShootSystem    — tirs joueur et ennemis
- *   MovementSystem — applique vélocité × deltaTime
- *   SpawnSystem    — génère des ennemis sur un timer
- *   CollisionSystem — détection cercle simple, dégâts
- *   CleanupSystem  — décharge les entités hors-écran
- *   RenderSystem   — Canvas2D direct (HUD + debug)
+ * Remaniée avec les DSLs GWEN (defineComponent, defineUI, definePrefab)
+ * Démontre l'utilisation de TsPlugins locaux montés par une Scène.
  */
 
-import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
+import { Scene, EngineAPI, SceneManager, defineUI, UIComponent, definePrefab, TsPlugin } from '@gwen/engine-core';
 import type { KeyboardInput } from '@gwen/plugin-input';
-import type {
-  Position, Velocity, Health, Tag, ShootTimer, Collider, ScoreData
-} from '../components';
-import { COMPONENTS } from '../components';
+import { COMPONENTS as C, Position, Velocity, Health, Tag, ShootTimer, Collider, ScoreData } from '../components';
 
 const W = 480;
 const H = 640;
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// ── DSL: UI ─────────────────────────────────────────────────────────────
 
-const C = COMPONENTS;
+const HUD = defineUI({
+  name: 'SpaceShooterHUD',
+  css: `
+    #hud { position: absolute; top: 20px; left: 20px; color: white; font-family: monospace; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+    #score-val { color: #ffe600; }
+    #lives-val { color: #ff6b6b; }
+  `,
+  html: `
+    <div id="hud">
+      SCORE: <span id="score-val">0</span><br>
+      LIVES: <span id="lives-val">♥♥♥</span>
+    </div>
+  `,
+  onUpdate: (dom, entityId, api) => {
+    const score = api.getComponent<ScoreData>(entityId, C.SCORE);
+    if (!score) return;
+    dom.elements['score-val'].textContent = String(score.value);
+    dom.elements['lives-val'].textContent = '♥'.repeat(Math.max(0, score.lives));
+  }
+});
+
+// ── DSL: Prefabs ────────────────────────────────────────────────────────
+
+const PlayerPrefab = definePrefab({
+  name: 'Player',
+  create: (api) => {
+    const id = api.createEntity();
+    api.addComponent<Position>(id, C.POSITION, { x: W / 2, y: H - 80 });
+    api.addComponent<Velocity>(id, C.VELOCITY, { vx: 0, vy: 0 });
+    api.addComponent<Tag>(id, C.TAG, { type: 'player' });
+    api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, { elapsed: 0, cooldown: 0.25 });
+    api.addComponent<Collider>(id, C.COLLIDER, { radius: 14 });
+    return id;
+  }
+});
+
+const EnemyPrefab = definePrefab({
+  name: 'Enemy',
+  create: (api, x: number, y: number) => {
+    const id = api.createEntity();
+    api.addComponent<Position>(id, C.POSITION, { x, y });
+    api.addComponent<Velocity>(id, C.VELOCITY, { vx: 0, vy: 80 });
+    api.addComponent<Tag>(id, C.TAG, { type: 'enemy' });
+    api.addComponent<Collider>(id, C.COLLIDER, { radius: 14 });
+    api.addComponent<Health>(id, C.HEALTH, { current: 1, max: 1 });
+    api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, {
+      elapsed: Math.random() * 2,
+      cooldown: 2 + Math.random() * 2,
+    });
+    return id;
+  }
+});
+
+const BulletPrefab = definePrefab({
+  name: 'Bullet',
+  create: (api, x: number, y: number, vx: number, vy: number, type: 'bullet' | 'enemy-bullet') => {
+    const id = api.createEntity();
+    api.addComponent<Position>(id, C.POSITION, { x, y });
+    api.addComponent<Velocity>(id, C.VELOCITY, { vx, vy });
+    api.addComponent<Tag>(id, C.TAG, { type });
+    api.addComponent<Collider>(id, C.COLLIDER, { radius: type === 'bullet' ? 4 : 5 });
+    return id;
+  }
+});
+
+// ── Helpers ─────────────────────────────────────────────────────────────
 
 function dist(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
-// ── GameScene ─────────────────────────────────────────────────────────────
+// ── Plugin Local de Jeu ─────────────────────────────────────────────────
 
-export class GameScene implements Scene {
-  readonly name = 'Game';
+class SpaceShooterPlugin implements TsPlugin {
+  readonly name = 'SpaceShooterPlugin';
 
   private keyboard!: KeyboardInput;
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
   private scoreEntity = -1;
-  private playerEntity = -1;
   private spawnTimer = 0;
   private spawnInterval = 2.5;
-  private scenes: SceneManager;
 
-  constructor(scenes: SceneManager) {
-    this.scenes = scenes;
-  }
+  constructor(private scenes: SceneManager) { }
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────
-
-  onEnter(api: EngineAPI): void {
+  onInit(api: EngineAPI): void {
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     this.ctx = this.canvas.getContext('2d')!;
     this.spawnTimer = 0;
     this.spawnInterval = 2.5;
-
-    // Resolve input (registered by InputPlugin in onInit)
     this.keyboard = api.services.get<KeyboardInput>('keyboard');
 
-    // Score singleton
+    // Register Prefabs
+    api.prefabs.register(PlayerPrefab)
+      .register(EnemyPrefab)
+      .register(BulletPrefab);
+
+    // Register UI (UIManager assumes it's registered on Engine already)
+    const uiManager = api.services.get<any>('PluginManager').get('UIManager');
+    if (uiManager) uiManager.register(HUD);
+
+    // Score & HUD Singleton
     this.scoreEntity = api.createEntity();
     api.addComponent<ScoreData>(this.scoreEntity, C.SCORE, { value: 0, lives: 3 });
+    api.addComponent(this.scoreEntity, UIComponent, { uiName: HUD.name });
 
-    // Player
-    this.playerEntity = api.createEntity();
-    api.addComponent<Position>(this.playerEntity, C.POSITION, { x: W / 2, y: H - 80 });
-    api.addComponent<Velocity>(this.playerEntity, C.VELOCITY, { vx: 0, vy: 0 });
-    api.addComponent<Tag>(this.playerEntity, C.TAG, { type: 'player' });
-    api.addComponent<ShootTimer>(this.playerEntity, C.SHOOT_TIMER, { elapsed: 0, cooldown: 0.25 });
-    api.addComponent<Collider>(this.playerEntity, C.COLLIDER, { radius: 14 });
-
-    this.updateHUD(api);
+    // Spawn Player
+    api.prefabs.instantiate('Player');
   }
 
   onUpdate(api: EngineAPI, dt: number): void {
-    this.playerSystem(api, dt);
-    this.playerShootSystem(api, dt);
+    const playerEntity = api.query([C.TAG.name]).find(id => api.getComponent<Tag>(id, C.TAG)?.type === 'player');
+
+    if (playerEntity !== undefined) {
+      this.playerSystem(api, playerEntity, dt);
+      this.playerShootSystem(api, playerEntity, dt);
+    }
+
     this.spawnSystem(api, dt);
     this.enemyShootSystem(api, dt);
     this.movementSystem(api, dt);
-    this.collisionSystem(api);
+    this.collisionSystem(api, playerEntity);
     this.cleanupSystem(api);
     this.renderSystem(api);
-    this.updateHUD(api);
 
     // Game over check
     const score = api.getComponent<ScoreData>(this.scoreEntity, C.SCORE);
@@ -91,14 +145,10 @@ export class GameScene implements Scene {
     }
   }
 
-  onExit(_api: EngineAPI): void {
-    // Entity cleanup handled by SceneManager.purgeEntities()
-  }
-
   // ── Systems ───────────────────────────────────────────────────────────
 
-  private playerSystem(api: EngineAPI, dt: number): void {
-    const pos = api.getComponent<Position>(this.playerEntity, C.POSITION);
+  private playerSystem(api: EngineAPI, playerEntity: number, dt: number): void {
+    const pos = api.getComponent<Position>(playerEntity, C.POSITION);
     if (!pos) return;
 
     const speed = 250;
@@ -107,22 +157,21 @@ export class GameScene implements Scene {
     if (this.keyboard.isPressed('ArrowLeft') || this.keyboard.isPressed('KeyA')) vx = -speed;
     if (this.keyboard.isPressed('ArrowRight') || this.keyboard.isPressed('KeyD')) vx = speed;
 
-    // Clamp to canvas
     const nx = Math.max(20, Math.min(W - 20, pos.x + vx * dt));
-    api.addComponent<Position>(this.playerEntity, C.POSITION, { x: nx, y: pos.y });
+    api.addComponent<Position>(playerEntity, C.POSITION, { x: nx, y: pos.y });
   }
 
-  private playerShootSystem(api: EngineAPI, dt: number): void {
-    const timer = api.getComponent<ShootTimer>(this.playerEntity, C.SHOOT_TIMER);
+  private playerShootSystem(api: EngineAPI, playerEntity: number, dt: number): void {
+    const timer = api.getComponent<ShootTimer>(playerEntity, C.SHOOT_TIMER);
     if (!timer) return;
 
     const elapsed = timer.elapsed + dt;
-    api.addComponent<ShootTimer>(this.playerEntity, C.SHOOT_TIMER, { ...timer, elapsed });
+    api.addComponent<ShootTimer>(playerEntity, C.SHOOT_TIMER, { ...timer, elapsed });
 
     if (this.keyboard.isPressed('Space') && elapsed >= timer.cooldown) {
-      const pos = api.getComponent<Position>(this.playerEntity, C.POSITION)!;
-      this.spawnBullet(api, pos.x, pos.y - 20, 0, -600, 'bullet');
-      api.addComponent<ShootTimer>(this.playerEntity, C.SHOOT_TIMER, { ...timer, elapsed: 0 });
+      const pos = api.getComponent<Position>(playerEntity, C.POSITION)!;
+      api.prefabs.instantiate('Bullet', pos.x, pos.y - 20, 0, -600, 'bullet');
+      api.addComponent<ShootTimer>(playerEntity, C.SHOOT_TIMER, { ...timer, elapsed: 0 });
     }
   }
 
@@ -132,12 +181,12 @@ export class GameScene implements Scene {
       this.spawnTimer = 0;
       this.spawnInterval = Math.max(0.8, this.spawnInterval - 0.05);
       const x = 30 + Math.random() * (W - 60);
-      this.spawnEnemy(api, x, -30);
+      api.prefabs.instantiate('Enemy', x, -30);
     }
   }
 
   private enemyShootSystem(api: EngineAPI, dt: number): void {
-    const enemies = api.query([C.TAG, C.POSITION, C.SHOOT_TIMER]);
+    const enemies = api.query([C.TAG.name, C.POSITION.name, C.SHOOT_TIMER.name]);
     for (const id of enemies) {
       const tag = api.getComponent<Tag>(id, C.TAG);
       if (tag?.type !== 'enemy') continue;
@@ -147,7 +196,7 @@ export class GameScene implements Scene {
 
       if (elapsed >= timer.cooldown) {
         const pos = api.getComponent<Position>(id, C.POSITION)!;
-        this.spawnBullet(api, pos.x, pos.y + 16, 0, 350, 'enemy-bullet');
+        api.prefabs.instantiate('Bullet', pos.x, pos.y + 16, 0, 350, 'enemy-bullet');
         api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, { ...timer, elapsed: 0 });
       } else {
         api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, { ...timer, elapsed });
@@ -156,7 +205,7 @@ export class GameScene implements Scene {
   }
 
   private movementSystem(api: EngineAPI, dt: number): void {
-    const movables = api.query([C.POSITION, C.VELOCITY]);
+    const movables = api.query([C.POSITION.name, C.VELOCITY.name]);
     for (const id of movables) {
       const pos = api.getComponent<Position>(id, C.POSITION)!;
       const vel = api.getComponent<Velocity>(id, C.VELOCITY)!;
@@ -167,9 +216,9 @@ export class GameScene implements Scene {
     }
   }
 
-  private collisionSystem(api: EngineAPI): void {
-    const bullets = api.query([C.TAG, C.POSITION, C.COLLIDER]);
-    const enemies = api.query([C.TAG, C.POSITION, C.COLLIDER, C.HEALTH]);
+  private collisionSystem(api: EngineAPI, playerEntity: number | undefined): void {
+    const bullets = api.query([C.TAG.name, C.POSITION.name, C.COLLIDER.name]);
+    const enemies = api.query([C.TAG.name, C.POSITION.name, C.COLLIDER.name, C.HEALTH.name]);
 
     const score = api.getComponent<ScoreData>(this.scoreEntity, C.SCORE);
     if (!score) return;
@@ -181,7 +230,6 @@ export class GameScene implements Scene {
       const bPos = api.getComponent<Position>(bulletId, C.POSITION)!;
       const bCol = api.getComponent<Collider>(bulletId, C.COLLIDER)!;
 
-      // Player bullet vs enemies
       for (const enemyId of enemies) {
         const eTag = api.getComponent<Tag>(enemyId, C.TAG);
         if (eTag?.type !== 'enemy') continue;
@@ -189,6 +237,7 @@ export class GameScene implements Scene {
         const ePos = api.getComponent<Position>(enemyId, C.POSITION)!;
         const eCol = api.getComponent<Collider>(enemyId, C.COLLIDER)!;
 
+        // Player bullet vs enemy
         if (dist(bPos.x, bPos.y, ePos.x, ePos.y) < bCol.radius + eCol.radius) {
           api.destroyEntity(bulletId);
           api.destroyEntity(enemyId);
@@ -200,32 +249,33 @@ export class GameScene implements Scene {
       }
     }
 
-    // Enemy bullets vs player
-    for (const bulletId of bullets) {
-      const bTag = api.getComponent<Tag>(bulletId, C.TAG);
-      if (bTag?.type !== 'enemy-bullet') continue;
-      if (!api.entityExists(bulletId)) continue;
+    if (playerEntity !== undefined) {
+      const pPos = api.getComponent<Position>(playerEntity, C.POSITION)!;
+      const pCol = api.getComponent<Collider>(playerEntity, C.COLLIDER)!;
 
-      const bPos = api.getComponent<Position>(bulletId, C.POSITION)!;
-      const bCol = api.getComponent<Collider>(bulletId, C.COLLIDER)!;
-      const pPos = api.getComponent<Position>(this.playerEntity, C.POSITION)!;
-      const pCol = api.getComponent<Collider>(this.playerEntity, C.COLLIDER)!;
+      for (const bulletId of bullets) {
+        const bTag = api.getComponent<Tag>(bulletId, C.TAG);
+        if (bTag?.type !== 'enemy-bullet') continue;
+        if (!api.hasComponent(bulletId, C.POSITION.name)) continue;
 
-      if (dist(bPos.x, bPos.y, pPos.x, pPos.y) < bCol.radius + pCol.radius) {
-        api.destroyEntity(bulletId);
-        const current = api.getComponent<ScoreData>(this.scoreEntity, C.SCORE)!;
-        api.addComponent<ScoreData>(this.scoreEntity, C.SCORE, {
-          ...current, lives: current.lives - 1,
-        });
+        const bPos = api.getComponent<Position>(bulletId, C.POSITION)!;
+        const bCol = api.getComponent<Collider>(bulletId, C.COLLIDER)!;
+
+        if (dist(bPos.x, bPos.y, pPos.x, pPos.y) < bCol.radius + pCol.radius) {
+          api.destroyEntity(bulletId);
+          const current = api.getComponent<ScoreData>(this.scoreEntity, C.SCORE)!;
+          api.addComponent<ScoreData>(this.scoreEntity, C.SCORE, {
+            ...current, lives: current.lives - 1,
+          });
+        }
       }
     }
   }
 
   private cleanupSystem(api: EngineAPI): void {
-    const entities = api.query([C.POSITION, C.TAG]);
+    const entities = api.query([C.POSITION.name, C.TAG.name]);
     for (const id of entities) {
       const pos = api.getComponent<Position>(id, C.POSITION)!;
-      // Destroy entities that have left the screen (with margin)
       if (pos.y < -60 || pos.y > H + 60 || pos.x < -60 || pos.x > W + 60) {
         api.destroyEntity(id);
       }
@@ -237,7 +287,6 @@ export class GameScene implements Scene {
     ctx.fillStyle = '#000814';
     ctx.fillRect(0, 0, W, H);
 
-    // Draw stars (procedural, seed based on frame)
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     const t = Date.now() / 1000;
     for (let i = 0; i < 50; i++) {
@@ -246,8 +295,7 @@ export class GameScene implements Scene {
       ctx.fillRect(sx, sy, 1, 1);
     }
 
-    // Draw entities with position
-    const renderable = api.query([C.POSITION, C.TAG]);
+    const renderable = api.query([C.POSITION.name, C.TAG.name]);
     for (const id of renderable) {
       const pos = api.getComponent<Position>(id, C.POSITION)!;
       const tag = api.getComponent<Tag>(id, C.TAG)!;
@@ -257,7 +305,6 @@ export class GameScene implements Scene {
 
       switch (tag.type) {
         case 'player':
-          // Ship triangle
           ctx.fillStyle = '#4fffb0';
           ctx.shadowColor = '#4fffb0';
           ctx.shadowBlur = 12;
@@ -271,7 +318,6 @@ export class GameScene implements Scene {
           break;
 
         case 'enemy':
-          // Diamond shape
           ctx.fillStyle = '#ff6b6b';
           ctx.shadowColor = '#ff6b6b';
           ctx.shadowBlur = 10;
@@ -300,47 +346,28 @@ export class GameScene implements Scene {
           ctx.fill();
           break;
       }
-
       ctx.restore();
     }
   }
+}
 
-  // ── Spawn helpers ─────────────────────────────────────────────────────
+// ── GameScene ───────────────────────────────────────────────────────────
 
-  private spawnBullet(
-    api: EngineAPI,
-    x: number, y: number,
-    vx: number, vy: number,
-    type: 'bullet' | 'enemy-bullet',
-  ): void {
-    const id = api.createEntity();
-    api.addComponent<Position>(id, C.POSITION, { x, y });
-    api.addComponent<Velocity>(id, C.VELOCITY, { vx, vy });
-    api.addComponent<Tag>(id, C.TAG, { type });
-    api.addComponent<Collider>(id, C.COLLIDER, { radius: type === 'bullet' ? 4 : 5 });
+export class GameScene implements Scene {
+  readonly name = 'Game';
+
+  // Utilisation de la nouvelle API de Scene (Phase K)
+  readonly plugins: TsPlugin[];
+
+  constructor(scenes: SceneManager) {
+    this.plugins = [new SpaceShooterPlugin(scenes)];
   }
 
-  private spawnEnemy(api: EngineAPI, x: number, y: number): void {
-    const id = api.createEntity();
-    api.addComponent<Position>(id, C.POSITION, { x, y });
-    api.addComponent<Velocity>(id, C.VELOCITY, { vx: 0, vy: 80 });
-    api.addComponent<Tag>(id, C.TAG, { type: 'enemy' });
-    api.addComponent<Collider>(id, C.COLLIDER, { radius: 14 });
-    api.addComponent<Health>(id, C.HEALTH, { current: 1, max: 1 });
-    api.addComponent<ShootTimer>(id, C.SHOOT_TIMER, {
-      elapsed: Math.random() * 2,
-      cooldown: 2 + Math.random() * 2,
-    });
+  onEnter(_api: EngineAPI): void {
+    // Rien à faire, le SpaceShooterPlugin gère tout !
   }
 
-  // ── HUD ───────────────────────────────────────────────────────────────
-
-  private updateHUD(api: EngineAPI): void {
-    const score = api.getComponent<ScoreData>(this.scoreEntity, C.SCORE);
-    if (!score) return;
-    const el = document.getElementById('score');
-    const livesEl = document.getElementById('lives');
-    if (el) el.textContent = `SCORE: ${score.value}`;
-    if (livesEl) livesEl.textContent = '♥ '.repeat(Math.max(0, score.lives)).trim();
+  onExit(_api: EngineAPI): void {
+    // Entities and plugins are automatically purged
   }
 }

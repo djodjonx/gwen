@@ -1,57 +1,60 @@
 /**
  * Composants du Space Shooter
- * Définis comme des types TypeScript simples,
- * stockés dans le ComponentRegistry de l'ECS.
+ * Utilisent le DSL defineComponent pour préparer la séparation WASM.
  */
 
-// Position dans le monde
-export interface Position {
-  x: number;
-  y: number;
-}
+import { defineComponent, Types, type InferComponent } from '@gwen/engine-core';
 
-// Vélocité (pixels/seconde)
-export interface Velocity {
-  vx: number;
-  vy: number;
-}
+export const PositionDef = defineComponent({
+  name: 'position',
+  schema: { x: Types.f32, y: Types.f32 }
+});
+export type Position = InferComponent<typeof PositionDef>;
 
-// Santé / vie
-export interface Health {
-  current: number;
-  max: number;
-}
+export const VelocityDef = defineComponent({
+  name: 'velocity',
+  schema: { vx: Types.f32, vy: Types.f32 }
+});
+export type Velocity = InferComponent<typeof VelocityDef>;
 
-// Tag pour identifier le type d'entité
+export const HealthDef = defineComponent({
+  name: 'health',
+  schema: { current: Types.f32, max: Types.f32 }
+});
+export type Health = InferComponent<typeof HealthDef>;
+
+export const TagDef = defineComponent({
+  name: 'tag',
+  schema: { type: Types.string } // 'player' | 'enemy' | 'bullet' | 'enemy-bullet'
+});
 export type EntityTag = 'player' | 'enemy' | 'bullet' | 'enemy-bullet';
-export interface Tag {
-  type: EntityTag;
-}
+export type Tag = InferComponent<typeof TagDef>;
 
-// Timer de tir (cooldown)
-export interface ShootTimer {
-  elapsed: number;
-  cooldown: number;
-}
+export const ShootTimerDef = defineComponent({
+  name: 'shootTimer',
+  schema: { elapsed: Types.f32, cooldown: Types.f32 }
+});
+export type ShootTimer = InferComponent<typeof ShootTimerDef>;
 
-// Rayon de collision (cercle simple)
-export interface Collider {
-  radius: number;
-}
+export const ColliderDef = defineComponent({
+  name: 'collider',
+  schema: { radius: Types.f32 }
+});
+export type Collider = InferComponent<typeof ColliderDef>;
 
-// Score global (singleton sur une entité)
-export interface ScoreData {
-  value: number;
-  lives: number;
-}
+export const ScoreDef = defineComponent({
+  name: 'score',
+  schema: { value: Types.i32, lives: Types.i32 }
+});
+export type ScoreData = InferComponent<typeof ScoreDef>;
 
-// Clés de composant — évite les typos
+// Export as old COMPONENTS map structure to minimize refactor scope initially
 export const COMPONENTS = {
-  POSITION: 'position',
-  VELOCITY: 'velocity',
-  HEALTH: 'health',
-  TAG: 'tag',
-  SHOOT_TIMER: 'shootTimer',
-  COLLIDER: 'collider',
-  SCORE: 'score',
+  POSITION: PositionDef,
+  VELOCITY: VelocityDef,
+  HEALTH: HealthDef,
+  TAG: TagDef,
+  SHOOT_TIMER: ShootTimerDef,
+  COLLIDER: ColliderDef,
+  SCORE: ScoreDef,
 } as const;

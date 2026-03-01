@@ -3,7 +3,7 @@
  * Montre l'assemblage complet du framework GWEN.
  */
 
-import { Engine, SceneManager } from '@gwen/engine-core';
+import { Engine, SceneManager, UIManager } from '@gwen/engine-core';
 import { InputPlugin } from '@gwen/plugin-input';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { GameScene } from './scenes/GameScene';
@@ -19,7 +19,10 @@ const engine = new Engine({
 const scenes = new SceneManager();
 engine.registerSystem(scenes);
 
-// 3. Input — capture en onBeforeUpdate (step 1 du game loop)
+// 3. UI
+engine.registerSystem(new UIManager());
+
+// 4. Input — capture en onBeforeUpdate (step 1 du game loop)
 engine.registerSystem(new InputPlugin());
 
 // 4. Scènes
