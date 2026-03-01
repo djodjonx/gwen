@@ -28,5 +28,9 @@ export type { UIDefinition, UIRenderContext } from './ui';
 
 // Prefab system
 export { definePrefab, PrefabManager } from './prefab';
+
+// WASM Bridge — optional Rust/WASM core integration
+export { initWasm, getWasmBridge, _resetWasmBridge } from './wasm-bridge';
+export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './wasm-bridge';
 export type { PrefabDefinition } from './prefab';
 

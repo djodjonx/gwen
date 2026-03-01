@@ -23,6 +23,7 @@ import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
 import { PluginManager } from './plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
+import { getWasmBridge, type WasmBridge } from './wasm-bridge';
 
 export class Engine {
   private config: EngineConfig;
@@ -41,6 +42,9 @@ export class Engine {
   // Plugin system (single source of truth)
   private pluginManager: PluginManager;
   private api: EngineAPIImpl;
+
+  // WASM Bridge (optional — active only if initWasm() was called before Engine construction)
+  private wasmBridge: WasmBridge;
 
   // Event system
   private eventListeners: Map<string, Set<Function>> = new Map();
@@ -63,6 +67,9 @@ export class Engine {
 
     this.pluginManager = new PluginManager();
 
+    // Wire up WASM bridge (no-op if initWasm() was never called)
+    this.wasmBridge = getWasmBridge();
+
     // Register PluginRegistrar to allow Scenes (and other plugins) to mount sub-plugins
     this.api.services.register<import('./types').IPluginRegistrar>('PluginRegistrar', {
       register: (plugin) => this.pluginManager.register(plugin, this.api),
@@ -72,6 +79,11 @@ export class Engine {
 
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
+      if (this.wasmBridge.isActive()) {
+        console.log('[GWEN] WASM core is active — Rust ECS bridged');
+      } else {
+        console.log('[GWEN] Running in TS-only mode (call initWasm() to enable WASM core)');
+      }
     }
   }
 
@@ -185,7 +197,10 @@ export class Engine {
     // 1. Inputs & intentions
     this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
 
-    // 2. (WASM plugins slot — physics, AI — future integration)
+    // 2. WASM core tick — advances Rust ECS frame timing in sync with TS
+    if (this.wasmBridge.isActive()) {
+      this.wasmBridge.tick(this._deltaTime * 1000); // bridge expects milliseconds
+    }
 
     // 3. Game logic on updated values
     this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
@@ -301,7 +316,14 @@ export class Engine {
       deltaTime: this._deltaTime,
       entityCount: this.entityManager.count(),
       isRunning: this.isRunning,
+      wasmActive: this.wasmBridge.isActive(),
+      wasmStats: this.wasmBridge.stats(),
     };
+  }
+
+  /** Expose the WASM bridge for plugins that need direct Rust access. */
+  public getWasmBridge(): WasmBridge {
+    return this.wasmBridge;
   }
 
   /** Expose the EngineAPI for advanced plugin scenarios */
