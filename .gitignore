@@ -1,6 +1,6 @@
 # GWEN Framework - Build Output & Dependencies
 /target/
-/node_modules/
+node_modules/
 /dist/
 
 # IDE & Editor
