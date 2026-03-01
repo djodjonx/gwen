@@ -67,7 +67,7 @@ export class Engine {
     this.api.services.register<import('./types').IPluginRegistrar>('PluginRegistrar', {
       register: (plugin) => this.pluginManager.register(plugin, this.api),
       unregister: (name) => this.pluginManager.unregister(name),
-      get: <T extends import('./types').TsPlugin>(name: string) => this.pluginManager.getPlugin(name) as T | undefined,
+      get: <T extends import('./types').TsPlugin>(name: string) => this.pluginManager.get<T>(name),
     });
 
     if (this.config.debug) {
