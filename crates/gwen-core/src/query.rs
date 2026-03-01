@@ -134,11 +134,28 @@ impl QuerySystem {
         }
     }
 
-    /// Update entity archetype when components change
+    /// Update entity archetype when components change.
+    ///
+    /// Only cached queries that could be affected by this entity's old or
+    /// new archetype are invalidated (partial invalidation).
     pub fn update_entity_archetype(&mut self, entity_id: u32, components: Vec<ComponentTypeId>) {
-        let archetype = ArchetypeId::new(components);
-        self.entity_archetypes.insert(entity_id, archetype);
-        self.clear_cache(); // Invalidate queries
+        let new_archetype = ArchetypeId::new(components);
+
+        // Collect the old archetype (if any) before mutating the map
+        let old_archetype = self.entity_archetypes.get(&entity_id).cloned();
+
+        self.entity_archetypes.insert(entity_id, new_archetype.clone());
+
+        // Partial cache invalidation – only evict queries that intersect
+        // with the old or new archetype of the changed entity.
+        self.query_cache.retain(|query_id, _| {
+            let touches_old = old_archetype
+                .as_ref()
+                .map(|old| query_id.matches(old))
+                .unwrap_or(false);
+            let touches_new = query_id.matches(&new_archetype);
+            !touches_old && !touches_new
+        });
     }
 
     /// Execute a query
@@ -162,10 +179,15 @@ impl QuerySystem {
         result
     }
 
-    /// Remove entity from tracking (when deleted)
+    /// Remove entity from tracking (when deleted).
+    ///
+    /// Performs partial invalidation – only queries that matched this
+    /// entity's archetype need to be evicted.
     pub fn remove_entity(&mut self, entity_id: u32) {
-        self.entity_archetypes.remove(&entity_id);
-        self.clear_cache();
+        if let Some(old_archetype) = self.entity_archetypes.remove(&entity_id) {
+            self.query_cache
+                .retain(|query_id, _| !query_id.matches(&old_archetype));
+        }
     }
 
     /// Get entity archetype
@@ -173,14 +195,14 @@ impl QuerySystem {
         self.entity_archetypes.get(&entity_id)
     }
 
-    /// Clear query cache (called when archetypes change)
-    fn clear_cache(&mut self) {
-        self.query_cache.clear();
-    }
-
     /// Get count of tracked entities
     pub fn entity_count(&self) -> usize {
         self.entity_archetypes.len()
+    }
+
+    /// Get count of cached queries (useful for benchmarks / debugging)
+    pub fn cache_size(&self) -> usize {
+        self.query_cache.len()
     }
 }
 
