@@ -61,14 +61,23 @@ let _wasmModule: GwenCoreWasm | null = null;
 let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
 
-// URL de base résolue au moment du bundling — pointe vers wasm/ co-publié dans @gwen/engine-core.
-// import.meta.url fonctionne avec Vite, Rollup, esbuild (ESM natif).
+// URL de base pour les artefacts WASM.
+//
+// Stratégie de résolution (par ordre de priorité) :
+//  1. En navigateur : /wasm/ relatif à l'origine courante.
+//     Le @gwen/vite-plugin sert ce dossier via son middleware (dev)
+//     et le CLI le copie dans dist/wasm/ (build).
+//  2. En Node (SSR / tests) : null — initWasm() doit recevoir une URL explicite.
+//
+// On n'utilise PAS new URL('../wasm/', import.meta.url) car en mode dev Vite
+// cela génère un chemin @fs/.../.../engine-core/wasm sans le slash final,
+// ce qui produit une URL invalide.
 const _pkgWasmBase: string | null = (() => {
-  try {
-    return new URL('../wasm/', import.meta.url).href;
-  } catch {
-    return null;
+  if (typeof window !== 'undefined' && typeof location !== 'undefined') {
+    // Navigateur — les artefacts sont toujours servis depuis /wasm/ par le plugin Vite
+    return `${location.origin}/wasm/`;
   }
+  return null;
 })();
 
 // ── Initialisation ────────────────────────────────────────────────────────────
