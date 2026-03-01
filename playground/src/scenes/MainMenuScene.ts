@@ -1,102 +1,62 @@
-/**
- * Scène : Écran principal (menu)
- *
- * Respecte la séparation logique/rendu du pattern TsPlugin :
- *  - onUpdate  → gestion d'état (blink timer, transitions)
- *  - onRender  → dessin Canvas2D uniquement
- */
 import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { GwenServices } from '../../gwen.config';
 import type { KeyboardInput } from '@gwen/plugin-input';
-import type { GwenServices } from '../../engine.config';
 
 export class MainMenuScene implements Scene {
   readonly name = 'MainMenu';
 
-  private ctx: CanvasRenderingContext2D | null = null;
-  private canvas: HTMLCanvasElement | null = null;
   private keyboard!: KeyboardInput;
-  private scenes: SceneManager;
+  private canvas: HTMLCanvasElement | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private blink = true;
+  private blinkT = 0;
 
-  /** Whether the "PRESS SPACE" label is currently visible (blink state). */
-  private blinkVisible = true;
-  /** Accumulated time (seconds) used for the blink timer. */
-  private blinkTimer = 0;
-  private static readonly BLINK_INTERVAL = 0.6; // seconds
+  constructor(private scenes: SceneManager) {}
 
-  constructor(scenes: SceneManager) {
-    this.scenes = scenes;
-  }
-
-  onEnter(api: EngineAPI<GwenServices>): void {
+  onEnter(api: EngineAPI<GwenServices>) {
+    this.keyboard = api.services.get('keyboard');
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     this.ctx = this.canvas?.getContext('2d') ?? null;
-    this.blinkTimer = 0;
-    this.blinkVisible = true;
-
-    // Récupère le keyboard via le service locator — typé sans cast
-    this.keyboard = api.services.get('keyboard');
-    this.updateHUD(0, 3);
+    this.blink = true;
+    this.blinkT = 0;
   }
 
-  /** Logic only – no drawing here. */
-  onUpdate(_api: EngineAPI<GwenServices>, dt: number): void {
-    this.blinkTimer += dt;
-    if (this.blinkTimer >= MainMenuScene.BLINK_INTERVAL) {
-      this.blinkVisible = !this.blinkVisible;
-      this.blinkTimer -= MainMenuScene.BLINK_INTERVAL;
-    }
-
-    // Démarrer le jeu quand Space est pressé — via KeyboardInput (plus de window.addEventListener)
-    if (this.keyboard?.isJustPressed('Space')) {
-      this.scenes.loadScene('Game');
-    }
+  onUpdate(_api: EngineAPI<GwenServices>, dt: number) {
+    this.blinkT += dt;
+    if (this.blinkT > 0.55) { this.blink = !this.blink; this.blinkT = 0; }
+    if (this.keyboard?.isJustPressed('Space')) this.scenes.loadScene('Game');
   }
 
-  /** Rendering only – no state mutation here. */
-  onRender(_api: EngineAPI<GwenServices>): void {
+  onRender() {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
-
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.canvas.width, H = this.canvas.height;
 
     ctx.fillStyle = '#000814';
     ctx.fillRect(0, 0, W, H);
 
-    // Titre
-    ctx.fillStyle = '#4fffb0';
-    ctx.font = 'bold 36px "Courier New"';
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#4fffb0';
-    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#4fffb0';
+    ctx.shadowColor = '#4fffb0'; ctx.shadowBlur = 20;
+    ctx.font = 'bold 38px "Courier New"';
     ctx.fillText('SPACE SHOOTER', W / 2, H / 2 - 60);
 
     ctx.shadowBlur = 0;
-    ctx.font = '16px "Courier New"';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('built with GWEN engine', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#888';
+    ctx.font = '15px "Courier New"';
+    ctx.fillText('powered by GWEN engine', W / 2, H / 2 - 28);
 
-    // Clignotement "PRESS SPACE" (piloté par blinkVisible, pas par Date.now())
-    if (this.blinkVisible) {
+    if (this.blink) {
       ctx.fillStyle = '#ffe600';
-      ctx.font = '18px "Courier New"';
+      ctx.font = 'bold 18px "Courier New"';
       ctx.fillText('[ PRESS SPACE TO START ]', W / 2, H / 2 + 30);
     }
 
-    // Contrôles
-    ctx.fillStyle = '#555';
+    ctx.fillStyle = '#444';
     ctx.font = '12px "Courier New"';
-    ctx.fillText('arrow keys / WASD : Move    SPACE : Shoot', W / 2, H / 2 + 80);
+    ctx.fillText('WASD / Arrows : move    Space : shoot', W / 2, H / 2 + 75);
   }
 
-  onExit(_api: EngineAPI<GwenServices>): void {
-    // Plus de removeEventListener — InputPlugin gère son propre cleanup
-  }
-
-  private updateHUD(score: number, lives: number): void {
-    const el = document.getElementById('score');
-    const livesEl = document.getElementById('lives');
-    if (el) el.textContent = `SCORE: ${score}`;
-    if (livesEl) livesEl.textContent = '♥ '.repeat(lives).trim();
-  }
+  onExit() {}
 }
+

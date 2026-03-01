@@ -1,5 +1,9 @@
 import type { EngineConfig, WasmPlugin, TsPlugin } from './types';
 import type { AnyGwenPlugin, MergeProvides } from './plugin';
+import { Engine } from './engine';
+import { SceneManager } from './scene';
+
+// ...existing code...
 
 /**
  * Default engine configuration - Pure logic, no rendering concerns
@@ -71,6 +75,8 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
 export function defineConfig<
   const Plugins extends readonly AnyGwenPlugin[],
 >(config: {
+  /** Raccourci Nuxt-like : engine: { maxEntities, targetFPS, debug } */
+  engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
   plugins?: [...Plugins];
   wasmPlugins?: WasmPlugin[];
   maxEntities?: number;
@@ -79,6 +85,45 @@ export function defineConfig<
   enableStats?: boolean;
 }): TypedEngineConfig<MergeProvides<Plugins>> {
   return config as any;
+}
+
+/**
+ * Crée un Engine et un SceneManager depuis une TypedEngineConfig.
+ *
+ * Instancie l'engine, enregistre tous les plugins déclarés dans `config.plugins`
+ * et retourne `{ engine, scenes }` prêts à l'emploi.
+ *
+ * C'est le point d'entrée recommandé pour un projet scaffoldé :
+ * ```typescript
+ * const { engine, scenes } = createEngine(gwenConfig);
+ * scenes.register(new MyScene(scenes));
+ * engine.start();
+ * ```
+ */
+export function createEngine(config: TypedEngineConfig<any>): {
+  engine: Engine;
+  scenes: SceneManager;
+} {
+  const raw = config as any;
+  // Supporte les deux formes : engine:{} et champs à plat
+  const engineOpts = raw.engine ?? {};
+  const engine = new Engine({
+    maxEntities: engineOpts.maxEntities ?? raw.maxEntities ?? 5000,
+    targetFPS: engineOpts.targetFPS ?? raw.targetFPS ?? 60,
+    debug: engineOpts.debug ?? raw.debug ?? false,
+    enableStats: engineOpts.enableStats ?? raw.enableStats ?? true,
+  });
+
+  const scenes = new SceneManager();
+  engine.registerSystem(scenes);
+
+  // Enregistrer les plugins déclarés dans config.plugins
+  const plugins: TsPlugin[] = raw.plugins ?? [];
+  for (const plugin of plugins) {
+    engine.registerSystem(plugin);
+  }
+
+  return { engine, scenes };
 }
 
 /**

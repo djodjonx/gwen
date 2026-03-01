@@ -9,6 +9,7 @@ export {
   defaultConfig,
   mergeConfigs,
   defineConfig,
+  createEngine,
   ConfigBuilder,
 } from './config';
 export type { TypedEngineConfig, GwenConfigServices } from './config';

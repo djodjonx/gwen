@@ -1,72 +1,53 @@
-/**
- * Scène de jeu — Space Shooter
- * Remaniée avec les DSLs GWEN et une architecture System / Prefab propre.
- */
-
-import { Scene, EngineAPI, SceneManager, UIComponent, type TsPlugin } from '@gwen/engine-core';
-import type { GwenServices } from '../../engine.config';
-
-// Composants
-import { COMPONENTS as C, type ScoreData } from '../components';
-
-// UI
-import { HUD } from '../ui/HUD.ui';
-
-// Prefabs
-import { PlayerPrefab } from '../prefabs/Player.prefab';
-import { EnemyPrefab } from '../prefabs/Enemy.prefab';
-import { BulletPrefab } from '../prefabs/Bullet.prefab';
-
-// Systèmes Locaux (Plugins de Scène)
-import { PlayerControllerSystem } from '../systems/PlayerController.system';
-import { MovementSystem } from '../systems/Movement.system';
-import { AiControllerSystem } from '../systems/AiController.system';
-import { SpawnerSystem } from '../systems/Spawner.system';
-import { CollisionSystem } from '../systems/Collision.system';
-import { RenderSystem } from '../systems/Render.system';
-
+import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { GwenServices } from '../../gwen.config';
+import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
+import { Score } from '../components';
+import { MovementSystem }  from '../systems/MovementSystem';
+import { makePlayerSystem } from '../systems/PlayerSystem';
+import { AiSystem }         from '../systems/AiSystem';
+import { SpawnerSystem }    from '../systems/SpawnerSystem';
+import { makeCollisionSystem } from '../systems/CollisionSystem';
+import { makeRenderSystem } from '../systems/RenderSystem';
+import { HudSystem }        from '../systems/HudSystem';
 
 export class GameScene implements Scene {
   readonly name = 'Game';
 
-  // Utilisation de la nouvelle API de Scene (Phase K)
-  // Ces plugins seront montés uniquement lorsque la scène tourne.
-  readonly plugins: TsPlugin[];
+  /** Plugins actifs uniquement pendant cette scène */
+  readonly plugins = [
+    MovementSystem,
+    makePlayerSystem(this.scenes),
+    AiSystem,
+    SpawnerSystem,
+    makeCollisionSystem(this.scenes),
+    makeRenderSystem(),
+    HudSystem,
+  ];
 
-  constructor(scenes: SceneManager) {
-    this.plugins = [
-      new PlayerControllerSystem(),
-      new AiControllerSystem(),
-      new SpawnerSystem(),
-      new MovementSystem(),
-      new CollisionSystem(scenes),
-      new RenderSystem()
-    ];
-  }
+  constructor(private scenes: SceneManager) {}
 
-  onEnter(api: EngineAPI<GwenServices>): void {
-    // 1. Enregistrement des Prefabs
-    api.prefabs
-      .register(PlayerPrefab)
-      .register(EnemyPrefab)
-      .register(BulletPrefab);
+  onEnter(api: EngineAPI<GwenServices>) {
+    // Enregistrer les prefabs
+    api.prefabs.register(PlayerPrefab);
+    api.prefabs.register(EnemyPrefab);
+    api.prefabs.register(BulletPrefab);
 
-    // 2. Enregistrement de l'UI globale
-    const registrar = api.services.get<import('@gwen/engine-core').IPluginRegistrar>('PluginRegistrar');
-    const uiManager = registrar?.get<import('@gwen/engine-core').UIManager>('UIManager');
-    if (uiManager) uiManager.register(HUD);
+    // Entité score globale
+    const scoreId = api.createEntity();
+    api.addComponent(scoreId, Score, { value: 0, lives: 3 });
 
-    // 3. Initialisation du Score & HUD (Entité Singleton)
-    const scoreEntity = api.createEntity();
-    api.addComponent(scoreEntity, C.SCORE, { value: 0, lives: 3 });
-    api.addComponent(scoreEntity, UIComponent, { uiName: HUD.name });
-
-    // 4. Instantiation du Joueur
+    // Joueur
     api.prefabs.instantiate('Player');
+
+    // Première vague d'ennemis
+    for (let i = 0; i < 5; i++) {
+      const x = 60 + i * 90;
+      api.prefabs.instantiate('Enemy', x, -30 - i * 15);
+    }
   }
 
-  onExit(_api: EngineAPI<GwenServices>): void {
-    // Les entités sont automatiquement purgées par le SceneManager
-    // Les TsPlugins locaux sont automatiquement démontés par le PluginRegistrar
-  }
+  onUpdate() {}
+  onRender() {}
+  onExit() {}
 }
+
