@@ -1,0 +1,458 @@
+//! Transform component - Hierarchical entity transforms
+
+use crate::entity::EntityId;
+use crate::transform_math::{Vec2, Mat3};
+use std::collections::HashMap;
+
+/// 2D Transform component for entities
+#[derive(Debug, Clone)]
+pub struct Transform {
+    // Local transform (relative to parent)
+    pub position: Vec2,
+    pub rotation: f32,      // radians
+    pub scale: Vec2,
+
+    // Cached world transform
+    world_position: Vec2,
+    world_rotation: f32,
+    world_scale: Vec2,
+    world_matrix: Mat3,
+
+    // Hierarchy
+    parent: Option<EntityId>,
+    children: Vec<EntityId>,
+
+    // Dirty flag
+    dirty: bool,
+}
+
+impl Transform {
+    /// Create new local transform
+    pub fn new(position: Vec2, rotation: f32, scale: Vec2) -> Self {
+        Transform {
+            position,
+            rotation,
+            scale,
+            world_position: position,
+            world_rotation: rotation,
+            world_scale: scale,
+            world_matrix: Mat3::transform(position, rotation, scale),
+            parent: None,
+            children: Vec::new(),
+            dirty: true,
+        }
+    }
+
+    /// Default transform (origin, no rotation, scale 1)
+    pub fn default_transform() -> Self {
+        Transform::new(Vec2::zero(), 0.0, Vec2::one())
+    }
+
+    /// Get local position
+    pub fn position(&self) -> Vec2 {
+        self.position
+    }
+
+    /// Set local position
+    pub fn set_position(&mut self, position: Vec2) {
+        self.position = position;
+        self.dirty = true;
+    }
+
+    /// Get local rotation
+    pub fn rotation(&self) -> f32 {
+        self.rotation
+    }
+
+    /// Set local rotation
+    pub fn set_rotation(&mut self, rotation: f32) {
+        self.rotation = rotation;
+        self.dirty = true;
+    }
+
+    /// Get local scale
+    pub fn scale(&self) -> Vec2 {
+        self.scale
+    }
+
+    /// Set local scale
+    pub fn set_scale(&mut self, scale: Vec2) {
+        self.scale = scale;
+        self.dirty = true;
+    }
+
+    /// Get world position
+    pub fn world_position(&self) -> Vec2 {
+        self.world_position
+    }
+
+    /// Get world rotation
+    pub fn world_rotation(&self) -> f32 {
+        self.world_rotation
+    }
+
+    /// Get world scale
+    pub fn world_scale(&self) -> Vec2 {
+        self.world_scale
+    }
+
+    /// Get world matrix
+    pub fn world_matrix(&self) -> &Mat3 {
+        &self.world_matrix
+    }
+
+    /// Get parent
+    pub fn parent(&self) -> Option<EntityId> {
+        self.parent
+    }
+
+    /// Get children
+    pub fn children(&self) -> &[EntityId] {
+        &self.children
+    }
+
+    /// Is dirty (needs recalculation)?
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Mark dirty
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true;
+    }
+
+    /// Set parent
+    pub fn set_parent(&mut self, parent: Option<EntityId>) {
+        self.parent = parent;
+        self.dirty = true;
+    }
+
+    /// Add child
+    pub fn add_child(&mut self, child: EntityId) {
+        if !self.children.contains(&child) {
+            self.children.push(child);
+        }
+    }
+
+    /// Remove child
+    pub fn remove_child(&mut self, child: EntityId) -> bool {
+        if let Some(pos) = self.children.iter().position(|&id| id == child) {
+            self.children.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Update world transform from parent
+    pub(crate) fn update_from_parent(&mut self, parent_matrix: &Mat3) {
+        if !self.dirty {
+            return;
+        }
+
+        // Calculate local matrix
+        let local_matrix = Mat3::transform(self.position, self.rotation, self.scale);
+
+        // Calculate world matrix
+        self.world_matrix = parent_matrix.multiply(local_matrix);
+
+        // Extract world position from matrix
+        self.world_position = Vec2::new(
+            self.world_matrix.as_array()[2],
+            self.world_matrix.as_array()[5],
+        );
+
+        // Extract world rotation and scale
+        let m = self.world_matrix.as_array();
+        self.world_rotation = (m[3]).atan2(m[0]);
+        self.world_scale = Vec2::new(
+            ((m[0] * m[0] + m[3] * m[3]).sqrt()),
+            ((m[1] * m[1] + m[4] * m[4]).sqrt()),
+        );
+
+        self.dirty = false;
+    }
+
+    /// Update as root transform
+    pub(crate) fn update_as_root(&mut self) {
+        if !self.dirty {
+            return;
+        }
+
+        self.world_matrix = Mat3::transform(self.position, self.rotation, self.scale);
+        self.world_position = self.position;
+        self.world_rotation = self.rotation;
+        self.world_scale = self.scale;
+        self.dirty = false;
+    }
+}
+
+/// Transform system - manages hierarchical transforms
+pub struct TransformSystem {
+    transforms: HashMap<EntityId, Transform>,
+    root_entities: Vec<EntityId>,
+    entity_to_index: HashMap<EntityId, usize>,
+    update_order: Vec<EntityId>,
+}
+
+impl TransformSystem {
+    /// Create new transform system
+    pub fn new() -> Self {
+        TransformSystem {
+            transforms: HashMap::new(),
+            root_entities: Vec::new(),
+            entity_to_index: HashMap::new(),
+            update_order: Vec::new(),
+        }
+    }
+
+    /// Add transform for entity
+    pub fn add_transform(&mut self, entity: EntityId, transform: Transform) {
+        self.transforms.insert(entity, transform);
+        if !self.transforms[&entity].parent().is_some() {
+            self.root_entities.push(entity);
+        }
+        self.rebuild_update_order();
+    }
+
+    /// Remove transform for entity
+    pub fn remove_transform(&mut self, entity: EntityId) -> Option<Transform> {
+        if let Some(transform) = self.transforms.remove(&entity) {
+            self.root_entities.retain(|&id| id != entity);
+            self.rebuild_update_order();
+            Some(transform)
+        } else {
+            None
+        }
+    }
+
+    /// Get transform reference
+    pub fn get_transform(&self, entity: EntityId) -> Option<&Transform> {
+        self.transforms.get(&entity)
+    }
+
+    /// Get mutable transform reference
+    pub fn get_transform_mut(&mut self, entity: EntityId) -> Option<&mut Transform> {
+        self.transforms.get_mut(&entity)
+    }
+
+    /// Set parent of entity
+    pub fn set_parent(&mut self, entity: EntityId, parent: Option<EntityId>) {
+        let old_parent = self.transforms.get(&entity).and_then(|t| t.parent());
+
+        // Remove from old parent
+        if let Some(old_p) = old_parent {
+            if let Some(parent_transform) = self.transforms.get_mut(&old_p) {
+                parent_transform.remove_child(entity);
+            }
+        }
+
+        // Set new parent
+        if let Some(transform) = self.transforms.get_mut(&entity) {
+            transform.set_parent(parent);
+        }
+
+        // Add to new parent
+        if let Some(new_parent) = parent {
+            if let Some(parent_transform) = self.transforms.get_mut(&new_parent) {
+                parent_transform.add_child(entity);
+            }
+        } else {
+            // Entity is now root
+            if !self.root_entities.contains(&entity) {
+                self.root_entities.push(entity);
+            }
+        }
+
+        self.rebuild_update_order();
+    }
+
+    /// Update all transforms
+    pub fn update(&mut self) {
+        let update_order = self.update_order.clone();
+
+        for entity in update_order {
+            let (parent, should_update_as_root) = {
+                if let Some(transform) = self.transforms.get(&entity) {
+                    (transform.parent(), false)
+                } else {
+                    (None, false)
+                }
+            };
+
+            if let Some(parent) = parent {
+                // Get parent's world matrix
+                let parent_matrix = {
+                    if let Some(parent_transform) = self.transforms.get(&parent) {
+                        *parent_transform.world_matrix()
+                    } else {
+                        Mat3::identity()
+                    }
+                };
+
+                // Update child from parent
+                if let Some(transform) = self.transforms.get_mut(&entity) {
+                    transform.update_from_parent(&parent_matrix);
+                }
+            } else {
+                // Update as root
+                if let Some(transform) = self.transforms.get_mut(&entity) {
+                    transform.update_as_root();
+                }
+            }
+        }
+    }
+
+    /// Get count of transforms
+    pub fn count(&self) -> usize {
+        self.transforms.len()
+    }
+
+    /// Rebuild update order (depth-first traversal)
+    fn rebuild_update_order(&mut self) {
+        self.update_order.clear();
+
+        let roots = self.root_entities.clone();
+        for root in roots {
+            self.traverse_hierarchy(root);
+        }
+    }
+
+    /// Traverse hierarchy recursively
+    fn traverse_hierarchy(&mut self, entity: EntityId) {
+        self.update_order.push(entity);
+
+        if let Some(transform) = self.transforms.get(&entity) {
+            let children = transform.children().to_vec();
+            for child in children {
+                self.traverse_hierarchy(child);
+            }
+        }
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self::default_transform()
+    }
+}
+
+impl Default for TransformSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entity(id: u32) -> EntityId {
+        EntityId::from_parts(id, 0)
+    }
+
+    #[test]
+    fn test_transform_creation() {
+        let t = Transform::default_transform();
+        assert_eq!(t.position(), Vec2::zero());
+        assert_eq!(t.rotation(), 0.0);
+        assert_eq!(t.scale(), Vec2::one());
+    }
+
+    #[test]
+    fn test_transform_set_position() {
+        let mut t = Transform::default_transform();
+        t.set_position(Vec2::new(5.0, 10.0));
+        assert_eq!(t.position(), Vec2::new(5.0, 10.0));
+        assert!(t.is_dirty());
+    }
+
+    #[test]
+    fn test_transform_set_rotation() {
+        let mut t = Transform::default_transform();
+        t.set_rotation(1.57);
+        assert!((t.rotation() - 1.57).abs() < 0.01);
+        assert!(t.is_dirty());
+    }
+
+    #[test]
+    fn test_transform_world_as_root() {
+        let mut t = Transform::new(Vec2::new(5.0, 10.0), 0.0, Vec2::one());
+        t.update_as_root();
+
+        assert_eq!(t.world_position(), Vec2::new(5.0, 10.0));
+        assert_eq!(t.world_rotation(), 0.0);
+        assert_eq!(t.world_scale(), Vec2::one());
+    }
+
+    #[test]
+    fn test_transform_hierarchy_parent_child() {
+        let mut ts = TransformSystem::new();
+
+        let parent = entity(1);
+        let child = entity(2);
+
+        ts.add_transform(parent, Transform::new(Vec2::new(10.0, 10.0), 0.0, Vec2::one()));
+        ts.add_transform(child, Transform::new(Vec2::new(5.0, 5.0), 0.0, Vec2::one()));
+
+        ts.set_parent(child, Some(parent));
+        ts.update();
+
+        if let Some(child_t) = ts.get_transform(child) {
+            assert_eq!(child_t.parent(), Some(parent));
+        }
+    }
+
+    #[test]
+    fn test_transform_system_multiple_roots() {
+        let mut ts = TransformSystem::new();
+
+        let root1 = entity(1);
+        let root2 = entity(2);
+
+        ts.add_transform(root1, Transform::default_transform());
+        ts.add_transform(root2, Transform::default_transform());
+
+        assert_eq!(ts.count(), 2);
+    }
+
+    #[test]
+    fn test_transform_performance_update_100() {
+        let mut ts = TransformSystem::new();
+
+        for i in 0..100 {
+            let id = entity(i);
+            ts.add_transform(id, Transform::default_transform());
+        }
+
+        let start = std::time::Instant::now();
+        ts.update();
+        let elapsed = start.elapsed();
+
+        assert!(elapsed.as_millis() < 10);
+    }
+
+    #[test]
+    fn test_transform_deep_hierarchy() {
+        let mut ts = TransformSystem::new();
+
+        // Create chain: 1 -> 2 -> 3 -> 4 -> 5
+        for i in 1..=5 {
+            let id = entity(i);
+            ts.add_transform(id, Transform::new(Vec2::new(1.0, 1.0), 0.0, Vec2::one()));
+
+            if i > 1 {
+                ts.set_parent(id, Some(entity(i - 1)));
+            }
+        }
+
+        ts.update();
+
+        if let Some(t5) = ts.get_transform(entity(5)) {
+            // Should be (5, 5) = 1+1+1+1+1
+            assert!((t5.world_position().x - 5.0).abs() < 0.1);
+            assert!((t5.world_position().y - 5.0).abs() < 0.1);
+        }
+    }
+}
+

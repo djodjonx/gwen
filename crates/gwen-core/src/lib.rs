@@ -9,6 +9,8 @@ pub mod query;
 pub mod allocator;
 pub mod events;
 pub mod gameloop;
+pub mod transform_math;
+pub mod transform;
 pub mod bindings;
 
 pub use entity::*;
@@ -16,4 +18,6 @@ pub use component::*;
 pub use query::*;
 pub use events::*;
 pub use gameloop::*;
+pub use transform_math::*;
+pub use transform::*;
 
