@@ -207,6 +207,13 @@ impl Engine {
         self.query_system.update_entity_archetype(index, types);
     }
 
+    /// Get the current generation for a slot index.
+    /// Returns u32::MAX if the index is out of bounds.
+    /// Used by the TS bridge to reconstruct packed EntityIds from query results.
+    pub fn get_entity_generation(&self, index: u32) -> u32 {
+        self.entity_manager.get_generation(index).unwrap_or(u32::MAX)
+    }
+
     /// Query entities that have ALL the listed component types.
     /// Returns a flat `Uint32Array` of entity indices.
     pub fn query_entities(&mut self, component_type_ids: &[u32]) -> Vec<u32> {

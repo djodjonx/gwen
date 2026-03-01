@@ -43,6 +43,7 @@ export interface WasmEngine {
   // Query
   update_entity_archetype(index: number, typeIds: Uint32Array): void;
   query_entities(typeIds: Uint32Array): Uint32Array;
+  get_entity_generation(index: number): number;
 
   // GameLoop
   tick(deltaMs: number): void;
@@ -225,6 +226,7 @@ export interface WasmBridge {
   // ── Query ──
   updateEntityArchetype(index: number, typeIds: number[]): void;
   queryEntities(typeIds: number[]): number[];
+  getEntityGeneration(index: number): number;
 
   // ── GameLoop ──
   tick(deltaMs: number): void;
@@ -293,7 +295,16 @@ class WasmBridgeImpl implements WasmBridge {
   }
 
   queryEntities(typeIds: number[]): number[] {
-    return Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
+    const indices = Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
+    // Reconstruire les EntityIds packés : (generation << 20) | index
+    return indices.map(idx => {
+      const gen = requireWasm().get_entity_generation(idx);
+      return (gen << 20) | (idx & 0xFFFFF);
+    });
+  }
+
+  getEntityGeneration(index: number): number {
+    return requireWasm().get_entity_generation(index);
   }
 
   tick(deltaMs: number): void {

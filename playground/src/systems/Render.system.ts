@@ -35,8 +35,14 @@ export class RenderSystem implements GwenPlugin<'RenderSystem'> {
     // Entités
     const renderable = api.query([C.POSITION.name, C.TAG.name]);
     for (const id of renderable) {
-      const pos = api.getComponent(id, C.POSITION)!;
-      const tag = api.getComponent(id, C.TAG)!;
+      const pos = api.getComponent(id, C.POSITION);
+      const tag = api.getComponent(id, C.TAG);
+
+      // Guard défensif — log si un composant attendu est manquant
+      if (!pos || !tag) {
+        console.warn(`[RenderSystem] entity ${id}: pos=${JSON.stringify(pos)} tag=${JSON.stringify(tag)}`);
+        continue;
+      }
 
       ctx.save();
       ctx.translate(pos.x, pos.y);

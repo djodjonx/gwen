@@ -44,6 +44,12 @@ export class Engine {
      */
     get_component_raw(index: number, generation: number, component_type_id: number): Uint8Array;
     /**
+     * Get the current generation for a slot index.
+     * Returns u32::MAX if the index is out of bounds.
+     * Used by the TS bridge to reconstruct packed EntityIds from query results.
+     */
+    get_entity_generation(index: number): number;
+    /**
      * Check if entity has component
      */
     has_component(index: number, generation: number, component_type_id: number): boolean;
@@ -146,6 +152,7 @@ export interface InitOutput {
     readonly engine_has_component: (a: number, b: number, c: number, d: number) => number;
     readonly engine_get_component_raw: (a: number, b: number, c: number, d: number) => [number, number];
     readonly engine_update_entity_archetype: (a: number, b: number, c: number, d: number) => void;
+    readonly engine_get_entity_generation: (a: number, b: number) => number;
     readonly engine_query_entities: (a: number, b: number, c: number) => [number, number];
     readonly engine_tick: (a: number, b: number) => void;
     readonly engine_frame_count: (a: number) => bigint;

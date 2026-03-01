@@ -135,13 +135,8 @@ export class Engine {
       {
         query: (required: ComponentType[], _entities: any, _components: any): EntityId[] => {
           const typeIds = required.map(t => this._getOrRegisterTypeId(t));
-          const indices = this.wasmBridge.queryEntities(typeIds);
-          // Les indices retournés par le WASM sont les index bruts
-          // On reconstruit les EntityId packés
-          return indices.map(idx => {
-            const gen = this.wasmBridge.isAlive(idx, 0) ? 0 : 0; // génération à récupérer
-            return idx; // simplification — le WASM garantit que les entités sont vivantes
-          });
+          // queryEntities retourne des EntityIds packés (generation << 20 | index)
+          return this.wasmBridge.queryEntities(typeIds);
         },
         invalidate: () => { /* géré par le WASM */ },
       } as any,

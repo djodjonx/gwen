@@ -31,6 +31,7 @@ function createMockEngine(): WasmEngine {
     get_component_raw: vi.fn(() => new Uint8Array(0)),
     update_entity_archetype: vi.fn(),
     query_entities: vi.fn(() => new Uint32Array(0)),
+    get_entity_generation: vi.fn(() => 0),
     tick: vi.fn(),
     frame_count: vi.fn(() => BigInt(1)),
     delta_time: vi.fn(() => 0.016),
@@ -156,10 +157,11 @@ describe('WasmBridge — avec mock injecté', () => {
     expect(mock.update_entity_archetype).toHaveBeenCalledWith(0, new Uint32Array([1, 2, 3]));
   });
 
-  it('queryEntities() returns array from mock', () => {
+  it('queryEntities() returns packed EntityIds from mock', () => {
     (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(new Uint32Array([0, 1, 2]));
+    // get_entity_generation retourne 0 pour tous → packed = (0 << 20) | index = index
     const result = bridge.queryEntities([0]);
-    expect(result).toEqual([0, 1, 2]);
+    expect(result).toEqual([0, 1, 2]); // generation=0 → packed === index
   });
 
   it('tick() delegates to mock', () => {

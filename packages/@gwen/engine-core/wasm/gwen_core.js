@@ -116,6 +116,20 @@ export class Engine {
         return v1;
     }
     /**
+     * Get the current generation for a slot index.
+     * Returns u32::MAX if the index is out of bounds.
+     * Used by the TS bridge to reconstruct packed EntityIds from query results.
+     * @param {number} index
+     * @returns {number}
+     */
+    get_entity_generation(index) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        const ret = wasm.engine_get_entity_generation(this.__wbg_ptr, index);
+        return ret >>> 0;
+    }
+    /**
      * Check if entity has component
      * @param {number} index
      * @param {number} generation

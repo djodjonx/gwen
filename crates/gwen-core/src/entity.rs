@@ -121,6 +121,11 @@ impl EntityAllocator {
         self.num_live
     }
 
+    /// Get the generation for a slot index (None if out of bounds).
+    pub fn get_generation(&self, index: u32) -> Option<u32> {
+        self.records.get(index as usize).map(|r| r.generation)
+    }
+
     /// Iterate all live entity IDs
     pub fn iter_live(&self) -> impl Iterator<Item = EntityId> + '_ {
         self.records
@@ -165,6 +170,11 @@ impl EntityManager {
     /// Get count of live entities
     pub fn count_entities(&self) -> u32 {
         self.allocator.count_live()
+    }
+
+    /// Get the generation for a slot index
+    pub fn get_generation(&self, index: u32) -> Option<u32> {
+        self.allocator.get_generation(index)
     }
 
     /// Iterate all live entities

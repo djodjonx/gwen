@@ -65,6 +65,9 @@ function createMockWasmEngine(): WasmEngine {
       }
       return new Uint32Array(result);
     }),
+    get_entity_generation: vi.fn((index: number): number => {
+      return entities.get(index) ?? 0xFFFFFFFF;
+    }),
 
     tick: vi.fn(),
     frame_count: vi.fn(() => BigInt(0)),
