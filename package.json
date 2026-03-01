@@ -1,0 +1,22 @@
+{
+  "name": "gwen",
+  "version": "0.1.0",
+  "description": "GWEN - Composable Web Game Engine",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/**"
+  ],
+  "scripts": {
+    "install:all": "pnpm install && rustup target add wasm32-unknown-unknown",
+    "build": "cargo build --release --target wasm32-unknown-unknown && pnpm -r build",
+    "dev": "concurrently \"cargo watch -x 'build --target wasm32-unknown-unknown'\" \"pnpm -r dev\"",
+    "test": "cargo test && pnpm -r test",
+    "bench": "cargo bench",
+    "clean": "cargo clean && pnpm -r clean"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
+
