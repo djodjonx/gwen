@@ -1,5 +1,7 @@
 /* @ts-self-types="./gwen_core.d.ts" */
 
+//#region exports
+
 /**
  * Main engine exported to JavaScript
  */
@@ -16,7 +18,11 @@ export class Engine {
     }
     /**
      * Add a raw-byte component to an entity.
-     * `data` must match the size that was registered for this type.
+     *
+     * Uses **variable-size** mode: the column accepts any byte slice length
+     * and performs an upsert (add-or-update). This is required because
+     * TypeScript serialises components as JSON, so the byte length can
+     * change between calls for the same component type.
      * @param {number} index
      * @param {number} generation
      * @param {number} component_type_id
@@ -24,7 +30,12 @@ export class Engine {
      * @returns {boolean}
      */
     add_component(index, generation, component_type_id, data) {
-        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_export);
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
+        _assertNum(component_type_id);
+        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.engine_add_component(this.__wbg_ptr, index, generation, component_type_id, ptr0, len0);
         return ret !== 0;
@@ -34,6 +45,8 @@ export class Engine {
      * @returns {number}
      */
     count_entities() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_count_entities(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -43,6 +56,8 @@ export class Engine {
      * @returns {JsEntityId}
      */
     create_entity() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_create_entity(this.__wbg_ptr);
         return JsEntityId.__wrap(ret);
     }
@@ -54,6 +69,10 @@ export class Engine {
      * @returns {boolean}
      */
     delete_entity(index, generation) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
         const ret = wasm.engine_delete_entity(this.__wbg_ptr, index, generation);
         return ret !== 0;
     }
@@ -62,6 +81,8 @@ export class Engine {
      * @returns {number}
      */
     delta_time() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_delta_time(this.__wbg_ptr);
         return ret;
     }
@@ -70,6 +91,8 @@ export class Engine {
      * @returns {bigint}
      */
     frame_count() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_frame_count(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
     }
@@ -82,17 +105,15 @@ export class Engine {
      * @returns {Uint8Array}
      */
     get_component_raw(index, generation, component_type_id) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.engine_get_component_raw(retptr, this.__wbg_ptr, index, generation, component_type_id);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var v1 = getArrayU8FromWasm0(r0, r1).slice();
-            wasm.__wbindgen_export2(r0, r1 * 1, 1);
-            return v1;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
+        _assertNum(component_type_id);
+        const ret = wasm.engine_get_component_raw(this.__wbg_ptr, index, generation, component_type_id);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
     }
     /**
      * Check if entity has component
@@ -102,6 +123,11 @@ export class Engine {
      * @returns {boolean}
      */
     has_component(index, generation, component_type_id) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
+        _assertNum(component_type_id);
         const ret = wasm.engine_has_component(this.__wbg_ptr, index, generation, component_type_id);
         return ret !== 0;
     }
@@ -113,6 +139,10 @@ export class Engine {
      * @returns {boolean}
      */
     is_alive(index, generation) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
         const ret = wasm.engine_is_alive(this.__wbg_ptr, index, generation);
         return ret !== 0;
     }
@@ -121,6 +151,7 @@ export class Engine {
      * @param {number} max_entities
      */
     constructor(max_entities) {
+        _assertNum(max_entities);
         const ret = wasm.engine_new(max_entities);
         this.__wbg_ptr = ret >>> 0;
         EngineFinalization.register(this, this.__wbg_ptr, this);
@@ -133,19 +164,14 @@ export class Engine {
      * @returns {Uint32Array}
      */
     query_entities(component_type_ids) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passArray32ToWasm0(component_type_ids, wasm.__wbindgen_export);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.engine_query_entities(retptr, this.__wbg_ptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var v2 = getArrayU32FromWasm0(r0, r1).slice();
-            wasm.__wbindgen_export2(r0, r1 * 4, 4);
-            return v2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        const ptr0 = passArray32ToWasm0(component_type_ids, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.engine_query_entities(this.__wbg_ptr, ptr0, len0);
+        var v2 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v2;
     }
     /**
      * Register a new component type and return a unique numeric type ID.
@@ -159,6 +185,8 @@ export class Engine {
      * @returns {number}
      */
     register_component_type() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_register_component_type(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -170,6 +198,11 @@ export class Engine {
      * @returns {boolean}
      */
     remove_component(index, generation, component_type_id) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        _assertNum(generation);
+        _assertNum(component_type_id);
         const ret = wasm.engine_remove_component(this.__wbg_ptr, index, generation, component_type_id);
         return ret !== 0;
     }
@@ -177,6 +210,8 @@ export class Engine {
      * Reset frame timing
      */
     reset_frame() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         wasm.engine_reset_frame(this.__wbg_ptr);
     }
     /**
@@ -184,6 +219,8 @@ export class Engine {
      * @returns {boolean}
      */
     should_sleep() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_should_sleep(this.__wbg_ptr);
         return ret !== 0;
     }
@@ -192,6 +229,8 @@ export class Engine {
      * @returns {number}
      */
     sleep_time_ms() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_sleep_time_ms(this.__wbg_ptr);
         return ret;
     }
@@ -203,16 +242,14 @@ export class Engine {
         let deferred1_0;
         let deferred1_1;
         try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.engine_stats(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+            _assertNum(this.__wbg_ptr);
+            const ret = wasm.engine_stats(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
         } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export2(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -220,6 +257,8 @@ export class Engine {
      * @param {number} delta_ms
      */
     tick(delta_ms) {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         wasm.engine_tick(this.__wbg_ptr, delta_ms);
     }
     /**
@@ -227,6 +266,8 @@ export class Engine {
      * @returns {number}
      */
     total_time() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.engine_total_time(this.__wbg_ptr);
         return ret;
     }
@@ -237,7 +278,10 @@ export class Engine {
      * @param {Uint32Array} component_type_ids
      */
     update_entity_archetype(index, component_type_ids) {
-        const ptr0 = passArray32ToWasm0(component_type_ids, wasm.__wbindgen_export);
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
+        _assertNum(index);
+        const ptr0 = passArray32ToWasm0(component_type_ids, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.engine_update_entity_archetype(this.__wbg_ptr, index, ptr0, len0);
     }
@@ -250,6 +294,9 @@ if (Symbol.dispose) Engine.prototype[Symbol.dispose] = Engine.prototype.free;
  * the engine can detect stale (dangling) references.
  */
 export class JsEntityId {
+    constructor() {
+        throw new Error('cannot invoke `new` directly');
+    }
     static __wrap(ptr) {
         ptr = ptr >>> 0;
         const obj = Object.create(JsEntityId.prototype);
@@ -273,6 +320,8 @@ export class JsEntityId {
      * @returns {number}
      */
     get generation() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.jsentityid_generation(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -281,17 +330,32 @@ export class JsEntityId {
      * @returns {number}
      */
     get index() {
+        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
+        _assertNum(this.__wbg_ptr);
         const ret = wasm.jsentityid_index(this.__wbg_ptr);
         return ret >>> 0;
     }
 }
 if (Symbol.dispose) JsEntityId.prototype[Symbol.dispose] = JsEntityId.prototype.free;
 
+//#endregion
+
+//#region wasm imports
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
         __wbg___wbindgen_throw_6ddd609b62940d55: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbindgen_init_externref_table: function() {
+            const table = wasm.__wbindgen_externrefs;
+            const offset = table.grow(4);
+            table.set(0, undefined);
+            table.set(offset + 0, undefined);
+            table.set(offset + 1, null);
+            table.set(offset + 2, true);
+            table.set(offset + 3, false);
         },
     };
     return {
@@ -300,12 +364,20 @@ function __wbg_get_imports() {
     };
 }
 
+
+//#endregion
 const EngineFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_engine_free(ptr >>> 0, 1));
 const JsEntityIdFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_jsentityid_free(ptr >>> 0, 1));
+
+
+//#region intrinsics
+function _assertNum(n) {
+    if (typeof(n) !== 'number') throw new Error(`expected a number argument, found ${typeof(n)}`);
+}
 
 function getArrayU32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
@@ -315,14 +387,6 @@ function getArrayU32FromWasm0(ptr, len) {
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
-}
-
-let cachedDataViewMemory0 = null;
-function getDataViewMemory0() {
-    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
-        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
-    }
-    return cachedDataViewMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -376,13 +440,17 @@ function decodeText(ptr, len) {
 
 let WASM_VECTOR_LEN = 0;
 
+
+//#endregion
+
+//#region wasm loading
 let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
-    cachedDataViewMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
+    wasm.__wbindgen_start();
     return wasm;
 }
 
@@ -468,3 +536,5 @@ async function __wbg_init(module_or_path) {
 }
 
 export { initSync, __wbg_init as default };
+//#endregion
+export { wasm as __wasm }

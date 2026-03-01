@@ -122,7 +122,11 @@ impl Engine {
     }
 
     /// Add a raw-byte component to an entity.
-    /// `data` must match the size that was registered for this type.
+    ///
+    /// Uses **variable-size** mode: the column accepts any byte slice length
+    /// and performs an upsert (add-or-update). This is required because
+    /// TypeScript serialises components as JSON, so the byte length can
+    /// change between calls for the same component type.
     pub fn add_component(
         &mut self,
         index: u32,
@@ -137,7 +141,8 @@ impl Engine {
             return false;
         }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage.add_component(index, type_id, data)
+        self.component_storage.upsert_js(index, type_id, data);
+        true
     }
 
     /// Remove a component from an entity.

@@ -9,7 +9,11 @@ export class Engine {
     [Symbol.dispose](): void;
     /**
      * Add a raw-byte component to an entity.
-     * `data` must match the size that was registered for this type.
+     *
+     * Uses **variable-size** mode: the column accepts any byte slice length
+     * and performs an upsert (add-or-update). This is required because
+     * TypeScript serialises components as JSON, so the byte length can
+     * change between calls for the same component type.
      */
     add_component(index: number, generation: number, component_type_id: number, data: Uint8Array): boolean;
     /**
@@ -140,9 +144,9 @@ export interface InitOutput {
     readonly engine_add_component: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly engine_remove_component: (a: number, b: number, c: number, d: number) => number;
     readonly engine_has_component: (a: number, b: number, c: number, d: number) => number;
-    readonly engine_get_component_raw: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly engine_get_component_raw: (a: number, b: number, c: number, d: number) => [number, number];
     readonly engine_update_entity_archetype: (a: number, b: number, c: number, d: number) => void;
-    readonly engine_query_entities: (a: number, b: number, c: number, d: number) => void;
+    readonly engine_query_entities: (a: number, b: number, c: number) => [number, number];
     readonly engine_tick: (a: number, b: number) => void;
     readonly engine_frame_count: (a: number) => bigint;
     readonly engine_delta_time: (a: number) => number;
@@ -150,10 +154,11 @@ export interface InitOutput {
     readonly engine_should_sleep: (a: number) => number;
     readonly engine_sleep_time_ms: (a: number) => number;
     readonly engine_reset_frame: (a: number) => void;
-    readonly engine_stats: (a: number, b: number) => void;
-    readonly __wbindgen_export: (a: number, b: number) => number;
-    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
-    readonly __wbindgen_export2: (a: number, b: number, c: number) => void;
+    readonly engine_stats: (a: number) => [number, number];
+    readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_start: () => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;

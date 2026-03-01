@@ -75,17 +75,24 @@ impl Default for ComponentRegistry {
     }
 }
 
-/// Stores components of one type in a Structure of Arrays layout.
+/// Stores components of one type.
 ///
-/// Uses a `HashMap<entity_id, slot_index>` for O(1) lookups instead of
-/// scanning the entity list (the previous O(n) `Vec::contains` approach).
+/// Two modes:
+///  - **Fixed-size** (Rust native types): `element_size > 0`, strict size check.
+///  - **Variable-size** (JS/WASM bridge): `element_size == 0`, each entity
+///    has its own blob of arbitrary length (JSON bytes from TypeScript).
+///
+/// The JS bridge always uses variable-size via `upsert_raw()`.
 pub struct ComponentColumn {
     entity_ids: Vec<u32>,
     /// Maps entity_id → slot index in `data` for O(1) access.
     index_map: HashMap<u32, usize>,
     data: Vec<u8>,
     type_id: ComponentTypeId,
+    /// Fixed element size (0 = variable-size / JS mode).
     element_size: usize,
+    /// Byte offsets per slot — only used in variable-size mode.
+    offsets: Vec<(usize, usize)>, // (start, len) per slot
 }
 
 impl ComponentColumn {
@@ -97,20 +104,69 @@ impl ComponentColumn {
             data: Vec::new(),
             type_id,
             element_size,
+            offsets: Vec::new(),
         }
     }
 
-    /// Add a component for an entity – O(1)
+    /// Variable-size mode: add **or update** component bytes for an entity.
+    /// Used by the JS/WASM bridge where component data is JSON-serialised.
+    pub fn upsert_raw(&mut self, entity_id: u32, data: &[u8]) -> bool {
+        if let Some(&slot) = self.index_map.get(&entity_id) {
+            // Update existing slot
+            let (start, _old_len) = self.offsets[slot];
+            // Rebuild data vec replacing the old bytes for this slot
+            let old_end = start + _old_len;
+            let new_len = data.len();
+            let delta = new_len as isize - _old_len as isize;
+
+            // Splice data in-place
+            let mut new_data = self.data[..start].to_vec();
+            new_data.extend_from_slice(data);
+            new_data.extend_from_slice(&self.data[old_end..]);
+            self.data = new_data;
+
+            // Update offset for this slot
+            self.offsets[slot] = (start, new_len);
+
+            // Shift offsets of all slots that come after this one
+            if delta != 0 {
+                for i in (slot + 1)..self.offsets.len() {
+                    self.offsets[i].0 = (self.offsets[i].0 as isize + delta) as usize;
+                }
+            }
+            false // updated, not inserted
+        } else {
+            // Insert new slot
+            let start = self.data.len();
+            self.data.extend_from_slice(data);
+            let slot = self.entity_ids.len();
+            self.index_map.insert(entity_id, slot);
+            self.entity_ids.push(entity_id);
+            self.offsets.push((start, data.len()));
+            true // inserted
+        }
+    }
+
+    /// Add a component for an entity – O(1) (fixed-size mode).
     pub fn add(&mut self, entity_id: u32, data: &[u8]) -> bool {
+        if self.element_size == 0 {
+            // Variable-size mode — use upsert
+            return self.upsert_raw(entity_id, data);
+        }
+
         if self.index_map.contains_key(&entity_id) {
-            return false; // Entity already has this component
+            // Update in place for fixed-size
+            let slot = self.index_map[&entity_id];
+            let start = slot * self.element_size;
+            self.data[start..start + self.element_size].copy_from_slice(data);
+            return false;
         }
 
         assert_eq!(
             data.len(),
             self.element_size,
-            "Data size mismatch for component type {:?}",
-            self.type_id
+            "Data size mismatch for component type {:?}: expected {}, got {}",
+            self.type_id, self.element_size, data.len()
         );
 
         let slot = self.entity_ids.len();
@@ -122,18 +178,26 @@ impl ComponentColumn {
 
     /// Get component data for an entity – O(1)
     pub fn get(&self, entity_id: u32) -> Option<&[u8]> {
-        self.index_map.get(&entity_id).map(|&idx| {
-            let start = idx * self.element_size;
-            &self.data[start..start + self.element_size]
-        })
+        let &slot = self.index_map.get(&entity_id)?;
+        if self.element_size == 0 {
+            let (start, len) = self.offsets[slot];
+            Some(&self.data[start..start + len])
+        } else {
+            let start = slot * self.element_size;
+            Some(&self.data[start..start + self.element_size])
+        }
     }
 
     /// Get mutable component data for an entity – O(1)
     pub fn get_mut(&mut self, entity_id: u32) -> Option<&mut [u8]> {
-        self.index_map.get(&entity_id).copied().map(|idx| {
-            let start = idx * self.element_size;
-            &mut self.data[start..start + self.element_size]
-        })
+        let &slot = self.index_map.get(&entity_id)?;
+        if self.element_size == 0 {
+            let (start, len) = self.offsets[slot];
+            Some(&mut self.data[start..start + len])
+        } else {
+            let start = slot * self.element_size;
+            Some(&mut self.data[start..start + self.element_size])
+        }
     }
 
     /// Remove component from entity – O(1) via swap-remove
@@ -145,26 +209,44 @@ impl ComponentColumn {
 
         let last_slot = self.entity_ids.len() - 1;
 
-        if idx == last_slot {
-            // Removing the last element – simple pop
-            self.entity_ids.pop();
-            let start = idx * self.element_size;
-            self.data.truncate(start);
-        } else {
-            // Swap with last element so we avoid O(n) shifts
-            let last_entity = self.entity_ids[last_slot];
-            self.entity_ids.swap_remove(idx);
+        if self.element_size == 0 {
+            // Variable-size: rebuild without this slot
+            let (rm_start, rm_len) = self.offsets[idx];
+            let rm_end = rm_start + rm_len;
+            let mut new_data = self.data[..rm_start].to_vec();
+            new_data.extend_from_slice(&self.data[rm_end..]);
+            self.data = new_data;
 
-            // Swap the data bytes of idx and last_slot
-            let src = last_slot * self.element_size;
-            let dst = idx * self.element_size;
-            for i in 0..self.element_size {
-                self.data.swap(dst + i, src + i);
+            self.entity_ids.remove(idx);
+            self.offsets.remove(idx);
+
+            // Shift all offsets after idx
+            for i in idx..self.offsets.len() {
+                self.offsets[i].0 -= rm_len;
             }
-            self.data.truncate(last_slot * self.element_size);
 
-            // Update index_map for the moved entity
-            self.index_map.insert(last_entity, idx);
+            // Rebuild index_map
+            self.index_map.clear();
+            for (i, &eid) in self.entity_ids.iter().enumerate() {
+                self.index_map.insert(eid, i);
+            }
+        } else {
+            if idx == last_slot {
+                self.entity_ids.pop();
+                let start = idx * self.element_size;
+                self.data.truncate(start);
+            } else {
+                let last_entity = self.entity_ids[last_slot];
+                self.entity_ids.swap_remove(idx);
+
+                let src = last_slot * self.element_size;
+                let dst = idx * self.element_size;
+                for i in 0..self.element_size {
+                    self.data.swap(dst + i, src + i);
+                }
+                self.data.truncate(last_slot * self.element_size);
+                self.index_map.insert(last_entity, idx);
+            }
         }
 
         true
@@ -214,6 +296,17 @@ impl ComponentStorage {
     /// Register a new component type
     pub fn register_component_type<T: 'static>(&mut self) -> ComponentTypeId {
         self.registry.register::<T>()
+    }
+
+    /// **JS bridge upsert**: add or update a component using variable-size storage.
+    ///
+    /// Unlike `add_component()`, this never panics on size mismatch and
+    /// overwrites existing data. Used by `bindings.rs` for all JS→WASM calls.
+    pub fn upsert_js(&mut self, entity_id: u32, type_id: ComponentTypeId, data: &[u8]) {
+        let column = self.columns
+            .entry(type_id)
+            .or_insert_with(|| ComponentColumn::new(type_id, 0));
+        column.upsert_raw(entity_id, data);
     }
 
     /// Add a component to an entity.
