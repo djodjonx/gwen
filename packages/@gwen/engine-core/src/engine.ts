@@ -2,100 +2,27 @@
  * GWEN Engine — Main class
  *
  * Orchestrates ECS, plugins, and the game loop.
- * Rendering is handled by TsPlugin (Canvas2DRenderer).
+ * Uses PluginManager for all plugin lifecycle management.
+ * Rendering is handled by a TsPlugin (Canvas2DRenderer) — no special casing.
  *
  * @example
  * ```typescript
+ * import { Engine, Canvas2DRenderer } from '@gwen/engine-core';
+ *
  * const engine = new Engine({ maxEntities: 5000, targetFPS: 60 });
- * engine.registerSystem(new InputPlugin());
+ *
+ * // Register the renderer as a plugin — just like any other
+ * engine.registerSystem(new Canvas2DRenderer({ canvas: 'game' }));
+ *
  * engine.start();
  * ```
  */
 
-import type { EngineConfig, TsPlugin, EngineAPI, ServiceLocator, ComponentType } from './types';
+import type { EngineConfig, TsPlugin, ComponentType } from './types';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
+import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
+import { PluginManager } from './plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
-
-// ============= Service Locator Implementation =============
-
-class ServiceLocatorImpl implements ServiceLocator {
-  private services = new Map<string, unknown>();
-
-  register<T>(name: string, instance: T): void {
-    if (this.services.has(name)) {
-      console.warn(`[GWEN] Service '${name}' already registered — overwriting.`);
-    }
-    this.services.set(name, instance);
-  }
-
-  get<T>(name: string): T {
-    if (!this.services.has(name)) {
-      throw new Error(`[GWEN] Service '${name}' not registered. Call register() first.`);
-    }
-    return this.services.get(name) as T;
-  }
-
-  has(name: string): boolean {
-    return this.services.has(name);
-  }
-}
-
-// ============= EngineAPI Implementation =============
-
-class EngineAPIImpl implements EngineAPI {
-  readonly services: ServiceLocator;
-
-  constructor(
-    private entities: EntityManager,
-    private components: ComponentRegistry,
-    private queryEngine: QueryEngine,
-    private _services: ServiceLocatorImpl,
-    private _state: { deltaTime: number; frameCount: number },
-  ) {
-    this.services = _services;
-  }
-
-  get deltaTime(): number { return this._state.deltaTime; }
-  get frameCount(): number { return this._state.frameCount; }
-
-  query(componentTypes: ComponentType[]): EntityId[] {
-    return this.queryEngine.query(componentTypes, this.entities, this.components);
-  }
-
-  createEntity(): EntityId {
-    const id = this.entities.create();
-    return id;
-  }
-
-  destroyEntity(id: EntityId): boolean {
-    if (!this.entities.isAlive(id)) return false;
-    this.components.removeAll(id);
-    const result = this.entities.destroy(id);
-    this.queryEngine.invalidate();
-    return result;
-  }
-
-  addComponent<T>(id: EntityId, type: ComponentType, data: T): void {
-    this.components.add(id, type, data);
-    this.queryEngine.invalidate();
-  }
-
-  getComponent<T>(id: EntityId, type: ComponentType): T | undefined {
-    return this.components.get<T>(id, type);
-  }
-
-  hasComponent(id: EntityId, type: ComponentType): boolean {
-    return this.components.has(id, type);
-  }
-
-  removeComponent(id: EntityId, type: ComponentType): boolean {
-    const result = this.components.remove(id, type);
-    if (result) this.queryEngine.invalidate();
-    return result;
-  }
-}
-
-// ============= Engine =============
 
 export class Engine {
   private config: EngineConfig;
@@ -106,16 +33,14 @@ export class Engine {
   private fps = 0;
   private rafHandle = 0;
 
-  // ECS internals
+  // ECS
   private entityManager: EntityManager;
   private componentRegistry: ComponentRegistry;
   private queryEngine: QueryEngine;
-  private services: ServiceLocatorImpl;
-  private api: EngineAPIImpl;
 
-  // Plugin system
-  private plugins: TsPlugin[] = [];
-  private legacyPlugins: Map<string, unknown> = new Map();
+  // Plugin system (single source of truth)
+  private pluginManager: PluginManager;
+  private api: EngineAPIImpl;
 
   // Event system
   private eventListeners: Map<string, Set<Function>> = new Map();
@@ -127,16 +52,16 @@ export class Engine {
     this.entityManager = new EntityManager(this.config.maxEntities);
     this.componentRegistry = new ComponentRegistry();
     this.queryEngine = new QueryEngine();
-    this.services = new ServiceLocatorImpl();
 
-    const state = { deltaTime: 0, frameCount: 0 };
-    this.api = new EngineAPIImpl(
+    // Wire up the API with a fresh ServiceLocator
+    this.api = createEngineAPI(
       this.entityManager,
       this.componentRegistry,
       this.queryEngine,
-      this.services,
-      state,
-    );
+      new ServiceLocator(),
+    ) as EngineAPIImpl;
+
+    this.pluginManager = new PluginManager();
 
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
@@ -156,24 +81,39 @@ export class Engine {
 
   /**
    * Register a TsPlugin — it will participate in the game loop lifecycle.
-   * Calls onInit immediately.
+   * The renderer is just another plugin: `engine.registerSystem(new Canvas2DRenderer(...))`.
+   * Calls onInit immediately with the EngineAPI.
    */
   public registerSystem(plugin: TsPlugin): this {
-    if (this.plugins.find(p => p.name === plugin.name)) {
-      console.warn(`[GWEN] Plugin '${plugin.name}' already registered.`);
-      return this;
-    }
-    this.plugins.push(plugin);
-    plugin.onInit?.(this.api);
+    this.pluginManager.register(plugin, this.api);
     if (this.config.debug) {
       console.log(`[GWEN] Plugin '${plugin.name}' registered`);
     }
     return this;
   }
 
+  /** Get a registered plugin by name */
+  public getSystem<T extends TsPlugin>(name: string): T | undefined {
+    return this.pluginManager.get<T>(name);
+  }
+
+  /** Check if a plugin is registered */
+  public hasSystem(name: string): boolean {
+    return this.pluginManager.has(name);
+  }
+
+  /** Remove a plugin by name, calling its onDestroy */
+  public removeSystem(name: string): boolean {
+    return this.pluginManager.unregister(name);
+  }
+
   /**
-   * Legacy plugin loader (backward compat with old `loadPlugin` API).
+   * Legacy plugin loader (backward compat).
+   * Prefer registerSystem() for TsPlugins.
+   * @deprecated Use registerSystem() instead
    */
+  private legacyPlugins: Map<string, unknown> = new Map();
+
   public loadPlugin(name: string, plugin: unknown): void {
     if (this.legacyPlugins.has(name)) return;
     try {
@@ -217,10 +157,8 @@ export class Engine {
     }
     this.isRunning = false;
 
-    // Lifecycle: destroy all plugins in reverse order
-    for (const plugin of [...this.plugins].reverse()) {
-      plugin.onDestroy?.();
-    }
+    // Destroy all TsPlugins (in reverse order via PluginManager)
+    this.pluginManager.destroyAll();
     this.emit('stop');
   }
 
@@ -233,27 +171,20 @@ export class Engine {
       this.fps = this._deltaTime > 0 ? Math.round(1 / this._deltaTime) : 0;
     }
 
-    // Update shared state for API
-    (this.api as any)._state.deltaTime = this._deltaTime;
-    (this.api as any)._state.frameCount = this._frameCount;
+    // Update shared API state
+    this.api._updateState(this._deltaTime, this._frameCount);
 
     // ── Game loop order (ENGINE.md §9) ──────────────────────────────────
-    // 1. onBeforeUpdate — inputs & intentions
-    for (const plugin of this.plugins) {
-      plugin.onBeforeUpdate?.(this.api, this._deltaTime);
-    }
+    // 1. Inputs & intentions
+    this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
 
-    // 2. (WASM plugins would run here — physics, AI, etc.)
+    // 2. (WASM plugins slot — physics, AI — future integration)
 
-    // 3. onUpdate — game logic on updated values
-    for (const plugin of this.plugins) {
-      plugin.onUpdate?.(this.api, this._deltaTime);
-    }
+    // 3. Game logic on updated values
+    this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
 
-    // 4. onRender — drawing
-    for (const plugin of this.plugins) {
-      plugin.onRender?.(this.api);
-    }
+    // 4. Drawing — Canvas2DRenderer (or any renderer plugin) runs here
+    this.pluginManager.dispatchRender(this.api);
 
     this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
   }
@@ -366,8 +297,8 @@ export class Engine {
     };
   }
 
-  /** Expose the EngineAPI (for use by plugins that receive the engine itself) */
-  public getAPI(): EngineAPI {
+  /** Expose the EngineAPI for advanced plugin scenarios */
+  public getAPI(): EngineAPIImpl {
     return this.api;
   }
 }
