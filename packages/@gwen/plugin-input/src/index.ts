@@ -34,6 +34,7 @@ export interface InputPluginServices {
   keyboard: KeyboardInput;
   mouse: MouseInput;
   gamepad: GamepadInput;
+  [key: string]: unknown;
 }
 
 export interface InputPluginConfig {

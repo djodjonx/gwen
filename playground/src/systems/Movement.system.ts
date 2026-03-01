@@ -1,10 +1,12 @@
-import { type TsPlugin, type EngineAPI } from '@gwen/engine-core';
-import { COMPONENTS as C, type Position, type Velocity } from '../components';
+import { type EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenServices } from '../../engine.config';
+import { COMPONENTS as C } from '../components';
 
-export class MovementSystem implements TsPlugin {
-  readonly name = 'MovementSystem';
+export class MovementSystem implements GwenPlugin<'MovementSystem'> {
+  readonly name = 'MovementSystem' as const;
 
-  onUpdate(api: EngineAPI, dt: number): void {
+  onUpdate(api: EngineAPI<GwenServices>, dt: number): void {
     const movables = api.query([C.POSITION.name, C.VELOCITY.name]);
     for (const id of movables) {
       const pos = api.getComponent(id, C.POSITION)!;

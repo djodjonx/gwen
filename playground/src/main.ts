@@ -1,6 +1,5 @@
 /**
  * Point d'entrée GWEN — Space Shooter
- * Assemblage final minimaliste selon ENGINE.md
  */
 
 import { initWasm } from '@gwen/engine-core';
@@ -8,26 +7,26 @@ import { configureEngine, engine, scenes } from '../engine.config';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { GameScene } from './scenes/GameScene';
 
-// 1. Configuration des services globaux
-configureEngine();
+async function bootstrap() {
+  // 1. Charger le core Rust/WASM — obligatoire avant start()
+  //    Résolution automatique depuis @gwen/engine-core/wasm/ (pas besoin de Rust)
+  await initWasm();
+  console.log('[GWEN] WASM core active — Rust ECS ready');
 
-// 2. Enregistrement des scènes
-scenes.register(new MainMenuScene(scenes));
-scenes.register(new GameScene(scenes));
+  // 2. Configurer les plugins globaux (Input, Audio, Renderer)
+  configureEngine();
 
-// 3. Choix de la scène de départ
-scenes.loadSceneImmediate('MainMenu', engine.getAPI());
+  // 3. Enregistrer les scènes
+  scenes.register(new MainMenuScene(scenes));
+  scenes.register(new GameScene(scenes));
 
-// 4. Activation du core Rust/WASM — résolution automatique depuis @gwen/engine-core/wasm/
-//    L'utilisateur n'a pas besoin de connaître les chemins ni d'avoir Rust installé.
-//    Fallback transparent en TS-only si le WASM n'est pas disponible.
-initWasm().then(active => {
-  if (active) {
-    console.log('[GWEN] WASM core active — Rust ECS bridged');
-  } else {
-    console.log('[GWEN] Running in TS-only mode');
-  }
+  // 4. Scène de départ
+  scenes.loadSceneImmediate('MainMenu', engine.getAPI());
+
+  // 5. Lancer la boucle
+  engine.start();
+}
+
+bootstrap().catch(err => {
+  console.error('[GWEN] Fatal: failed to initialize engine', err);
 });
-
-// 5. Lancement de la boucle
-engine.start();

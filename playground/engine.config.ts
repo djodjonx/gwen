@@ -1,12 +1,14 @@
 import { Engine, SceneManager, UIManager, defineConfig } from '@gwen/engine-core';
 import type { GwenConfigServices } from '@gwen/engine-core';
 import { InputPlugin } from '@gwen/plugin-input';
+import { AudioPlugin } from '@gwen/plugin-audio';
+import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 /**
- * Configuration GWEN du projet.
+ * Configuration GWEN — source de vérité unique du projet.
  *
- * defineConfig() infère automatiquement les services exposés par chaque plugin.
- * Utilisez `GwenServices` pour typer vos systèmes et scènes.
+ * Tous les plugins sont déclarés ici. Les services qu'ils exposent sont
+ * automatiquement disponibles avec autocomplétion dans tout le projet.
  */
 export const gwenConfig = defineConfig({
   maxEntities: 2000,
@@ -14,36 +16,36 @@ export const gwenConfig = defineConfig({
   debug: false,
   plugins: [
     new InputPlugin(),
-    // new AudioPlugin(),
-    // new Canvas2DRenderer({ canvas: 'game' }),
+    new AudioPlugin({ masterVolume: 0.7 }),
+    new Canvas2DRenderer({ canvas: 'game-canvas', background: '#000814' }),
   ],
 });
 
 /**
- * Type des services disponibles dans ce projet.
- * Inféré automatiquement depuis gwenConfig — pas besoin de le déclarer manuellement.
+ * Type global des services disponibles dans ce projet.
+ * Inféré automatiquement depuis gwenConfig.
  *
- * Utilisation dans un système :
+ * Dans n'importe quel système :
  * ```typescript
  * onInit(api: EngineAPI<GwenServices>) {
- *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
- *   const ms = api.services.get('mouse');    // → MouseInput    ✅
+ *   const kb  = api.services.get('keyboard');  // → KeyboardInput   ✅
+ *   const au  = api.services.get('audio');     // → AudioPlugin      ✅
+ *   const rdr = api.services.get('renderer');  // → Canvas2DRenderer ✅
  * }
  * ```
  */
 export type GwenServices = GwenConfigServices<typeof gwenConfig>;
 
-export const engine = new Engine({
-  maxEntities: 2000,
-  targetFPS: 60,
-  debug: false,
-});
+// ── Instances globales ────────────────────────────────────────────────────────
 
+export const engine = new Engine({ maxEntities: 2000, targetFPS: 60, debug: false });
 export const scenes = new SceneManager();
 
 export function configureEngine() {
   engine.registerSystem(scenes);
   engine.registerSystem(new UIManager());
   engine.registerSystem(new InputPlugin());
+  engine.registerSystem(new AudioPlugin({ masterVolume: 0.7 }));
+  engine.registerSystem(new Canvas2DRenderer({ canvas: 'game-canvas', background: '#000814' }));
   return { engine, scenes };
 }

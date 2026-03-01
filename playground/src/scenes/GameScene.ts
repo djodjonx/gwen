@@ -4,6 +4,7 @@
  */
 
 import { Scene, EngineAPI, SceneManager, UIComponent, type TsPlugin } from '@gwen/engine-core';
+import type { GwenServices } from '../../engine.config';
 
 // Composants
 import { COMPONENTS as C, type ScoreData } from '../components';
@@ -43,7 +44,7 @@ export class GameScene implements Scene {
     ];
   }
 
-  onEnter(api: EngineAPI): void {
+  onEnter(api: EngineAPI<GwenServices>): void {
     // 1. Enregistrement des Prefabs
     api.prefabs
       .register(PlayerPrefab)
@@ -64,7 +65,7 @@ export class GameScene implements Scene {
     api.prefabs.instantiate('Player');
   }
 
-  onExit(_api: EngineAPI): void {
+  onExit(_api: EngineAPI<GwenServices>): void {
     // Les entités sont automatiquement purgées par le SceneManager
     // Les TsPlugins locaux sont automatiquement démontés par le PluginRegistrar
   }

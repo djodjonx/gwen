@@ -1,7 +1,9 @@
-import { type TsPlugin, type EngineAPI } from '@gwen/engine-core';
+import { type EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenServices } from '../../engine.config';
 
-export class SpawnerSystem implements TsPlugin {
-  readonly name = 'SpawnerSystem';
+export class SpawnerSystem implements GwenPlugin<'SpawnerSystem'> {
+  readonly name = 'SpawnerSystem' as const;
   private spawnTimer = 0;
   private spawnInterval = 2.5;
 
@@ -10,7 +12,7 @@ export class SpawnerSystem implements TsPlugin {
     this.spawnInterval = 2.5;
   }
 
-  onUpdate(api: EngineAPI, dt: number): void {
+  onUpdate(api: EngineAPI<GwenServices>, dt: number): void {
     this.spawnTimer += dt;
     if (this.spawnTimer >= this.spawnInterval) {
       this.spawnTimer = 0;

@@ -75,9 +75,14 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
    */
   readonly provides = { renderer: {} as Canvas2DRenderer };
 
-  private canvas!: HTMLCanvasElement;
-  private ctx!: CanvasRenderingContext2D;
+  private _canvas!: HTMLCanvasElement;
+  private _ctx!: CanvasRenderingContext2D;
   private config: Required<Canvas2DRendererConfig>;
+
+  /** Canvas element — disponible après onInit() */
+  get canvas(): HTMLCanvasElement { return this._canvas; }
+  /** 2D rendering context — disponible après onInit() */
+  get ctx(): CanvasRenderingContext2D { return this._ctx; }
   private camera: Camera = { x: 0, y: 0, zoom: 1 };
   private imageCache = new Map<string, HTMLImageElement>();
 
@@ -90,27 +95,26 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   }
 
   onInit(_api: EngineAPI): void {
-    // Resolve canvas element
     if (typeof this.config.canvas === 'string') {
       const el = document.getElementById(this.config.canvas);
       if (!el || !(el instanceof HTMLCanvasElement)) {
         throw new Error(`[Canvas2DRenderer] Canvas element '${this.config.canvas}' not found.`);
       }
-      this.canvas = el;
+      this._canvas = el;
     } else {
-      this.canvas = this.config.canvas;
+      this._canvas = this.config.canvas;
     }
 
-    const ctx = this.canvas.getContext('2d');
+    const ctx = this._canvas.getContext('2d');
     if (!ctx) throw new Error('[Canvas2DRenderer] Could not get 2D rendering context.');
-    this.ctx = ctx;
+    this._ctx = ctx;
 
     this.applyPixelRatio();
   }
 
   onRender(api: EngineAPI): void {
-    const { width, height } = this.canvas;
-    const ctx = this.ctx;
+    const { width, height } = this._canvas;
+    const ctx = this._ctx;
 
     // 1. Clear
     ctx.fillStyle = this.config.background;
@@ -165,14 +169,14 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
   // ── Canvas utilities ───────────────────────────────────────────────────
 
-  get width(): number { return this.canvas.width; }
-  get height(): number { return this.canvas.height; }
+  get width(): number { return this._canvas.width; }
+  get height(): number { return this._canvas.height; }
 
   resize(width: number, height: number): void {
-    this.canvas.width = width * this.config.pixelRatio;
-    this.canvas.height = height * this.config.pixelRatio;
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+    this._canvas.width = width * this.config.pixelRatio;
+    this._canvas.height = height * this.config.pixelRatio;
+    this._canvas.style.width = `${width}px`;
+    this._canvas.style.height = `${height}px`;
     this.applyPixelRatio();
   }
 
@@ -248,8 +252,8 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   }
 
   private applyPixelRatio(): void {
-    if (this.config.pixelRatio !== 1 && this.ctx) {
-      this.ctx.scale(this.config.pixelRatio, this.config.pixelRatio);
+    if (this.config.pixelRatio !== 1 && this._ctx) {
+      this._ctx.scale(this.config.pixelRatio, this.config.pixelRatio);
     }
   }
 }

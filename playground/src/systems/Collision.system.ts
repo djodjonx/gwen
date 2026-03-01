@@ -1,16 +1,18 @@
-import { type TsPlugin, type EngineAPI, type SceneManager } from '@gwen/engine-core';
-import { COMPONENTS as C, type Position, type Collider, type Tag, type ScoreData } from '../components';
+import { type EngineAPI, type SceneManager } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenServices } from '../../engine.config';
+import { COMPONENTS as C } from '../components';
 
 function dist(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
-export class CollisionSystem implements TsPlugin {
-  readonly name = 'CollisionSystem';
+export class CollisionSystem implements GwenPlugin<'CollisionSystem'> {
+  readonly name = 'CollisionSystem' as const;
 
-  constructor(private scenes: SceneManager) { }
+  constructor(private scenes: SceneManager) {}
 
-  onUpdate(api: EngineAPI): void {
+  onUpdate(api: EngineAPI<GwenServices>): void {
     const bullets = api.query([C.TAG.name, C.POSITION.name, C.COLLIDER.name]);
     const enemies = api.query([C.TAG.name, C.POSITION.name, C.COLLIDER.name, C.HEALTH.name]);
 

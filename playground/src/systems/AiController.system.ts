@@ -1,10 +1,12 @@
-import { type TsPlugin, type EngineAPI } from '@gwen/engine-core';
-import { COMPONENTS as C, type Position, type ShootTimer, type Tag } from '../components';
+import { type EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenServices } from '../../engine.config';
+import { COMPONENTS as C } from '../components';
 
-export class AiControllerSystem implements TsPlugin {
-  readonly name = 'AiControllerSystem';
+export class AiControllerSystem implements GwenPlugin<'AiControllerSystem'> {
+  readonly name = 'AiControllerSystem' as const;
 
-  onUpdate(api: EngineAPI, dt: number): void {
+  onUpdate(api: EngineAPI<GwenServices>, dt: number): void {
     const enemies = api.query([C.TAG.name, C.POSITION.name, C.SHOOT_TIMER.name]);
     for (const id of enemies) {
       const tag = api.getComponent(id, C.TAG);

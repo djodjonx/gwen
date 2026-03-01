@@ -5,16 +5,16 @@
  *  - onUpdate  → gestion d'état (blink timer, transitions)
  *  - onRender  → dessin Canvas2D uniquement
  */
-import type { Scene } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
-import type { SceneManager } from '@gwen/engine-core';
+import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { KeyboardInput } from '@gwen/plugin-input';
+import type { GwenServices } from '../../engine.config';
 
 export class MainMenuScene implements Scene {
   readonly name = 'MainMenu';
 
   private ctx: CanvasRenderingContext2D | null = null;
   private canvas: HTMLCanvasElement | null = null;
-  private keyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private keyboard!: KeyboardInput;
   private scenes: SceneManager;
 
   /** Whether the "PRESS SPACE" label is currently visible (blink state). */
@@ -27,33 +27,33 @@ export class MainMenuScene implements Scene {
     this.scenes = scenes;
   }
 
-  onEnter(_api: EngineAPI): void {
+  onEnter(api: EngineAPI<GwenServices>): void {
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     this.ctx = this.canvas?.getContext('2d') ?? null;
     this.blinkTimer = 0;
     this.blinkVisible = true;
 
-    // Appuyer sur ESPACE démarre le jeu
-    this.keyHandler = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        this.scenes.loadScene('Game');
-      }
-    };
-    window.addEventListener('keydown', this.keyHandler);
+    // Récupère le keyboard via le service locator — typé sans cast
+    this.keyboard = api.services.get('keyboard');
     this.updateHUD(0, 3);
   }
 
   /** Logic only – no drawing here. */
-  onUpdate(_api: EngineAPI, dt: number): void {
+  onUpdate(_api: EngineAPI<GwenServices>, dt: number): void {
     this.blinkTimer += dt;
     if (this.blinkTimer >= MainMenuScene.BLINK_INTERVAL) {
       this.blinkVisible = !this.blinkVisible;
       this.blinkTimer -= MainMenuScene.BLINK_INTERVAL;
     }
+
+    // Démarrer le jeu quand Space est pressé — via KeyboardInput (plus de window.addEventListener)
+    if (this.keyboard?.isJustPressed('Space')) {
+      this.scenes.loadScene('Game');
+    }
   }
 
   /** Rendering only – no state mutation here. */
-  onRender(_api: EngineAPI): void {
+  onRender(_api: EngineAPI<GwenServices>): void {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
 
@@ -86,11 +86,11 @@ export class MainMenuScene implements Scene {
     // Contrôles
     ctx.fillStyle = '#555';
     ctx.font = '12px "Courier New"';
-    ctx.fillText('← → : Move    SPACE : Shoot', W / 2, H / 2 + 80);
+    ctx.fillText('arrow keys / WASD : Move    SPACE : Shoot', W / 2, H / 2 + 80);
   }
 
-  onExit(_api: EngineAPI): void {
-    if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
+  onExit(_api: EngineAPI<GwenServices>): void {
+    // Plus de removeEventListener — InputPlugin gère son propre cleanup
   }
 
   private updateHUD(score: number, lives: number): void {
