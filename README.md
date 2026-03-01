@@ -1,6 +1,224 @@
-# GWEN Game Engine - Phase 1 Complete 🎉
+# GWEN Game Engine
 
-**Status:** ✅ Phase 1 COMPLETE - 120+ tests passing
+**Status:** ✅ Core Rust complet · ✅ Couche TypeScript avancée · 🚧 Pont WASM↔TS en cours
+
+---
+
+## 📊 Qu'est-ce que GWEN ?
+
+GWEN est un **framework de jeu web modulaire et composable** :
+- **Rust → WASM** pour le cœur ECS hautes performances
+- **TypeScript** pour les APIs développeur et les plugins
+- **ECS (Entity-Component-System)** avec archétypes et cache de requêtes
+- **Système de plugins** composable, inspiré de Nuxt.js
+
+---
+
+## 🚀 Démarrage rapide
+
+### Prérequis
+
+- Rust 1.75+
+- Node.js 18+
+- pnpm 8+
+- wasm-pack (`cargo install wasm-pack`)
+
+### Installation
+
+```bash
+git clone https://github.com/yourusername/gwen.git
+cd gwen
+pnpm install
+cargo build
+```
+
+### Lancer le playground (Space Shooter)
+
+```bash
+cd playground
+pnpm dev
+# → http://localhost:5173
+```
+
+### Exemple TypeScript minimal
+
+```typescript
+import { Engine, defineComponent, Types } from '@gwen/engine-core';
+import { InputPlugin } from '@gwen/plugin-input';
+
+const Position = defineComponent('Position', {
+  x: Types.f32,
+  y: Types.f32,
+});
+
+const engine = new Engine({
+  plugins: [new InputPlugin()],
+});
+
+engine.onUpdate((api, dt) => {
+  const kb = api.services.get('keyboard');
+  for (const [e, pos] of api.query([Position])) {
+    if (kb.isPressed('ArrowRight')) pos.x += 200 * dt;
+  }
+});
+
+engine.start();
+```
+
+---
+
+## ✨ Fonctionnalités
+
+### Core Rust/WASM (`crates/gwen-core`)
+
+| Système | Description | Perf |
+|---|---|---|
+| **EntityManager** | Allocation O(1), génération counter, free-list | 10K entités < 5ms |
+| **ComponentStorage** | SoA + HashMap O(1), swap-remove | 5K ops < 30ms |
+| **QuerySystem** | Cache d'archétypes, invalidation partielle | 1K query < 50ms |
+| **LinearAllocator** | Zéro fragmentation, alignement configurable | 10K allocs < 10ms |
+| **EventBus** | Pub/sub typé, batch processing | Instantané |
+| **GameLoop** | Delta clamping, FPS cap | < 0.1ms/frame |
+| **TransformSystem** | Hiérarchies parent/enfant, Vec2/Mat3 | ✅ |
+| **WASM Bindings** | `JsEntityId{index,generation}`, stale-ID safe | ✅ |
+
+### Couche TypeScript (`packages/@gwen/`)
+
+| Package | Description |
+|---|---|
+| `@gwen/engine-core` | Engine, Scene, Plugin, Prefab, UI, Schema DSL |
+| `@gwen/plugin-input` | Keyboard (4 états), Mouse, Gamepad |
+| `@gwen/plugin-audio` | Web Audio API, preload/play/loop/volume |
+| `@gwen/renderer-canvas2d` | Renderer Canvas2D (WIP) |
+
+---
+
+## 🧪 Tests
+
+```bash
+# Tests Rust natifs (136 tests)
+cargo test
+
+# Tests WASM en Node.js (21 tests)
+wasm-pack test --node crates/gwen-core
+
+# Tests TypeScript — engine-core
+pnpm --filter @gwen/engine-core test --run
+
+# Tests TypeScript — plugin-input (26 tests)
+pnpm --filter @gwen/plugin-input test --run
+
+# Tests TypeScript — plugin-audio (17 tests)
+pnpm --filter @gwen/plugin-audio test --run
+
+# Tous les tests TS
+pnpm test
+```
+
+**Résumé :**
+- Rust natif : **136 tests** — 0 échec
+- WASM (`wasm-bindgen-test`) : **21 tests** — 0 échec
+- TypeScript : **170+ tests** — 0 échec
+
+---
+
+## 🏗️ Architecture
+
+```
+Layer 3 — Votre jeu (TypeScript)
+    ↕  TsPlugin lifecycle (onInit → onBeforeUpdate → onUpdate → onRender → onDestroy)
+Layer 2 — Plugins composables (@gwen/plugin-input, plugin-audio, renderer-canvas2d)
+    ↕  wasm-bindgen / ServiceLocator
+Layer 1 — Core Engine (Rust/WASM) — ECS, events, gameloop, transforms
+    ↕  wasm-bindgen FFI  (JsEntityId, query_entities, get_component_raw)
+Layer 0 — Navigateur (Canvas2D / WebAudio / DOM)
+```
+
+### Stale-ID safety
+
+Toutes les opérations sur entités passent par `{index, generation}` :
+
+```typescript
+// ❌ Ancien (dangereux) — index seul, generation ignorée
+engine.delete_entity(42);
+
+// ✅ Nouveau — handle complet, slot recyclé détecté automatiquement
+const id = engine.create_entity(); // { index: 0, generation: 0 }
+engine.delete_entity(id.index, id.generation);
+
+const id2 = engine.create_entity(); // { index: 0, generation: 1 }
+engine.is_alive(0, 0); // false — stale handle rejeté
+engine.is_alive(0, 1); // true  — handle valide
+```
+
+---
+
+## 📁 Structure du projet
+
+```
+gwen/
+├── crates/gwen-core/          # Rust — ECS core + WASM bindings
+│   ├── src/
+│   │   ├── entity.rs          # EntityManager + génération counter
+│   │   ├── component.rs       # ComponentStorage SoA O(1)
+│   │   ├── query.rs           # QuerySystem + cache partiel
+│   │   ├── allocator.rs       # LinearAllocator + Arena
+│   │   ├── events.rs          # EventBus pub/sub
+│   │   ├── gameloop.rs        # FrameTiming + delta clamping
+│   │   ├── transform.rs       # Hiérarchies parent/enfant
+│   │   ├── transform_math.rs  # Vec2, Mat3
+│   │   └── bindings.rs        # wasm-bindgen exports (JsEntityId)
+│   └── tests/
+│       ├── entity_tests.rs
+│       ├── component_tests.rs
+│       ├── query_tests.rs
+│       ├── allocator_tests.rs
+│       ├── extended_tests.rs
+│       ├── integration_tests.rs   # 7 scénarios multi-systèmes
+│       └── wasm_bindgen_tests.rs  # 21 tests surface API JS
+│
+├── packages/@gwen/
+│   ├── engine-core/           # TypeScript — Engine, Scene, Plugin, ECS
+│   ├── plugin-input/          # Keyboard, Mouse, Gamepad
+│   ├── plugin-audio/          # Web Audio API
+│   └── renderer-canvas2d/     # Canvas2D renderer (WIP)
+│
+├── playground/                # Démo Space Shooter complète
+├── specs/                     # Documentation & spécifications
+└── docs/                      # Benchmarks, stratégie de test
+```
+
+---
+
+## 📋 État d'avancement
+
+### ✅ Terminé
+
+- **Rust Core** — Entity, Component, Query, Allocator, Events, GameLoop, Transform
+- **WASM Bindings** — API JS complète avec stale-ID safety
+- **Tests Rust** — 136 tests natifs + 21 wasm-bindgen-test
+- **TypeScript Engine** — Engine, SceneManager, PluginManager, PrefabManager, UIManager, Schema DSL
+- **Plugins TS** — input (clavier/souris/gamepad) + audio (Web Audio API)
+- **Playground** — Space Shooter fonctionnel validant toute la stack
+
+### 🚧 En cours
+
+- **Pont WASM↔TS** — API WASM prête côté Rust ; intégration dans `@gwen/engine-core` à câbler
+- **`@gwen/renderer-canvas2d`** — Package à finaliser en réutilisable
+
+### ❌ À venir
+
+- `@gwen/cli` — Build pipeline (parser `engine.config.ts`, bundler WASM)
+- Plugin Vite — hot-reload WASM en développement
+- Physics2D — Rapier2D crate + bindings
+- Templates de projets
+
+---
+
+## 📄 Licence
+
+MIT — voir [LICENSE](./LICENSE)
+
 
 ---
 
