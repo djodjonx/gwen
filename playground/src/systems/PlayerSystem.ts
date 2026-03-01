@@ -1,6 +1,5 @@
 import { createPlugin } from '@gwen/engine-core';
 import type { EngineAPI, SceneManager } from '@gwen/engine-core';
-import type { GwenServices } from '../../gwen.config';
 import type { KeyboardInput } from '@gwen/plugin-input';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 

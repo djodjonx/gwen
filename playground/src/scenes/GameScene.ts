@@ -1,5 +1,4 @@
 import type { Scene, EngineAPI, SceneManager, GwenPlugin } from '@gwen/engine-core';
-import type { GwenServices } from '../../gwen.config';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem }  from '../systems/MovementSystem';

@@ -14,7 +14,6 @@
  */
 
 import { defineConfig } from '@gwen/engine-core';
-import type { GwenConfigServices } from '@gwen/engine-core';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
@@ -32,9 +31,6 @@ export const gwenConfig = defineConfig({
   ],
 });
 
-/**
- * Type global des services — inféré automatiquement depuis gwenConfig.
- * Importez-le dans vos systèmes pour un typage complet sans cast.
- */
-export type GwenServices = GwenConfigServices<typeof gwenConfig>;
+// GwenServices est généré automatiquement par `gwen prepare` dans .gwen/gwen.d.ts
+// Pas besoin de l'exporter ici.
 

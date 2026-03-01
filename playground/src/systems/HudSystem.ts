@@ -1,6 +1,5 @@
 import { createPlugin } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
-import type { GwenServices } from '../../gwen.config';
 import { Score } from '../components';
 
 export const HudSystem = createPlugin({

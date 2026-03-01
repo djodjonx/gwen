@@ -1,6 +1,5 @@
 import { createPlugin } from '@gwen/engine-core';
 import type { EngineAPI, SceneManager } from '@gwen/engine-core';
-import type { GwenServices } from '../../gwen.config';
 import { Tag, Position, Collider, Score } from '../components';
 
 function dist(ax: number, ay: number, bx: number, by: number) {

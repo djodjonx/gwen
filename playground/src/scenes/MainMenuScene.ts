@@ -1,5 +1,4 @@
 import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
-import type { GwenServices } from '../../gwen.config';
 import type { KeyboardInput } from '@gwen/plugin-input';
 import type { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 

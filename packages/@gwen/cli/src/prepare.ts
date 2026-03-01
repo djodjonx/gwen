@@ -146,20 +146,59 @@ function generateDts(projectDir: string, configPath: string): string {
   const relConfig = path.relative(path.join(projectDir, '.gwen'), configPath)
     .replace(/\\/g, '/').replace(/\.ts$/, '');
 
+  // Détecter le nom de la variable exportée (gwenConfig, config, default...)
+  const source = fs.readFileSync(configPath, 'utf-8');
+  const configVarName = detectConfigExportName(source);
+
   return `/**
  * GWEN — Types globaux auto-générés
  * Généré par \`gwen prepare\` — NE PAS MODIFIER
  * Source : gwen.config.ts
+ *
+ * GwenServices est inféré automatiquement depuis ${configVarName}.
+ * Vous n'avez pas besoin de l'exporter depuis gwen.config.ts.
  */
 
-// Re-exporte GwenServices depuis gwen.config pour qu'il soit
-// disponible globalement sans import dans tous les fichiers du projet.
-export type { GwenServices } from '${relConfig}';
+import type { GwenConfigServices } from '@gwen/engine-core';
+import type { ${configVarName} as _cfg } from '${relConfig}';
 
-// Variable injectée par le vite-plugin en mode dev/build
-declare const __GWEN_VERSION__: string;
-declare const __GWEN_DEV__: boolean;
+type _GwenServices = GwenConfigServices<typeof _cfg>;
+
+declare global {
+  /**
+   * Type global des services GWEN — inféré depuis gwen.config.ts.
+   * Disponible partout dans le projet sans import.
+   *
+   * @example
+   * onInit(api: EngineAPI<GwenServices>) {
+   *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+   * }
+   */
+  type GwenServices = _GwenServices;
+
+  const __GWEN_VERSION__: string;
+  const __GWEN_DEV__: boolean;
+}
+
+export {};
 `;
+}
+
+/**
+ * Détecte le nom de la variable exportée par defineConfig() dans gwen.config.ts.
+ * Exemples reconnus :
+ *   export const gwenConfig = defineConfig(...)
+ *   export const config = defineConfig(...)
+ *   export default defineConfig(...)
+ */
+function detectConfigExportName(source: string): string {
+  // export const <name> = defineConfig(
+  const match = source.match(/export\s+const\s+(\w+)\s*=\s*defineConfig\s*\(/);
+  if (match) return match[1];
+  // export default defineConfig( → on utilise "default"
+  if (/export\s+default\s+defineConfig\s*\(/.test(source)) return 'default';
+  // fallback
+  return 'gwenConfig';
 }
 
 // ── S'assurer que tsconfig.json étend .gwen/tsconfig.generated.json ──────────
