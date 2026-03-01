@@ -21,3 +21,8 @@ export { PluginManager } from './plugin-manager';
 // Scene system
 export { SceneManager } from './scene';
 export type { Scene } from './scene';
+
+// UI system
+export { UIManager, defineUI, UIComponent } from './ui';
+export type { UIDefinition, UIRenderContext } from './ui';
+
