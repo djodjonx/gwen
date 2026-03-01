@@ -5,27 +5,28 @@ import { Tag, Position } from '../components';
 import type { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export function makeRenderSystem() {
-  let ctx: CanvasRenderingContext2D | null = null;
-  const W = 480, H = 640;
+  let renderer: Canvas2DRenderer | null = null;
 
   return createPlugin({
     name: 'RenderSystem' as const,
 
     onInit(api: EngineAPI<GwenServices>) {
-      const renderer: Canvas2DRenderer = api.services.get('renderer');
-      ctx = renderer.ctx;
+      renderer = api.services.get('renderer');
     },
 
     onRender(api: EngineAPI<GwenServices>) {
-      if (!ctx) return;
+      if (!renderer) return;
+      const ctx = renderer.ctx;
+      const W = renderer.logicalWidth;
+      const H = renderer.logicalHeight;
 
-      // Fond
+      // Clear
       ctx.fillStyle = '#000814';
       ctx.fillRect(0, 0, W, H);
 
-      // Étoiles
+      // Étoiles parallax
       const t = Date.now() / 1000;
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
       for (let i = 0; i < 60; i++) {
         const sx = (Math.sin(i * 7.3 + 1) * 0.5 + 0.5) * W;
         const sy = ((Math.sin(i * 3.7) * 0.5 + 0.5) * H + t * (15 + i % 25)) % H;
@@ -56,8 +57,8 @@ export function makeRenderSystem() {
             ctx.fillStyle = '#ff6b6b';
             ctx.shadowColor = '#ff6b6b'; ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.moveTo(0, 14); ctx.lineTo(-14, -10);
-            ctx.lineTo(0, -4); ctx.lineTo(14, -10);
+            ctx.moveTo(0, 14);  ctx.lineTo(-14, -10);
+            ctx.lineTo(0, -4);  ctx.lineTo(14, -10);
             ctx.closePath(); ctx.fill();
             break;
 
@@ -79,4 +80,3 @@ export function makeRenderSystem() {
     },
   });
 }
-

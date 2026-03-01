@@ -5,6 +5,7 @@ import type { KeyboardInput } from '@gwen/plugin-input';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
+const W = 480, H = 640; // dimensions logiques du canvas
 
 export function makePlayerSystem(scenes: SceneManager) {
   let keyboard: KeyboardInput | null = null;
@@ -36,8 +37,8 @@ export function makePlayerSystem(scenes: SceneManager) {
         if (keyboard.isPressed('ArrowDown')  || keyboard.isPressed('KeyS')) vy =  SPEED;
 
         // Clamp dans le canvas
-        const nx = Math.max(20, Math.min(460, pos.x + vx * dt));
-        const ny = Math.max(20, Math.min(620, pos.y + vy * dt));
+        const nx = Math.max(20, Math.min(W - 20, pos.x + vx * dt));
+        const ny = Math.max(20, Math.min(H - 20, pos.y + vy * dt));
         api.addComponent(id, Position,  { x: nx, y: ny });
         api.addComponent(id, Velocity,  { vx, vy });
 

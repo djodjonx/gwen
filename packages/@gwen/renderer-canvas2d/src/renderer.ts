@@ -58,10 +58,16 @@ export interface Camera {
 export interface Canvas2DRendererConfig {
   /** Canvas element ID (string) or the HTMLCanvasElement directly */
   canvas: string | HTMLCanvasElement;
-  /** Background clear color (CSS) — defaults to '#000000' */
+  /** Background clear color. Default: '#000000' */
   background?: string;
-  /** Pixel ratio for HiDPI — defaults to window.devicePixelRatio */
+  /** Device pixel ratio. Default: window.devicePixelRatio. Pass 1 to disable HiDPI. */
   pixelRatio?: number;
+  /**
+   * If true, the renderer only provides the service (ctx, canvas) and does NOT
+   * call clear+draw in onRender(). Use this when you have a custom RenderSystem.
+   * Default: false
+   */
+  manualRender?: boolean;
 }
 
 // ============= Canvas2DRenderer =============
@@ -90,6 +96,7 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
     this.config = {
       background: '#000000',
       pixelRatio: typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1,
+      manualRender: false,
       ...config,
     };
   }
@@ -117,6 +124,8 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   }
 
   onRender(api: EngineAPI): void {
+    if (this.config.manualRender) return; // le RenderSystem custom gère tout
+
     const { width, height } = this._canvas;
     const ctx = this._ctx;
 
@@ -175,6 +184,10 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
   get width(): number { return this._canvas.width; }
   get height(): number { return this._canvas.height; }
+  /** Largeur logique (CSS pixels, sans le pixel ratio) */
+  get logicalWidth(): number { return this._canvas.width / this.config.pixelRatio; }
+  /** Hauteur logique (CSS pixels, sans le pixel ratio) */
+  get logicalHeight(): number { return this._canvas.height / this.config.pixelRatio; }
 
   resize(width: number, height: number): void {
     this._canvas.width = width * this.config.pixelRatio;

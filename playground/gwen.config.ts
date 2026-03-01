@@ -28,7 +28,7 @@ export const gwenConfig = defineConfig({
   plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
-    new Canvas2DRenderer({ canvas: 'game-canvas', background: '#000814' }),
+    new Canvas2DRenderer({ canvas: 'game-canvas', background: '#000814', pixelRatio: 1, manualRender: true }),
   ],
 });
 
