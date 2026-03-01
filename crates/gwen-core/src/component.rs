@@ -75,9 +75,14 @@ impl Default for ComponentRegistry {
     }
 }
 
-/// Stores components of one type in a Structure of Arrays layout
+/// Stores components of one type in a Structure of Arrays layout.
+///
+/// Uses a `HashMap<entity_id, slot_index>` for O(1) lookups instead of
+/// scanning the entity list (the previous O(n) `Vec::contains` approach).
 pub struct ComponentColumn {
     entity_ids: Vec<u32>,
+    /// Maps entity_id → slot index in `data` for O(1) access.
+    index_map: HashMap<u32, usize>,
     data: Vec<u8>,
     type_id: ComponentTypeId,
     element_size: usize,
@@ -88,64 +93,86 @@ impl ComponentColumn {
     pub fn new(type_id: ComponentTypeId, element_size: usize) -> Self {
         ComponentColumn {
             entity_ids: Vec::new(),
+            index_map: HashMap::new(),
             data: Vec::new(),
             type_id,
             element_size,
         }
     }
 
-    /// Add a component for an entity
+    /// Add a component for an entity – O(1)
     pub fn add(&mut self, entity_id: u32, data: &[u8]) -> bool {
-        // Check if entity already has this component
-        if self.entity_ids.contains(&entity_id) {
-            return false;
+        if self.index_map.contains_key(&entity_id) {
+            return false; // Entity already has this component
         }
 
-        assert_eq!(data.len(), self.element_size, 
-            "Data size mismatch for component type {:?}", self.type_id);
+        assert_eq!(
+            data.len(),
+            self.element_size,
+            "Data size mismatch for component type {:?}",
+            self.type_id
+        );
 
+        let slot = self.entity_ids.len();
+        self.index_map.insert(entity_id, slot);
         self.entity_ids.push(entity_id);
         self.data.extend_from_slice(data);
         true
     }
 
-    /// Get component data for an entity
+    /// Get component data for an entity – O(1)
     pub fn get(&self, entity_id: u32) -> Option<&[u8]> {
-        self.entity_ids
-            .iter()
-            .position(|&id| id == entity_id)
-            .map(|idx| {
-                let start = idx * self.element_size;
-                &self.data[start..start + self.element_size]
-            })
-    }
-
-    /// Get mutable component data for an entity
-    pub fn get_mut(&mut self, entity_id: u32) -> Option<&mut [u8]> {
-        self.entity_ids
-            .iter()
-            .position(|&id| id == entity_id)
-            .map(|idx| {
-                let start = idx * self.element_size;
-                &mut self.data[start..start + self.element_size]
-            })
-    }
-
-    /// Remove component from entity
-    pub fn remove(&mut self, entity_id: u32) -> bool {
-        if let Some(idx) = self.entity_ids.iter().position(|&id| id == entity_id) {
-            self.entity_ids.remove(idx);
+        self.index_map.get(&entity_id).map(|&idx| {
             let start = idx * self.element_size;
-            self.data.drain(start..start + self.element_size);
-            true
-        } else {
-            false
-        }
+            &self.data[start..start + self.element_size]
+        })
     }
 
-    /// Check if entity has this component
+    /// Get mutable component data for an entity – O(1)
+    pub fn get_mut(&mut self, entity_id: u32) -> Option<&mut [u8]> {
+        self.index_map.get(&entity_id).copied().map(|idx| {
+            let start = idx * self.element_size;
+            &mut self.data[start..start + self.element_size]
+        })
+    }
+
+    /// Remove component from entity – O(1) via swap-remove
+    pub fn remove(&mut self, entity_id: u32) -> bool {
+        let idx = match self.index_map.remove(&entity_id) {
+            Some(i) => i,
+            None => return false,
+        };
+
+        let last_slot = self.entity_ids.len() - 1;
+
+        if idx == last_slot {
+            // Removing the last element – simple pop
+            self.entity_ids.pop();
+            let start = idx * self.element_size;
+            self.data.truncate(start);
+        } else {
+            // Swap with last element so we avoid O(n) shifts
+            let last_entity = self.entity_ids[last_slot];
+            self.entity_ids.swap_remove(idx);
+
+            // Swap the data bytes of idx and last_slot
+            let src = last_slot * self.element_size;
+            let dst = idx * self.element_size;
+            for i in 0..self.element_size {
+                self.data.swap(dst + i, src + i);
+            }
+            self.data.truncate(last_slot * self.element_size);
+
+            // Update index_map for the moved entity
+            self.index_map.insert(last_entity, idx);
+        }
+
+        true
+    }
+
+    /// Check if entity has this component – O(1)
     pub fn has(&self, entity_id: u32) -> bool {
-        self.entity_ids.contains(&entity_id)
+        self.index_map.contains_key(&entity_id)
     }
 
     /// Get iterator over entity IDs with this component
