@@ -113,16 +113,53 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     return null;
   }
 
-  function buildWasm(root: string): boolean {
-    const crate = resolveCratePath(root);
-    if (!crate) {
-      console.warn('[gwen-vite] No Cargo.toml found — skipping WASM build');
+  function copyPrecompiledWasm(root: string): boolean {
+    const outDir = path.resolve(root, wasmOutDir);
+
+    // Chercher les artefacts pré-compilés dans @gwen/engine-core/wasm/
+    const candidates = [
+      path.resolve(root, 'node_modules/@gwen/engine-core/wasm'),
+      path.resolve(root, '../packages/@gwen/engine-core/wasm'),
+      path.resolve(__dirname, '../../engine-core/wasm'),
+      path.resolve(__dirname, '../../../@gwen/engine-core/wasm'),
+    ];
+
+    let sourceDir: string | null = null;
+    for (const c of candidates) {
+      if (fs.existsSync(c)) { sourceDir = c; break; }
+    }
+
+    if (!sourceDir) {
+      log('No pre-compiled WASM found in @gwen/engine-core/wasm/');
       return false;
     }
+
+    fs.mkdirSync(outDir, { recursive: true });
+    const files = fs.readdirSync(sourceDir).filter(f =>
+      f.endsWith('.wasm') || f.endsWith('.js') || f.endsWith('.d.ts')
+    );
+    if (files.length === 0) return false;
+
+    for (const file of files) {
+      fs.copyFileSync(path.join(sourceDir, file), path.join(outDir, file));
+    }
+    log(`Copied ${files.length} pre-compiled WASM artifacts from ${sourceDir} → ${outDir}`);
+    return true;
+  }
+
+  function buildWasm(root: string): boolean {
+    const crate = resolveCratePath(root);
+
+    // Pas de crate Rust custom → copier les artefacts pré-compilés
+    if (!crate) {
+      log('No Cargo.toml found — copying pre-compiled WASM from @gwen/engine-core');
+      return copyPrecompiledWasm(root);
+    }
+
     const wasmPack = findWasmPack();
     if (!wasmPack) {
-      console.warn('[gwen-vite] wasm-pack not found — skipping WASM build');
-      return false;
+      console.warn('[gwen-vite] wasm-pack not found — copying pre-compiled WASM from @gwen/engine-core');
+      return copyPrecompiledWasm(root);
     }
 
     const outDir = path.resolve(root, wasmOutDir);
