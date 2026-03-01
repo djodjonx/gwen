@@ -3,71 +3,112 @@
  * @gwen/cli — Exécutable en ligne de commande
  *
  * Usage:
- *   gwen build              # Build le projet dans le dossier courant
- *   gwen build --release    # Build en mode release (défaut)
- *   gwen build --debug      # Build en mode debug
- *   gwen build --verbose    # Logs détaillés
- *   gwen build --dry-run    # Simule le build sans exécuter wasm-pack
- *   gwen info               # Affiche la config parsée sans builder
+ *   gwen prepare            Génère .gwen/ (tsconfig + types)
+ *   gwen dev                Démarre le serveur de dev (Vite offusqué)
+ *   gwen build              Build production (WASM + bundle)
+ *   gwen preview            Prévisualise le build production
+ *
+ * All configuration lives in gwen.config.ts — no vite.config.ts needed.
  */
 
 import process from 'node:process';
-import { findConfigFile, parseConfigFile } from './config-parser.js';
-import { build } from './builder.js';
+import { prepare } from './prepare.js';
+import { dev }     from './dev.js';
+import { build }   from './builder.js';
 
-const [, , command = 'build', ...rawArgs] = process.argv;
+const args    = process.argv.slice(2);
+const command = args[0] ?? 'help';
 
-const flags = {
-  verbose: rawArgs.includes('--verbose') || rawArgs.includes('-v'),
-  dryRun: rawArgs.includes('--dry-run'),
-  debug: rawArgs.includes('--debug'),
-  release: rawArgs.includes('--release'),
-};
+function hasFlag(flag: string): boolean { return args.includes(flag); }
+function getFlag(flag: string, fallback: string): string {
+  const idx = args.indexOf(flag);
+  return (idx !== -1 && args[idx + 1]) ? args[idx + 1] : fallback;
+}
+
+const verbose = hasFlag('--verbose') || hasFlag('-v');
+const port    = parseInt(getFlag('--port', '3000'), 10);
 
 async function main() {
   switch (command) {
+
+    case 'prepare': {
+      const result = await prepare({ verbose });
+      if (!result.success) {
+        for (const e of result.errors) console.error('[gwen]', e);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'dev': {
+      await dev({ port, open: hasFlag('--open'), verbose });
+      break;
+    }
+
     case 'build': {
+      await prepare({ verbose });
       const result = await build({
-        projectDir: process.cwd(),
-        mode: flags.debug ? 'debug' : 'release',
-        verbose: flags.verbose,
-        dryRun: flags.dryRun,
+        mode:    hasFlag('--debug') ? 'debug' : 'release',
+        outDir:  hasFlag('--out-dir') ? getFlag('--out-dir', 'dist') : undefined,
+        verbose,
+        dryRun:  hasFlag('--dry-run'),
       });
-      process.exit(result.success ? 0 : 1);
+      if (!result.success) {
+        for (const e of result.errors) console.error('[gwen]', e);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'preview': {
+      const { preview } = await import('vite');
+      await preview({ root: process.cwd(), configFile: false });
       break;
     }
 
     case 'info': {
+      const { findConfigFile, parseConfigFile } = await import('./config-parser.js');
       const configPath = findConfigFile(process.cwd());
-      if (!configPath) {
-        console.error('No engine.config.ts or gwen.config.ts found.');
-        process.exit(1);
-      }
+      if (!configPath) { console.error('gwen.config.ts not found'); process.exit(1); }
       const parsed = parseConfigFile(configPath);
       console.log(JSON.stringify(parsed, null, 2));
       break;
     }
 
-    default:
+    default: {
       console.log(`
-GWEN Engine CLI v0.1.0
+╔═══════════════════════════════════╗
+║  GWEN Game Engine CLI  v0.1.0     ║
+╚═══════════════════════════════════╝
 
-Usage:
-  gwen build [options]   Build the project (parse config + compile WASM + generate manifest)
-  gwen info              Print parsed engine.config.ts as JSON
+Usage: gwen <command> [options]
+
+Commands:
+  prepare       Generate .gwen/ (tsconfig + types)
+  dev           Start dev server (Vite abstracted)
+  build         Production build (WASM + bundle)
+  preview       Preview production build
+  info          Show parsed gwen.config.ts
 
 Options:
-  --release   Build in release mode (default, optimized)
-  --debug     Build in debug mode (faster compile, larger output)
-  --verbose   Show detailed build logs
-  --dry-run   Parse and plan without running wasm-pack
-      `.trim());
-      break;
+  --port <n>    Dev server port (default: 3000)
+  --open        Open browser on start
+  --debug       Build in debug mode (faster, larger WASM)
+  --out-dir     Output directory (default: dist/)
+  --verbose     Show detailed logs
+  --dry-run     Simulate without writing files
+
+All config lives in gwen.config.ts — no vite.config.ts needed.
+`);
+      if (command !== 'help' && command !== '--help' && command !== '-h') {
+        console.error(`Unknown command: ${command}`);
+        process.exit(1);
+      }
+    }
   }
 }
 
 main().catch(err => {
-  console.error('[gwen] Unexpected error:', err);
+  console.error('[gwen]', err instanceof Error ? err.message : err);
   process.exit(1);
 });
-

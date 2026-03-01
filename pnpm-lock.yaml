@@ -14,13 +14,16 @@ importers:
 
   packages/@gwen/cli:
     dependencies:
-      vite:
-        specifier: ^5.0.0
-        version: 5.4.21(@types/node@25.3.3)
+      jiti:
+        specifier: ^2.4.2
+        version: 2.6.1
     devDependencies:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
       vitest:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)
@@ -36,6 +39,8 @@ importers:
       vitest:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)
+
+  packages/@gwen/engine-core/wasm: {}
 
   packages/@gwen/plugin-audio:
     dependencies:
@@ -111,6 +116,9 @@ importers:
 
   playground:
     dependencies:
+      '@gwen/cli':
+        specifier: workspace:*
+        version: link:../packages/@gwen/cli
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../packages/@gwen/engine-core
@@ -576,6 +584,10 @@ packages:
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
+
+  jiti@2.6.1:
+    resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
+    hasBin: true
 
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
@@ -1193,6 +1205,8 @@ snapshots:
   is-stream@3.0.0: {}
 
   isexe@2.0.0: {}
+
+  jiti@2.6.1: {}
 
   js-tokens@9.0.1: {}
 

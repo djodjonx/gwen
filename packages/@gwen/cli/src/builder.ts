@@ -181,6 +181,23 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   result.manifestPath = manifestPath;
   log(verbose, `[gwen build] ✅ Manifest → ${manifestPath}`);
 
+  // ── Step 4: Vite build ──────────────────────────────────────────────────────
+  if (!dryRun) {
+    try {
+      log(verbose, `[gwen build] Running Vite build...`);
+      const { buildViteConfig } = await import('./vite-config-builder.js');
+      const viteConfig = await buildViteConfig(projectDir, configPath, {
+        mode: 'production',
+        outDir,
+      });
+      const { build: viteBuild } = await import('vite');
+      await viteBuild(viteConfig);
+      log(verbose, `[gwen build] ✅ Vite build complete → ${outDir}`);
+    } catch (err) {
+      result.errors.push(`Vite build failed: ${err}`);
+    }
+  }
+
   result.success = result.errors.length === 0;
   result.durationMs = Date.now() - start;
 

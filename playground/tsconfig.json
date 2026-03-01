@@ -1,12 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": [
       "ES2020",
       "DOM"
     ],
-    "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -14,26 +12,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "baseUrl": ".",
-    "paths": {
-      "@gwen/engine-core": [
-        "../packages/@gwen/engine-core/src/index.ts"
-      ],
-      "@gwen/renderer-canvas2d": [
-        "../packages/@gwen/renderer-canvas2d/src/index.ts"
-      ],
-      "@gwen/plugin-input": [
-        "../packages/@gwen/plugin-input/src/index.ts"
-      ],
-      "@gwen/plugin-audio": [
-        "../packages/@gwen/plugin-audio/src/index.ts"
-      ]
-    }
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",
     "*.ts"
-  ]
+  ],
+  "extends": "./.gwen/tsconfig.generated.json"
 }
