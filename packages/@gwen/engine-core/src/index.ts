@@ -16,3 +16,7 @@ export type { EngineState } from './api';
 
 // Plugin system
 export { PluginManager } from './plugin-manager';
+
+// Scene system
+export { SceneManager } from './scene';
+export type { Scene } from './scene';
