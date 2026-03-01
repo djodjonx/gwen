@@ -1,49 +1,45 @@
 /**
  * Canvas2DRenderer — TsPlugin that draws entities to an HTML Canvas
  *
- * Implements TsPlugin — participates in the game loop via PluginManager.
- * Reads entities with a 'sprite' component each frame and draws them.
+ * Part of the @gwen/renderer-canvas2d package.
+ * Implements TsPlugin from @gwen/engine-core.
  *
- * Usage:
+ * @example
  * ```typescript
- * const renderer = new Canvas2DRenderer({ canvasId: 'game-canvas' });
- * engine.registerSystem(renderer);
- * ```
+ * import { Engine } from '@gwen/engine-core';
+ * import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
  *
- * Required component: 'transform' + optionally 'sprite'.
+ * const engine = new Engine({ maxEntities: 5000 });
+ * engine.registerSystem(new Canvas2DRenderer({ canvas: 'game-canvas' }));
+ * engine.start();
+ * ```
  */
 
-import type { TsPlugin, EngineAPI, EntityId } from './types';
+import type { TsPlugin, EngineAPI, EntityId } from '@gwen/engine-core';
 
-// ============= Sprite Component Schema =============
+// ============= Component Types =============
 
 export interface SpriteComponent {
-  /** Shape to draw */
   shape: 'rect' | 'circle' | 'image';
-  /** Width / diameter */
   width: number;
-  /** Height (rect only — defaults to width if omitted) */
+  /** Height (defaults to width if omitted — useful for circles) */
   height?: number;
-  /** Fill color (CSS string, e.g. '#ff0000' or 'rgba(255,0,0,0.5)') */
   color?: string;
-  /** Stroke color */
   strokeColor?: string;
-  /** Stroke width */
   strokeWidth?: number;
   /** Image source URL (shape='image') */
   src?: string;
   /** Loaded HTMLImageElement (managed internally) */
   _image?: HTMLImageElement;
-  /** Z-order (higher = drawn on top) */
+  /** Drawing order — higher = drawn on top */
   zOrder?: number;
-  /** Whether to draw */
   visible?: boolean;
 }
 
 export interface TransformComponent {
   x: number;
   y: number;
-  rotation?: number;    // radians
+  rotation?: number;   // radians
   scaleX?: number;
   scaleY?: number;
 }
@@ -59,11 +55,11 @@ export interface Camera {
 // ============= Renderer Config =============
 
 export interface Canvas2DRendererConfig {
-  /** Canvas element ID or the element itself */
+  /** Canvas element ID (string) or the HTMLCanvasElement directly */
   canvas: string | HTMLCanvasElement;
   /** Background clear color (CSS) — defaults to '#000000' */
   background?: string;
-  /** Pixel ratio for HiDPI screens — defaults to devicePixelRatio */
+  /** Pixel ratio for HiDPI — defaults to window.devicePixelRatio */
   pixelRatio?: number;
 }
 
@@ -86,8 +82,8 @@ export class Canvas2DRenderer implements TsPlugin {
     };
   }
 
-  onInit(api: EngineAPI): void {
-    // Resolve canvas
+  onInit(_api: EngineAPI): void {
+    // Resolve canvas element
     if (typeof this.config.canvas === 'string') {
       const el = document.getElementById(this.config.canvas);
       if (!el || !(el instanceof HTMLCanvasElement)) {
@@ -99,12 +95,9 @@ export class Canvas2DRenderer implements TsPlugin {
     }
 
     const ctx = this.canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('[Canvas2DRenderer] Could not get 2D context.');
-    }
+    if (!ctx) throw new Error('[Canvas2DRenderer] Could not get 2D rendering context.');
     this.ctx = ctx;
 
-    // HiDPI scaling
     this.applyPixelRatio();
   }
 
@@ -116,22 +109,20 @@ export class Canvas2DRenderer implements TsPlugin {
     ctx.fillStyle = this.config.background;
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Apply camera transform
+    // 2. Camera transform
     ctx.save();
     ctx.translate(-this.camera.x * this.camera.zoom, -this.camera.y * this.camera.zoom);
     ctx.scale(this.camera.zoom, this.camera.zoom);
 
-    // 3. Collect entities with transform
+    // 3. Query entities with a transform and sort by zOrder
     const entities = api.query(['transform']);
-
-    // Sort by zOrder (lower zOrder drawn first)
     const sorted = entities.slice().sort((a, b) => {
       const sa = api.getComponent<SpriteComponent>(a, 'sprite');
       const sb = api.getComponent<SpriteComponent>(b, 'sprite');
       return (sa?.zOrder ?? 0) - (sb?.zOrder ?? 0);
     });
 
-    // 4. Draw each entity
+    // 4. Draw
     for (const id of sorted) {
       const transform = api.getComponent<TransformComponent>(id, 'transform');
       if (!transform) continue;
@@ -139,7 +130,7 @@ export class Canvas2DRenderer implements TsPlugin {
       const sprite = api.getComponent<SpriteComponent>(id, 'sprite');
       if (sprite?.visible === false) continue;
 
-      this.drawEntity(ctx, id, transform, sprite, api);
+      this.drawEntity(ctx, id, transform, sprite);
     }
 
     ctx.restore();
@@ -149,7 +140,7 @@ export class Canvas2DRenderer implements TsPlugin {
     this.imageCache.clear();
   }
 
-  // ── Camera control ─────────────────────────────────────────────────────
+  // ── Camera ─────────────────────────────────────────────────────────────
 
   setCamera(camera: Partial<Camera>): void {
     this.camera = { ...this.camera, ...camera };
@@ -159,7 +150,7 @@ export class Canvas2DRenderer implements TsPlugin {
     return { ...this.camera };
   }
 
-  /** Move camera to follow a target position smoothly. */
+  /** Smooth camera follow with lerp factor (1 = instant snap). */
   followTarget(targetX: number, targetY: number, lerp = 1): void {
     this.camera.x += (targetX - this.camera.x) * lerp;
     this.camera.y += (targetY - this.camera.y) * lerp;
@@ -178,18 +169,15 @@ export class Canvas2DRenderer implements TsPlugin {
     this.applyPixelRatio();
   }
 
-  // ── Private drawing ────────────────────────────────────────────────────
+  // ── Private helpers ────────────────────────────────────────────────────
 
   private drawEntity(
     ctx: CanvasRenderingContext2D,
     _id: EntityId,
     transform: TransformComponent,
     sprite: SpriteComponent | undefined,
-    _api: EngineAPI,
   ): void {
     ctx.save();
-
-    // Apply transform
     ctx.translate(transform.x, transform.y);
     if (transform.rotation) ctx.rotate(transform.rotation);
     if (transform.scaleX !== undefined || transform.scaleY !== undefined) {
@@ -197,7 +185,6 @@ export class Canvas2DRenderer implements TsPlugin {
     }
 
     if (!sprite) {
-      // Default: small white dot
       ctx.fillStyle = 'white';
       ctx.fillRect(-4, -4, 8, 8);
     } else {
@@ -216,20 +203,18 @@ export class Canvas2DRenderer implements TsPlugin {
           if (sprite.strokeColor) ctx.strokeRect(-w / 2, -h / 2, w, h);
           break;
 
-        case 'circle': {
+        case 'circle':
           ctx.beginPath();
           ctx.arc(0, 0, w / 2, 0, Math.PI * 2);
           if (sprite.color) ctx.fill();
           if (sprite.strokeColor) ctx.stroke();
           break;
-        }
 
         case 'image': {
           const img = this.getOrLoadImage(sprite);
-          if (img && img.complete) {
+          if (img?.complete) {
             ctx.drawImage(img, -w / 2, -h / 2, w, h);
           } else {
-            // Placeholder while loading
             ctx.fillStyle = '#444';
             ctx.fillRect(-w / 2, -h / 2, w, h);
           }
@@ -243,17 +228,11 @@ export class Canvas2DRenderer implements TsPlugin {
 
   private getOrLoadImage(sprite: SpriteComponent): HTMLImageElement | undefined {
     if (!sprite.src) return undefined;
-
-    if (this.imageCache.has(sprite.src)) {
-      return this.imageCache.get(sprite.src)!;
-    }
-
-    // Cache the sprite's _image reference for re-use
+    if (this.imageCache.has(sprite.src)) return this.imageCache.get(sprite.src)!;
     if (sprite._image) {
       this.imageCache.set(sprite.src, sprite._image);
       return sprite._image;
     }
-
     const img = new Image();
     img.src = sprite.src;
     sprite._image = img;

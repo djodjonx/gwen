@@ -4,10 +4,10 @@
 export * from './types';
 export * from './config';
 
-// ECS internals (EntityManager, ComponentRegistry, QueryEngine)
+// ECS internals
 export { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
 
-// Engine (main class + global instance helpers)
+// Engine
 export { Engine, getEngine, useEngine, resetEngine } from './engine';
 
 // API & ServiceLocator
@@ -16,7 +16,3 @@ export type { EngineState } from './api';
 
 // Plugin system
 export { PluginManager } from './plugin-manager';
-
-// Renderer
-export { Canvas2DRenderer } from './renderer';
-export type { SpriteComponent, TransformComponent, Camera, Canvas2DRendererConfig } from './renderer';
