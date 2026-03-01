@@ -44,6 +44,12 @@ export interface Scene {
   onUpdate?(api: EngineAPI, deltaTime: number): void;
 
   /**
+   * Called every frame for rendering.
+   * Optional — use for scenes that draw directly (e.g. menus).
+   */
+  onRender?(api: EngineAPI): void;
+
+  /**
    * Called before the scene is replaced by another.
    * Stop music, save state, unregister listeners, etc.
    */
@@ -76,6 +82,10 @@ export class SceneManager implements TsPlugin {
 
   onUpdate(api: EngineAPI, deltaTime: number): void {
     this.currentScene?.onUpdate?.(api, deltaTime);
+  }
+
+  onRender(api: EngineAPI): void {
+    this.currentScene?.onRender?.(api);
   }
 
   onDestroy(): void {
