@@ -73,24 +73,47 @@ let _wasmModule: GwenCoreWasm | null = null;
 let _initPromise: Promise<boolean> | null = null;
 let _maxEntities = 10_000;
 
+// URL de base résolue au moment du bundling — pointe vers wasm/ co-publié dans @gwen/engine-core.
+// import.meta.url fonctionne avec Vite, Rollup, esbuild (ESM natif).
+// Null en environnement sans support ESM (ex: Jest CJS legacy).
+const _pkgWasmBase: string | null = (() => {
+  try {
+    return new URL('../wasm/', import.meta.url).href;
+  } catch {
+    return null;
+  }
+})();
+
 // ── Initialisation ────────────────────────────────────────────────────────────
 
 /**
  * Charge et initialise le module WASM gwen_core.
  *
- * Les fichiers wasm-bindgen (.js + .wasm) sont dans /public et servis
- * statiquement — ils ne peuvent pas être importés via import() dynamique
- * sous Vite (erreur "file is in /public"). On les charge via :
+ * **Sans argument** : résout automatiquement les artefacts depuis le dossier
+ * `wasm/` co-publié dans `@gwen/engine-core`. L'utilisateur final n'a pas
+ * besoin de connaître les chemins ou d'avoir Rust installé.
+ *
+ * ```typescript
+ * // Usage minimal — zéro configuration
+ * await initWasm();
+ *
+ * // Usage explicite (playground dev, chemin custom)
+ * await initWasm('/wasm/gwen_core.js', '/wasm/gwen_core_bg.wasm');
+ * ```
+ *
+ * Les fichiers wasm-bindgen (.js + .wasm) servis statiquement ne peuvent pas
+ * être importés via import() dynamique sous Vite (erreur "file is in /public").
+ * On les charge via :
  *   1. Un <script type="module"> injecté dans le DOM pour le glue JS
  *   2. fetch() + WebAssembly pour le .wasm
  *
- * @param jsUrl    URL du glue JS wasm-bindgen (ex: '/wasm/gwen_core.js')
- * @param wasmUrl  URL du binaire .wasm (ex: '/wasm/gwen_core_bg.wasm')
+ * @param jsUrl    URL du glue JS wasm-bindgen. Si omis, résolu depuis le package.
+ * @param wasmUrl  URL du binaire .wasm. Si omis, résolu depuis le package.
  * @param maxEntities  Capacité maximale d'entités (défaut: 10 000)
  * @returns `true` si le WASM a été chargé avec succès, `false` sinon
  */
 export async function initWasm(
-  jsUrl: string,
+  jsUrl?: string,
   wasmUrl?: string,
   maxEntities = 10_000,
 ): Promise<boolean> {
@@ -99,26 +122,37 @@ export async function initWasm(
 
   _maxEntities = maxEntities;
 
+  // Résolution automatique depuis le package si pas de chemin fourni
+  const resolvedJsUrl = jsUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core.js` : null);
+  const resolvedWasmUrl = wasmUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core_bg.wasm` : null);
+
+  if (!resolvedJsUrl) {
+    console.warn('[GWEN] initWasm(): impossible de résoudre l\'URL du glue WASM — mode TS-only');
+    _initPromise = Promise.resolve(false);
+    return false;
+  }
+
   _initPromise = (async () => {
     try {
       // ── Charger le glue JS wasm-bindgen via un module script tag ──────
       // On ne peut pas faire import() sur un fichier /public sous Vite,
       // mais on peut l'injecter comme <script type="module"> et exposer
       // son export via une promesse sur window.__gwenWasmGlue.
-      const glue = await loadWasmGlue(jsUrl);
+
+      const glue = await loadWasmGlue(resolvedJsUrl);
 
       // ── Initialiser le module WASM ─────────────────────────────────────
       // glue.default est la fonction init() générée par wasm-bindgen.
       // On lui passe soit l'URL du .wasm soit un fetch() Response.
-      const wasmInput = wasmUrl
-        ? fetch(wasmUrl)
+      const wasmInput = resolvedWasmUrl
+        ? fetch(resolvedWasmUrl)
         : undefined;
 
       if (typeof glue.default === 'function') {
         await glue.default(wasmInput);
       } else if (typeof glue.initSync === 'function') {
         // fallback synchrone (rare)
-        const buf = await (await fetch(wasmUrl!)).arrayBuffer();
+        const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
         glue.initSync(buf);
       }
 

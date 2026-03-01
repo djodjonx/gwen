@@ -1,0 +1,111 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-wasm:
+    name: Build WASM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates/gwen-core"
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM (release, wasm-opt)
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir packages/@gwen/engine-core/wasm \
+            crates/gwen-core
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-release
+          path: packages/@gwen/engine-core/wasm/
+
+  publish:
+    name: Publish packages
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    permissions:
+      contents: read
+      id-token: write  # for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-release
+          path: packages/@gwen/engine-core/wasm/
+
+      - name: Build all packages
+        run: pnpm --filter "@gwen/*" build
+
+      - name: Run all tests
+        run: pnpm --filter "@gwen/*" test
+
+      - name: Publish @gwen/engine-core
+        run: pnpm --filter @gwen/engine-core publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gwen/plugin-input
+        run: pnpm --filter @gwen/plugin-input publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gwen/plugin-audio
+        run: pnpm --filter @gwen/plugin-audio publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gwen/renderer-canvas2d
+        run: pnpm --filter @gwen/renderer-canvas2d publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gwen/vite-plugin
+        run: pnpm --filter @gwen/vite-plugin publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gwen/cli
+        run: pnpm --filter @gwen/cli publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish create-gwen-app
+        run: pnpm --filter create-gwen-app publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+

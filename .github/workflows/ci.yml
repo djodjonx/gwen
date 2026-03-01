@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Tests Rust + compilation WASM ─────────────────────────────────────────
+  rust:
+    name: Rust tests + WASM build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates/gwen-core"
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Rust tests (native)
+        run: cargo test --manifest-path crates/gwen-core/Cargo.toml
+
+      - name: WASM tests (wasm-pack)
+        run: wasm-pack test --node crates/gwen-core
+
+      - name: Build WASM release
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir packages/@gwen/engine-core/wasm \
+            crates/gwen-core
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-artifacts
+          path: packages/@gwen/engine-core/wasm/
+          retention-days: 7
+
+  # ── Tests TypeScript ───────────────────────────────────────────────────────
+  typescript:
+    name: TypeScript tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Test engine-core
+        run: pnpm --filter @gwen/engine-core test
+
+      - name: Test plugin-input
+        run: pnpm --filter @gwen/plugin-input test
+
+      - name: Test plugin-audio
+        run: pnpm --filter @gwen/plugin-audio test
+
+      - name: Test renderer-canvas2d
+        run: pnpm --filter @gwen/renderer-canvas2d test
+
+      - name: Test cli
+        run: pnpm --filter @gwen/cli test
+
+      - name: Test vite-plugin
+        run: pnpm --filter @gwen/vite-plugin test
+
+  # ── Typecheck global ──────────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - run: pnpm install
+      - run: pnpm --filter @gwen/engine-core exec tsc --noEmit
+      - run: pnpm --filter @gwen/cli exec tsc --noEmit
+      - run: pnpm --filter @gwen/vite-plugin exec tsc --noEmit
+

@@ -1,0 +1,49 @@
+# {{PROJECT_NAME}}
+
+A game built with [GWEN](https://gwen.dev) — the modular web-native game engine.
+
+## Getting started
+
+```bash
+npm install
+npm run dev      # development server with WASM hot-reload
+npm run build    # production build → dist/
+npm run preview  # preview production build
+```
+
+## Project structure
+
+```
+{{PROJECT_NAME}}/
+  src/
+    main.ts              # Entry point
+    scenes/
+      MainScene.ts       # Your first scene
+    components/
+      index.ts           # Component definitions (typed via Schema DSL)
+    systems/             # Game systems (physics, AI, ...)
+    prefabs/             # Entity prefabs
+  gwen.config.ts         # Engine & plugin configuration
+  vite.config.ts         # Vite + GWEN plugin config
+  index.html
+```
+
+## Adding plugins
+
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwen/engine-core';
+import { InputPlugin } from '@gwen/plugin-input';
+import { AudioPlugin } from '@gwen/plugin-audio';
+
+export default defineConfig({
+  plugins: [new InputPlugin(), new AudioPlugin()],
+});
+```
+
+## Docs
+
+- [GWEN Documentation](https://gwen.dev/docs)
+- [Plugin API](https://gwen.dev/docs/plugins)
+- [Schema DSL](https://gwen.dev/docs/schema)
+

@@ -1,8 +1,17 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { gwen } from '../packages/@gwen/vite-plugin/src/index.ts';
 
 export default defineConfig({
   root: '.',
+  plugins: [
+    gwen({
+      cratePath: '../crates/gwen-core',
+      wasmOutDir: 'public/wasm',
+      watch: true,
+      verbose: false,
+    }),
+  ],
   resolve: {
     alias: {
       '@gwen/engine-core': resolve(__dirname, '../packages/@gwen/engine-core/src/index.ts'),
@@ -15,14 +24,12 @@ export default defineConfig({
     port: 3000,
     open: false,
     headers: {
-      // Required for SharedArrayBuffer + WASM threads (future-proofing)
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
-  // Ensure .wasm files in public/ are served with correct MIME type
   assetsInclude: ['**/*.wasm'],
   build: {
-    target: 'esnext', // Required for top-level await + WASM
+    target: 'esnext',
   },
 });

@@ -292,10 +292,12 @@ describe('build() — dry-run mode', () => {
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('warns when no Cargo.toml found', async () => {
+  it('succeeds in dry-run even without Cargo.toml (uses pre-compiled WASM path)', async () => {
     writeConfig(tmp, MINIMAL_CONFIG);
     const result = await build({ projectDir: tmp, dryRun: true });
-    expect(result.warnings.some(w => w.includes('Cargo.toml') || w.includes('WASM'))).toBe(true);
+    // dry-run always succeeds — WASM step is skipped entirely
+    expect(result.success).toBe(true);
+    expect(result.wasmBuilt).toBe(true);
   });
 });
 

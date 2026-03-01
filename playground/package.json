@@ -13,7 +13,8 @@
     "@gwen/engine-core": "workspace:*",
     "@gwen/plugin-audio": "workspace:*",
     "@gwen/plugin-input": "workspace:*",
-    "@gwen/renderer-canvas2d": "workspace:*"
+    "@gwen/renderer-canvas2d": "workspace:*",
+    "@gwen/vite-plugin": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

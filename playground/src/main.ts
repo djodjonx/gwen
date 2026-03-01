@@ -18,10 +18,14 @@ scenes.register(new GameScene(scenes));
 // 3. Choix de la scène de départ
 scenes.loadSceneImmediate('MainMenu', engine.getAPI());
 
-// 4. Activation du core Rust/WASM (optionnel — fallback TS-only si absent)
-initWasm('/wasm/gwen_core.js', '/wasm/gwen_core_bg.wasm', 2000).then(active => {
+// 4. Activation du core Rust/WASM — résolution automatique depuis @gwen/engine-core/wasm/
+//    L'utilisateur n'a pas besoin de connaître les chemins ni d'avoir Rust installé.
+//    Fallback transparent en TS-only si le WASM n'est pas disponible.
+initWasm().then(active => {
   if (active) {
     console.log('[GWEN] WASM core active — Rust ECS bridged');
+  } else {
+    console.log('[GWEN] Running in TS-only mode');
   }
 });
 
