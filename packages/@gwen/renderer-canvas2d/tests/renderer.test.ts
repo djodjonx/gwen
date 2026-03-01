@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Canvas2DRenderer } from '../src/renderer';
+import { ShapeRenderer } from '../src/shapes';
 import type { SpriteComponent, TransformComponent } from '../src/renderer';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
@@ -205,3 +206,140 @@ describe('Canvas2DRenderer', () => {
     });
   });
 });
+
+// ── ShapeRenderer ─────────────────────────────────────────────────────────────
+
+function makeCtx2() {
+  return {
+    fillStyle: '' as string,
+    strokeStyle: '' as string,
+    lineWidth: 1,
+    globalAlpha: 1,
+    shadowBlur: 0,
+    shadowColor: '',
+    font: '',
+    textAlign: 'left' as CanvasTextAlign,
+    textBaseline: 'top' as CanvasTextBaseline,
+    canvas: { width: 800, height: 600 } as HTMLCanvasElement,
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
+    scale: vi.fn(),
+    fillRect: vi.fn(),
+    strokeRect: vi.fn(),
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    stroke: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    fillText: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
+}
+
+describe('ShapeRenderer', () => {
+  describe('rect()', () => {
+    it('fills a rect when color provided', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.rect(ctx, { x: 10, y: 20, width: 50, height: 30, color: 'red' });
+      expect(ctx.fillRect).toHaveBeenCalledWith(-25, -15, 50, 30);
+    });
+
+    it('strokes a rect when strokeColor provided', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.rect(ctx, { x: 0, y: 0, width: 40, height: 20, strokeColor: 'blue', strokeWidth: 2 });
+      expect(ctx.strokeRect).toHaveBeenCalledWith(-20, -10, 40, 20);
+    });
+
+    it('calls save/restore', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.rect(ctx, { x: 0, y: 0, width: 10, height: 10, color: 'white' });
+      expect(ctx.save).toHaveBeenCalled();
+      expect(ctx.restore).toHaveBeenCalled();
+    });
+
+    it('applies rotation', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.rect(ctx, { x: 0, y: 0, width: 10, height: 10, rotation: Math.PI / 4 });
+      expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 4);
+    });
+
+    it('applies alpha', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.rect(ctx, { x: 0, y: 0, width: 10, height: 10, alpha: 0.5, color: 'red' });
+      expect((ctx as any).globalAlpha).toBe(0.5);
+    });
+  });
+
+  describe('circle()', () => {
+    it('draws arc with correct radius', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.circle(ctx, { x: 50, y: 50, radius: 20, color: 'green' });
+      expect(ctx.arc).toHaveBeenCalledWith(50, 50, 20, 0, Math.PI * 2);
+      expect(ctx.fill).toHaveBeenCalled();
+    });
+
+    it('strokes circle when strokeColor provided', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.circle(ctx, { x: 0, y: 0, radius: 10, strokeColor: 'white' });
+      expect(ctx.stroke).toHaveBeenCalled();
+    });
+
+    it('calls save/restore', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.circle(ctx, { x: 0, y: 0, radius: 5, color: 'red' });
+      expect(ctx.save).toHaveBeenCalled();
+      expect(ctx.restore).toHaveBeenCalled();
+    });
+  });
+
+  describe('line()', () => {
+    it('draws a line between two points', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.line(ctx, { x1: 0, y1: 0, x2: 100, y2: 100, color: 'yellow', width: 2 });
+      expect(ctx.moveTo).toHaveBeenCalledWith(0, 0);
+      expect(ctx.lineTo).toHaveBeenCalledWith(100, 100);
+      expect(ctx.stroke).toHaveBeenCalled();
+    });
+
+    it('uses default color white when none specified', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.line(ctx, { x1: 0, y1: 0, x2: 10, y2: 10 });
+      expect((ctx as any).strokeStyle).toBe('#ffffff');
+    });
+  });
+
+  describe('text()', () => {
+    it('calls fillText with correct arguments', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.text(ctx, { x: 100, y: 50, text: 'Hello', color: 'white' });
+      expect(ctx.fillText).toHaveBeenCalledWith('Hello', 100, 50);
+    });
+
+    it('applies shadow when shadowBlur provided', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.text(ctx, { x: 0, y: 0, text: 'Hi', shadowBlur: 10, shadowColor: 'red' });
+      expect((ctx as any).shadowBlur).toBe(10);
+      expect((ctx as any).shadowColor).toBe('red');
+    });
+  });
+
+  describe('background()', () => {
+    it('fills entire canvas', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.background(ctx, '#111');
+      expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 800, 600);
+    });
+  });
+
+  describe('clear()', () => {
+    it('clears specified region', () => {
+      const ctx = makeCtx2();
+      ShapeRenderer.clear(ctx, 10, 20, 100, 50);
+      expect(ctx.clearRect).toHaveBeenCalledWith(10, 20, 100, 50);
+    });
+  });
+});
+
