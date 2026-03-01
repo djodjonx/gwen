@@ -28,6 +28,9 @@ export interface Scene {
   /** Unique name identifying this scene. */
   readonly name: string;
 
+  /** Local plugins mounted only while this scene is active. */
+  plugins?: TsPlugin[];
+
   /**
    * Called when the scene becomes active.
    * Create entities, register event listeners, start music, etc.
@@ -137,10 +140,18 @@ export class SceneManager implements TsPlugin {
 
   private applyTransition(api: EngineAPI, name: string): void {
     const next = this.scenes.get(name)!;
+    const registrar = api.services.has('PluginRegistrar')
+      ? api.services.get<import('./types').IPluginRegistrar>('PluginRegistrar')
+      : null;
 
     // 1. Exit current scene
     if (this.currentScene) {
       this.currentScene.onExit(api);
+      if (registrar && this.currentScene.plugins) {
+        for (const p of this.currentScene.plugins) {
+          registrar.unregister(p.name);
+        }
+      }
     }
 
     // 2. Purge all entities (clean slate for the new scene)
@@ -148,6 +159,11 @@ export class SceneManager implements TsPlugin {
 
     // 3. Enter new scene
     this.currentScene = next;
+    if (registrar && next.plugins) {
+      for (const p of next.plugins) {
+        registrar.register(p);
+      }
+    }
     next.onEnter(api);
   }
 

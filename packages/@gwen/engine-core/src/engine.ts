@@ -63,6 +63,12 @@ export class Engine {
 
     this.pluginManager = new PluginManager();
 
+    // Register PluginRegistrar to allow Scenes (and other plugins) to mount sub-plugins
+    this.api.services.register<import('./types').IPluginRegistrar>('PluginRegistrar', {
+      register: (plugin) => this.pluginManager.register(plugin, this.api),
+      unregister: (name) => this.pluginManager.unregister(name),
+    });
+
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
     }

@@ -46,6 +46,12 @@ export interface ServiceLocator {
   has(name: string): boolean;
 }
 
+export interface IPluginRegistrar {
+  register(plugin: TsPlugin): void;
+  unregister(name: string): boolean;
+}
+
+
 // ============= EngineAPI =============
 
 /**
