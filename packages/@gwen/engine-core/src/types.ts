@@ -80,6 +80,18 @@ export interface IPluginRegistrar {
   get<T extends TsPlugin = TsPlugin>(name: string): T | undefined;
 }
 
+// ============= Scene Navigator =============
+
+/**
+ * Contrat minimal pour naviguer entre scènes depuis un plugin.
+ * Ne crée pas de couplage circulaire avec SceneManager.
+ */
+export interface SceneNavigator {
+  /** Charge une scène au prochain frame (safe depuis onUpdate). */
+  load(name: string): void;
+  /** Nom de la scène actuellement active, null si aucune. */
+  readonly current: string | null;
+}
 
 // ============= EngineAPI =============
 
@@ -137,6 +149,19 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
   /** Prefab manager — instantiate pre-assembled entities */
   readonly prefabs: import('./prefab').PrefabManager;
 
+  /**
+   * Navigateur de scènes — disponible si un SceneManager est enregistré.
+   * null si aucun SceneManager n'est actif (tests headless, etc.).
+   *
+   * @example
+   * ```ts
+   * onUpdate(api) {
+   *   if (lives <= 0) api.scene?.load('MainMenu');
+   * }
+   * ```
+   */
+  readonly scene: SceneNavigator | null;
+
   /** Current delta time in seconds */
   readonly deltaTime: number;
 
@@ -162,20 +187,27 @@ export interface TsPlugin {
   readonly name: string;
 
   /** Called once when plugin is registered */
-  onInit?(api: EngineAPI<any>): void;
+  onInit?(api: EngineAPI): void;
 
   /** Called at start of each frame — use for input capture */
-  onBeforeUpdate?(api: EngineAPI<any>, deltaTime: number): void;
+  onBeforeUpdate?(api: EngineAPI, deltaTime: number): void;
 
   /** Called after WASM update — use for game logic */
-  onUpdate?(api: EngineAPI<any>, deltaTime: number): void;
+  onUpdate?(api: EngineAPI, deltaTime: number): void;
 
   /** Called after all updates — use for rendering */
-  onRender?(api: EngineAPI<any>): void;
+  onRender?(api: EngineAPI): void;
 
   /** Called when plugin is removed or engine stops */
   onDestroy?(): void;
 }
+
+/**
+ * Un plugin déclaré dans Scene.plugins[].
+ * Peut être un objet direct (TsPlugin) ou une factory sans-args (() => TsPlugin).
+ * Le SceneManager résout automatiquement les factories au moment de l'activation.
+ */
+export type PluginEntry = TsPlugin | (() => TsPlugin);
 
 // ============= Engine Configuration =============
 

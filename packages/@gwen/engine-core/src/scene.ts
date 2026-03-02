@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from './types';
+import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from './types';
 import { UIManager, type UIDefinition } from './ui';
 
 // ============= Scene Interface =============
@@ -29,8 +29,12 @@ export interface Scene {
   /** Unique name identifying this scene. */
   readonly name: string;
 
-  /** Local plugins mounted only while this scene is active. */
-  plugins?: TsPlugin[];
+  /**
+   * Plugins locaux montés uniquement pendant que cette scène est active.
+   * Accepte des objets directs (TsPlugin) ou des factories sans-args (() => TsPlugin).
+   * Le SceneManager résout automatiquement les factories au moment de l'activation.
+   */
+  plugins?: PluginEntry[];
 
   /**
    * UIDefinitions à rendre pour cette scène.
@@ -149,19 +153,35 @@ export function defineScene<Args extends unknown[]>(
 
 // ============= SceneManager =============
 
-export class SceneManager implements TsPlugin {
+export class SceneManager implements TsPlugin, SceneNavigator {
   readonly name = 'SceneManager';
 
   private scenes = new Map<string, Scene>();
   private currentScene: Scene | null = null;
   private api: EngineAPI | null = null;
-  private sceneUIManager: UIManager | null = null; // UIManager auto-injecté
+  private sceneUIManager: UIManager | null = null;
 
   // Pending transition — applied at start of next frame to avoid mid-frame changes
   private pendingScene: string | null = null;
 
+  // ── SceneNavigator ─────────────────────────────────────────────────────
+
+  /** Nom de la scène active (null si aucune). */
+  get current(): string | null {
+    return this.currentScene?.name ?? null;
+  }
+
+  /** Alias de loadScene() — safe depuis onUpdate(). */
+  load(name: string): void {
+    this.loadScene(name);
+  }
+
+  // ── TsPlugin lifecycle ─────────────────────────────────────────────────
+
   onInit(api: EngineAPI): void {
     this.api = api;
+    // Auto-register comme SceneNavigator
+    api.services.register<SceneNavigator>('SceneManager', this);
   }
 
   onBeforeUpdate(api: EngineAPI, _dt: number): void {
@@ -275,9 +295,14 @@ export class SceneManager implements TsPlugin {
     // 3. Enter new scene
     this.currentScene = next;
 
-    // Enregistrer les plugins explicites
-    if (registrar && next.plugins) {
-      for (const p of next.plugins) {
+    // Résoudre les PluginEntries : objet direct ou factory sans-args
+    const resolvedPlugins: TsPlugin[] = (next.plugins ?? []).map(p =>
+      typeof p === 'function' ? p() : p
+    );
+
+    // Enregistrer les plugins résolus
+    if (registrar && resolvedPlugins.length > 0) {
+      for (const p of resolvedPlugins) {
         registrar.register(p);
       }
     }

@@ -1,5 +1,5 @@
 import { defineScene, UIComponent } from '@gwen/engine-core';
-import type { EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { EngineAPI } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -13,21 +13,21 @@ import { EnemyUI } from '../ui/EnemyUI';
 import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
-export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
+export const GameScene = defineScene('Game', () => ({
   ui: [
-    BackgroundUI,  // 1er — clear + étoiles
-    BulletUI,      // 2e  — balles
-    EnemyUI,       // 3e  — ennemis
-    PlayerUI,      // 4e  — joueur
-    ScoreUI,       // 5e  — HUD HTML
+    BackgroundUI,
+    BulletUI,
+    EnemyUI,
+    PlayerUI,
+    ScoreUI,
   ],
 
   plugins: [
     MovementSystem,
-    PlayerSystem(),
+    PlayerSystem,
     AiSystem,
-    SpawnerSystem(),
-    CollisionSystem(scenes),
+    SpawnerSystem,     // factory — le framework appellera SpawnerSystem() automatiquement
+    CollisionSystem,
   ],
 
   onEnter(api: EngineAPI<GwenServices>) {

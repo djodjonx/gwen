@@ -10,7 +10,7 @@
  *    Rule: resolve services only in onInit(), never in onUpdate()
  */
 
-import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType } from './types';
+import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType, SceneNavigator } from './types';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 import { PrefabManager } from './prefab';
@@ -85,6 +85,12 @@ export class EngineAPIImpl implements EngineAPI {
 
   get frameCount(): number {
     return this.state.frameCount;
+  }
+
+  get scene(): SceneNavigator | null {
+    return this.services.has('SceneManager')
+      ? this.services.get<SceneNavigator>('SceneManager')
+      : null;
   }
 
   // ── Entity operations ──────────────────────────────────────────────────

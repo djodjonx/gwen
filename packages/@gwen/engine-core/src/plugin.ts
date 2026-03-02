@@ -126,6 +126,16 @@ export type GwenPluginBody<
   P extends Record<string, unknown> = Record<string, never>,
 > = Omit<GwenPluginDef<string, P>, 'name'>;
 
+/**
+ * Factory de plugin retournée par `createPlugin(name, factory)`.
+ * Porte `pluginName` pour l'introspection avant appel.
+ */
+export type GwenPluginFactory<
+  N extends string,
+  P extends Record<string, unknown> = Record<string, never>,
+  Args extends unknown[] = [],
+> = ((...args: Args) => GwenPlugin<N, P>) & { readonly pluginName: N };
+
 // Surcharge 1 — objet direct (identique à aujourd'hui)
 export function createPlugin<
   N extends string,
@@ -140,7 +150,7 @@ export function createPlugin<
 >(
   name: N,
   factory: (...args: Args) => GwenPluginBody<P>,
-): (...args: Args) => GwenPlugin<N, P>;
+): GwenPluginFactory<N, P, Args>;
 
 // Implémentation
 export function createPlugin<
@@ -150,13 +160,15 @@ export function createPlugin<
 >(
   nameOrDef: N | GwenPluginDef<N, P>,
   factory?: (...args: Args) => GwenPluginBody<P>,
-): GwenPlugin<N, P> | ((...args: Args) => GwenPlugin<N, P>) {
+): GwenPlugin<N, P> | GwenPluginFactory<N, P, Args> {
   if (typeof nameOrDef === 'string') {
-    // Forme 2 — retourne une factory callable
-    return (...args: Args): GwenPlugin<N, P> => ({
+    // Forme 2 — factory callable avec pluginName annoté
+    const fn = (...args: Args): GwenPlugin<N, P> => ({
       name: nameOrDef,
       ...factory!(...args),
     });
+    (fn as GwenPluginFactory<N, P, Args> as { pluginName: N }).pluginName = nameOrDef;
+    return fn as GwenPluginFactory<N, P, Args>;
   }
   // Forme 1 — objet direct
   return nameOrDef as GwenPlugin<N, P>;
