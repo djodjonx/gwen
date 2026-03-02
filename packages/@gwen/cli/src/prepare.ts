@@ -186,14 +186,6 @@ declare global {
   const __GWEN_DEV__: boolean;
 }
 
-// ── Import de fichiers HTML bruts via Vite (?raw) ──────────────────────────
-// Utilisé avec @gwen/plugin-html-ui :
-//   import scoreHtml from './score.html?raw';
-//   api.services.get('htmlUI').mount(entityId, scoreHtml);
-declare module '*.html?raw' {
-  const content: string;
-  export default content;
-}
 
 export {};
 `;
