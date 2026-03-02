@@ -107,9 +107,10 @@ describe('prepare', () => {
   it('returns list of generated files', async () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
-    expect(result.files).toHaveLength(2);
+    expect(result.files).toHaveLength(3);
     expect(result.files.some(f => f.endsWith('tsconfig.generated.json'))).toBe(true);
     expect(result.files.some(f => f.endsWith('gwen.d.ts'))).toBe(true);
+    expect(result.files.some(f => f.endsWith('index.html'))).toBe(true);
   });
 
   // ── typeReferences collectées depuis pluginMeta ──────────────────────────

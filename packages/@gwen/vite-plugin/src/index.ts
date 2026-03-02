@@ -71,9 +71,9 @@ const RESOLVED_VIRTUAL_MANIFEST = '\0' + VIRTUAL_MANIFEST_ID;
 // /@gwen/ prefix — résolu comme un vrai chemin HTTP par le navigateur,
 // intercepté par resolveId avant que Vite ne le cherche sur disque.
 // Pattern identique à /@vite/ et /@fs/ utilisés par Vite lui-même.
-const GWEN_ENTRY_ID   = '/@gwen/entry';
-const GWEN_SCENES_ID  = '/@gwen/scenes';
-const RESOLVED_ENTRY  = '\0/@gwen/entry';
+const GWEN_ENTRY_ID = '/@gwen/entry';
+const GWEN_SCENES_ID = '/@gwen/scenes';
+const RESOLVED_ENTRY = '\0/@gwen/entry';
 const RESOLVED_SCENES = '\0/@gwen/scenes';
 
 // ── Scan src/scenes/ ──────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ interface SceneInfo {
   sceneName: string;
   isDefault: boolean;
   isFactory: boolean; // defineScene forme 2 — factory callable
-  isConst:   boolean; // defineScene forme 1 — objet direct (export const)
+  isConst: boolean; // defineScene forme 1 — objet direct (export const)
   relPath: string;
 }
 
@@ -96,14 +96,14 @@ function scanScenes(projectRoot: string): SceneInfo[] {
     .filter(f => f.endsWith('.ts') && !f.startsWith('_') && !f.startsWith('.'))
     .sort()
     .map(file => {
-      const base   = file.replace(/\.ts$/, '');
+      const base = file.replace(/\.ts$/, '');
       const source = fs.readFileSync(path.join(scenesDir, file), 'utf-8');
 
       const defaultMatch = source.match(/export\s+default\s+class\s+(\w+)/);
-      const classMatch   = source.match(/export\s+class\s+(\w+)/);
-      const constMatch   = source.match(/export\s+const\s+(\w+)/);
-      const namedMatch   = classMatch ?? constMatch;
-      const className    = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
+      const classMatch = source.match(/export\s+class\s+(\w+)/);
+      const constMatch = source.match(/export\s+const\s+(\w+)/);
+      const namedMatch = classMatch ?? constMatch;
+      const className = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
 
       // defineScene forme 2 = export const + defineScene('string', factory)
       const isFactory =
@@ -142,55 +142,6 @@ function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | un
     candidates.find(c => scenes.some(s => s.sceneName === c)) ??
     scenes[0]?.sceneName
   );
-}
-
-// ── Génération de l'index.html par défaut ─────────────────────────────────────
-
-interface HtmlConfig {
-  title?: string;
-  background?: string;
-}
-
-function readHtmlConfig(projectRoot: string): HtmlConfig {
-  try {
-    const configPath = path.join(projectRoot, 'gwen.config.ts');
-    if (!fs.existsSync(configPath)) return {};
-    const src = fs.readFileSync(configPath, 'utf-8');
-    const htmlBlock = src.match(/html\s*:\s*\{([^}]*)\}/s)?.[1] ?? '';
-    const get = (key: string, fallback: string) =>
-      htmlBlock.match(new RegExp(`${key}\\s*:\\s*['"\`]?([^,'"\`\\n}]+)['"\`]?`))?.[1]?.trim() ?? fallback;
-    return {
-      title:      get('title', ''),
-      background: get('background', '#000'),
-    };
-  } catch { return {}; }
-}
-
-function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
-  const title = cfg.title      ?? path.basename(projectRoot);
-  const bg    = cfg.background ?? '#000';
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: ${bg};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-    }
-  </style>
-</head>
-<body>
-</body>
-</html>`;
 }
 
 // ── Génération des virtual modules ────────────────────────────────────────────
@@ -444,8 +395,8 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     // ── Résolution des virtual modules ───────────────────────────────────
     resolveId(id) {
       if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_MANIFEST;
-      if (id === GWEN_ENTRY_ID)       return RESOLVED_ENTRY;
-      if (id === GWEN_SCENES_ID)      return RESOLVED_SCENES;
+      if (id === GWEN_ENTRY_ID) return RESOLVED_ENTRY;
+      if (id === GWEN_SCENES_ID) return RESOLVED_SCENES;
       return null;
     },
 
@@ -512,17 +463,24 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
           if (fs.existsSync(filePath)) {
             const ext = path.extname(filePath);
             if (ext === '.wasm') res.setHeader('Content-Type', 'application/wasm');
-            if (ext === '.js')   res.setHeader('Content-Type', 'application/javascript');
+            if (ext === '.js') res.setHeader('Content-Type', 'application/javascript');
             res.end(fs.readFileSync(filePath));
             return;
           }
         }
 
-        // Servir l'HTML généré si index.html absent et requête racine
+        // Servir le .gwen/index.html (le fichier préparé par la CLI)
         if ((req.url === '/' || req.url === '/index.html') &&
-            !fs.existsSync(path.join(projectRoot, 'index.html'))) {
-          const cfg  = readHtmlConfig(projectRoot);
-          const raw  = generateIndexHtml(cfg, projectRoot);
+          !fs.existsSync(path.join(projectRoot, 'index.html'))) {
+
+          const gwenHtmlPath = path.join(projectRoot, '.gwen', 'index.html');
+
+          // Fallback ultra mininal au cas où `gwen prepare` n'aurait pas encore fini
+          let raw = `<!DOCTYPE html><html><body><script type="module" src="/@gwen/entry"></script></body></html>`;
+          if (fs.existsSync(gwenHtmlPath)) {
+            raw = fs.readFileSync(gwenHtmlPath, 'utf-8');
+          }
+
           // Passer par le pipeline Vite : inject HMR client + transformIndexHtml hooks
           devServer.transformIndexHtml(req.url!, raw, req.originalUrl).then(html => {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');

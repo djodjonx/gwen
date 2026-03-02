@@ -34,8 +34,8 @@ export interface PrepareResult {
 
 export async function prepare(options: PrepareOptions = {}): Promise<PrepareResult> {
   const projectDir = path.resolve(options.projectDir ?? process.cwd());
-  const verbose    = options.verbose ?? false;
-  const gwenDir    = path.join(projectDir, '.gwen');
+  const verbose = options.verbose ?? false;
+  const gwenDir = path.join(projectDir, '.gwen');
   const result: PrepareResult = { success: false, gwenDir, files: [], errors: [] };
 
   const log = (msg: string) => { if (verbose) console.log(msg); };
@@ -60,17 +60,25 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   log(`[gwen prepare] ✅ ${path.relative(projectDir, tsconfigPath)}`);
 
   // ── 2. Générer gwen.d.ts ────────────────────────────────────────────────────
-  const typeRefs   = collectPluginTypeReferences(projectDir, configPath, verbose);
-  const dtspath    = path.join(gwenDir, 'gwen.d.ts');
+  const typeRefs = collectPluginTypeReferences(projectDir, configPath, verbose);
+  const dtspath = path.join(gwenDir, 'gwen.d.ts');
   const dtsContent = generateDts(projectDir, configPath, typeRefs);
   fs.writeFileSync(dtspath, dtsContent, 'utf-8');
   result.files.push(dtspath);
   log(`[gwen prepare] ✅ ${path.relative(projectDir, dtspath)}`);
 
-  // ── 3. S'assurer que le tsconfig.json du projet étend .gwen/ ───────────────
+  // ── 3. Générer index.html (virtuel) ─────────────────────────────────────────
+  const htmlPath = path.join(gwenDir, 'index.html');
+  const parsed = parseConfigFile(configPath);
+  const htmlContent = generateIndexHtml(projectDir, parsed.html);
+  fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+  result.files.push(htmlPath);
+  log(`[gwen prepare] ✅ ${path.relative(projectDir, htmlPath)}`);
+
+  // ── 4. S'assurer que le tsconfig.json du projet étend .gwen/ ───────────────
   ensureProjectTsconfig(projectDir, gwenDir, verbose);
 
-  // ── 4. Ajouter .gwen/ dans .gitignore ──────────────────────────────────────
+  // ── 5. Ajouter .gwen/ dans .gitignore ──────────────────────────────────────
   ensureGitignore(projectDir);
 
   result.success = true;
@@ -91,9 +99,9 @@ function collectPluginTypeReferences(
   configPath: string,
   verbose: boolean,
 ): string[] {
-  const log  = (msg: string) => { if (verbose) console.log(msg); };
+  const log = (msg: string) => { if (verbose) console.log(msg); };
   const parsed = parseConfigFile(configPath);
-  const refs   = new Set<string>();
+  const refs = new Set<string>();
 
   for (const plugin of parsed.plugins) {
     try {
@@ -123,7 +131,7 @@ function resolvePackageMain(projectDir: string, packageName: string): string | n
     const pkgJson = path.join(dir, 'node_modules', packageName, 'package.json');
     if (fs.existsSync(pkgJson)) {
       try {
-        const pkg  = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
+        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
         const main = pkg.main ?? pkg.module ?? 'src/index.ts';
         // Résoudre le symlink pour atteindre le vrai répertoire du package
         const pkgDir = fs.realpathSync(path.dirname(pkgJson));
@@ -175,6 +183,36 @@ function extractTypeRefsFromSource(filePath: string): string[] {
   }
 }
 
+// ── Génération du index.html virtuel ──────────────────────────────────────────
+
+function generateIndexHtml(projectDir: string, options: { title?: string; background?: string }): string {
+  const title = options.title ?? path.basename(projectDir);
+  const bg = options.background ?? '#000';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: ${bg};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <script type="module" src="/@gwen/entry"></script>
+</body>
+</html>`;
+}
+
 // ── Génération du tsconfig ────────────────────────────────────────────────────
 
 function generateTsconfig(projectDir: string): object {
@@ -189,12 +227,13 @@ function generateTsconfig(projectDir: string): object {
   if (isPlayground || isMonorepo) {
     const packagesDir = path.resolve(projectDir, '..', 'packages', '@gwen');
     const packageMap: Record<string, string> = {
-      '@gwen/engine-core':      'engine-core/src/index.ts',
-      '@gwen/renderer-canvas2d':'renderer-canvas2d/src/index.ts',
-      '@gwen/plugin-input':     'plugin-input/src/index.ts',
-      '@gwen/plugin-audio':     'plugin-audio/src/index.ts',
-      '@gwen/plugin-html-ui':   'plugin-html-ui/src/index.ts',
-      '@gwen/vite-plugin':      'vite-plugin/src/index.ts',
+      '@gwen/engine-core': 'engine-core/src/index.ts',
+      '@gwen/renderer-canvas2d': 'renderer-canvas2d/src/index.ts',
+      '@gwen/plugin-input': 'plugin-input/src/index.ts',
+      '@gwen/plugin-audio': 'plugin-audio/src/index.ts',
+      '@gwen/plugin-debug': 'plugin-debug/src/index.ts',
+      '@gwen/plugin-html-ui': 'plugin-html-ui/src/index.ts',
+      '@gwen/vite-plugin': 'vite-plugin/src/index.ts',
     };
 
     for (const [pkg, rel] of Object.entries(packageMap)) {
@@ -310,7 +349,7 @@ function detectConfigExportStyle(source: string): { type: 'default' } | { type: 
 
 function ensureProjectTsconfig(projectDir: string, gwenDir: string, verbose: boolean): void {
   const tsconfigPath = path.join(projectDir, 'tsconfig.json');
-  const relExtends   = './.gwen/tsconfig.generated.json';
+  const relExtends = './.gwen/tsconfig.generated.json';
   const log = (msg: string) => { if (verbose) console.log(msg); };
 
   if (!fs.existsSync(tsconfigPath)) {

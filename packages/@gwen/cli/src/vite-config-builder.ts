@@ -58,15 +58,15 @@ export async function buildViteConfig(
 
     plugins: gwenPlugin
       ? [gwenPlugin({
-          // cratePath seulement si un crate Rust custom est présent dans le projet
-          // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
-          // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
-          ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
-          wasmOutDir: 'public/wasm',
-          watch: options.mode === 'development',
-          wasmMode: options.mode === 'development' ? 'debug' : 'release',
-          verbose: false,
-        })]
+        // cratePath seulement si un crate Rust custom est présent dans le projet
+        // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
+        // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
+        ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
+        wasmOutDir: 'public/wasm',
+        watch: options.mode === 'development',
+        wasmMode: options.mode === 'development' ? 'debug' : 'release',
+        verbose: false,
+      })]
       : [],
 
     resolve: {
@@ -88,6 +88,11 @@ export async function buildViteConfig(
       target: 'esnext',
       outDir: options.outDir ?? path.join(projectDir, 'dist'),
       emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          index: path.join(projectDir, '.gwen', 'index.html'),
+        },
+      },
     },
 
     optimizeDeps: {
@@ -137,10 +142,11 @@ function buildAliases(projectDir: string): Record<string, string> {
   const packagesDir = path.resolve(projectDir, '..', 'packages', '@gwen');
   if (fs.existsSync(packagesDir)) {
     const packageMap: Record<string, string> = {
-      '@gwen/engine-core':       'engine-core/src/index.ts',
+      '@gwen/engine-core': 'engine-core/src/index.ts',
       '@gwen/renderer-canvas2d': 'renderer-canvas2d/src/index.ts',
-      '@gwen/plugin-input':      'plugin-input/src/index.ts',
-      '@gwen/plugin-audio':      'plugin-audio/src/index.ts',
+      '@gwen/plugin-input': 'plugin-input/src/index.ts',
+      '@gwen/plugin-audio': 'plugin-audio/src/index.ts',
+      '@gwen/plugin-debug': 'plugin-debug/src/index.ts',
     };
     for (const [pkg, rel] of Object.entries(packageMap)) {
       const abs = path.resolve(packagesDir, rel);

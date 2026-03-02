@@ -28,6 +28,11 @@ export interface EngineConfigParsed {
   plugins: PluginInfo[];
   /** Scènes déclarées (noms extraits des constructeurs) */
   scenes: string[];
+  /** Options du bloc HTML (titre et background) */
+  html: {
+    title?: string;
+    background?: string;
+  };
   /** Chemin du crate Rust si détecté (contient Cargo.toml) */
   rustCratePath: string | null;
 }
@@ -80,6 +85,7 @@ export function parseConfigFile(configPath: string): EngineConfigParsed {
     engine: extractEngineConfig(source),
     plugins: extractPlugins(source),
     scenes: extractScenes(source),
+    html: extractHtmlConfig(source),
     rustCratePath: findRustCrate(dir),
   };
 }
@@ -101,6 +107,22 @@ function extractEngineConfig(source: string): EngineConfigParsed['engine'] {
 
   const debugMatch = source.match(/debug\s*:\s*(true|false)/);
   if (debugMatch) config.debug = debugMatch[1] === 'true';
+
+  return config;
+}
+
+function extractHtmlConfig(source: string): EngineConfigParsed['html'] {
+  const config: EngineConfigParsed['html'] = {};
+
+  const htmlBlockMatch = source.match(/html\s*:\s*\{([^}]*)\}/s);
+  if (htmlBlockMatch) {
+    const block = htmlBlockMatch[1];
+    const titleMatch = block.match(/title\s*:\s*['"`]([^'"`]+)['"`]/);
+    if (titleMatch) config.title = titleMatch[1];
+
+    const bgMatch = block.match(/background\s*:\s*['"`]([^'"`]+)['"`]/);
+    if (bgMatch) config.background = bgMatch[1];
+  }
 
   return config;
 }

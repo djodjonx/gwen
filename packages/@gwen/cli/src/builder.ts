@@ -192,6 +192,15 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
       });
       const { build: viteBuild } = await import('vite');
       await viteBuild(viteConfig);
+
+      // La magie Vite/Rollup place le HTML dans dist/.gwen/index.html
+      // On le remonte à la racine de dist/ et on nettoie.
+      const builtHtml = path.join(outDir, '.gwen', 'index.html');
+      if (fs.existsSync(builtHtml)) {
+        fs.renameSync(builtHtml, path.join(outDir, 'index.html'));
+        fs.rmSync(path.join(outDir, '.gwen'), { recursive: true, force: true });
+      }
+
       log(verbose, `[gwen build] ✅ Vite build complete → ${outDir}`);
     } catch (err) {
       result.errors.push(`Vite build failed: ${err}`);
