@@ -50,7 +50,7 @@ export interface UIRenderContext {
   elements: Record<string, HTMLElement>;
 }
 
-export interface UIDefinition {
+export interface UIDefinition<Services extends Record<string, unknown> = Record<string, unknown>> {
   /** Unique name matching UIComponent.uiName */
   name: string;
   /** Optional CSS block (injected globally once) */
@@ -58,14 +58,16 @@ export interface UIDefinition {
   /** HTML template string */
   html: string;
   /** Update cycle (called during onRender) */
-  onUpdate?: (dom: UIRenderContext, entityId: EntityId, api: EngineAPI) => void;
+  onUpdate?: (dom: UIRenderContext, entityId: EntityId, api: EngineAPI<Services>) => void;
 }
 
 /**
  * Defines a UI Single-File Component.
  * Enforces the contract and returns the definition unchanged.
  */
-export function defineUI(config: UIDefinition): UIDefinition {
+export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+  config: UIDefinition<Services>,
+): UIDefinition<Services> {
   return config;
 }
 
@@ -81,7 +83,7 @@ export class UIManager implements TsPlugin {
 
   private container: HTMLElement | null = null;
   private styleTag: HTMLStyleElement | null = null;
-  private definitions = new Map<string, UIDefinition>();
+  private definitions = new Map<string, UIDefinition<any>>();
   private instances = new Map<EntityId, UIRenderContext>();
 
   constructor(config: UIManagerConfig = {}) {
@@ -113,7 +115,7 @@ export class UIManager implements TsPlugin {
   /**
    * Register a UI definition. CSS is immediately injected.
    */
-  register(def: UIDefinition): this {
+  register(def: UIDefinition<any>): this {
     if (this.definitions.has(def.name)) {
       console.warn(`[UIManager] UI definition '${def.name}' is already registered — overwriting.`);
     }
@@ -190,7 +192,7 @@ export class UIManager implements TsPlugin {
 
   // ── Internal ───────────────────────────────────────────────────────────
 
-  private mount(def: UIDefinition): UIRenderContext {
+  private mount(def: UIDefinition<any>): UIRenderContext {
     // Node.js fallback for tests
     if (typeof document === 'undefined') {
       return { root: {} as HTMLElement, elements: {} };
