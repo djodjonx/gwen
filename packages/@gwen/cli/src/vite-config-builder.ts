@@ -62,7 +62,6 @@ export async function buildViteConfig(
         // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
         // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
         ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
-        wasmOutDir: 'public/wasm',
         watch: options.mode === 'development',
         wasmMode: options.mode === 'development' ? 'debug' : 'release',
         verbose: false,

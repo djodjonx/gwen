@@ -17,8 +17,9 @@ export function makeCollisionSystem(scenes: SceneManager) {
       const score = api.getComponent(scoreId, Score);
       if (!score) return;
 
-      const bullets  = api.query([Tag.name, Position.name, Collider.name]);
-      const enemies  = api.query([Tag.name, Position.name, Collider.name]);
+      const entities = api.query([Tag.name, Position.name, Collider.name]);
+      const bullets = entities;
+      const enemies = entities;
       const playerId = api.query([Tag.name]).find(id => api.getComponent(id, Tag)?.type === 'player');
 
       // Balles joueur vs ennemis

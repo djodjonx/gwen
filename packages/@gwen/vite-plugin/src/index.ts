@@ -5,8 +5,9 @@
  *  1. **WASM hot-reload** : surveille les fichiers `.rs` du crate Rust,
  *     relance `wasm-pack build` en arrière-plan et déclenche un HMR
  *     complet quand le `.wasm` change.
- *  2. **Copie des artefacts WASM** : copie `dist/wasm/*.wasm` et `*.js`
- *     vers le dossier public de Vite en mode dev.
+ *  2. **Injection WASM via middleware** : sert les fichiers WASM directement
+ *     depuis les sources (sans copie vers public/) en mode dev.
+ *     En build de prod, les émet comme assets Rollup dans dist/wasm/.
  *  3. **Injection du manifeste** : injecte `gwen-manifest.json` comme
  *     variable virtuelle `__GWEN_MANIFEST__` accessible dans le code.
  *
@@ -18,7 +19,6 @@
  *   plugins: [
  *     gwen({
  *       cratePath: '../crates/gwen-core',
- *       wasmOutDir: 'public/wasm',
  *       watch: true,
  *     })
  *   ]
@@ -44,10 +44,10 @@ export interface GwenPluginOptions {
    */
   cratePath?: string;
   /**
-   * Dossier de sortie WASM relatif à la racine du projet Vite.
-   * Défaut : 'public/wasm'
+   * Préfixe URL sous lequel les fichiers WASM sont servis.
+   * Défaut : '/wasm'
    */
-  wasmOutDir?: string;
+  wasmPublicPath?: string;
   /**
    * Active le watch des fichiers .rs pour le hot-reload WASM.
    * Défaut : true en mode dev, false en mode build.
@@ -225,7 +225,7 @@ function generateEntryModule(hasScenesDir: boolean): string {
 
 export function gwen(options: GwenPluginOptions = {}): Plugin {
   const {
-    wasmOutDir = 'public/wasm',
+    wasmPublicPath = '/wasm',
     wasmMode = 'debug',
     verbose = false,
     manifestPath,
@@ -235,7 +235,13 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   let cratePath: string | null = options.cratePath ?? null;
   let watchProcess: ChildProcess | null = null;
   let server: ViteDevServer | null = null;
-  let lastWasmMtime = 0;
+
+  /**
+   * Répertoire source des fichiers WASM à servir :
+   * - Sans crate Rust : @gwen/engine-core/wasm/
+   * - Avec crate Rust  : dossier de sortie wasm-pack (dans .gwen/wasm/)
+   */
+  let wasmSourceDir: string | null = null;
 
   function log(msg: string) {
     if (verbose) console.log(`[gwen-vite] ${msg}`);
@@ -273,56 +279,64 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     return null;
   }
 
-  function copyPrecompiledWasm(root: string): boolean {
-    const outDir = path.resolve(root, wasmOutDir);
-
-    // Chercher les artefacts pré-compilés dans @gwen/engine-core/wasm/
+  /**
+   * Trouve le répertoire contenant les artefacts WASM pré-compilés dans
+   * @gwen/engine-core/wasm/ sans rien copier.
+   */
+  function findPrecompiledWasmDir(root: string): string | null {
     const candidates = [
       path.resolve(root, 'node_modules/@gwen/engine-core/wasm'),
       path.resolve(root, '../packages/@gwen/engine-core/wasm'),
       path.resolve(__dirname, '../../engine-core/wasm'),
       path.resolve(__dirname, '../../../@gwen/engine-core/wasm'),
     ];
-
-    let sourceDir: string | null = null;
     for (const c of candidates) {
-      if (fs.existsSync(c)) { sourceDir = c; break; }
+      if (fs.existsSync(c)) return c;
     }
-
-    if (!sourceDir) {
-      log('No pre-compiled WASM found in @gwen/engine-core/wasm/');
-      return false;
-    }
-
-    fs.mkdirSync(outDir, { recursive: true });
-    const files = fs.readdirSync(sourceDir).filter(f =>
-      f.endsWith('.wasm') || f.endsWith('.js') || f.endsWith('.d.ts')
-    );
-    if (files.length === 0) return false;
-
-    for (const file of files) {
-      fs.copyFileSync(path.join(sourceDir, file), path.join(outDir, file));
-    }
-    log(`Copied ${files.length} pre-compiled WASM artifacts from ${sourceDir} → ${outDir}`);
-    return true;
+    return null;
   }
 
+  /**
+   * Retourne les fichiers WASM/JS depuis wasmSourceDir.
+   */
+  function listWasmFiles(dir: string): string[] {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(f =>
+      f.endsWith('.wasm') || f.endsWith('.js')
+    );
+  }
+
+  /**
+   * En présence d'un crate Rust custom : compile avec wasm-pack vers .gwen/wasm/
+   * (hors de public/ pour ne pas polluer le repo).
+   * Sans crate Rust : pointe simplement vers engine-core/wasm/.
+   * Dans tous les cas, met à jour wasmSourceDir.
+   */
   function buildWasm(root: string): boolean {
     const crate = resolveCratePath(root);
 
-    // Pas de crate Rust custom → copier les artefacts pré-compilés
     if (!crate) {
-      log('No Cargo.toml found — copying pre-compiled WASM from @gwen/engine-core');
-      return copyPrecompiledWasm(root);
+      // Pas de crate Rust custom — pointer vers les artefacts pré-compilés
+      const precompiled = findPrecompiledWasmDir(root);
+      if (!precompiled) {
+        console.warn('[gwen-vite] No pre-compiled WASM found in @gwen/engine-core/wasm — WASM unavailable');
+        return false;
+      }
+      wasmSourceDir = precompiled;
+      log(`WASM source: ${wasmSourceDir} (pre-compiled, no copy)`);
+      return true;
     }
 
     const wasmPack = findWasmPack();
     if (!wasmPack) {
-      console.warn('[gwen-vite] wasm-pack not found — copying pre-compiled WASM from @gwen/engine-core');
-      return copyPrecompiledWasm(root);
+      console.warn('[gwen-vite] wasm-pack not found — falling back to pre-compiled WASM from @gwen/engine-core');
+      const precompiled = findPrecompiledWasmDir(root);
+      if (precompiled) wasmSourceDir = precompiled;
+      return !!precompiled;
     }
 
-    const outDir = path.resolve(root, wasmOutDir);
+    // Compiler dans .gwen/wasm/ pour éviter de polluer public/
+    const outDir = path.resolve(root, '.gwen', 'wasm');
     fs.mkdirSync(outDir, { recursive: true });
 
     log(`Building WASM: ${crate} → ${outDir}`);
@@ -338,6 +352,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return false;
     }
 
+    wasmSourceDir = outDir;
     log('WASM build succeeded');
     return true;
   }
@@ -362,7 +377,8 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       // Debounce: ignore if already building
       if (watchProcess?.exitCode === null) return;
 
-      const outDir = path.resolve(root, wasmOutDir);
+      // Compiler dans .gwen/wasm/ (pas dans public/)
+      const outDir = path.resolve(root, '.gwen', 'wasm');
       watchProcess = spawn(wasmPack, [
         'build', '--target', 'web',
         '--out-dir', outDir,
@@ -371,6 +387,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
       (watchProcess as any).on('close', (code: number | null) => {
         if (code === 0) {
+          wasmSourceDir = outDir;
           log('WASM rebuilt — triggering HMR full reload');
           server?.ws.send({ type: 'full-reload' });
         } else {
@@ -464,9 +481,11 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
       // Middleware WASM + HTML généré si index.html absent
       devServer.middlewares.use((req, res, next) => {
-        // Servir les fichiers WASM
-        if (req.url?.startsWith('/wasm/')) {
-          const filePath = path.join(projectRoot, 'public', req.url);
+        // Servir les fichiers WASM directement depuis wasmSourceDir (sans copie dans public/)
+        const wasmPrefix = wasmPublicPath.endsWith('/') ? wasmPublicPath : wasmPublicPath + '/';
+        if (req.url?.startsWith(wasmPrefix) && wasmSourceDir) {
+          const fileName = req.url.slice(wasmPrefix.length);
+          const filePath = path.join(wasmSourceDir, fileName);
           if (fs.existsSync(filePath)) {
             const ext = path.extname(filePath);
             if (ext === '.wasm') res.setHeader('Content-Type', 'application/wasm');
@@ -500,15 +519,43 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       });
     },
 
-    // ── Build production : injecter le manifeste ──────────────────────────
+    // ── Build production : émettre le manifeste + les assets WASM ────────
     generateBundle() {
+      // Manifeste
       const manifest = loadManifest();
       this.emitFile({
         type: 'asset',
         fileName: 'gwen-manifest.json',
         source: manifest,
       });
+
+      // Artefacts WASM — émis comme assets dans dist/wasm/
+      const srcDir = wasmSourceDir ?? findPrecompiledWasmDir(projectRoot);
+      if (srcDir) {
+        const files = listWasmFiles(srcDir);
+        for (const file of files) {
+          this.emitFile({
+            type: 'asset',
+            fileName: `wasm/${file}`,
+            source: fs.readFileSync(path.join(srcDir, file)),
+          });
+        }
+        if (files.length > 0) log(`Emitted ${files.length} WASM assets to dist/wasm/`);
+      } else {
+        console.warn('[gwen-vite] No WASM source found for production build');
+      }
     },
+
+    // ── Build SSR/preview : s'assurer que wasmSourceDir est connu ─────────
+    buildStart() {
+      if (!wasmSourceDir) {
+        buildWasm(projectRoot);
+      }
+    },
+
+    // ── vite serve preview : servir le dossier dist/wasm/ ─────────────────
+    // (géré automatiquement par Vite car dist/ est le dossier de build)
+    // Rien de plus à faire ici.
   };
 }
 

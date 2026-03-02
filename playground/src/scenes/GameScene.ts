@@ -2,16 +2,16 @@ import { defineScene, UIComponent } from '@gwen/engine-core';
 import type { EngineAPI, SceneManager } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
-import { MovementSystem }        from '../systems/MovementSystem';
-import { makePlayerSystem }      from '../systems/PlayerSystem';
-import { AiSystem }              from '../systems/AiSystem';
-import { SpawnerSystem }         from '../systems/SpawnerSystem';
-import { makeCollisionSystem }   from '../systems/CollisionSystem';
-import { BackgroundUI }          from '../ui/BackgroundUI';
-import { BulletUI }              from '../ui/BulletUI';
-import { EnemyUI }               from '../ui/EnemyUI';
-import { PlayerUI }              from '../ui/PlayerUI';
-import { ScoreUI }               from '../ui/ScoreUI';
+import { MovementSystem } from '../systems/MovementSystem';
+import { makePlayerSystem } from '../systems/PlayerSystem';
+import { AiSystem } from '../systems/AiSystem';
+import { makeSpawnerSystem } from '../systems/SpawnerSystem';
+import { makeCollisionSystem } from '../systems/CollisionSystem';
+import { BackgroundUI } from '../ui/BackgroundUI';
+import { BulletUI } from '../ui/BulletUI';
+import { EnemyUI } from '../ui/EnemyUI';
+import { PlayerUI } from '../ui/PlayerUI';
+import { ScoreUI } from '../ui/ScoreUI';
 
 export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
   ui: [
@@ -26,7 +26,7 @@ export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
     MovementSystem,
     makePlayerSystem(scenes),
     AiSystem,
-    SpawnerSystem,
+    makeSpawnerSystem(),
     makeCollisionSystem(scenes),
   ],
 
@@ -39,7 +39,7 @@ export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
     api.addComponent(bgId, UIComponent, { uiName: 'BackgroundUI' });
 
     const scoreId = api.createEntity();
-    api.addComponent(scoreId, Score,       { value: 0, lives: 3 });
+    api.addComponent(scoreId, Score, { value: 0, lives: 3 });
     api.addComponent(scoreId, UIComponent, { uiName: 'ScoreUI' });
 
     api.prefabs.instantiate('Player');
@@ -48,5 +48,5 @@ export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
     }
   },
 
-  onExit(_api: EngineAPI<GwenServices>) {},
+  onExit(_api: EngineAPI<GwenServices>) { },
 }));
