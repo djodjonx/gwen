@@ -88,6 +88,10 @@ export async function buildViteConfig(
       target: 'esnext',
       outDir: options.outDir ?? path.join(projectDir, 'dist'),
       emptyOutDir: true,
+      rollupOptions: {
+        // Point d'entrée généré par `gwen prepare` — l'utilisateur ne le gère pas
+        input: path.join(projectDir, '.gwen', 'main.ts'),
+      },
     },
 
     assetsInclude: ['**/*.wasm'],
