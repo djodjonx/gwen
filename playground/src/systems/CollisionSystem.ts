@@ -1,6 +1,6 @@
 import { createPlugin } from '@gwen/engine-core';
 import type { EngineAPI, SceneManager } from '@gwen/engine-core';
-import { Tag, Position, Collider, Score } from '../components';
+import { Tag, Position, Collider, Score, Health } from '../components';
 
 function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(ax - bx, ay - by);
@@ -61,6 +61,13 @@ export function makeCollisionSystem(scenes: SceneManager) {
           if (!cur) continue;
           const lives = cur.lives - 1;
           api.addComponent(scoreId, Score, { ...cur, lives });
+
+          // Décrémenter aussi le Health du joueur (pour PlayerUI)
+          const health = api.getComponent(playerId, Health);
+          if (health) {
+            api.addComponent(playerId, Health, { hp: Math.max(0, health.hp - 1) });
+          }
+
           if (lives <= 0) scenes.loadScene('MainMenu');
         }
       }

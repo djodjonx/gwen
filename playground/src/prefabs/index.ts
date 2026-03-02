@@ -12,6 +12,7 @@ export const PlayerPrefab = definePrefab({
     api.addComponent(id, Velocity,   { vx: 0, vy: 0 });
     api.addComponent(id, Tag,        { type: 'player' });
     api.addComponent(id, Collider,   { radius: 14 });
+    api.addComponent(id, Health,     { hp: 3 });
     api.addComponent(id, ShootTimer, { elapsed: 0, cooldown: 0.22 });
     return id;
   },
