@@ -8,6 +8,10 @@ const COLS = 5;
 export const SpawnerSystem = createPlugin({
   name: 'SpawnerSystem' as const,
 
+  onInit() {
+    spawnTimer = 0; // réinitialiser à chaque montée de scène
+  },
+
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
     spawnTimer += dt;
     if (spawnTimer < WAVE_INTERVAL) return;

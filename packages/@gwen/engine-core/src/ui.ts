@@ -95,9 +95,10 @@ export function defineUI<
 export class UIManager implements TsPlugin {
   readonly name = 'UIManager';
 
-  private definitions = new Map<string, UIDefinition<any>>();
-  private mounted     = new Map<EntityId, string>();
-  private lastApi:    EngineAPI | null = null; // pour onDestroy
+  private definitions    = new Map<string, UIDefinition<any>>();
+  private definitionOrder= new Map<string, number>(); // uiName → index d'enregistrement
+  private mounted        = new Map<EntityId, string>();
+  private lastApi:       EngineAPI | null = null;
 
   /** Enregistre une UIDefinition. */
   register(def: UIDefinition<any>): this {
@@ -105,6 +106,7 @@ export class UIManager implements TsPlugin {
       console.warn(`[UIManager] '${def.name}' already registered — overwriting.`);
     }
     this.definitions.set(def.name, def);
+    this.definitionOrder.set(def.name, this.definitions.size - 1);
     return this;
   }
 
@@ -113,7 +115,15 @@ export class UIManager implements TsPlugin {
     const entities = api.query([UIComponent.name]);
     const alive    = new Set<EntityId>();
 
-    for (const id of entities) {
+    // Trier les entités par ordre de registration de leur UIDefinition
+    // garantit : BackgroundUI avant BulletUI avant PlayerUI, etc.
+    const sorted = [...entities].sort((a, b) => {
+      const da = api.getComponent(a, UIComponent)?.uiName ?? '';
+      const db = api.getComponent(b, UIComponent)?.uiName ?? '';
+      return (this.definitionOrder.get(da) ?? 999) - (this.definitionOrder.get(db) ?? 999);
+    });
+
+    for (const id of sorted) {
       alive.add(id);
       const data = api.getComponent(id, UIComponent);
       if (!data) continue;
