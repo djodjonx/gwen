@@ -68,11 +68,13 @@ export interface GwenPluginOptions {
 const VIRTUAL_MANIFEST_ID = 'virtual:gwen-manifest';
 const RESOLVED_VIRTUAL_MANIFEST = '\0' + VIRTUAL_MANIFEST_ID;
 
-const VIRTUAL_ENTRY_ID = 'virtual:gwen/entry';
-const RESOLVED_VIRTUAL_ENTRY = '\0' + VIRTUAL_ENTRY_ID;
-
-const VIRTUAL_SCENES_ID = 'virtual:gwen/scenes';
-const RESOLVED_VIRTUAL_SCENES = '\0' + VIRTUAL_SCENES_ID;
+// /@gwen/ prefix — résolu comme un vrai chemin HTTP par le navigateur,
+// intercepté par resolveId avant que Vite ne le cherche sur disque.
+// Pattern identique à /@vite/ et /@fs/ utilisés par Vite lui-même.
+const GWEN_ENTRY_ID   = '/@gwen/entry';
+const GWEN_SCENES_ID  = '/@gwen/scenes';
+const RESOLVED_ENTRY  = '\0/@gwen/entry';
+const RESOLVED_SCENES = '\0/@gwen/scenes';
 
 // ── Scan src/scenes/ ──────────────────────────────────────────────────────────
 
@@ -165,7 +167,7 @@ function generateEntryModule(hasScenesDir: boolean): string {
   ];
 
   if (hasScenesDir) {
-    lines.push('import { registerScenes, mainScene } from "virtual:gwen/scenes";');
+    lines.push('import { registerScenes, mainScene } from "/@gwen/scenes";');
   }
 
   lines.push(
@@ -365,8 +367,8 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     // ── Résolution des virtual modules ───────────────────────────────────
     resolveId(id) {
       if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_MANIFEST;
-      if (id === VIRTUAL_ENTRY_ID)    return RESOLVED_VIRTUAL_ENTRY;
-      if (id === VIRTUAL_SCENES_ID)   return RESOLVED_VIRTUAL_SCENES;
+      if (id === GWEN_ENTRY_ID)       return RESOLVED_ENTRY;
+      if (id === GWEN_SCENES_ID)      return RESOLVED_SCENES;
       return null;
     },
 
@@ -376,14 +378,13 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         return `export default ${manifest};`;
       }
 
-      if (id === RESOLVED_VIRTUAL_ENTRY) {
+      if (id === RESOLVED_ENTRY) {
         const hasScenesDir = fs.existsSync(path.join(projectRoot, 'src', 'scenes'));
         return generateEntryModule(hasScenesDir);
       }
 
-      if (id === RESOLVED_VIRTUAL_SCENES) {
+      if (id === RESOLVED_SCENES) {
         const scenes = scanScenes(projectRoot);
-        // Lire mainScene depuis gwen.config.ts
         const configPath = path.join(projectRoot, 'gwen.config.ts');
         let mainSceneFromConfig: string | undefined;
         if (fs.existsSync(configPath)) {
@@ -396,19 +397,32 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return null;
     },
 
-    // ── HMR : invalider virtual:gwen/scenes quand src/scenes/ change ─────
+    // ── Injection de l'entry dans index.html (pattern Nuxt) ──────────────
+    // Nuxt utilise transformIndexHtml pour injecter son entry point.
+    // On fait de même : pas de <script> dans index.html, le plugin l'ajoute.
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'script',
+          attrs: { type: 'module', src: GWEN_ENTRY_ID },
+          injectTo: 'body',
+        },
+      ];
+    },
+
+    // ── HMR : invalider les modules quand src/scenes/ change ─────────────
     configureServer(devServer) {
       server = devServer;
       projectRoot = devServer.config.root;
       cratePath = resolveCratePath(projectRoot);
 
-      // Watcher sur src/scenes/ pour invalider le virtual module
+      // Watcher sur src/scenes/ pour invalider les modules
       const scenesDir = path.join(projectRoot, 'src', 'scenes');
       if (fs.existsSync(scenesDir)) {
         fs.watch(scenesDir, () => {
-          const mod = devServer.moduleGraph.getModuleById(RESOLVED_VIRTUAL_SCENES);
+          const mod = devServer.moduleGraph.getModuleById(RESOLVED_SCENES);
           if (mod) devServer.moduleGraph.invalidateModule(mod);
-          const entryMod = devServer.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ENTRY);
+          const entryMod = devServer.moduleGraph.getModuleById(RESOLVED_ENTRY);
           if (entryMod) devServer.moduleGraph.invalidateModule(entryMod);
           devServer.ws.send({ type: 'full-reload' });
         });
