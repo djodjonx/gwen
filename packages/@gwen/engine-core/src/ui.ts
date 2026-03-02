@@ -96,7 +96,8 @@ export class UIManager implements TsPlugin {
   readonly name = 'UIManager';
 
   private definitions = new Map<string, UIDefinition<any>>();
-  private mounted     = new Map<EntityId, string>(); // entityId → defName
+  private mounted     = new Map<EntityId, string>();
+  private lastApi:    EngineAPI | null = null; // pour onDestroy
 
   /** Enregistre une UIDefinition. */
   register(def: UIDefinition<any>): this {
@@ -108,10 +109,10 @@ export class UIManager implements TsPlugin {
   }
 
   onRender(api: EngineAPI): void {
+    this.lastApi = api;
     const entities = api.query([UIComponent.name]);
     const alive    = new Set<EntityId>();
 
-    // Mount + render
     for (const id of entities) {
       alive.add(id);
       const data = api.getComponent(id, UIComponent);
@@ -141,7 +142,15 @@ export class UIManager implements TsPlugin {
   }
 
   onDestroy(): void {
+    // Appeler onUnmount sur toutes les entités encore montées
+    if (this.lastApi) {
+      for (const [id, defName] of this.mounted) {
+        const def = this.definitions.get(defName);
+        def?.onUnmount?.(this.lastApi, id);
+      }
+    }
     this.definitions.clear();
     this.mounted.clear();
+    this.lastApi = null;
   }
 }

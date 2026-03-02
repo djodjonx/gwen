@@ -1,5 +1,5 @@
 import type { Scene, EngineAPI, SceneManager, GwenPlugin } from '@gwen/engine-core';
-import { UIComponent, UIManager } from '@gwen/engine-core';
+import { UIComponent } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem }        from '../systems/MovementSystem';
@@ -15,24 +15,25 @@ import { ScoreUI }               from '../ui/ScoreUI';
 
 export class GameScene implements Scene {
   readonly name = 'Game';
+
+  // Ordre de rendu déclaratif — le framework injecte UIManager automatiquement
+  readonly ui = [
+    BackgroundUI,  // 1er — clear + étoiles
+    BulletUI,      // 2e  — balles (sous les vaisseaux)
+    EnemyUI,       // 3e  — ennemis
+    PlayerUI,      // 4e  — joueur
+    ScoreUI,       // 5e  — HUD HTML (au dessus de tout)
+  ];
+
   readonly plugins: GwenPlugin[];
 
   constructor(private scenes: SceneManager) {
-    const hudManager = new UIManager();
-    hudManager
-      .register(BackgroundUI)  // 1er — clear + étoiles
-      .register(BulletUI)      // 2e  — balles (sous les vaisseaux)
-      .register(EnemyUI)       // 3e  — ennemis
-      .register(PlayerUI)      // 4e  — joueur (au dessus des ennemis)
-      .register(ScoreUI);      // 5e  — HUD HTML (au dessus de tout)
-
     this.plugins = [
       MovementSystem,
       makePlayerSystem(this.scenes),
       AiSystem,
       SpawnerSystem,
       makeCollisionSystem(this.scenes),
-      hudManager,              // plus de makeRenderSystem()
     ];
   }
 
@@ -41,7 +42,7 @@ export class GameScene implements Scene {
     api.prefabs.register(EnemyPrefab);
     api.prefabs.register(BulletPrefab);
 
-    // Entité background — BackgroundUI dessine le fond + étoiles
+    // Entité background
     const bgId = api.createEntity();
     api.addComponent(bgId, UIComponent, { uiName: 'BackgroundUI' });
 
@@ -57,7 +58,5 @@ export class GameScene implements Scene {
     }
   }
 
-  onUpdate() {}
-  onRender() {}
   onExit() {}
 }

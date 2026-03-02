@@ -21,6 +21,7 @@
  */
 
 import type { TsPlugin, EngineAPI } from './types';
+import { UIManager, type UIDefinition } from './ui';
 
 // ============= Scene Interface =============
 
@@ -32,14 +33,24 @@ export interface Scene {
   plugins?: TsPlugin[];
 
   /**
-   * HTML layout injecté dans #gwen-ui pendant que la scène est active.
-   * Monté au onEnter, démonté au onExit. Idéal pour le HUD, menus, etc.
+   * UIDefinitions à rendre pour cette scène.
+   * Le framework crée automatiquement un UIManager, les enregistre
+   * dans l'ordre déclaré (= ordre de rendu) et l'injecte après les plugins.
    *
    * @example
-   * layout = `
-   *   <div id="score" class="hud">SCORE: 0</div>
-   *   <div id="lives" class="hud">♥ ♥ ♥</div>
-   * `;
+   * ```ts
+   * readonly ui = [
+   *   BackgroundUI,  // 1er — dessiné en premier
+   *   EnemyUI,
+   *   PlayerUI,
+   *   ScoreUI,       // dernier — au dessus de tout
+   * ];
+   * ```
+   */
+  ui?: UIDefinition<any>[];
+
+  /**
+   * HTML layout injecté dans #gwen-ui pendant que la scène est active.
    */
   layout?: string;
 
@@ -73,9 +84,10 @@ export interface Scene {
 export class SceneManager implements TsPlugin {
   readonly name = 'SceneManager';
 
-  private scenes = new Map<string, Scene>();
+  private scenes        = new Map<string, Scene>();
   private currentScene: Scene | null = null;
-  private api: EngineAPI | null = null;
+  private api:          EngineAPI | null = null;
+  private sceneUIManager: UIManager | null = null; // UIManager auto-injecté
 
   // Pending transition — applied at start of next frame to avoid mid-frame changes
   private pendingScene: string | null = null;
@@ -97,6 +109,7 @@ export class SceneManager implements TsPlugin {
   }
 
   onRender(api: EngineAPI): void {
+    this.sceneUIManager?.onRender(api);
     this.currentScene?.onRender?.(api);
   }
 
@@ -104,8 +117,10 @@ export class SceneManager implements TsPlugin {
     if (this.currentScene && this.api) {
       this.currentScene.onExit(this.api);
     }
-    this.currentScene = null;
-    this.api = null;
+    this.sceneUIManager?.onDestroy();
+    this.sceneUIManager  = null;
+    this.currentScene    = null;
+    this.api             = null;
   }
 
   // ── Scene registration ─────────────────────────────────────────────────
@@ -171,7 +186,7 @@ export class SceneManager implements TsPlugin {
       ? api.services.get<import('./types').IPluginRegistrar>('PluginRegistrar')
       : null;
 
-    // 1. Exit current scene + démonter son layout
+    // 1. Exit current scene
     if (this.currentScene) {
       this.currentScene.onExit(api);
       if (registrar && this.currentScene.plugins) {
@@ -179,19 +194,36 @@ export class SceneManager implements TsPlugin {
           registrar.unregister(p.name);
         }
       }
+      // Démonter l'UIManager auto
+      registrar?.unregister('UIManager');
+      this.sceneUIManager?.onDestroy();
+      this.sceneUIManager = null;
       this.unmountLayout();
     }
 
     // 2. Purge all entities
     this.purgeEntities(api);
 
-    // 3. Enter new scene + monter son layout
+    // 3. Enter new scene
     this.currentScene = next;
+
+    // Enregistrer les plugins explicites
     if (registrar && next.plugins) {
       for (const p of next.plugins) {
         registrar.register(p);
       }
     }
+
+    // Injecter automatiquement un UIManager si la scène déclare des ui[]
+    if (next.ui && next.ui.length > 0) {
+      const uiManager = new UIManager();
+      for (const def of next.ui) {
+        uiManager.register(def);
+      }
+      this.sceneUIManager = uiManager; // stocké localement → dispatché par onRender
+      registrar?.register(uiManager);  // enregistré dans le PluginManager si dispo
+    }
+
     if (next.layout) {
       this.mountLayout(next.layout);
     }
