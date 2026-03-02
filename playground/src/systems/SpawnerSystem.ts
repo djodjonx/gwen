@@ -1,4 +1,4 @@
-import { createPlugin, UIComponent } from '@gwen/engine-core';
+import { createPlugin } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 
 let spawnTimer = 0;
@@ -13,13 +13,10 @@ export const SpawnerSystem = createPlugin({
     if (spawnTimer < WAVE_INTERVAL) return;
     spawnTimer = 0;
 
-    // Vague de 5 ennemis — EnemyUI attachée à chacun
+    // UIComponent inclus dans EnemyPrefab — pas d'attache manuelle ici
     for (let i = 0; i < COLS; i++) {
       const x = 60 + i * ((480 - 120) / (COLS - 1));
-      const enemyId = api.prefabs.instantiate('Enemy', x, -30 - Math.random() * 40);
-      if (enemyId !== undefined) {
-        api.addComponent(enemyId, UIComponent, { uiName: 'EnemyUI' });
-      }
+      api.prefabs.instantiate('Enemy', x, -30 - Math.random() * 40);
     }
   },
 });
