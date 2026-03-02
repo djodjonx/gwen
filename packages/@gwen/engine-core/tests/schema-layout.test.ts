@@ -46,14 +46,14 @@ describe('computeSchemaLayout', () => {
     const bytesWritten = layout.serialize!(data, view);
     expect(bytesWritten).toBe(9); // 4 + 4 + 1
 
-    const deserialized = layout.deserialize!(view) as any;
+    const deserialized = layout.deserialize!(view);
     expect(deserialized.speed).toBeCloseTo(12.5);
     expect(deserialized.maxHp).toBe(100);
     expect(deserialized.isFlying).toBe(true);
 
     // Test reverse bool
     layout.serialize!({ speed: 0, maxHp: 0, isFlying: false }, view);
-    const deserialized2 = layout.deserialize!(view) as any;
+    const deserialized2 = layout.deserialize!(view);
     expect(deserialized2.isFlying).toBe(false);
   });
 });
