@@ -126,13 +126,13 @@ export type SceneBody = Omit<Scene, 'name'>;
 export function defineScene(config: Scene): Scene;
 
 // Surcharge 2 — factory OBLIGATOIRE, retourne une fonction callable
-export function defineScene<Args extends any[]>(
+export function defineScene<Args extends unknown[]>(
   name: string,
   factory: (...args: Args) => SceneBody,
 ): (...args: Args) => Scene;
 
 // Implémentation
-export function defineScene<Args extends any[]>(
+export function defineScene<Args extends unknown[]>(
   nameOrConfig: string | Scene,
   factory?: (...args: Args) => SceneBody,
 ): Scene | ((...args: Args) => Scene) {
@@ -152,9 +152,9 @@ export function defineScene<Args extends any[]>(
 export class SceneManager implements TsPlugin {
   readonly name = 'SceneManager';
 
-  private scenes        = new Map<string, Scene>();
+  private scenes = new Map<string, Scene>();
   private currentScene: Scene | null = null;
-  private api:          EngineAPI | null = null;
+  private api: EngineAPI | null = null;
   private sceneUIManager: UIManager | null = null; // UIManager auto-injecté
 
   // Pending transition — applied at start of next frame to avoid mid-frame changes
@@ -186,9 +186,9 @@ export class SceneManager implements TsPlugin {
       this.currentScene.onExit(this.api);
     }
     this.sceneUIManager?.onDestroy();
-    this.sceneUIManager  = null;
-    this.currentScene    = null;
-    this.api             = null;
+    this.sceneUIManager = null;
+    this.currentScene = null;
+    this.api = null;
   }
 
   // ── Scene registration ─────────────────────────────────────────────────

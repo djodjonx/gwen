@@ -3,10 +3,10 @@ import type { EngineAPI, SceneManager } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
-import { makePlayerSystem } from '../systems/PlayerSystem';
+import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
-import { makeSpawnerSystem } from '../systems/SpawnerSystem';
-import { makeCollisionSystem } from '../systems/CollisionSystem';
+import { SpawnerSystem } from '../systems/SpawnerSystem';
+import { CollisionSystem } from '../systems/CollisionSystem';
 import { BackgroundUI } from '../ui/BackgroundUI';
 import { BulletUI } from '../ui/BulletUI';
 import { EnemyUI } from '../ui/EnemyUI';
@@ -24,10 +24,10 @@ export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
 
   plugins: [
     MovementSystem,
-    makePlayerSystem(scenes),
+    PlayerSystem(scenes),
     AiSystem,
-    makeSpawnerSystem(),
-    makeCollisionSystem(scenes),
+    SpawnerSystem(),
+    CollisionSystem(scenes),
   ],
 
   onEnter(api: EngineAPI<GwenServices>) {

@@ -6,10 +6,8 @@ function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(ax - bx, ay - by);
 }
 
-export function makeCollisionSystem(scenes: SceneManager) {
-  return createPlugin({
-    name: 'CollisionSystem' as const,
-
+export const CollisionSystem = createPlugin('CollisionSystem', (scenes: SceneManager) => {
+  return {
     onUpdate(api: EngineAPI<GwenServices>) {
       const scoreList = api.query([Score.name]);
       if (scoreList.length === 0) return;
@@ -18,18 +16,16 @@ export function makeCollisionSystem(scenes: SceneManager) {
       if (!score) return;
 
       const entities = api.query([Tag.name, Position.name, Collider.name]);
-      const bullets = entities;
-      const enemies = entities;
       const playerId = api.query([Tag.name]).find(id => api.getComponent(id, Tag)?.type === 'player');
 
       // Balles joueur vs ennemis
-      for (const bid of bullets) {
+      for (const bid of entities) {
         if (api.getComponent(bid, Tag)?.type !== 'bullet') continue;
         const bp = api.getComponent(bid, Position);
         const bc = api.getComponent(bid, Collider);
         if (!bp || !bc) continue;
 
-        for (const eid of enemies) {
+        for (const eid of entities) {
           if (api.getComponent(eid, Tag)?.type !== 'enemy') continue;
           const ep = api.getComponent(eid, Position);
           const ec = api.getComponent(eid, Collider);
@@ -50,7 +46,7 @@ export function makeCollisionSystem(scenes: SceneManager) {
       const pc = api.getComponent(playerId, Collider);
       if (!pp || !pc) return;
 
-      for (const bid of bullets) {
+      for (const bid of entities) {
         if (api.getComponent(bid, Tag)?.type !== 'enemy-bullet') continue;
         const bp = api.getComponent(bid, Position);
         const bc = api.getComponent(bid, Collider);
@@ -63,7 +59,6 @@ export function makeCollisionSystem(scenes: SceneManager) {
           const lives = cur.lives - 1;
           api.addComponent(scoreId, Score, { ...cur, lives });
 
-          // Décrémenter aussi le Health du joueur (pour PlayerUI)
           const health = api.getComponent(playerId, Health);
           if (health) {
             api.addComponent(playerId, Health, { hp: Math.max(0, health.hp - 1) });
@@ -73,6 +68,5 @@ export function makeCollisionSystem(scenes: SceneManager) {
         }
       }
     },
-  });
-}
-
+  };
+});

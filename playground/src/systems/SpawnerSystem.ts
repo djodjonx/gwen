@@ -4,12 +4,10 @@ import type { EngineAPI } from '@gwen/engine-core';
 const WAVE_INTERVAL = 3.5;
 const COLS = 5;
 
-export function makeSpawnerSystem() {
+export const SpawnerSystem = createPlugin('SpawnerSystem', () => {
   let spawnTimer = 0;
 
-  return createPlugin({
-    name: 'SpawnerSystem' as const,
-
+  return {
     onInit() {
       spawnTimer = 0;
     },
@@ -24,5 +22,5 @@ export function makeSpawnerSystem() {
         api.prefabs.instantiate('Enemy', x, -30 - Math.random() * 40);
       }
     },
-  });
-}
+  };
+});

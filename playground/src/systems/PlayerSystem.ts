@@ -4,14 +4,12 @@ import type { KeyboardInput } from '@gwen/plugin-input';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
-const W = 480, H = 640; // dimensions logiques du canvas
+const W = 480, H = 640;
 
-export function makePlayerSystem(scenes: SceneManager) {
+export const PlayerSystem = createPlugin('PlayerSystem', (scenes: SceneManager) => {
   let keyboard: KeyboardInput | null = null;
 
-  return createPlugin({
-    name: 'PlayerSystem' as const,
-
+  return {
     onInit(api: EngineAPI<GwenServices>) {
       keyboard = api.services.get('keyboard');
     },
@@ -30,16 +28,16 @@ export function makePlayerSystem(scenes: SceneManager) {
 
         // Mouvement
         let vx = 0, vy = 0;
-        if (keyboard.isPressed('ArrowLeft')  || keyboard.isPressed('KeyA')) vx = -SPEED;
-        if (keyboard.isPressed('ArrowRight') || keyboard.isPressed('KeyD')) vx =  SPEED;
-        if (keyboard.isPressed('ArrowUp')    || keyboard.isPressed('KeyW')) vy = -SPEED;
-        if (keyboard.isPressed('ArrowDown')  || keyboard.isPressed('KeyS')) vy =  SPEED;
+        if (keyboard.isPressed('ArrowLeft') || keyboard.isPressed('KeyA')) vx = -SPEED;
+        if (keyboard.isPressed('ArrowRight') || keyboard.isPressed('KeyD')) vx = SPEED;
+        if (keyboard.isPressed('ArrowUp') || keyboard.isPressed('KeyW')) vy = -SPEED;
+        if (keyboard.isPressed('ArrowDown') || keyboard.isPressed('KeyS')) vy = SPEED;
 
         // Clamp dans le canvas
         const nx = Math.max(20, Math.min(W - 20, pos.x + vx * dt));
         const ny = Math.max(20, Math.min(H - 20, pos.y + vy * dt));
-        api.addComponent(id, Position,  { x: nx, y: ny });
-        api.addComponent(id, Velocity,  { vx, vy });
+        api.addComponent(id, Position, { x: nx, y: ny });
+        api.addComponent(id, Velocity, { vx, vy });
 
         // Tir
         const elapsed = timer.elapsed + dt;
@@ -51,6 +49,5 @@ export function makePlayerSystem(scenes: SceneManager) {
         }
       }
     },
-  });
-}
-
+  };
+});
