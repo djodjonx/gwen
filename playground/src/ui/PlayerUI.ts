@@ -1,32 +1,5 @@
 import { defineUI } from '@gwen/engine-core';
-import type { EntityId } from '@gwen/engine-core';
 import { Position, Health, Velocity } from '../components';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function drawHealthBar(
-  ctx: CanvasRenderingContext2D,
-  hp: number,
-  maxHp: number,
-  yOffset: number,
-  width = 36,
-) {
-  const ratio  = Math.max(0, hp) / maxHp;
-  const x      = -width / 2;
-  const color  = ratio > 0.6 ? '#4fffb0' : ratio > 0.3 ? '#ffe600' : '#ff4444';
-
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(x - 1, yOffset - 1, width + 2, 6);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(x, yOffset, width, 4);
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = 5;
-  ctx.fillStyle   = color;
-  ctx.fillRect(x, yOffset, width * ratio, 4);
-  ctx.shadowBlur  = 0;
-}
-
-// ── PlayerUI ──────────────────────────────────────────────────────────────────
 
 /**
  * PlayerUI — Rendu complet du vaisseau joueur.
@@ -91,7 +64,7 @@ export const PlayerUI = defineUI<GwenServices>({
     ctx.closePath();
     ctx.fill();
 
-    // Détail central
+    // ── Détail central
     ctx.fillStyle  = 'rgba(255,255,255,0.6)';
     ctx.shadowBlur = 0;
     ctx.beginPath();
@@ -102,18 +75,6 @@ export const PlayerUI = defineUI<GwenServices>({
     ctx.closePath();
     ctx.fill();
 
-    // ── Barre de vie ──────────────────────────────────────────────────────
-    drawHealthBar(ctx, hp, 3, 22);
-
-    // ── Icônes cœur ───────────────────────────────────────────────────────
-    ctx.font      = '10px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle   = hp > 0 ? '#ff6b6b' : '#444';
-    ctx.shadowColor = '#ff6b6b';
-    ctx.shadowBlur  = hp > 0 ? 5 : 0;
-    const hearts = Array.from({ length: 3 }, (_, i) => i < hp ? '♥' : '♡').join(' ');
-    ctx.fillText(hearts, 0, 40);
-    ctx.shadowBlur = 0;
 
     ctx.restore();
   },
