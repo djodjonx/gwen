@@ -127,10 +127,10 @@ export async function initWasm(
     const wasmInput = resolvedWasmUrl ? fetch(resolvedWasmUrl) : undefined;
 
     if (typeof glue.default === 'function') {
-      await glue.default(wasmInput);
+      await glue.default({ module_or_path: wasmInput });
     } else if (typeof glue.initSync === 'function') {
       const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
-      glue.initSync(buf);
+      glue.initSync({ module: buf });
     } else {
       throw new Error('[GWEN] Le glue WASM ne contient pas de fonction init() — fichier corrompu ?');
     }

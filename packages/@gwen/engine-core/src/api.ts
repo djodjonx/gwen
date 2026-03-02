@@ -11,7 +11,7 @@
  */
 
 import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType } from './types';
-import type { ComponentDefinition, InferComponent } from './schema';
+import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 import { PrefabManager } from './prefab';
 
@@ -104,35 +104,31 @@ export class EngineAPIImpl implements EngineAPI {
   // ── Component operations ───────────────────────────────────────────────
 
   addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
-  addComponent<D extends ComponentDefinition<any>>(
+  addComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
     type: D,
     data: InferComponent<D>
   ): void;
-  addComponent(id: EntityId, type: string | ComponentDefinition<any>, data: any): void {
-    const typeName = typeof type === 'string' ? type : type.name;
-    this.components.add(id, typeName, data);
+  addComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>, data: unknown): void {
+    this.components.add(id, type, data);
     this.queryEngine.invalidate();
   }
 
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
-  getComponent<D extends ComponentDefinition<any>>(
+  getComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
     type: D
   ): InferComponent<D> | undefined;
-  getComponent(id: EntityId, type: string | ComponentDefinition<any>): any {
-    const typeName = typeof type === 'string' ? type : type.name;
-    return this.components.get(id, typeName);
+  getComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): unknown {
+    return this.components.get(id, type);
   }
 
-  hasComponent(id: EntityId, type: string | ComponentDefinition<any>): boolean {
-    const typeName = typeof type === 'string' ? type : type.name;
-    return this.components.has(id, typeName);
+  hasComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): boolean {
+    return this.components.has(id, type);
   }
 
-  removeComponent(id: EntityId, type: string | ComponentDefinition<any>): boolean {
-    const typeName = typeof type === 'string' ? type : type.name;
-    const result = this.components.remove(id, typeName);
+  removeComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): boolean {
+    const result = this.components.remove(id, type);
     if (result) this.queryEngine.invalidate();
     return result;
   }

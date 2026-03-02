@@ -5,6 +5,8 @@
  * Uses the same patterns: generation counter, free list, SoA-style storage.
  */
 
+import type { ComponentDefinition } from './schema';
+
 // ============= Entity Manager =============
 
 /**
@@ -119,28 +121,32 @@ export class ComponentRegistry {
   }
 
   /** Add or update a component on an entity. */
-  add<T>(entityId: EntityId, type: ComponentType, data: T): void {
-    if (!this.storage.has(type)) {
-      this.storage.set(type, new Map());
+  add<T>(entityId: EntityId, type: ComponentType | ComponentDefinition<any>, data: T): void {
+    const key = typeof type === 'string' ? type : type.name;
+    if (!this.storage.has(key)) {
+      this.storage.set(key, new Map());
     }
-    this.storage.get(type)!.set(idIndex(entityId), data);
+    this.storage.get(key)!.set(idIndex(entityId), data);
   }
 
   /** Remove a component from an entity. Returns true if it existed. */
-  remove(entityId: EntityId, type: ComponentType): boolean {
-    const map = this.storage.get(type);
+  remove(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): boolean {
+    const key = typeof type === 'string' ? type : type.name;
+    const map = this.storage.get(key);
     if (!map) return false;
     return map.delete(idIndex(entityId));
   }
 
   /** Get a component by entity and type. Returns undefined if absent. */
-  get<T>(entityId: EntityId, type: ComponentType): T | undefined {
-    return this.storage.get(type)?.get(idIndex(entityId)) as T | undefined;
+  get<T>(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): T | undefined {
+    const key = typeof type === 'string' ? type : type.name;
+    return this.storage.get(key)?.get(idIndex(entityId)) as T | undefined;
   }
 
   /** Check if an entity has a component. */
-  has(entityId: EntityId, type: ComponentType): boolean {
-    return this.storage.get(type)?.has(idIndex(entityId)) ?? false;
+  has(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): boolean {
+    const key = typeof type === 'string' ? type : type.name;
+    return this.storage.get(key)?.has(idIndex(entityId)) ?? false;
   }
 
   /** Remove all components for a given entity (called on entity destroy). */
