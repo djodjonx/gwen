@@ -522,9 +522,12 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         if ((req.url === '/' || req.url === '/index.html') &&
             !fs.existsSync(path.join(projectRoot, 'index.html'))) {
           const cfg  = readHtmlConfig(projectRoot);
-          const html = generateIndexHtml(cfg, projectRoot);
-          res.setHeader('Content-Type', 'text/html');
-          res.end(html);
+          const raw  = generateIndexHtml(cfg, projectRoot);
+          // Passer par le pipeline Vite : inject HMR client + transformIndexHtml hooks
+          devServer.transformIndexHtml(req.url!, raw, req.originalUrl).then(html => {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(html);
+          }).catch(next);
           return;
         }
 
