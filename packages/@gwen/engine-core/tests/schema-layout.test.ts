@@ -22,7 +22,7 @@ describe('computeSchemaLayout', () => {
       name: Types.string
     });
 
-    expect(layout.hasString).toBe(false); // No more fallback
+    expect(layout.hasString).toBe(true); // string field detected via StringPool
     expect(layout.serialize).toBeDefined();
     expect(layout.deserialize).toBeDefined();
   });

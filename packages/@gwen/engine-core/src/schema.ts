@@ -26,15 +26,15 @@
 
 // Supported scalar types for WASM memory layout
 export const Types = {
-  f32: { type: 'f32', byteLength: 4, read: 'getFloat32', write: 'setFloat32' },
-  f64: { type: 'f64', byteLength: 8, read: 'getFloat64', write: 'setFloat64' },
-  i32: { type: 'i32', byteLength: 4, read: 'getInt32', write: 'setInt32' },
-  i64: { type: 'i64', byteLength: 8, read: 'getBigInt64', write: 'setBigInt64' },
-  u32: { type: 'u32', byteLength: 4, read: 'getUint32', write: 'setUint32' },
-  u64: { type: 'u64', byteLength: 8, read: 'getBigUint64', write: 'setBigUint64' },
-  bool: { type: 'bool', byteLength: 1, read: 'getInt8', write: 'setInt8' }, // 0 = false, 1 = true
-  string: { type: 'string', byteLength: 4, read: 'getString', write: 'setString' },
-} as const;
+  f32:    { type: 'f32'    as const, byteLength: 4, read: 'getFloat32'  as const, write: 'setFloat32'  as const },
+  f64:    { type: 'f64'    as const, byteLength: 8, read: 'getFloat64'  as const, write: 'setFloat64'  as const },
+  i32:    { type: 'i32'    as const, byteLength: 4, read: 'getInt32'    as const, write: 'setInt32'    as const },
+  i64:    { type: 'i64'    as const, byteLength: 8, read: 'getBigInt64' as const, write: 'setBigInt64' as const },
+  u32:    { type: 'u32'    as const, byteLength: 4, read: 'getUint32'   as const, write: 'setUint32'   as const },
+  u64:    { type: 'u64'    as const, byteLength: 8, read: 'getBigUint64'as const, write: 'setBigUint64'as const },
+  bool:   { type: 'bool'   as const, byteLength: 1, read: 'getInt8'     as const, write: 'setInt8'     as const },
+  string: { type: 'string' as const, byteLength: 4, read: 'getString'   as const, write: 'setString'   as const },
+};
 
 export type SchemaType = typeof Types[keyof typeof Types];
 
@@ -49,80 +49,104 @@ export interface SchemaLayout<T> {
   deserialize?: (view: DataView) => T;
 }
 
+// ── Types internes pour la sérialisation ────────────────────────────────────
+
+/** Types numériques dont les accesseurs DataView acceptent (offset, littleEndian) */
+type NumericSchemaTypeName = 'f32' | 'f64' | 'i32' | 'u32';
+
+/** Accesseurs DataView pour les types numériques — liaison stricte */
+type NumericReadMethod  = 'getFloat32' | 'getFloat64' | 'getInt32' | 'getUint32';
+type NumericWriteMethod = 'setFloat32' | 'setFloat64' | 'setInt32' | 'setUint32';
+
+/** Types entiers 64-bit : nécessitent bigint */
+type BigIntSchemaTypeName = 'i64' | 'u64';
+type BigIntReadMethod  = 'getBigInt64' | 'getBigUint64';
+type BigIntWriteMethod = 'setBigInt64' | 'setBigUint64';
+
+/** Valeur JS d'un champ selon son type schema */
+type FieldValue = number | bigint | boolean | string;
+
+interface FieldMeta {
+  type: SchemaType['type'];
+  offset: number;
+  byteLength: number;
+}
+
 import { GlobalStringPool } from './string-pool.js';
 
-export function computeSchemaLayout<T>(schema: ComponentSchema): Readonly<SchemaLayout<T>> {
+export function computeSchemaLayout<T extends Record<string, FieldValue>>(
+  schema: ComponentSchema,
+): Readonly<SchemaLayout<T>> {
   let offset = 0;
-  const layout = new Map<string, { type: keyof typeof Types, offset: number, byteLength: number }>();
+  const layout = new Map<string, FieldMeta>();
 
   for (const [key, typeObj] of Object.entries(schema)) {
-    // Si c'est une string, on force un fallback car le tableau doit avoir une taille dynamique/illisible via DataView natif
-    const t = typeObj as any;
-
-    // Pour chaque propriété du schema, on note son offset et on incrémente l'offset global
-    layout.set(key, { type: t.type, offset, byteLength: t.byteLength });
-    offset += t.byteLength;
+    layout.set(key, { type: typeObj.type, offset, byteLength: typeObj.byteLength });
+    offset += typeObj.byteLength;
   }
 
-  // Le `byteLength` de The schema est l'offset final
   const totalByteLength = offset;
-
-  // Fabriquer les fonctions serialize/deserialize s'il n'y a PAS de strings
-  // Car les strings réclament du TextDecoder/Encoder
   const order = Array.from(layout.entries());
 
-  const serialize = (data: any, view: DataView) => {
+  const serialize = (data: T, view: DataView): number => {
     let bytesWritten = 0;
     for (const [key, meta] of order) {
-      const val = data[key];
+      const val = data[key as keyof T];
       if (meta.type === 'bool') {
         view.setInt8(meta.offset, val ? 1 : 0);
       } else if (meta.type === 'string') {
         const strId = GlobalStringPool.intern(val as string);
         view.setInt32(meta.offset, strId, true);
+      } else if (meta.type === 'i64' || meta.type === 'u64') {
+        const method = (Types[meta.type as BigIntSchemaTypeName].write) as BigIntWriteMethod;
+        view[method](meta.offset, BigInt(val as number), true);
       } else {
-        const writeFn = Types[meta.type].write as keyof DataView;
-        (view as any)[writeFn](meta.offset, val, true);
+        const method = (Types[meta.type as NumericSchemaTypeName].write) as NumericWriteMethod;
+        view[method](meta.offset, val as number, true);
       }
       bytesWritten += meta.byteLength;
     }
     return bytesWritten;
   };
 
-  const deserialize = (view: DataView) => {
-    const obj: any = {};
+  const deserialize = (view: DataView): T => {
+    const obj: Record<string, FieldValue> = {};
     for (const [key, meta] of order) {
       if (meta.type === 'bool') {
         obj[key] = view.getInt8(meta.offset) !== 0;
       } else if (meta.type === 'string') {
         const strId = view.getInt32(meta.offset, true);
         obj[key] = GlobalStringPool.get(strId);
+      } else if (meta.type === 'i64' || meta.type === 'u64') {
+        const method = (Types[meta.type as BigIntSchemaTypeName].read) as BigIntReadMethod;
+        obj[key] = view[method](meta.offset, true);
       } else {
-        const readFn = Types[meta.type].read as keyof DataView;
-        obj[key] = (view as any)[readFn](meta.offset, true);
+        const method = (Types[meta.type as NumericSchemaTypeName].read) as NumericReadMethod;
+        obj[key] = view[method](meta.offset, true);
       }
     }
-    return obj;
+    return obj as T;
   };
 
   return {
     byteLength: totalByteLength,
-    hasString: false, // Plus de fallback, tout est gérable par StringPool
-    serialize: serialize as (data: T, view: DataView) => number,
-    deserialize: deserialize as (view: DataView) => T
+    hasString: order.some(([, m]) => m.type === 'string'),
+    serialize,
+    deserialize,
   };
 }
 
 // Maps SchemaType to actual TypeScript types
 export type InferSchemaType<T extends SchemaType> =
-  T['type'] extends 'bool' ? boolean :
-  T['type'] extends 'string' ? string :
-  number; // All numeric types (f32, i32, u64...) map to TS number
+  T['type'] extends 'bool'   ? boolean :
+  T['type'] extends 'string' ? string  :
+  T['type'] extends 'i64' | 'u64' ? bigint :
+  number;
 
 /**
  * Extracts the TypeScript interface from a ComponentDefinition.
  */
-export type InferComponent<D extends ComponentDefinition<any>> = {
+export type InferComponent<D extends ComponentDefinition<ComponentSchema>> = {
   [K in keyof D['schema']]: InferSchemaType<D['schema'][K]>;
 };
 
@@ -145,7 +169,7 @@ export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<
  * });
  * ```
  *
- * **Forme 2 — factory** (schéma calculé dynamiquement) :
+ * **Forme 2 — factory OBLIGATOIRE** (schéma calculé dynamiquement) :
  * ```ts
  * export const Position = defineComponent('position', () => ({
  *   schema: { x: Types.f32, y: Types.f32 },
