@@ -31,8 +31,19 @@
  * ```
  */
 
-import type { GwenPlugin, EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin, GwenPluginMeta, EngineAPI } from '@gwen/engine-core';
 import type { EntityId } from '@gwen/engine-core';
+
+// ── Plugin metadata — consommées par `gwen prepare` ───────────────────────────
+
+/**
+ * Métadonnées statiques du plugin.
+ * `gwen prepare` les lit pour injecter `/// <reference types="..." />`
+ * dans `.gwen/gwen.d.ts` uniquement si ce plugin est dans gwen.config.ts.
+ */
+export const pluginMeta: GwenPluginMeta = {
+  typeReferences: ['@gwen/plugin-html-ui/vite-env'],
+};
 
 // ── HtmlUI service ────────────────────────────────────────────────────────────
 

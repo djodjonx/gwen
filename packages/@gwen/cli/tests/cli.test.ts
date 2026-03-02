@@ -111,6 +111,85 @@ describe('prepare', () => {
     expect(result.files.some(f => f.endsWith('tsconfig.generated.json'))).toBe(true);
     expect(result.files.some(f => f.endsWith('gwen.d.ts'))).toBe(true);
   });
+
+  // ── typeReferences collectées depuis pluginMeta ──────────────────────────
+
+  it('injects /// <reference> for plugins with pluginMeta.typeReferences', async () => {
+    // Simuler un plugin dans node_modules avec pluginMeta
+    const fakePluginDir = path.join(tmp, 'node_modules', '@gwen', 'plugin-fake');
+    fs.mkdirSync(fakePluginDir, { recursive: true });
+    // package.json du plugin fake
+    fs.writeFileSync(
+      path.join(fakePluginDir, 'package.json'),
+      JSON.stringify({ name: '@gwen/plugin-fake', main: 'index.js' }),
+      'utf-8',
+    );
+    // index.js exportant pluginMeta
+    fs.writeFileSync(
+      path.join(fakePluginDir, 'index.js'),
+      `exports.pluginMeta = { typeReferences: ['@gwen/plugin-fake/vite-env'] };`,
+      'utf-8',
+    );
+    // gwen.config.ts important ce plugin
+    writeConfig(tmp, `
+import { defineConfig } from '@gwen/engine-core';
+import { FakePlugin } from '@gwen/plugin-fake';
+export default defineConfig({ plugins: [new FakePlugin()] });
+    `, 'gwen.config.ts');
+
+    await prepare({ projectDir: tmp });
+    const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
+    expect(dts).toContain('/// <reference types="@gwen/plugin-fake/vite-env" />');
+  });
+
+  it('does not inject /// <reference> when plugin has no pluginMeta', async () => {
+    // Plugin sans pluginMeta
+    const fakePluginDir = path.join(tmp, 'node_modules', '@gwen', 'plugin-notype');
+    fs.mkdirSync(fakePluginDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(fakePluginDir, 'package.json'),
+      JSON.stringify({ name: '@gwen/plugin-notype', main: 'index.js' }),
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(fakePluginDir, 'index.js'),
+      `exports.NoTypePlugin = class {};`,
+      'utf-8',
+    );
+    writeConfig(tmp, `
+import { defineConfig } from '@gwen/engine-core';
+import { NoTypePlugin } from '@gwen/plugin-notype';
+export default defineConfig({ plugins: [new NoTypePlugin()] });
+    `, 'gwen.config.ts');
+
+    await prepare({ projectDir: tmp });
+    const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
+    expect(dts).not.toContain('/// <reference');
+  });
+
+  it('deduplicates identical typeReferences from multiple plugins', async () => {
+    // Deux plugins qui déclarent la même typeReference
+    for (const name of ['plugin-a', 'plugin-b']) {
+      const dir = path.join(tmp, 'node_modules', '@gwen', name);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'package.json'),
+        JSON.stringify({ name: `@gwen/${name}`, main: 'index.js' }), 'utf-8');
+      fs.writeFileSync(path.join(dir, 'index.js'),
+        `exports.pluginMeta = { typeReferences: ['@gwen/shared/vite-env'] };
+exports.${name === 'plugin-a' ? 'APlugin' : 'BPlugin'} = class {};`, 'utf-8');
+    }
+    writeConfig(tmp, `
+import { defineConfig } from '@gwen/engine-core';
+import { APlugin } from '@gwen/plugin-a';
+import { BPlugin } from '@gwen/plugin-b';
+export default defineConfig({ plugins: [new APlugin(), new BPlugin()] });
+    `, 'gwen.config.ts');
+
+    await prepare({ projectDir: tmp });
+    const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
+    const count = (dts.match(/@gwen\/shared\/vite-env/g) ?? []).length;
+    expect(count).toBe(1);
+  });
 });
 
 

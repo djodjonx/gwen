@@ -68,6 +68,33 @@ export interface GwenPlugin<
 /** Alias pratique pour un GwenPlugin sans contrainte sur N/P */
 export type AnyGwenPlugin = GwenPlugin<string, Record<string, unknown>>;
 
+// ── GwenPluginMeta ────────────────────────────────────────────────────────────
+
+/**
+ * Métadonnées statiques déclarées par un plugin GWEN.
+ * Consommées par `gwen prepare` pour enrichir `.gwen/gwen.d.ts`.
+ *
+ * Chaque package plugin exporte une constante `pluginMeta: GwenPluginMeta`
+ * que le CLI détecte automatiquement lors du prepare.
+ *
+ * @example
+ * ```ts
+ * // Dans @gwen/plugin-html-ui/src/index.ts
+ * export const pluginMeta: GwenPluginMeta = {
+ *   typeReferences: ['@gwen/plugin-html-ui/vite-env'],
+ * };
+ * ```
+ */
+export interface GwenPluginMeta {
+  /**
+   * Liste de références de types à injecter dans `.gwen/gwen.d.ts`
+   * sous forme de `/// <reference types="..." />`.
+   *
+   * Activés uniquement si le plugin est déclaré dans `gwen.config.ts`.
+   */
+  typeReferences?: string[];
+}
+
 // ── createPlugin() ────────────────────────────────────────────────────────────
 
 /** Définition passée à createPlugin() */

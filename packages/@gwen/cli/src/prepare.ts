@@ -16,7 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { findConfigFile } from './config-parser.js';
+import { findConfigFile, parseConfigFile } from './config-parser.js';
 
 export interface PrepareOptions {
   projectDir?: string;
@@ -60,8 +60,9 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   log(`[gwen prepare] ✅ ${path.relative(projectDir, tsconfigPath)}`);
 
   // ── 2. Générer gwen.d.ts ────────────────────────────────────────────────────
-  const dtspath = path.join(gwenDir, 'gwen.d.ts');
-  const dtsContent = generateDts(projectDir, configPath);
+  const typeRefs   = await collectPluginTypeReferences(projectDir, configPath, verbose);
+  const dtspath    = path.join(gwenDir, 'gwen.d.ts');
+  const dtsContent = generateDts(projectDir, configPath, typeRefs);
   fs.writeFileSync(dtspath, dtsContent, 'utf-8');
   result.files.push(dtspath);
   log(`[gwen prepare] ✅ ${path.relative(projectDir, dtspath)}`);
@@ -75,6 +76,71 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   result.success = true;
   console.log(`[gwen prepare] ✅ .gwen/ generated (${result.files.length} files)`);
   return result;
+}
+
+// ── Collecte des typeReferences des plugins ───────────────────────────────────
+
+/**
+ * Lit les plugins déclarés dans gwen.config.ts, tente d'importer
+ * leur `pluginMeta`, et collecte toutes les `typeReferences`.
+ *
+ * Silencieux si un plugin n'exporte pas de `pluginMeta` — opt-in.
+ */
+async function collectPluginTypeReferences(
+  projectDir: string,
+  configPath: string,
+  verbose: boolean,
+): Promise<string[]> {
+  const log = (msg: string) => { if (verbose) console.log(msg); };
+  const parsed  = parseConfigFile(configPath);
+  const refs    = new Set<string>();
+
+  for (const plugin of parsed.plugins) {
+    try {
+      // Résoudre le package depuis le projectDir
+      const pkgMain = resolvePackageMain(projectDir, plugin.packageName);
+      if (!pkgMain) continue;
+
+      // Import dynamique du package (jiti/tsx déjà actif dans le CLI)
+      const mod = await import(pkgMain).catch(() => null);
+      if (!mod) continue;
+
+      const meta = mod.pluginMeta as { typeReferences?: string[] } | undefined;
+      if (meta?.typeReferences) {
+        for (const ref of meta.typeReferences) {
+          refs.add(ref);
+          log(`[gwen prepare] 📦 ${plugin.packageName} → typeRef: ${ref}`);
+        }
+      }
+    } catch {
+      // Plugin sans meta — silencieux
+    }
+  }
+
+  return Array.from(refs);
+}
+
+/**
+ * Résout le chemin absolu du point d'entrée d'un package npm
+ * depuis le projectDir (cherche dans node_modules).
+ */
+function resolvePackageMain(projectDir: string, packageName: string): string | null {
+  // Chercher dans node_modules du projet puis dans les parents
+  let dir = projectDir;
+  for (let i = 0; i < 5; i++) {
+    const pkgJson = path.join(dir, 'node_modules', packageName, 'package.json');
+    if (fs.existsSync(pkgJson)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
+        const main = pkg.main ?? pkg.module ?? 'src/index.ts';
+        return path.join(dir, 'node_modules', packageName, main);
+      } catch {
+        return null;
+      }
+    }
+    dir = path.dirname(dir);
+  }
+  return null;
 }
 
 // ── Génération du tsconfig ────────────────────────────────────────────────────
@@ -142,19 +208,23 @@ function generateTsconfig(projectDir: string): object {
 
 // ── Génération du gwen.d.ts ──────────────────────────────────────────────────
 
-function generateDts(projectDir: string, configPath: string): string {
+function generateDts(projectDir: string, configPath: string, typeRefs: string[] = []): string {
   const relConfig = path.relative(path.join(projectDir, '.gwen'), configPath)
     .replace(/\\/g, '/').replace(/\.ts$/, '');
 
   const source = fs.readFileSync(configPath, 'utf-8');
   const exportStyle = detectConfigExportStyle(source);
 
-  // Import de la config selon le style d'export
   const configImport = exportStyle.type === 'default'
     ? `import type _cfg from '${relConfig}';`
     : `import type { ${exportStyle.name} as _cfg } from '${relConfig}';`;
 
   const displayName = exportStyle.type === 'default' ? 'default export' : exportStyle.name;
+
+  // Bloc /// <reference types="..." /> injecté uniquement si des plugins en ont besoin
+  const refBlock = typeRefs.length > 0
+    ? typeRefs.map(r => `/// <reference types="${r}" />`).join('\n') + '\n\n'
+    : '';
 
   return `/**
  * GWEN — Types globaux auto-générés
@@ -164,8 +234,7 @@ function generateDts(projectDir: string, configPath: string): string {
  * GwenServices est inféré automatiquement depuis le ${displayName}.
  * Vous n'avez pas besoin de l'exporter depuis gwen.config.ts.
  */
-
-import type { GwenConfigServices } from '@gwen/engine-core';
+${refBlock}import type { GwenConfigServices } from '@gwen/engine-core';
 ${configImport}
 
 type _GwenServices = GwenConfigServices<typeof _cfg>;

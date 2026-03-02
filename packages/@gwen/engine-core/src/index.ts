@@ -20,6 +20,7 @@ export type {
   GwenPlugin,
   AnyGwenPlugin,
   GwenPluginDef,
+  GwenPluginMeta,
   PluginProvides,
   MergeProvides,
   UnionToIntersection,
