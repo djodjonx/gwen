@@ -17,9 +17,6 @@ importers:
       jiti:
         specifier: ^2.4.2
         version: 2.6.1
-      knitwork:
-        specifier: ^1.3.0
-        version: 1.3.0
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -594,9 +591,6 @@ packages:
 
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
-
-  knitwork@1.3.0:
-    resolution: {integrity: sha512-4LqMNoONzR43B1W0ek0fhXMsDNW/zxa1NdFAVMY+k28pgZLovR4G3PB5MrpTxCy1QaZCqNoiaKPr5w5qZHfSNw==}
 
   local-pkg@0.5.1:
     resolution: {integrity: sha512-9rrA30MRRP3gBD3HTGnC6cDFpaE1kVDWxWgqWJUN0RvDNAo+Nz/9GxB+nHOH0ifbVFy0hSA1V6vFDvnx54lTEQ==}
@@ -1215,8 +1209,6 @@ snapshots:
   jiti@2.6.1: {}
 
   js-tokens@9.0.1: {}
-
-  knitwork@1.3.0: {}
 
   local-pkg@0.5.1:
     dependencies:
