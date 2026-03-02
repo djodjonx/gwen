@@ -1,53 +1,43 @@
 import { defineUI } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import { Score } from '../components';
 
 /**
- * HUD Score + Vies — affiché pendant la scène Game.
+ * HUD Score + Vies — rendu directement sur le canvas 2D.
  *
- * Attaché à l'entité score via UIComponent { uiName: 'ScoreUI' }.
- * Monté/démonté automatiquement par UIManager.
+ * Utilise api.services.get('renderer') pour dessiner via Canvas2DRenderer.
+ * Aucune dépendance au DOM — pattern agnostique defineUI.
  */
 export const ScoreUI = defineUI<GwenServices>({
   name: 'ScoreUI',
 
-  css: `
-    .hud-root {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      pointer-events: none;
-      font-family: 'Courier New', monospace;
-      color: #4fffb0;
-    }
-    .hud-score {
-      font-size: 20px;
-      letter-spacing: 2px;
-      text-shadow: 0 0 8px #4fffb0;
-    }
-    .hud-lives {
-      font-size: 14px;
-      color: #ff6b6b;
-      margin-top: 4px;
-    }
-  `,
+  // Pas de onMount — rien à allouer pour du canvas 2D
 
-  html: `
-    <div class="hud-root">
-      <div id="hud-score" class="hud-score">SCORE: 0</div>
-      <div id="hud-lives" class="hud-lives">♥ ♥ ♥</div>
-    </div>
-  `,
-
-  onUpdate(dom, _entityId, api: EngineAPI<GwenServices>) {
-    const scoreList = api.query([Score.name]);
-    if (scoreList.length === 0) return;
-    const score = api.getComponent(scoreList[0], Score);
+  render(api, entityId) {
+    const renderer = api.services.get('renderer');
+    const score    = api.getComponent(entityId, Score);
     if (!score) return;
-    dom.elements['hud-score'].textContent = `SCORE: ${score.value}`;
-    dom.elements['hud-lives'].textContent = '♥ '.repeat(Math.max(0, score.lives)).trim();
-  },
-});
 
+    const { ctx, logicalWidth } = renderer;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+
+    // Score
+    ctx.fillStyle  = '#4fffb0';
+    ctx.font       = 'bold 20px "Courier New", monospace';
+    ctx.shadowColor = '#4fffb0';
+    ctx.shadowBlur  = 8;
+    ctx.fillText(`SCORE: ${score.value}`, logicalWidth / 2, 28);
+
+    // Vies
+    ctx.fillStyle   = '#ff6b6b';
+    ctx.shadowColor = '#ff6b6b';
+    ctx.shadowBlur  = 4;
+    ctx.font        = '14px "Courier New", monospace';
+    ctx.fillText('♥ '.repeat(Math.max(0, score.lives)).trim(), logicalWidth / 2, 48);
+
+    ctx.restore();
+  },
+
+  // Pas de onUnmount — rien à nettoyer pour du canvas 2D
+});

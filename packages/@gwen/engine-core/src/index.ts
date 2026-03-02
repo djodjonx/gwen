@@ -44,7 +44,7 @@ export type { Scene } from './scene';
 
 // UI system
 export { UIManager, defineUI, UIComponent } from './ui';
-export type { UIDefinition, UIRenderContext } from './ui';
+export type { UIDefinition } from './ui';
 
 // Prefab system
 export { definePrefab, PrefabManager } from './prefab';
