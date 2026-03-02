@@ -10,9 +10,13 @@
     "declarationMap": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@gwen/vite-plugin": ["../vite-plugin/src/index.ts"],
+      "@gwen/engine-core": ["../engine-core/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }
-

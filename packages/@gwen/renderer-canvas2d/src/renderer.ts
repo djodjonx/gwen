@@ -82,6 +82,12 @@ export interface Canvas2DRendererConfig {
   manualRender?: boolean;
 }
 
+// Type interne avec toutes les valeurs résolues sauf canvas/container qui restent optionnels
+type ResolvedRendererConfig = Required<Omit<Canvas2DRendererConfig, 'canvas' | 'container'>> & {
+  canvas: string | HTMLCanvasElement | undefined;
+  container: string | HTMLElement | undefined;
+};
+
 // ============= Canvas2DRenderer =============
 
 export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { renderer: Canvas2DRenderer }> {
@@ -95,7 +101,7 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
   private _canvas!: HTMLCanvasElement;
   private _ctx!: CanvasRenderingContext2D;
-  private config: Required<Canvas2DRendererConfig>;
+  private config: ResolvedRendererConfig;
 
   /** Canvas element — disponible après onInit() */
   get canvas(): HTMLCanvasElement { return this._canvas; }
@@ -136,7 +142,6 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
       this._canvas.id = 'gwen-canvas';
       this.resize(this.config.width!, this.config.height!);
       (container as HTMLElement).appendChild(this._canvas);
-      (container as HTMLElement).appendChild(this._canvas);
     }
 
     const ctx = this._canvas.getContext('2d');
@@ -167,7 +172,7 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
     // 3. Query entities with a transform and sort by zOrder
     const entities = api.query(['transform']);
-    const sorted = entities.slice().sort((a, b) => {
+    const sorted = entities.slice().sort((a: EntityId, b: EntityId) => {
       const sa = api.getComponent<SpriteComponent>(a, 'sprite');
       const sb = api.getComponent<SpriteComponent>(b, 'sprite');
       return (sa?.zOrder ?? 0) - (sb?.zOrder ?? 0);
