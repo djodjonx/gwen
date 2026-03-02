@@ -152,7 +152,6 @@ export class UIManager implements TsPlugin {
   }
 
   onDestroy(): void {
-    // Appeler onUnmount sur toutes les entités encore montées
     if (this.lastApi) {
       for (const [id, defName] of this.mounted) {
         const def = this.definitions.get(defName);
@@ -160,6 +159,7 @@ export class UIManager implements TsPlugin {
       }
     }
     this.definitions.clear();
+    this.definitionOrder.clear();
     this.mounted.clear();
     this.lastApi = null;
   }
