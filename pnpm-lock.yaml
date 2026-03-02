@@ -143,6 +143,9 @@ importers:
       '@gwen/plugin-audio':
         specifier: workspace:*
         version: link:../packages/@gwen/plugin-audio
+      '@gwen/plugin-html-ui':
+        specifier: workspace:*
+        version: link:../packages/@gwen/plugin-html-ui
       '@gwen/plugin-input':
         specifier: workspace:*
         version: link:../packages/@gwen/plugin-input

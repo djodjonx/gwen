@@ -60,7 +60,7 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   log(`[gwen prepare] ✅ ${path.relative(projectDir, tsconfigPath)}`);
 
   // ── 2. Générer gwen.d.ts ────────────────────────────────────────────────────
-  const typeRefs   = await collectPluginTypeReferences(projectDir, configPath, verbose);
+  const typeRefs   = collectPluginTypeReferences(projectDir, configPath, verbose);
   const dtspath    = path.join(gwenDir, 'gwen.d.ts');
   const dtsContent = generateDts(projectDir, configPath, typeRefs);
   fs.writeFileSync(dtspath, dtsContent, 'utf-8');
@@ -86,31 +86,24 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
  *
  * Silencieux si un plugin n'exporte pas de `pluginMeta` — opt-in.
  */
-async function collectPluginTypeReferences(
+function collectPluginTypeReferences(
   projectDir: string,
   configPath: string,
   verbose: boolean,
-): Promise<string[]> {
-  const log = (msg: string) => { if (verbose) console.log(msg); };
-  const parsed  = parseConfigFile(configPath);
-  const refs    = new Set<string>();
+): string[] {
+  const log  = (msg: string) => { if (verbose) console.log(msg); };
+  const parsed = parseConfigFile(configPath);
+  const refs   = new Set<string>();
 
   for (const plugin of parsed.plugins) {
     try {
-      // Résoudre le package depuis le projectDir
       const pkgMain = resolvePackageMain(projectDir, plugin.packageName);
       if (!pkgMain) continue;
 
-      // Import dynamique du package (jiti/tsx déjà actif dans le CLI)
-      const mod = await import(pkgMain).catch(() => null);
-      if (!mod) continue;
-
-      const meta = mod.pluginMeta as { typeReferences?: string[] } | undefined;
-      if (meta?.typeReferences) {
-        for (const ref of meta.typeReferences) {
-          refs.add(ref);
-          log(`[gwen prepare] 📦 ${plugin.packageName} → typeRef: ${ref}`);
-        }
+      const typeRefs = extractTypeRefsFromSource(pkgMain);
+      for (const ref of typeRefs) {
+        refs.add(ref);
+        log(`[gwen prepare] 📦 ${plugin.packageName} → typeRef: ${ref}`);
       }
     } catch {
       // Plugin sans meta — silencieux
@@ -122,18 +115,19 @@ async function collectPluginTypeReferences(
 
 /**
  * Résout le chemin absolu du point d'entrée d'un package npm
- * depuis le projectDir (cherche dans node_modules).
+ * depuis le projectDir (cherche dans node_modules, suit les symlinks workspace).
  */
 function resolvePackageMain(projectDir: string, packageName: string): string | null {
-  // Chercher dans node_modules du projet puis dans les parents
   let dir = projectDir;
   for (let i = 0; i < 5; i++) {
     const pkgJson = path.join(dir, 'node_modules', packageName, 'package.json');
     if (fs.existsSync(pkgJson)) {
       try {
-        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
+        const pkg  = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
         const main = pkg.main ?? pkg.module ?? 'src/index.ts';
-        return path.join(dir, 'node_modules', packageName, main);
+        // Résoudre le symlink pour atteindre le vrai répertoire du package
+        const pkgDir = fs.realpathSync(path.dirname(pkgJson));
+        return path.join(pkgDir, main);
       } catch {
         return null;
       }
@@ -141,6 +135,44 @@ function resolvePackageMain(projectDir: string, packageName: string): string | n
     dir = path.dirname(dir);
   }
   return null;
+}
+
+/**
+ * Extrait statiquement les typeReferences depuis le source TypeScript d'un plugin.
+ * Pas d'exécution — lecture regex du contenu du fichier source.
+ *
+ * Cherche le pattern :
+ *   export const pluginMeta: GwenPluginMeta = { typeReferences: ['...'] }
+ */
+function extractTypeRefsFromSource(filePath: string): string[] {
+  try {
+    // Résoudre les extensions possibles
+    const candidates = [filePath, filePath.replace(/\.js$/, '.ts')];
+    let source = '';
+    for (const c of candidates) {
+      if (fs.existsSync(c)) { source = fs.readFileSync(c, 'utf-8'); break; }
+    }
+    if (!source) return [];
+
+    // Extraire le bloc pluginMeta
+    const metaMatch = source.match(/pluginMeta[^=]*=\s*\{([^}]+)\}/s);
+    if (!metaMatch) return [];
+
+    // Extraire typeReferences: ['...', '...']
+    const refsMatch = metaMatch[1].match(/typeReferences\s*:\s*\[([^\]]+)\]/s);
+    if (!refsMatch) return [];
+
+    // Parser les strings entre quotes
+    const refs: string[] = [];
+    const strRe = /['"`]([^'"`]+)['"`]/g;
+    let m: RegExpExecArray | null;
+    while ((m = strRe.exec(refsMatch[1])) !== null) {
+      refs.push(m[1]);
+    }
+    return refs;
+  } catch {
+    return [];
+  }
 }
 
 // ── Génération du tsconfig ────────────────────────────────────────────────────
@@ -161,6 +193,7 @@ function generateTsconfig(projectDir: string): object {
       '@gwen/renderer-canvas2d':'renderer-canvas2d/src/index.ts',
       '@gwen/plugin-input':     'plugin-input/src/index.ts',
       '@gwen/plugin-audio':     'plugin-audio/src/index.ts',
+      '@gwen/plugin-html-ui':   'plugin-html-ui/src/index.ts',
       '@gwen/vite-plugin':      'vite-plugin/src/index.ts',
     };
 

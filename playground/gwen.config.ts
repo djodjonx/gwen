@@ -16,6 +16,7 @@
 import { defineConfig } from '@gwen/engine-core';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
+import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
@@ -32,6 +33,7 @@ export default defineConfig({
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({ width: 480, height: 640, background: '#000814', pixelRatio: 1, manualRender: true }),
+    new HtmlUIPlugin(),
   ],
 });
 
