@@ -10,21 +10,16 @@
  *    Rule: resolve services only in onInit(), never in onUpdate()
  */
 
-import type {
-  ServiceLocator as IServiceLocator,
-  TypedServiceLocator,
-  EngineAPI,
-  ComponentType,
-  SceneNavigator,
-} from './types';
+import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } from './types';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 import { PrefabManager } from './prefab';
 
 // ============= ServiceLocator =============
 
-export class ServiceLocator<M extends Record<string, unknown> = Record<string, unknown>>
-  implements TypedServiceLocator<M> {
+export class ServiceLocator<
+  M extends Record<string, unknown> = Record<string, unknown>,
+> implements TypedServiceLocator<M> {
   private registry = new Map<string, unknown>();
 
   register<K extends keyof M & string>(name: K, instance: M[K]): void {
@@ -38,7 +33,7 @@ export class ServiceLocator<M extends Record<string, unknown> = Record<string, u
     if (!this.registry.has(name)) {
       throw new Error(
         `[GWEN:ServiceLocator] Service '${name}' not found. ` +
-        `Available: [${[...this.registry.keys()].join(', ')}]`,
+          `Available: [${[...this.registry.keys()].join(', ')}]`,
       );
     }
     return this.registry.get(name) as M[K];
@@ -70,8 +65,9 @@ export interface EngineState {
  * Concrete implementation of EngineAPI.
  * Wraps the internal ECS and exposes a clean surface to plugins.
  */
-export class EngineAPIImpl<M extends Record<string, unknown> = Record<string, unknown>>
-  implements EngineAPI<M> {
+export class EngineAPIImpl<
+  M extends Record<string, unknown> = Record<string, unknown>,
+> implements EngineAPI<M> {
   readonly services: TypedServiceLocator<M>;
   readonly prefabs: PrefabManager;
 
@@ -96,9 +92,7 @@ export class EngineAPIImpl<M extends Record<string, unknown> = Record<string, un
   }
 
   get scene(): SceneNavigator | null {
-    return this.services.has('SceneManager')
-      ? (this.services.get as any)('SceneManager')
-      : null;
+    return this.services.has('SceneManager') ? (this.services.get as any)('SceneManager') : null;
   }
 
   // ── Entity operations ──────────────────────────────────────────────────

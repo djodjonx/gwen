@@ -37,7 +37,7 @@ describe('createPlugin()', () => {
     const plugin = createPlugin({
       name: 'TestPlugin' as const,
       provides: { myService: {} as MockService },
-      onInit: () => { },
+      onInit: () => {},
     });
     expect(plugin.name).toBe('TestPlugin');
     expect(plugin.provides).toEqual({ myService: {} });
@@ -203,7 +203,7 @@ describe('Rétro-compatibilité — TsPlugin sans provides', () => {
   it('un objet TsPlugin minimal passe dans defineConfig plugins', () => {
     const legacyPlugin: GwenPlugin = {
       name: 'LegacyPlugin',
-      onInit: () => { },
+      onInit: () => {},
     };
     // Doit compiler sans erreur même sans provides
     const config = defineConfig({ plugins: [legacyPlugin] });

@@ -58,7 +58,8 @@ export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Reco
 /** Fusionne les `provides` de tous les plugins d'une liste */
 export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
-> & Record<string, unknown>;
+> &
+  Record<string, unknown>;
 
 // ── Interface GwenPlugin ──────────────────────────────────────────────────────
 

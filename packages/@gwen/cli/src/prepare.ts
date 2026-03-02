@@ -225,8 +225,7 @@ function generateIndexHtml(
 
 // ── Génération du tsconfig ────────────────────────────────────────────────────
 
-function generateTsconfig(projectDir: string): object {
-
+function generateTsconfig(_projectDir: string): object {
   return {
     // Ce fichier est généré automatiquement par `gwen prepare`.
     // NE PAS MODIFIER — vos modifications seront écrasées.

@@ -8,8 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
       "import": "./dist/index.js"
     },
     "./vite-env": "./src/vite-env.d.ts"

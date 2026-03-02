@@ -74,7 +74,7 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('mount warns and remounts if entity already mounted', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.mount(1, TEMPLATE);

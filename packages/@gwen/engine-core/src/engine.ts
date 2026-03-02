@@ -268,13 +268,13 @@ export class Engine {
     if (!layout) {
       throw new Error(
         `[GWEN] Composant "${componentId}" n'a pas de layout enregistré. ` +
-        `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
+          `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
       );
     }
     if (layout.byteLength === 0) {
       throw new Error(
         `[GWEN] Composant "${componentId}" a un schema vide (byteLength === 0). ` +
-        `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
+          `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
       );
     }
     if (this.scratchBuffer.byteLength < layout.byteLength) {
@@ -415,7 +415,7 @@ export class Engine {
     if (!this.wasmBridge.isActive()) {
       throw new Error(
         "[GWEN] Impossible de démarrer : le core WASM n'est pas initialisé.\n" +
-        'Appelez `await initWasm()` avant engine.start().',
+          'Appelez `await initWasm()` avant engine.start().',
       );
     }
 

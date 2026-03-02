@@ -104,7 +104,9 @@ export interface SceneNavigator {
 export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Query entities by required component types */
   query(
-    componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>,
+    componentTypes: Array<
+      ComponentType | import('./schema').ComponentDefinition<import('./schema').ComponentSchema>
+    >,
   ): EntityId[];
 
   /** Create a new entity */
@@ -115,7 +117,9 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
 
   /** Add / update a component on an entity (string type) */
   addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
-  addComponent<D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>(
+  addComponent<
+    D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>,
+  >(
     id: EntityId,
     type: D,
     data: import('./schema').InferComponent<D>,
@@ -123,7 +127,9 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
 
   /** Get a component from an entity (string type) */
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
-  getComponent<D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>(
+  getComponent<
+    D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>,
+  >(
     id: EntityId,
     type: D,
   ): import('./schema').InferComponent<D> | undefined;

@@ -32,10 +32,7 @@ export async function buildViteConfig(
   // Chercher le vite-plugin gwen dans node_modules ou le monorepo
   const gwenPlugin = await loadGwenVitePlugin(projectDir);
 
-  // Construire les alias de packages (monorepo dev ou node_modules)
-  const alias = buildAliases(projectDir);
-
-  // Headers COOP/COEP requis pour SharedArrayBuffer (WASM threads)
+  // Construire les alias de packages (monorepo dev ou node_modules)  // Headers COOP/COEP requis pour SharedArrayBuffer (WASM threads)
   const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -57,20 +54,19 @@ export async function buildViteConfig(
 
     plugins: gwenPlugin
       ? [
-        gwenPlugin({
-          // cratePath seulement si un crate Rust custom est présent dans le projet
-          // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
-          // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
-          ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
-          watch: options.mode === 'development',
-          wasmMode: options.mode === 'development' ? 'debug' : 'release',
-          verbose: false,
-        }),
-      ]
+          gwenPlugin({
+            // cratePath seulement si un crate Rust custom est présent dans le projet
+            // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
+            // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
+            ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
+            watch: options.mode === 'development',
+            wasmMode: options.mode === 'development' ? 'debug' : 'release',
+            verbose: false,
+          }),
+        ]
       : [],
 
-    resolve: {
-    },
+    resolve: {},
 
     server: {
       port: options.port ?? 3000,
@@ -138,10 +134,6 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
 }
 
 // ── Aliases monorepo / node_modules ──────────────────────────────────────────
-
-function buildAliases(_projectDir: string): Record<string, string> {
-  return {};
-}
 
 // ── Détection crate Rust valide ───────────────────────────────────────────────
 
