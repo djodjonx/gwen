@@ -77,26 +77,8 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
   readonly html?: {
     /** Titre de la page. Défaut : nom du projet */
     title?: string;
-    /** ID du canvas. Défaut : 'game-canvas' */
-    canvasId?: string;
-    /** Largeur du canvas en pixels. Défaut : 480 */
-    canvasWidth?: number;
-    /** Hauteur du canvas en pixels. Défaut : 640 */
-    canvasHeight?: number;
     /** Couleur de fond de la page. Défaut : '#000' */
     background?: string;
-    /**
-     * HTML additionnel injecté dans le <body> après le canvas.
-     * Utile pour les éléments UI (HUD, score, vies...) superposés au canvas.
-     * @example
-     * overlay: `
-     *   <div id="ui" style="position:absolute;top:16px;left:50%;transform:translateX(-50%)">
-     *     <div id="score">SCORE: 0</div>
-     *     <div id="lives">♥ ♥ ♥</div>
-     *   </div>
-     * `
-     */
-    overlay?: string;
   };
 }
 
@@ -150,11 +132,7 @@ export function defineConfig<
   scenes?: 'auto' | false;
   html?: {
     title?: string;
-    canvasId?: string;
-    canvasWidth?: number;
-    canvasHeight?: number;
     background?: string;
-    overlay?: string;
   };
 }): TypedEngineConfig<MergeProvides<Plugins>> {
   return config as any;

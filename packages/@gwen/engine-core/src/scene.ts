@@ -32,6 +32,18 @@ export interface Scene {
   plugins?: TsPlugin[];
 
   /**
+   * HTML layout injecté dans #gwen-ui pendant que la scène est active.
+   * Monté au onEnter, démonté au onExit. Idéal pour le HUD, menus, etc.
+   *
+   * @example
+   * layout = `
+   *   <div id="score" class="hud">SCORE: 0</div>
+   *   <div id="lives" class="hud">♥ ♥ ♥</div>
+   * `;
+   */
+  layout?: string;
+
+  /**
    * Called when the scene becomes active.
    * Create entities, register event listeners, start music, etc.
    */
@@ -159,7 +171,7 @@ export class SceneManager implements TsPlugin {
       ? api.services.get<import('./types').IPluginRegistrar>('PluginRegistrar')
       : null;
 
-    // 1. Exit current scene
+    // 1. Exit current scene + démonter son layout
     if (this.currentScene) {
       this.currentScene.onExit(api);
       if (registrar && this.currentScene.plugins) {
@@ -167,17 +179,21 @@ export class SceneManager implements TsPlugin {
           registrar.unregister(p.name);
         }
       }
+      this.unmountLayout();
     }
 
-    // 2. Purge all entities (clean slate for the new scene)
+    // 2. Purge all entities
     this.purgeEntities(api);
 
-    // 3. Enter new scene
+    // 3. Enter new scene + monter son layout
     this.currentScene = next;
     if (registrar && next.plugins) {
       for (const p of next.plugins) {
         registrar.register(p);
       }
+    }
+    if (next.layout) {
+      this.mountLayout(next.layout);
     }
     next.onEnter(api);
   }
@@ -187,10 +203,36 @@ export class SceneManager implements TsPlugin {
    * Called between scene transitions to free ECS slots.
    */
   private purgeEntities(api: EngineAPI): void {
-    // Query all entities (empty query = all alive)
     const all = api.query([]);
     for (const id of all) {
       api.destroyEntity(id);
+    }
+  }
+
+  /**
+   * Monte le layout HTML de la scène dans #gwen-ui.
+   * Crée le conteneur s'il n'existe pas.
+   */
+  private mountLayout(html: string): void {
+    if (typeof document === 'undefined') return;
+    let ui = document.getElementById('gwen-ui');
+    if (!ui) {
+      ui = document.createElement('div');
+      ui.id = 'gwen-ui';
+      ui.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10;';
+      document.body.appendChild(ui);
+    }
+    ui.innerHTML = html;
+    ui.style.display = '';
+  }
+
+  /** Vide le conteneur #gwen-ui. */
+  private unmountLayout(): void {
+    if (typeof document === 'undefined') return;
+    const ui = document.getElementById('gwen-ui');
+    if (ui) {
+      ui.innerHTML = '';
+      ui.style.display = 'none';
     }
   }
 }

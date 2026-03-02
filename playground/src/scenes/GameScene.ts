@@ -13,6 +13,15 @@ export class GameScene implements Scene {
   readonly name = 'Game';
   readonly plugins: GwenPlugin[];
 
+  readonly layout = `
+    <div style="position:fixed;top:16px;left:50%;transform:translateX(-50%);
+                text-align:center;pointer-events:none;
+                font-family:'Courier New',monospace;color:#4fffb0;">
+      <div id="score" style="font-size:20px;letter-spacing:2px;text-shadow:0 0 8px #4fffb0">SCORE: 0</div>
+      <div id="lives" style="font-size:14px;color:#ff6b6b;margin-top:4px">♥ ♥ ♥</div>
+    </div>
+  `;
+
   constructor(private scenes: SceneManager) {
     this.plugins = [
       MovementSystem,

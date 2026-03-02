@@ -129,11 +129,7 @@ function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | un
 
 interface HtmlConfig {
   title?: string;
-  canvasId?: string;
-  canvasWidth?: number;
-  canvasHeight?: number;
   background?: string;
-  overlay?: string;
 }
 
 function readHtmlConfig(projectRoot: string): HtmlConfig {
@@ -144,26 +140,16 @@ function readHtmlConfig(projectRoot: string): HtmlConfig {
     const htmlBlock = src.match(/html\s*:\s*\{([^}]*)\}/s)?.[1] ?? '';
     const get = (key: string, fallback: string) =>
       htmlBlock.match(new RegExp(`${key}\\s*:\\s*['"\`]?([^,'"\`\\n}]+)['"\`]?`))?.[1]?.trim() ?? fallback;
-    // overlay : capturer le contenu du template literal (backtick)
-    const overlayMatch = src.match(/overlay\s*:\s*`([\s\S]*?)`/);
     return {
-      title:        get('title', ''),
-      canvasId:     get('canvasId', 'game-canvas'),
-      canvasWidth:  Number(get('canvasWidth', '480')) || 480,
-      canvasHeight: Number(get('canvasHeight', '640')) || 640,
-      background:   get('background', '#000'),
-      overlay:      overlayMatch?.[1]?.trim(),
+      title:      get('title', ''),
+      background: get('background', '#000'),
     };
   } catch { return {}; }
 }
 
 function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
-  const title        = cfg.title       ?? path.basename(projectRoot);
-  const canvasId     = cfg.canvasId    ?? 'game-canvas';
-  const canvasWidth  = cfg.canvasWidth ?? 480;
-  const canvasHeight = cfg.canvasHeight ?? 640;
-  const bg           = cfg.background  ?? '#000';
-  const overlay      = cfg.overlay     ?? '';
+  const title = cfg.title      ?? path.basename(projectRoot);
+  const bg    = cfg.background ?? '#000';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -181,12 +167,9 @@ function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
       height: 100vh;
       overflow: hidden;
     }
-    #${canvasId} { display: block; image-rendering: pixelated; }
   </style>
 </head>
 <body>
-  <canvas id="${canvasId}" width="${canvasWidth}" height="${canvasHeight}"></canvas>
-  ${overlay}
 </body>
 </html>`;
 }
@@ -461,29 +444,11 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return null;
     },
 
-    // ── Injection de l'entry + éléments HTML (pattern Nuxt) ─────────────
-    // Si index.html existe : on injecte uniquement le <script>.
-    // Si index.html est absent : on génère l'HTML complet depuis gwen.config.ts.
-    transformIndexHtml(html) {
-      // Toujours injecter le script entry
-      const tags: any[] = [
+    // ── Injection du script entry (pattern Nuxt/transformIndexHtml) ──────
+    transformIndexHtml() {
+      return [
         { tag: 'script', attrs: { type: 'module', src: GWEN_ENTRY_ID }, injectTo: 'body' },
       ];
-
-      // Si l'HTML ne contient pas de <canvas>, on l'injecte depuis la config
-      if (!html.includes('<canvas')) {
-        const cfg = readHtmlConfig(projectRoot);
-        const canvasId     = cfg.canvasId     ?? 'game-canvas';
-        const canvasWidth  = cfg.canvasWidth  ?? 480;
-        const canvasHeight = cfg.canvasHeight ?? 640;
-        tags.unshift({
-          tag: 'canvas',
-          attrs: { id: canvasId, width: canvasWidth, height: canvasHeight },
-          injectTo: 'body',
-        });
-      }
-
-      return tags;
     },
 
     // ── HMR : invalider les modules quand src/scenes/ change ─────────────

@@ -56,8 +56,20 @@ export interface Camera {
 // ============= Renderer Config =============
 
 export interface Canvas2DRendererConfig {
-  /** Canvas element ID (string) or the HTMLCanvasElement directly */
-  canvas: string | HTMLCanvasElement;
+  /**
+   * Canvas element ID (string) ou HTMLCanvasElement.
+   * Si omis, le renderer crée et monte son propre canvas dans le container.
+   */
+  canvas?: string | HTMLCanvasElement;
+  /**
+   * Sélecteur CSS ou HTMLElement dans lequel monter le canvas créé.
+   * Ignoré si `canvas` est fourni. Défaut : document.body
+   */
+  container?: string | HTMLElement;
+  /** Largeur du canvas en pixels CSS. Défaut : 480. Ignoré si canvas existant. */
+  width?: number;
+  /** Hauteur du canvas en pixels CSS. Défaut : 640. Ignoré si canvas existant. */
+  height?: number;
   /** Background clear color. Default: '#000000' */
   background?: string;
   /** Device pixel ratio. Default: window.devicePixelRatio. Pass 1 to disable HiDPI. */
@@ -94,6 +106,10 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
   constructor(config: Canvas2DRendererConfig) {
     this.config = {
+      canvas: undefined,
+      container: document.body,
+      width: 480,
+      height: 640,
       background: '#000000',
       pixelRatio: typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1,
       manualRender: false,
@@ -108,8 +124,17 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
         throw new Error(`[Canvas2DRenderer] Canvas element '${this.config.canvas}' not found.`);
       }
       this._canvas = el;
-    } else {
+    } else if (this.config.canvas instanceof HTMLCanvasElement) {
       this._canvas = this.config.canvas;
+    } else {
+      // Auto-création du canvas et montage dans le container
+      const container = typeof this.config.container === 'string'
+        ? (document.querySelector(this.config.container) ?? document.body)
+        : (this.config.container ?? document.body);
+      this._canvas = document.createElement('canvas');
+      this._canvas.id = 'gwen-canvas';
+      this.resize(this.config.width, this.config.height);
+      (container as HTMLElement).appendChild(this._canvas);
     }
 
     const ctx = this._canvas.getContext('2d');
