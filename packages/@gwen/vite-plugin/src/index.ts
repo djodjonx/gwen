@@ -130,8 +130,7 @@ function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | un
 function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined): string {
   if (scenes.length === 0) {
     return [
-      'import type { SceneManager } from "@gwen/engine-core";',
-      'export function registerScenes(_scenes: SceneManager): void {}',
+      'export function registerScenes(_scenes) {}',
       'export const mainScene = undefined;',
     ].join('\n');
   }
@@ -149,7 +148,6 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
   const mainSceneValue = mainScene ? JSON.stringify(mainScene) : 'undefined';
 
   return [
-    'import type { SceneManager } from "@gwen/engine-core";',
     imports,
     '',
     'export function registerScenes(scenes) {',
