@@ -90,6 +90,10 @@ export async function buildViteConfig(
       emptyOutDir: true,
     },
 
+    optimizeDeps: {
+      entries: ['/@gwen/entry'],
+    },
+
     assetsInclude: ['**/*.wasm'],
   };
 

@@ -24,6 +24,13 @@ export default defineConfig({
     targetFPS: 60,
     debug: false,
   },
+  html: {
+    title: 'GWEN — Space Shooter',
+    canvasId: 'game-canvas',
+    canvasWidth: 480,
+    canvasHeight: 640,
+    background: '#000814',
+  },
   plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),

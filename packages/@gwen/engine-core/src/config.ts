@@ -61,6 +61,31 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
    * - `false` : désactivé, gérez vos scènes manuellement dans main.ts.
    */
   readonly scenes?: 'auto' | false;
+  /**
+   * Configuration du HTML généré par GWEN.
+   * Si index.html est absent du projet, GWEN en génère un automatiquement.
+   *
+   * @example
+   * html: {
+   *   title: 'My Game',
+   *   canvasId: 'game-canvas',
+   *   canvasWidth: 800,
+   *   canvasHeight: 600,
+   *   background: '#000',
+   * }
+   */
+  readonly html?: {
+    /** Titre de la page. Défaut : nom du projet */
+    title?: string;
+    /** ID du canvas. Défaut : 'game-canvas' */
+    canvasId?: string;
+    /** Largeur du canvas en pixels. Défaut : 480 */
+    canvasWidth?: number;
+    /** Hauteur du canvas en pixels. Défaut : 640 */
+    canvasHeight?: number;
+    /** Couleur de fond de la page. Défaut : '#000' */
+    background?: string;
+  };
 }
 
 /**
@@ -111,6 +136,13 @@ export function defineConfig<
    * - `false` : désactivé, gestion manuelle dans main.ts.
    */
   scenes?: 'auto' | false;
+  html?: {
+    title?: string;
+    canvasId?: string;
+    canvasWidth?: number;
+    canvasHeight?: number;
+    background?: string;
+  };
 }): TypedEngineConfig<MergeProvides<Plugins>> {
   return config as any;
 }

@@ -125,6 +125,67 @@ function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | un
   );
 }
 
+// ── Génération de l'index.html par défaut ─────────────────────────────────────
+
+interface HtmlConfig {
+  title?: string;
+  canvasId?: string;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  background?: string;
+}
+
+function readHtmlConfig(projectRoot: string): HtmlConfig {
+  try {
+    const configPath = path.join(projectRoot, 'gwen.config.ts');
+    if (!fs.existsSync(configPath)) return {};
+    const src = fs.readFileSync(configPath, 'utf-8');
+    // Extraire le bloc html: { ... } de la config (parsing statique)
+    const htmlBlock = src.match(/html\s*:\s*\{([^}]*)\}/s)?.[1] ?? '';
+    const get = (key: string, fallback: string) =>
+      htmlBlock.match(new RegExp(`${key}\\s*:\\s*['"\`]?([^,'"\`\\n}]+)['"\`]?`))?.[1]?.trim() ?? fallback;
+    return {
+      title:        get('title', ''),
+      canvasId:     get('canvasId', 'game-canvas'),
+      canvasWidth:  Number(get('canvasWidth', '480')) || 480,
+      canvasHeight: Number(get('canvasHeight', '640')) || 640,
+      background:   get('background', '#000'),
+    };
+  } catch { return {}; }
+}
+
+function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
+  const title       = cfg.title       ?? path.basename(projectRoot);
+  const canvasId    = cfg.canvasId    ?? 'game-canvas';
+  const canvasWidth = cfg.canvasWidth ?? 480;
+  const canvasHeight= cfg.canvasHeight?? 640;
+  const bg          = cfg.background  ?? '#000';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: ${bg};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #${canvasId} { display: block; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="${canvasId}" width="${canvasWidth}" height="${canvasHeight}"></canvas>
+</body>
+</html>`;
+}
+
 // ── Génération des virtual modules ────────────────────────────────────────────
 
 function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined): string {
@@ -395,17 +456,29 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return null;
     },
 
-    // ── Injection de l'entry dans index.html (pattern Nuxt) ──────────────
-    // Nuxt utilise transformIndexHtml pour injecter son entry point.
-    // On fait de même : pas de <script> dans index.html, le plugin l'ajoute.
-    transformIndexHtml() {
-      return [
-        {
-          tag: 'script',
-          attrs: { type: 'module', src: GWEN_ENTRY_ID },
-          injectTo: 'body',
-        },
+    // ── Injection de l'entry + éléments HTML (pattern Nuxt) ─────────────
+    // Si index.html existe : on injecte uniquement le <script>.
+    // Si index.html est absent : on génère l'HTML complet depuis gwen.config.ts.
+    transformIndexHtml(html) {
+      // Toujours injecter le script entry
+      const tags: any[] = [
+        { tag: 'script', attrs: { type: 'module', src: GWEN_ENTRY_ID }, injectTo: 'body' },
       ];
+
+      // Si l'HTML ne contient pas de <canvas>, on l'injecte depuis la config
+      if (!html.includes('<canvas')) {
+        const cfg = readHtmlConfig(projectRoot);
+        const canvasId     = cfg.canvasId     ?? 'game-canvas';
+        const canvasWidth  = cfg.canvasWidth  ?? 480;
+        const canvasHeight = cfg.canvasHeight ?? 640;
+        tags.unshift({
+          tag: 'canvas',
+          attrs: { id: canvasId, width: canvasWidth, height: canvasHeight },
+          injectTo: 'body',
+        });
+      }
+
+      return tags;
     },
 
     // ── HMR : invalider les modules quand src/scenes/ change ─────────────
@@ -431,17 +504,30 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         startWatcher(projectRoot);
       }
 
+      // Middleware WASM + HTML généré si index.html absent
       devServer.middlewares.use((req, res, next) => {
+        // Servir les fichiers WASM
         if (req.url?.startsWith('/wasm/')) {
           const filePath = path.join(projectRoot, 'public', req.url);
           if (fs.existsSync(filePath)) {
             const ext = path.extname(filePath);
             if (ext === '.wasm') res.setHeader('Content-Type', 'application/wasm');
-            if (ext === '.js') res.setHeader('Content-Type', 'application/javascript');
+            if (ext === '.js')   res.setHeader('Content-Type', 'application/javascript');
             res.end(fs.readFileSync(filePath));
             return;
           }
         }
+
+        // Servir l'HTML généré si index.html absent et requête racine
+        if ((req.url === '/' || req.url === '/index.html') &&
+            !fs.existsSync(path.join(projectRoot, 'index.html'))) {
+          const cfg  = readHtmlConfig(projectRoot);
+          const html = generateIndexHtml(cfg, projectRoot);
+          res.setHeader('Content-Type', 'text/html');
+          res.end(html);
+          return;
+        }
+
         next();
       });
     },
