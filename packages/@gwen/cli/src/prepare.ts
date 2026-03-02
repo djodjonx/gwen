@@ -226,33 +226,6 @@ function generateIndexHtml(
 // ── Génération du tsconfig ────────────────────────────────────────────────────
 
 function generateTsconfig(projectDir: string): object {
-  // Détecter si on est dans un monorepo (packages/@gwen/ présent)
-  const isMonorepo = fs.existsSync(path.join(projectDir, '..', 'packages'));
-  const isPlayground = path.basename(projectDir) === 'playground';
-
-  // Résoudre les alias de packages
-  const paths: Record<string, string[]> = {};
-
-  // Dans un monorepo de dev, on pointe vers les sources
-  if (isPlayground || isMonorepo) {
-    const packagesDir = path.resolve(projectDir, '..', 'packages', '@gwen');
-    const packageMap: Record<string, string> = {
-      '@gwen/engine-core': 'engine-core/src/index.ts',
-      '@gwen/renderer-canvas2d': 'renderer-canvas2d/src/index.ts',
-      '@gwen/plugin-input': 'plugin-input/src/index.ts',
-      '@gwen/plugin-audio': 'plugin-audio/src/index.ts',
-      '@gwen/plugin-debug': 'plugin-debug/src/index.ts',
-      '@gwen/plugin-html-ui': 'plugin-html-ui/src/index.ts',
-      '@gwen/vite-plugin': 'vite-plugin/src/index.ts',
-    };
-
-    for (const [pkg, rel] of Object.entries(packageMap)) {
-      const abs = path.join(packagesDir, rel);
-      if (fs.existsSync(abs)) {
-        paths[pkg] = [path.relative(projectDir, abs)];
-      }
-    }
-  }
 
   return {
     // Ce fichier est généré automatiquement par `gwen prepare`.
@@ -273,8 +246,9 @@ function generateTsconfig(projectDir: string): object {
       esModuleInterop: true,
       allowSyntheticDefaultImports: true,
       // PAS de "types" avec chemin relatif — gwen.d.ts est inclus via "include"
-      // Alias de packages
-      ...(Object.keys(paths).length > 0 ? { baseUrl: '..', paths } : {}),
+      // Résolution monorepo : on utilise la condition 'development'
+      // définit dans les package.json des packages @gwen/*
+      customConditions: ['development'],
     },
     include: ['../src', '../*.ts', './*.d.ts'],
     exclude: ['../node_modules', '../dist'],

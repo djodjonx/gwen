@@ -27,33 +27,33 @@
  */
 import type { Plugin } from 'vite';
 export interface GwenPluginOptions {
-  /**
-   * Chemin vers le crate Rust à compiler (dossier contenant Cargo.toml).
-   * Si omis, le plugin cherche Cargo.toml dans les dossiers parents.
-   */
-  cratePath?: string;
-  /**
-   * Préfixe URL sous lequel les fichiers WASM sont servis.
-   * Défaut : '/wasm'
-   */
-  wasmPublicPath?: string;
-  /**
-   * Active le watch des fichiers .rs pour le hot-reload WASM.
-   * Défaut : true en mode dev, false en mode build.
-   */
-  watch?: boolean;
-  /**
-   * Mode de compilation wasm-pack ('release' | 'debug').
-   * Défaut : 'debug' en mode dev pour des rebuilds plus rapides.
-   */
-  wasmMode?: 'release' | 'debug';
-  /**
-   * Chemin vers le manifeste gwen-manifest.json.
-   * Si fourni, son contenu est injecté comme `__GWEN_MANIFEST__`.
-   */
-  manifestPath?: string;
-  /** Active les logs détaillés. */
-  verbose?: boolean;
+    /**
+     * Chemin vers le crate Rust à compiler (dossier contenant Cargo.toml).
+     * Si omis, le plugin cherche Cargo.toml dans les dossiers parents.
+     */
+    cratePath?: string;
+    /**
+     * Préfixe URL sous lequel les fichiers WASM sont servis.
+     * Défaut : '/wasm'
+     */
+    wasmPublicPath?: string;
+    /**
+     * Active le watch des fichiers .rs pour le hot-reload WASM.
+     * Défaut : true en mode dev, false en mode build.
+     */
+    watch?: boolean;
+    /**
+     * Mode de compilation wasm-pack ('release' | 'debug').
+     * Défaut : 'debug' en mode dev pour des rebuilds plus rapides.
+     */
+    wasmMode?: 'release' | 'debug';
+    /**
+     * Chemin vers le manifeste gwen-manifest.json.
+     * Si fourni, son contenu est injecté comme `__GWEN_MANIFEST__`.
+     */
+    manifestPath?: string;
+    /** Active les logs détaillés. */
+    verbose?: boolean;
 }
 export declare function gwen(options?: GwenPluginOptions): Plugin;
 export default gwen;
