@@ -1,20 +1,23 @@
 import type { Scene, EngineAPI, SceneManager, GwenPlugin } from '@gwen/engine-core';
-import { UIComponent } from '@gwen/engine-core';
+import { UIComponent, UIManager } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
-import { MovementSystem }  from '../systems/MovementSystem';
-import { makePlayerSystem } from '../systems/PlayerSystem';
-import { AiSystem }         from '../systems/AiSystem';
-import { SpawnerSystem }    from '../systems/SpawnerSystem';
-import { makeCollisionSystem } from '../systems/CollisionSystem';
-import { makeRenderSystem } from '../systems/RenderSystem';
-import { makeHudManager } from '../systems/HudSystem';
+import { MovementSystem }        from '../systems/MovementSystem';
+import { makePlayerSystem }      from '../systems/PlayerSystem';
+import { AiSystem }              from '../systems/AiSystem';
+import { SpawnerSystem }         from '../systems/SpawnerSystem';
+import { makeCollisionSystem }   from '../systems/CollisionSystem';
+import { makeRenderSystem }      from '../systems/RenderSystem';
+import { ScoreUI }               from '../ui/ScoreUI';
 
 export class GameScene implements Scene {
   readonly name = 'Game';
   readonly plugins: GwenPlugin[];
 
   constructor(private scenes: SceneManager) {
+    const hudManager = new UIManager();
+    hudManager.register(ScoreUI);
+
     this.plugins = [
       MovementSystem,
       makePlayerSystem(this.scenes),
@@ -22,7 +25,7 @@ export class GameScene implements Scene {
       SpawnerSystem,
       makeCollisionSystem(this.scenes),
       makeRenderSystem(),
-      makeHudManager(),      // UIManager avec ScoreUI enregistré
+      hudManager,
     ];
   }
 

@@ -1,10 +1,14 @@
-import { defineUI, UIManager } from '@gwen/engine-core';
+import { defineUI } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Score } from '../components';
 
-// ── Définition UI du HUD ──────────────────────────────────────────────────────
-
-export const ScoreUI = defineUI({
+/**
+ * HUD Score + Vies — affiché pendant la scène Game.
+ *
+ * Attaché à l'entité score via UIComponent { uiName: 'ScoreUI' }.
+ * Monté/démonté automatiquement par UIManager.
+ */
+export const ScoreUI = defineUI<GwenServices>({
   name: 'ScoreUI',
 
   css: `
@@ -47,10 +51,3 @@ export const ScoreUI = defineUI({
   },
 });
 
-// ── UIManager préconfiguré avec le HUD ───────────────────────────────────────
-
-export function makeHudManager(): UIManager {
-  const ui = new UIManager();
-  ui.register(ScoreUI);
-  return ui;
-}
