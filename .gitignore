@@ -1,7 +1,9 @@
 # GWEN Framework - Build Output & Dependencies
 /target/
 node_modules/
+**/node_modules/
 /dist/
+**/dist/
 
 # IDE & Editor
 .vscode/
@@ -24,6 +26,9 @@ yarn-error.log*
 # Development
 .env
 .env.local
+
+# GWEN generated
+.gwen/
 
 # Documentation (not committed to repo)
 /specs/
