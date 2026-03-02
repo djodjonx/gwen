@@ -18,8 +18,8 @@ describe('DSL Components (schema.ts)', () => {
     });
 
     expect(Health.name).toBe('Health');
-    expect(Health.schema.current).toBe('f32');
-    expect(Health.schema.isPoisoned).toBe('bool');
+    expect(Health.schema.current).toBe(Types.f32);
+    expect(Health.schema.isPoisoned).toBe(Types.bool);
 
     const h: InferComponent<typeof Health> = {
       current: 100, max: 100, isPoisoned: false, name: 'Player 1',
@@ -34,8 +34,8 @@ describe('DSL Components (schema.ts)', () => {
       schema: { x: Types.f32, y: Types.f32 },
     }));
     expect(Position.name).toBe('position');
-    expect(Position.schema.x).toBe('f32');
-    expect(Position.schema.y).toBe('f32');
+    expect(Position.schema.x).toBe(Types.f32);
+    expect(Position.schema.y).toBe(Types.f32);
   });
 
   it('forme 2 — factory : appelée une seule fois', () => {

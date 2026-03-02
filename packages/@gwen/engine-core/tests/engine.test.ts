@@ -9,6 +9,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Engine, getEngine, useEngine, resetEngine } from '../src/engine';
 import { _injectMockWasmEngine, _resetWasmBridge } from '../src/wasm-bridge';
 import type { WasmEngine, WasmEntityId } from '../src/wasm-bridge';
+import { Types, defineComponent } from '../src/schema';
+
+const Position = defineComponent('position', () => ({ schema: { x: Types.f32, y: Types.f32 } }));
+const Velocity = defineComponent('velocity', () => ({ schema: { vx: Types.f32, vy: Types.f32 } }));
+const Health = defineComponent('health', () => ({ schema: { hp: Types.f32 } }));
 
 // ── Mock WasmEngine ───────────────────────────────────────────────────────────
 
@@ -38,7 +43,7 @@ function createMockWasmEngine(): WasmEngine {
     register_component_type: vi.fn((): number => nextTypeId++),
     add_component: vi.fn((index, generation, typeId, data): boolean => {
       if (entities.get(index) !== generation) return false;
-      components.set(`${index}:${typeId}`, data);
+      components.set(`${index}:${typeId}`, new Uint8Array(data));
       return true;
     }),
     remove_component: vi.fn((index, generation, typeId): boolean => {
@@ -201,46 +206,46 @@ describe('Engine', () => {
     });
 
     it('should add and retrieve a component', () => {
-      engine.addComponent(entityId, 'position', { x: 100, y: 200 });
-      const pos = engine.getComponent<{ x: number; y: number }>(entityId, 'position');
+      engine.addComponent(entityId, Position, { x: 100, y: 200 });
+      const pos = engine.getComponent(entityId, Position);
       expect(pos).toEqual({ x: 100, y: 200 });
     });
 
     it('should return undefined for missing component', () => {
-      expect(engine.getComponent(entityId, 'position')).toBeUndefined();
+      expect(engine.getComponent(entityId, Position)).toBeUndefined();
     });
 
     it('should check hasComponent correctly', () => {
-      expect(engine.hasComponent(entityId, 'position')).toBe(false);
-      engine.addComponent(entityId, 'position', { x: 0, y: 0 });
-      expect(engine.hasComponent(entityId, 'position')).toBe(true);
+      expect(engine.hasComponent(entityId, Position)).toBe(false);
+      engine.addComponent(entityId, Position, { x: 0, y: 0 });
+      expect(engine.hasComponent(entityId, Position)).toBe(true);
     });
 
     it('should update component data', () => {
-      engine.addComponent(entityId, 'velocity', { vx: 1, vy: 0 });
-      engine.addComponent(entityId, 'velocity', { vx: 5, vy: 3 });
-      expect(engine.getComponent(entityId, 'velocity')).toEqual({ vx: 5, vy: 3 });
+      engine.addComponent(entityId, Velocity, { vx: 1, vy: 0 });
+      engine.addComponent(entityId, Velocity, { vx: 5, vy: 3 });
+      expect(engine.getComponent(entityId, Velocity)).toEqual({ vx: 5, vy: 3 });
     });
 
     it('should remove component', () => {
-      engine.addComponent(entityId, 'health', { hp: 100 });
-      expect(engine.removeComponent(entityId, 'health')).toBe(true);
-      expect(engine.hasComponent(entityId, 'health')).toBe(false);
+      engine.addComponent(entityId, Health, { hp: 100 });
+      expect(engine.removeComponent(entityId, Health)).toBe(true);
+      expect(engine.hasComponent(entityId, Health)).toBe(false);
     });
 
     it('should remove all components when entity is destroyed', () => {
-      engine.addComponent(entityId, 'position', { x: 0, y: 0 });
-      engine.addComponent(entityId, 'velocity', { vx: 1, vy: 0 });
+      engine.addComponent(entityId, Position, { x: 0, y: 0 });
+      engine.addComponent(entityId, Velocity, { vx: 1, vy: 0 });
       engine.destroyEntity(entityId);
       expect(engine.getEntityCount()).toBe(0);
     });
 
     it('should isolate components between entities', () => {
       const e2 = engine.createEntity();
-      engine.addComponent(entityId, 'position', { x: 10, y: 10 });
-      engine.addComponent(e2, 'position', { x: 99, y: 99 });
-      expect(engine.getComponent(entityId, 'position')).toEqual({ x: 10, y: 10 });
-      expect(engine.getComponent(e2, 'position')).toEqual({ x: 99, y: 99 });
+      engine.addComponent(entityId, Position, { x: 10, y: 10 });
+      engine.addComponent(e2, Position, { x: 99, y: 99 });
+      expect(engine.getComponent(entityId, Position)).toEqual({ x: 10, y: 10 });
+      expect(engine.getComponent(e2, Position)).toEqual({ x: 99, y: 99 });
     });
   });
 
@@ -252,11 +257,11 @@ describe('Engine', () => {
       const e2 = engine.createEntity();
       const e3 = engine.createEntity();
 
-      engine.addComponent(e1, 'position', {});
-      engine.addComponent(e2, 'position', {});
-      engine.addComponent(e2, 'velocity', {});
+      engine.addComponent(e1, Position, { x: 0, y: 0 });
+      engine.addComponent(e2, Position, { x: 0, y: 0 });
+      engine.addComponent(e2, Velocity, { vx: 1, vy: 0 });
 
-      const withPos = engine.query(['position']);
+      const withPos = engine.query([Position.name]);
       expect(withPos).toContain(e1);
       expect(withPos).toContain(e2);
       expect(withPos).not.toContain(e3);
@@ -266,28 +271,28 @@ describe('Engine', () => {
       const e1 = engine.createEntity();
       const e2 = engine.createEntity();
 
-      engine.addComponent(e1, 'position', {});
-      engine.addComponent(e1, 'velocity', {});
-      engine.addComponent(e2, 'position', {});
+      engine.addComponent(e1, Position, { x: 0, y: 0 });
+      engine.addComponent(e1, Velocity, { vx: 1, vy: 0 });
+      engine.addComponent(e2, Position, { x: 0, y: 0 });
 
-      const results = engine.query(['position', 'velocity']);
+      const results = engine.query([Position.name, Velocity.name]);
       expect(results).toContain(e1);
       expect(results).not.toContain(e2);
     });
 
     it('should return empty array when no matches', () => {
       engine.createEntity();
-      const results = engine.query(['position']);
+      const results = engine.query([Position.name]);
       expect(results).toHaveLength(0);
     });
 
     it('should update query results after component change', () => {
       const e = engine.createEntity();
-      expect(engine.query(['position'])).not.toContain(e);
-      engine.addComponent(e, 'position', { x: 0, y: 0 });
-      expect(engine.query(['position'])).toContain(e);
-      engine.removeComponent(e, 'position');
-      expect(engine.query(['position'])).not.toContain(e);
+      expect(engine.query([Position.name])).not.toContain(e);
+      engine.addComponent(e, Position, { x: 0, y: 0 });
+      expect(engine.query([Position.name])).toContain(e);
+      engine.removeComponent(e, Position);
+      expect(engine.query([Position.name])).not.toContain(e);
     });
   });
 

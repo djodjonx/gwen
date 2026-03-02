@@ -26,14 +26,14 @@
 
 // Supported scalar types for WASM memory layout
 export const Types = {
-  f32: 'f32',
-  f64: 'f64',
-  i32: 'i32',
-  i64: 'i64',
-  u32: 'u32',
-  u64: 'u64',
-  bool: 'bool',
-  string: 'string', // Stored as UTF-8 offset in WASM linear memory
+  f32: { type: 'f32', byteLength: 4, read: 'getFloat32', write: 'setFloat32' },
+  f64: { type: 'f64', byteLength: 8, read: 'getFloat64', write: 'setFloat64' },
+  i32: { type: 'i32', byteLength: 4, read: 'getInt32', write: 'setInt32' },
+  i64: { type: 'i64', byteLength: 8, read: 'getBigInt64', write: 'setBigInt64' },
+  u32: { type: 'u32', byteLength: 4, read: 'getUint32', write: 'setUint32' },
+  u64: { type: 'u64', byteLength: 8, read: 'getBigUint64', write: 'setBigUint64' },
+  bool: { type: 'bool', byteLength: 1, read: 'getInt8', write: 'setInt8' }, // 0 = false, 1 = true
+  string: { type: 'string', byteLength: 4, read: 'getString', write: 'setString' },
 } as const;
 
 export type SchemaType = typeof Types[keyof typeof Types];
@@ -42,10 +42,81 @@ export interface ComponentSchema {
   [field: string]: SchemaType;
 }
 
+export interface SchemaLayout<T> {
+  byteLength: number;
+  hasString: boolean;
+  serialize?: (data: T, view: DataView) => number;
+  deserialize?: (view: DataView) => T;
+}
+
+import { GlobalStringPool } from './string-pool.js';
+
+export function computeSchemaLayout<T>(schema: ComponentSchema): Readonly<SchemaLayout<T>> {
+  let offset = 0;
+  const layout = new Map<string, { type: keyof typeof Types, offset: number, byteLength: number }>();
+
+  for (const [key, typeObj] of Object.entries(schema)) {
+    // Si c'est une string, on force un fallback car le tableau doit avoir une taille dynamique/illisible via DataView natif
+    const t = typeObj as any;
+
+    // Pour chaque propriété du schema, on note son offset et on incrémente l'offset global
+    layout.set(key, { type: t.type, offset, byteLength: t.byteLength });
+    offset += t.byteLength;
+  }
+
+  // Le `byteLength` de The schema est l'offset final
+  const totalByteLength = offset;
+
+  // Fabriquer les fonctions serialize/deserialize s'il n'y a PAS de strings
+  // Car les strings réclament du TextDecoder/Encoder
+  const order = Array.from(layout.entries());
+
+  const serialize = (data: any, view: DataView) => {
+    let bytesWritten = 0;
+    for (const [key, meta] of order) {
+      const val = data[key];
+      if (meta.type === 'bool') {
+        view.setInt8(meta.offset, val ? 1 : 0);
+      } else if (meta.type === 'string') {
+        const strId = GlobalStringPool.intern(val as string);
+        view.setInt32(meta.offset, strId, true);
+      } else {
+        const writeFn = Types[meta.type].write as keyof DataView;
+        (view as any)[writeFn](meta.offset, val, true);
+      }
+      bytesWritten += meta.byteLength;
+    }
+    return bytesWritten;
+  };
+
+  const deserialize = (view: DataView) => {
+    const obj: any = {};
+    for (const [key, meta] of order) {
+      if (meta.type === 'bool') {
+        obj[key] = view.getInt8(meta.offset) !== 0;
+      } else if (meta.type === 'string') {
+        const strId = view.getInt32(meta.offset, true);
+        obj[key] = GlobalStringPool.get(strId);
+      } else {
+        const readFn = Types[meta.type].read as keyof DataView;
+        obj[key] = (view as any)[readFn](meta.offset, true);
+      }
+    }
+    return obj;
+  };
+
+  return {
+    byteLength: totalByteLength,
+    hasString: false, // Plus de fallback, tout est gérable par StringPool
+    serialize: serialize as (data: T, view: DataView) => number,
+    deserialize: deserialize as (view: DataView) => T
+  };
+}
+
 // Maps SchemaType to actual TypeScript types
 export type InferSchemaType<T extends SchemaType> =
-  T extends 'bool' ? boolean :
-  T extends 'string' ? string :
+  T['type'] extends 'bool' ? boolean :
+  T['type'] extends 'string' ? string :
   number; // All numeric types (f32, i32, u64...) map to TS number
 
 /**

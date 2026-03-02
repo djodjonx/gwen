@@ -23,6 +23,7 @@ import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
 import { PluginManager } from './plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
 import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
+import { type ComponentDefinition, computeSchemaLayout, type SchemaLayout } from './schema';
 
 // EntityId est maintenant un packed number (index | generation<<20) aligné sur le format Rust
 export type EntityId = number;
@@ -53,6 +54,12 @@ export class Engine {
 
   // Mapping composant string → typeId numérique Rust
   private componentTypeIds = new Map<ComponentType, number>();
+
+  // Layout cache pour la sérialisation binaire accélérée
+  private schemaLayouts = new Map<ComponentType, SchemaLayout<any>>();
+  // Scratchpad global pour la serialisation (zero-alloc)
+  private scratchBuffer = new ArrayBuffer(1024); // 1KB suffit amplement pour un seul composant
+  private scratchDataView = new DataView(this.scratchBuffer);
 
   // Event system
   private eventListeners: Map<string, Set<Function>> = new Map();
@@ -89,10 +96,16 @@ export class Engine {
       } as any,
       // ComponentRegistry shim → délègue au WASM bridge
       {
-        add: <T>(id: EntityId, type: ComponentType, data: T) => {
-          const typeId = this._getOrRegisterTypeId(type);
-          const bytes = this._serialize(data);
+        add: <T>(id: EntityId, type: ComponentDefinition<any> | ComponentType, data: T) => {
+          const typeName = typeof type === 'string' ? type : type.name;
+          const typeId = this._getOrRegisterTypeId(typeName);
+
           const { index, generation } = unpackId(id);
+          const layout = this._getOrComputeLayout(typeof type === 'string' ? { name: type, schema: {} } : type);
+
+          // Use the _serializeComponent helper
+          const bytes = this._serializeComponent(typeName, data);
+
           this.wasmBridge.addComponent(index, generation, typeId, bytes);
           // Mettre à jour l'archetype dans le query cache Rust
           const currentTypes = this._getEntityTypeIds(id);
@@ -109,16 +122,20 @@ export class Engine {
           }
           return ok;
         },
-        get: <T>(id: EntityId, type: ComponentType): T | undefined => {
-          const typeId = this.componentTypeIds.get(type);
+        get: <T>(id: EntityId, type: ComponentDefinition<any> | ComponentType): T | undefined => {
+          const typeName = typeof type === 'string' ? type : type.name;
+          const typeId = this.componentTypeIds.get(typeName);
           if (typeId === undefined) return undefined;
           const { index, generation } = unpackId(id);
           const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
           if (raw.length === 0) return undefined;
-          return this._deserialize<T>(raw);
+
+          const component = this._deserializeComponent(typeName, raw);
+          return component;
         },
-        has: (id: EntityId, type: ComponentType) => {
-          const typeId = this.componentTypeIds.get(type);
+        has: (id: EntityId, type: ComponentDefinition<any> | ComponentType) => {
+          const typeName = typeof type === 'string' ? type : type.name;
+          const typeId = this.componentTypeIds.get(typeName);
           if (typeId === undefined) return false;
           const { index, generation } = unpackId(id);
           return this.wasmBridge.hasComponent(index, generation, typeId);
@@ -161,16 +178,51 @@ export class Engine {
     }
   }
 
-  // ── Sérialisation JSON léger ──────────────────────────────────────────────
+  // ── Communication binaire TS -> Rust ────────────────────────────────────────
 
-  private _serialize<T>(data: T): Uint8Array {
-    const json = JSON.stringify(data);
-    return new TextEncoder().encode(json);
+  /**
+   * Sérialise un composant en binaire (Zéro-Allocation)
+   * Grâce au String Pool, tous les types (y compris les strings) ont une taille fixe.
+   */
+  private _serializeComponent(componentId: string, data: any): Uint8Array {
+    const layout = this.schemaLayouts.get(componentId)!;
+
+    // Assure que le scratch buffer est assez grand
+    if (this.scratchBuffer.byteLength < layout.byteLength) {
+      this.scratchBuffer = new ArrayBuffer(layout.byteLength);
+      this.scratchDataView = new DataView(this.scratchBuffer);
+    }
+
+    // Sérialisation binaire pure
+    const bytesWritten = layout.serialize!(data, this.scratchDataView);
+    return new Uint8Array(this.scratchBuffer, 0, bytesWritten);
   }
 
-  private _deserialize<T>(bytes: Uint8Array): T {
-    const json = new TextDecoder().decode(bytes);
-    return JSON.parse(json) as T;
+  /**
+   * Désérialise un composant depuis le binaire Rust
+   */
+  private _deserializeComponent(componentId: string, raw: Uint8Array): any {
+    const layout = this.schemaLayouts.get(componentId)!;
+
+    // Ensure scratchBuffer is large enough for the component
+    if (this.scratchBuffer.byteLength < layout.byteLength) {
+      this.scratchBuffer = new ArrayBuffer(layout.byteLength);
+      this.scratchDataView = new DataView(this.scratchBuffer);
+    }
+    const localBuf = new Uint8Array(this.scratchBuffer, 0, layout.byteLength);
+    localBuf.set(raw.subarray(0, layout.byteLength));
+
+    // Retourne l'objet JS reconstruit à partir du binaire pur
+    return layout.deserialize!(this.scratchDataView);
+  }
+
+  private _getOrComputeLayout(def: ComponentDefinition<any>): SchemaLayout<any> {
+    let layout = this.schemaLayouts.get(def.name);
+    if (!layout) {
+      layout = computeSchemaLayout(def.schema);
+      this.schemaLayouts.set(def.name, layout);
+    }
+    return layout;
   }
 
   private _getOrRegisterTypeId(type: ComponentType): number {
@@ -345,18 +397,27 @@ export class Engine {
 
   // ============= Component Management =============
 
-  public addComponent<T>(id: EntityId, type: ComponentType, data: T): void {
-    const typeId = this._getOrRegisterTypeId(type);
+  /**
+   * Ajoute un composant à une entité.
+   */
+  public addComponent<T>(id: EntityId, type: ComponentDefinition<any> | ComponentType, data: T): void {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const typeId = this._getOrRegisterTypeId(typeName);
+    const layout = this._getOrComputeLayout(typeof type === 'string' ? { name: type, schema: {} } : type);
+
+    const bytes = this._serializeComponent(typeName, data);
+
     const { index, generation } = unpackId(id);
-    const bytes = this._serialize(data);
     this.wasmBridge.addComponent(index, generation, typeId, bytes);
+
     const currentTypes = this._getEntityTypeIds(id);
     this.wasmBridge.updateEntityArchetype(index, currentTypes);
     this.emit('componentAdded', { id, type });
   }
 
-  public removeComponent(id: EntityId, type: ComponentType): boolean {
-    const typeId = this.componentTypeIds.get(type);
+  public removeComponent(id: EntityId, type: ComponentDefinition<any> | ComponentType): boolean {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return false;
     const { index, generation } = unpackId(id);
     const result = this.wasmBridge.removeComponent(index, generation, typeId);
@@ -368,17 +429,26 @@ export class Engine {
     return result;
   }
 
-  public getComponent<T>(id: EntityId, type: ComponentType): T | undefined {
-    const typeId = this.componentTypeIds.get(type);
+  /**
+   * Récupère un composant d'une entité.
+   */
+  public getComponent<T>(id: EntityId, type: ComponentDefinition<any> | ComponentType): T | undefined {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return undefined;
+
     const { index, generation } = unpackId(id);
     const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
+
     if (raw.length === 0) return undefined;
-    return this._deserialize<T>(raw);
+
+    const component = this._deserializeComponent(typeName, raw);
+    return component as T;
   }
 
-  public hasComponent(id: EntityId, type: ComponentType): boolean {
-    const typeId = this.componentTypeIds.get(type);
+  public hasComponent(id: EntityId, type: ComponentDefinition<any> | ComponentType): boolean {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return false;
     const { index, generation } = unpackId(id);
     return this.wasmBridge.hasComponent(index, generation, typeId);

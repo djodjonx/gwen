@@ -99,7 +99,7 @@ export interface IPluginRegistrar {
  */
 export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Query entities by required component types */
-  query(componentTypes: ComponentType[]): EntityId[];
+  query(componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<any>>): EntityId[];
 
   /** Create a new entity */
   createEntity(): EntityId;
