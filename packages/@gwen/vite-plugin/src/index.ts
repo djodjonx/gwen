@@ -28,8 +28,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn, type ChildProcess } from 'node:child_process';
 import type { Plugin, ViteDevServer } from 'vite';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -365,7 +369,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         '--dev', crate,
       ], { stdio: 'pipe' });
 
-      watchProcess.on('close', (code) => {
+      (watchProcess as any).on('close', (code: number | null) => {
         if (code === 0) {
           log('WASM rebuilt — triggering HMR full reload');
           server?.ws.send({ type: 'full-reload' });
@@ -425,11 +429,14 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return null;
     },
 
-    // ── Injection du script entry (pattern Nuxt/transformIndexHtml) ──────
-    transformIndexHtml() {
-      return [
-        { tag: 'script', attrs: { type: 'module', src: GWEN_ENTRY_ID }, injectTo: 'body' },
-      ];
+    // ── Injection du script entry dans le HTML servi ─────────────────────
+    transformIndexHtml(html) {
+      // Si le script est déjà présent, ne pas le dupliquer
+      if (html.includes('/@gwen/entry')) return html;
+      return html.replace(
+        '</body>',
+        '  <script type="module" src="/@gwen/entry"></script>\n</body>',
+      );
     },
 
     // ── HMR : invalider les modules quand src/scenes/ change ─────────────

@@ -36,15 +36,15 @@ export default defineConfig({
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({ width: 480, height: 640, background: '#000814', pixelRatio: 1, manualRender: true }),
     new HtmlUIPlugin(),
-    new DebugPlugin({
-      overlay: { position: 'top-right' },
-      fpsDrop: {
-        threshold: 45,
-        onDrop: (fps: number, metrics: DebugMetrics) => {
-          console.warn(`[GWEN:Debug] FPS drop détecté : ${fps.toFixed(0)} FPS (avg: ${metrics.rollingFps.toFixed(1)})`);
-        },
-      },
-    }),
+    // new DebugPlugin({
+    //   overlay: { position: 'top-right' },
+    //   fpsDrop: {
+    //     threshold: 45,
+    //     onDrop: (fps: number, metrics: DebugMetrics) => {
+    //       console.warn(`[GWEN:Debug] FPS drop détecté : ${fps.toFixed(0)} FPS (avg: ${metrics.rollingFps.toFixed(1)})`);
+    //     },
+    //   },
+    // }),
   ],
 });
 

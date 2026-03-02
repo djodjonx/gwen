@@ -58,6 +58,22 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
+  packages/@gwen/plugin-debug:
+    dependencies:
+      '@gwen/engine-core':
+        specifier: workspace:*
+        version: link:../engine-core
+    devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
+
   packages/@gwen/plugin-html-ui:
     devDependencies:
       '@gwen/engine-core':
@@ -143,6 +159,9 @@ importers:
       '@gwen/plugin-audio':
         specifier: workspace:*
         version: link:../packages/@gwen/plugin-audio
+      '@gwen/plugin-debug':
+        specifier: workspace:*
+        version: link:../packages/@gwen/plugin-debug
       '@gwen/plugin-html-ui':
         specifier: workspace:*
         version: link:../packages/@gwen/plugin-html-ui
