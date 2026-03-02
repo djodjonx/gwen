@@ -1,28 +1,23 @@
 /**
  * Space Shooter — Point d'entrée
  * Scaffoldé via create-gwen-app — aucun Rust requis pour le dev.
+ *
+ * Les scènes sont auto-découvertes depuis src/scenes/ par `gwen prepare`.
+ * Le fichier .gwen/scenes.ts est généré automatiquement — ne pas modifier.
  */
 
 import { initWasm, createEngine } from '@gwen/engine-core';
 import gwenConfig from '../gwen.config';
-import { MainMenuScene } from './scenes/MainMenuScene';
-import { GameScene } from './scenes/GameScene';
+import { registerScenes, mainScene } from '../.gwen/scenes';
 
 async function bootstrap() {
   // 1. Core WASM obligatoire — servi depuis /wasm/ par @gwen/vite-plugin
   await initWasm();
 
-  // 2. Engine + plugins déclarés dans gwen.config.ts
-  const { engine, scenes } = createEngine(gwenConfig);
+  // 2. Engine + plugins + scènes auto-chargées depuis .gwen/scenes.ts
+  const { engine } = createEngine(gwenConfig, registerScenes, mainScene);
 
-  // 3. Scènes
-  scenes.register(new MainMenuScene(scenes));
-  scenes.register(new GameScene(scenes));
-
-  // 4. Scène initiale
-  scenes.loadSceneImmediate('MainMenu', engine.getAPI());
-
-  // 5. Go !
+  // 3. Go !
   engine.start();
 }
 

@@ -112,6 +112,11 @@ export class SceneManager implements TsPlugin {
     return this.scenes.has(name);
   }
 
+  /** Returns all registered scene names (in registration order). */
+  getSceneNames(): string[] {
+    return Array.from(this.scenes.keys());
+  }
+
   // ── Scene transitions ──────────────────────────────────────────────────
 
   /**

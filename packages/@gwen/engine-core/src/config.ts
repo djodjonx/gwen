@@ -44,6 +44,23 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
   readonly enableStats?: boolean;
   readonly plugins?: TsPlugin[];
   readonly wasmPlugins?: WasmPlugin[];
+  /**
+   * Scène à charger au démarrage.
+   *
+   * Si non précisé, le prepare() cherche une scène nommée 'Main', 'MainMenu'
+   * ou 'Boot', sinon la première scène détectée.
+   *
+   * @example mainScene: 'MainMenu'
+   */
+  readonly mainScene?: string;
+  /**
+   * Chargement automatique des scènes depuis src/scenes/.
+   *
+   * - `'auto'` (défaut) : scan de src/scenes\/*.ts par le CLI au prepare.
+   *   Le fichier .gwen/scenes.ts est généré avec les imports + enregistrements.
+   * - `false` : désactivé, gérez vos scènes manuellement dans main.ts.
+   */
+  readonly scenes?: 'auto' | false;
 }
 
 /**
@@ -83,6 +100,17 @@ export function defineConfig<
   targetFPS?: number;
   debug?: boolean;
   enableStats?: boolean;
+  /**
+   * Scène à charger au démarrage.
+   * Si non précisé, recherche 'Main', 'MainMenu' ou 'Boot', puis la première.
+   */
+  mainScene?: string;
+  /**
+   * Mode de chargement des scènes.
+   * - `'auto'` (défaut) : scan src/scenes\/*.ts au `gwen prepare`.
+   * - `false` : désactivé, gestion manuelle dans main.ts.
+   */
+  scenes?: 'auto' | false;
 }): TypedEngineConfig<MergeProvides<Plugins>> {
   return config as any;
 }
@@ -93,19 +121,31 @@ export function defineConfig<
  * Instancie l'engine, enregistre tous les plugins déclarés dans `config.plugins`
  * et retourne `{ engine, scenes }` prêts à l'emploi.
  *
- * C'est le point d'entrée recommandé pour un projet scaffoldé :
+ * Le `sceneLoader` est généré automatiquement par `gwen prepare` dans
+ * `.gwen/scenes.ts`. Il reçoit le `SceneManager` et enregistre toutes les
+ * scènes découvertes dans `src/scenes/`. Si `scenes: false` dans la config,
+ * passez `undefined` et gérez vos scènes manuellement.
+ *
  * ```typescript
- * const { engine, scenes } = createEngine(gwenConfig);
- * scenes.register(new MyScene(scenes));
+ * // main.ts — généré par create-gwen-app
+ * import { initWasm, createEngine } from '@gwen/engine-core';
+ * import gwenConfig from '../gwen.config';
+ * import { registerScenes, mainScene } from '../.gwen/scenes';
+ *
+ * await initWasm();
+ * const { engine, scenes } = createEngine(gwenConfig, registerScenes, mainScene);
  * engine.start();
  * ```
  */
-export function createEngine(config: TypedEngineConfig<any>): {
+export function createEngine(
+  config: TypedEngineConfig<any>,
+  sceneLoader?: (scenes: SceneManager) => void,
+  mainScene?: string,
+): {
   engine: Engine;
   scenes: SceneManager;
 } {
   const raw = config as any;
-  // Supporte les deux formes : engine:{} et champs à plat
   const engineOpts = raw.engine ?? {};
   const engine = new Engine({
     maxEntities: engineOpts.maxEntities ?? raw.maxEntities ?? 5000,
@@ -123,7 +163,44 @@ export function createEngine(config: TypedEngineConfig<any>): {
     engine.registerSystem(plugin);
   }
 
+  // Charger les scènes via le loader généré par prepare (si fourni)
+  if (sceneLoader) {
+    sceneLoader(scenes);
+
+    // Déterminer la scène principale :
+    // 1. Paramètre explicite passé à createEngine
+    // 2. mainScene dans la config
+    // 3. Convention : 'Main', 'MainMenu', 'Boot'
+    // 4. Fallback : première scène enregistrée
+    const resolvedMain =
+      mainScene ??
+      raw.mainScene ??
+      resolveMainScene(scenes);
+
+    if (resolvedMain) {
+      try {
+        scenes.loadSceneImmediate(resolvedMain, engine.getAPI());
+      } catch (e) {
+        console.warn(`[GWEN] mainScene '${resolvedMain}' not found — no scene loaded.`);
+      }
+    }
+  }
+
   return { engine, scenes };
+}
+
+/**
+ * Résout la scène principale par convention parmi les scènes enregistrées.
+ * Cherche dans l'ordre : 'Main', 'MainMenu', 'Boot', puis la première.
+ */
+function resolveMainScene(scenes: SceneManager): string | null {
+  const candidates = ['Main', 'MainMenu', 'Boot'];
+  for (const name of candidates) {
+    if (scenes.hasScene(name)) return name;
+  }
+  // Fallback : première scène enregistrée
+  const all = scenes.getSceneNames();
+  return all.length > 0 ? all[0] : null;
 }
 
 /**
