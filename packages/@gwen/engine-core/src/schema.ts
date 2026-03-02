@@ -60,16 +60,45 @@ export interface ComponentDefinition<S extends ComponentSchema> {
   readonly schema: S;
 }
 
+/** Corps d'un ComponentDefinition sans le `name` — utilisé par la forme factory. */
+export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<S>, 'name'>;
+
 /**
- * Defines an ECS component schema.
- * This function returns the definition strictly typed, allowing `InferComponent` to work.
+ * Defines an ECS component schema — deux syntaxes supportées.
+ *
+ * **Forme 1 — objet direct** :
+ * ```ts
+ * export const Position = defineComponent({
+ *   name: 'position',
+ *   schema: { x: Types.f32, y: Types.f32 },
+ * });
+ * ```
+ *
+ * **Forme 2 — factory** (schéma calculé dynamiquement) :
+ * ```ts
+ * export const Position = defineComponent('position', () => ({
+ *   schema: { x: Types.f32, y: Types.f32 },
+ * }));
+ * ```
  */
-export function defineComponent<S extends ComponentSchema>(config: {
-  name: string;
-  schema: S;
-}): ComponentDefinition<S> {
-  return {
-    name: config.name,
-    schema: config.schema,
-  };
+// Surcharge 1 — objet direct
+export function defineComponent<S extends ComponentSchema>(
+  config: ComponentDefinition<S>
+): ComponentDefinition<S>;
+
+// Surcharge 2 — factory OBLIGATOIRE
+export function defineComponent<S extends ComponentSchema>(
+  name: string,
+  factory: () => ComponentBody<S>
+): ComponentDefinition<S>;
+
+// Implémentation
+export function defineComponent<S extends ComponentSchema>(
+  nameOrConfig: string | ComponentDefinition<S>,
+  factory?: () => ComponentBody<S>,
+): ComponentDefinition<S> {
+  if (typeof nameOrConfig === 'string') {
+    return { name: nameOrConfig, ...factory!() };
+  }
+  return nameOrConfig;
 }

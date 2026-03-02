@@ -15,16 +15,58 @@ describe('UIManager', () => {
   // ── defineUI ──────────────────────────────────────────────────────────────
 
   describe('defineUI', () => {
-    it('returns the definition unchanged', () => {
+    it('forme 1 — objet direct : retourne la définition inchangée', () => {
       const def = defineUI({ name: 'Test', render: vi.fn() });
       expect(def.name).toBe('Test');
       expect(typeof def.render).toBe('function');
     });
 
-    it('onMount and onUnmount are optional', () => {
+    it('forme 1 — onMount et onUnmount sont optionnels', () => {
       const def = defineUI({ name: 'Minimal', render: vi.fn() });
       expect(def.onMount).toBeUndefined();
       expect(def.onUnmount).toBeUndefined();
+    });
+
+    it('forme 2 — factory : retourne une définition avec le bon name', () => {
+      const renderFn = vi.fn();
+      const def = defineUI('FactoryUI', () => ({ render: renderFn }));
+      expect(def.name).toBe('FactoryUI');
+      expect(def.render).toBe(renderFn);
+    });
+
+    it('forme 2 — factory : la closure est créée une seule fois', () => {
+      let callCount = 0;
+      const def = defineUI('CountUI', () => {
+        callCount++;
+        return { render: vi.fn() };
+      });
+      expect(callCount).toBe(1); // factory appelée immédiatement, une fois
+      expect(def.name).toBe('CountUI');
+    });
+
+    it('forme 2 — factory : l\'état en closure est isolé par définition', () => {
+      const def = defineUI('StatefulUI', () => {
+        const state = { count: 0 };
+        return {
+          render: (_api: any, _id: any) => { state.count++; },
+          getCount: () => state.count, // pour le test
+        } as any;
+      });
+      def.render(null as any, 0);
+      def.render(null as any, 0);
+      expect((def as any).getCount()).toBe(2);
+    });
+
+    it('forme 2 — factory : onMount et onUnmount fonctionnent', () => {
+      const mountFn   = vi.fn();
+      const unmountFn = vi.fn();
+      const def = defineUI('LifecycleUI', () => ({
+        onMount:   mountFn,
+        render:    vi.fn(),
+        onUnmount: unmountFn,
+      }));
+      expect(def.onMount).toBe(mountFn);
+      expect(def.onUnmount).toBe(unmountFn);
     });
   });
 

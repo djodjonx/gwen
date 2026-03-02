@@ -34,12 +34,50 @@ export interface PrefabDefinition<Args extends any[] = any[]> {
   create: (api: EngineAPI, ...args: Args) => EntityId;
 }
 
+/** Corps d'un PrefabDefinition sans le `name` — utilisé par la forme factory. */
+export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>, 'name'>;
+
 /**
- * Defines a Prefab.
- * Enforces the contract and returns the definition unchanged.
+ * Définit un Prefab GWEN — deux syntaxes supportées.
+ *
+ * **Forme 1 — objet direct** :
+ * ```ts
+ * export const PlayerPrefab = definePrefab({
+ *   name: 'Player',
+ *   create: (api) => { ... }
+ * });
+ * ```
+ *
+ * **Forme 2 — factory** (état local en closure) :
+ * ```ts
+ * export const EnemyPrefab = definePrefab('Enemy', () => {
+ *   const baseSpeed = 80;
+ *   return {
+ *     create: (api, x: number, y: number) => { ... }
+ *   };
+ * });
+ * ```
  */
-export function definePrefab<Args extends any[]>(config: PrefabDefinition<Args>): PrefabDefinition<Args> {
-  return config;
+// Surcharge 1 — objet direct
+export function definePrefab<Args extends any[]>(
+  config: PrefabDefinition<Args>
+): PrefabDefinition<Args>;
+
+// Surcharge 2 — factory OBLIGATOIRE
+export function definePrefab<Args extends any[]>(
+  name: string,
+  factory: () => PrefabBody<Args>
+): PrefabDefinition<Args>;
+
+// Implémentation
+export function definePrefab<Args extends any[]>(
+  nameOrConfig: string | PrefabDefinition<Args>,
+  factory?: () => PrefabBody<Args>,
+): PrefabDefinition<Args> {
+  if (typeof nameOrConfig === 'string') {
+    return { name: nameOrConfig, ...factory!() };
+  }
+  return nameOrConfig;
 }
 
 /**

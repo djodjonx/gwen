@@ -76,14 +76,60 @@ export interface UIDefinition<
   onUnmount?(api: EngineAPI<Services>, entityId: EntityId): void;
 }
 
+/** Corps d'une UIDefinition sans le `name` — utilisé par la forme factory. */
+export type UIBody<Services extends Record<string, unknown> = Record<string, unknown>> =
+  Omit<UIDefinition<Services>, 'name'>;
+
 /**
- * Définit une UI GWEN.
- * Retourne la définition telle quelle — sert uniquement à enforcer le type.
+ * Définit une UI GWEN — deux syntaxes supportées.
+ *
+ * **Forme 1 — objet direct** (simple, sans état local) :
+ * ```ts
+ * export const BulletUI = defineUI<GwenServices>({
+ *   name: 'BulletUI',
+ *   render(api, id) { ... },
+ * });
+ * ```
+ *
+ * **Forme 2 — factory** (avec état local en closure, sans variables globales) :
+ * ```ts
+ * export const EnemyUI = defineUI<GwenServices>('EnemyUI', () => {
+ *   const phaseMap = new Map<EntityId, number>(); // ← closure locale, pas globale
+ *   return {
+ *     onMount(_api, id)   { phaseMap.set(id, Math.random() * Math.PI * 2); },
+ *     render(api, id)     { const phase = phaseMap.get(id) ?? 0; ... },
+ *     onUnmount(_api, id) { phaseMap.delete(id); },
+ *   };
+ * });
+ * ```
+ *
+ * TypeScript exige la factory si un string est passé :
+ * ```ts
+ * defineUI('X')           // ❌ TS2554 — Expected 2 arguments
+ * defineUI({ render: fn }) // ❌ TS   — manque name
+ * ```
  */
+// Surcharge 1 — objet direct
 export function defineUI<
   Services extends Record<string, unknown> = Record<string, unknown>
->(config: UIDefinition<Services>): UIDefinition<Services> {
-  return config;
+>(config: UIDefinition<Services>): UIDefinition<Services>;
+
+// Surcharge 2 — factory OBLIGATOIRE (pas optionnelle)
+export function defineUI<
+  Services extends Record<string, unknown> = Record<string, unknown>
+>(name: string, factory: () => UIBody<Services>): UIDefinition<Services>;
+
+// Implémentation
+export function defineUI<
+  Services extends Record<string, unknown> = Record<string, unknown>
+>(
+  nameOrConfig: string | UIDefinition<Services>,
+  factory?: () => UIBody<Services>,
+): UIDefinition<Services> {
+  if (typeof nameOrConfig === 'string') {
+    return { name: nameOrConfig, ...factory!() };
+  }
+  return nameOrConfig;
 }
 
 // ── UIManager ─────────────────────────────────────────────────────────────────
