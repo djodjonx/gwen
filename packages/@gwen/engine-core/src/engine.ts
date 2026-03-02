@@ -23,8 +23,13 @@ import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
 import { PluginManager } from './plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
 import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
-import { type ComponentDefinition, type ComponentSchema, computeSchemaLayout, type SchemaLayout } from './schema';
-import type { EntityManager, ComponentRegistry, QueryEngine, EntityId as EcsEntityId } from './ecs';
+import {
+  type ComponentDefinition,
+  type ComponentSchema,
+  computeSchemaLayout,
+  type SchemaLayout,
+} from './schema';
+import type { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
 
 // EntityId est maintenant un packed number (index | generation<<20) aligné sur le format Rust
 export type EntityId = number;
@@ -49,7 +54,11 @@ interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'r
 
 /** Shim qui satisfait l'interface QueryEngine attendue par createEngineAPI */
 interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
-  query(required: ComponentType[], entities: EntityManagerShim, components: ComponentRegistryShim): EntityId[];
+  query(
+    required: ComponentType[],
+    entities: EntityManagerShim,
+    components: ComponentRegistryShim,
+  ): EntityId[];
 }
 
 /** Interface minimale d'un plugin legacy (avant registerSystem) */
@@ -60,11 +69,11 @@ interface LegacyPlugin {
 // ── Helpers packed EntityId ──────────────────────────────────────────────────
 
 function packId(wasmId: WasmEntityId): EntityId {
-  return (wasmId.generation << 20) | (wasmId.index & 0xFFFFF);
+  return (wasmId.generation << 20) | (wasmId.index & 0xfffff);
 }
 
 function unpackId(id: EntityId): { index: number; generation: number } {
-  return { index: id & 0xFFFFF, generation: id >>> 20 };
+  return { index: id & 0xfffff, generation: id >>> 20 };
 }
 
 // ── Type interne de layout ───────────────────────────────────────────────────
@@ -112,7 +121,10 @@ export class Engine {
   private componentTypeIds = new Map<ComponentType, number>();
 
   // Layout cache pour la sérialisation binaire accélérée
-  private schemaLayouts = new Map<ComponentType, SchemaLayout<Record<string, ComponentFieldValue>>>();
+  private schemaLayouts = new Map<
+    ComponentType,
+    SchemaLayout<Record<string, ComponentFieldValue>>
+  >();
   // Scratchpad global pour la serialisation (zero-alloc)
   private scratchBuffer = new ArrayBuffer(1024); // 1KB suffit amplement pour un seul composant
   private scratchDataView = new DataView(this.scratchBuffer);
@@ -145,11 +157,17 @@ export class Engine {
       },
       count: () => this.wasmBridge.countEntities(),
       maxEntities: this.config.maxEntities,
-      [Symbol.iterator]: function* () { /* queries via bridge */ },
+      [Symbol.iterator]: function* () {
+        /* queries via bridge */
+      },
     };
 
     const componentShim: ComponentRegistryShim = {
-      add: <T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T) => {
+      add: <T>(
+        id: EntityId,
+        type: ComponentDefinition<ComponentSchema> | ComponentType,
+        data: T,
+      ) => {
         this._addComponentInternal(id, type, data);
       },
       remove: (id: EntityId, type: ComponentType) => {
@@ -162,7 +180,10 @@ export class Engine {
         }
         return ok;
       },
-      get: <T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): T | undefined => {
+      get: <T>(
+        id: EntityId,
+        type: ComponentDefinition<ComponentSchema> | ComponentType,
+      ): T | undefined => {
         const typeName = typeof type === 'string' ? type : type.name;
         const typeId = this.componentTypeIds.get(typeName);
         if (typeId === undefined) return undefined;
@@ -189,10 +210,12 @@ export class Engine {
 
     const queryShim: QueryEngineShim = {
       query: (required: ComponentType[]) => {
-        const typeIds = required.map(t => this._getOrRegisterTypeId(t));
+        const typeIds = required.map((t) => this._getOrRegisterTypeId(t));
         return this.wasmBridge.queryEntities(typeIds);
       },
-      invalidate: () => { /* géré par le WASM */ },
+      invalidate: () => {
+        /* géré par le WASM */
+      },
     };
 
     this.api = createEngineAPI(
@@ -222,12 +245,15 @@ export class Engine {
 
   // ── Communication binaire TS -> Rust ────────────────────────────────────────
 
-  private _addComponentInternal(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: unknown): void {
+  private _addComponentInternal(
+    id: EntityId,
+    type: ComponentDefinition<ComponentSchema> | ComponentType,
+    data: unknown,
+  ): void {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this._getOrRegisterTypeId(typeName);
-    const def: ComponentDefinition<ComponentSchema> = typeof type === 'string'
-      ? { name: type, schema: {} }
-      : type;
+    const def: ComponentDefinition<ComponentSchema> =
+      typeof type === 'string' ? { name: type, schema: {} } : type;
     this._getOrComputeLayout(def);
     const bytes = this._serializeComponent(typeName, data);
     const { index, generation } = unpackId(id);
@@ -241,24 +267,30 @@ export class Engine {
     if (!layout) {
       throw new Error(
         `[GWEN] Composant "${componentId}" n'a pas de layout enregistré. ` +
-        `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`
+          `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
       );
     }
     if (layout.byteLength === 0) {
       throw new Error(
         `[GWEN] Composant "${componentId}" a un schema vide (byteLength === 0). ` +
-        `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`
+          `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
       );
     }
     if (this.scratchBuffer.byteLength < layout.byteLength) {
       this.scratchBuffer = new ArrayBuffer(layout.byteLength);
       this.scratchDataView = new DataView(this.scratchBuffer);
     }
-    const bytesWritten = layout.serialize!(data as Record<string, ComponentFieldValue>, this.scratchDataView);
+    const bytesWritten = layout.serialize!(
+      data as Record<string, ComponentFieldValue>,
+      this.scratchDataView,
+    );
     return new Uint8Array(this.scratchBuffer, 0, bytesWritten);
   }
 
-  private _deserializeComponent(componentId: string, raw: Uint8Array): Record<string, ComponentFieldValue> {
+  private _deserializeComponent(
+    componentId: string,
+    raw: Uint8Array,
+  ): Record<string, ComponentFieldValue> {
     const layout = this.schemaLayouts.get(componentId);
     if (!layout) {
       throw new Error(`[GWEN] Impossible de désérialiser "${componentId}" : layout absent.`);
@@ -275,7 +307,9 @@ export class Engine {
     return layout.deserialize!(this.scratchDataView) as Record<string, ComponentFieldValue>;
   }
 
-  private _getOrComputeLayout(def: ComponentDefinition<ComponentSchema>): SchemaLayout<Record<string, ComponentFieldValue>> {
+  private _getOrComputeLayout(
+    def: ComponentDefinition<ComponentSchema>,
+  ): SchemaLayout<Record<string, ComponentFieldValue>> {
     let layout = this.schemaLayouts.get(def.name);
     if (!layout) {
       layout = computeSchemaLayout<Record<string, ComponentFieldValue>>(def.schema);
@@ -379,8 +413,8 @@ export class Engine {
 
     if (!this.wasmBridge.isActive()) {
       throw new Error(
-        '[GWEN] Impossible de démarrer : le core WASM n\'est pas initialisé.\n' +
-        'Appelez `await initWasm()` avant engine.start().'
+        "[GWEN] Impossible de démarrer : le core WASM n'est pas initialisé.\n" +
+          'Appelez `await initWasm()` avant engine.start().',
       );
     }
 
@@ -470,7 +504,10 @@ export class Engine {
     this.emit('componentAdded', { id, type });
   }
 
-  public removeComponent(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean {
+  public removeComponent(
+    id: EntityId,
+    type: ComponentDefinition<ComponentSchema> | ComponentType,
+  ): boolean {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return false;
@@ -499,7 +536,10 @@ export class Engine {
     return this._deserializeComponent(typeName, raw) as T;
   }
 
-  public hasComponent(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean {
+  public hasComponent(
+    id: EntityId,
+    type: ComponentDefinition<ComponentSchema> | ComponentType,
+  ): boolean {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return false;
@@ -510,11 +550,14 @@ export class Engine {
   // ============= Query System =============
 
   public query(componentTypes: ComponentType[]): EntityId[] {
-    const typeIds = componentTypes.map(t => this._getOrRegisterTypeId(t));
+    const typeIds = componentTypes.map((t) => this._getOrRegisterTypeId(t));
     return this.wasmBridge.queryEntities(typeIds);
   }
 
-  public queryWith(componentTypes: ComponentType[], filter?: (id: EntityId) => boolean): EntityId[] {
+  public queryWith(
+    componentTypes: ComponentType[],
+    filter?: (id: EntityId) => boolean,
+  ): EntityId[] {
     let results = this.query(componentTypes);
     if (filter) results = results.filter(filter);
     return results;
@@ -535,7 +578,9 @@ export class Engine {
     const listeners = this.eventListeners.get(eventType);
     if (listeners) {
       for (const listener of listeners) {
-        try { listener(data); } catch (error) {
+        try {
+          listener(data);
+        } catch (error) {
           console.error(`[GWEN] Error in '${eventType}' listener:`, error);
         }
       }
@@ -544,10 +589,18 @@ export class Engine {
 
   // ============= Stats & Debug =============
 
-  public getFPS(): number { return this.fps; }
-  public getDeltaTime(): number { return this._deltaTime; }
-  public getFrameCount(): number { return this._frameCount; }
-  public getConfig(): EngineConfig { return { ...this.config }; }
+  public getFPS(): number {
+    return this.fps;
+  }
+  public getDeltaTime(): number {
+    return this._deltaTime;
+  }
+  public getFrameCount(): number {
+    return this._frameCount;
+  }
+  public getConfig(): EngineConfig {
+    return { ...this.config };
+  }
 
   public getStats(): {
     fps: number;
@@ -569,8 +622,12 @@ export class Engine {
     };
   }
 
-  public getWasmBridge(): WasmBridge { return this.wasmBridge; }
-  public getAPI(): EngineAPIImpl { return this.api; }
+  public getWasmBridge(): WasmBridge {
+    return this.wasmBridge;
+  }
+  public getAPI(): EngineAPIImpl {
+    return this.api;
+  }
 }
 
 // ============= Global Instance =============
@@ -590,4 +647,3 @@ export function useEngine(): Engine {
 export function resetEngine(): void {
   globalEngine = null;
 }
-

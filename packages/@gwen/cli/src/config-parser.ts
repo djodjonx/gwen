@@ -47,10 +47,7 @@ export interface PluginInfo {
 }
 
 // Packages connus comme plugins WASM Rust
-const KNOWN_WASM_PACKAGES = new Set([
-  '@gwen/plugin-physics2d',
-  '@gwen/plugin-rapier',
-]);
+const KNOWN_WASM_PACKAGES = new Set(['@gwen/plugin-physics2d', '@gwen/plugin-rapier']);
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
@@ -136,7 +133,10 @@ function extractPlugins(source: string): PluginInfo[] {
   let m: RegExpExecArray | null;
 
   while ((m = importRe.exec(source)) !== null) {
-    const symbols = m[1].split(',').map(s => s.trim()).filter(Boolean);
+    const symbols = m[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const pkg = m[2];
 
     for (const sym of symbols) {
@@ -178,4 +178,3 @@ function findRustCrate(projectDir: string): string | null {
   }
   return null;
 }
-

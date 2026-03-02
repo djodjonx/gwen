@@ -33,7 +33,7 @@ function idGeneration(id: EntityId): number {
 
 export class EntityManager {
   private generations: Uint16Array;
-  private alive: Uint8Array;   // 1 = alive, 0 = dead
+  private alive: Uint8Array; // 1 = alive, 0 = dead
   private freeList: number[] = [];
   private liveCount = 0;
   readonly maxEntities: number;
@@ -72,7 +72,7 @@ export class EntityManager {
 
     this.alive[index] = 0;
     // Increment generation to invalidate all old references
-    this.generations[index] = (gen + 1) & 0xFFFF;
+    this.generations[index] = (gen + 1) & 0xffff;
     this.freeList.push(index);
     this.liveCount--;
     return true;
@@ -200,7 +200,7 @@ export class QueryEngine {
 
     const results: EntityId[] = [];
     for (const id of entities) {
-      if (required.every(type => components.has(id, type))) {
+      if (required.every((type) => components.has(id, type))) {
         results.push(id);
       }
     }

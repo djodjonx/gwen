@@ -10,7 +10,12 @@
  *    Rule: resolve services only in onInit(), never in onUpdate()
  */
 
-import type { ServiceLocator as IServiceLocator, EngineAPI, ComponentType, SceneNavigator } from './types';
+import type {
+  ServiceLocator as IServiceLocator,
+  EngineAPI,
+  ComponentType,
+  SceneNavigator,
+} from './types';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './ecs';
 import { PrefabManager } from './prefab';
@@ -31,7 +36,7 @@ export class ServiceLocator implements IServiceLocator {
     if (!this.registry.has(name)) {
       throw new Error(
         `[GWEN:ServiceLocator] Service '${name}' not found. ` +
-        `Available: [${[...this.registry.keys()].join(', ')}]`
+          `Available: [${[...this.registry.keys()].join(', ')}]`,
       );
     }
     return this.registry.get(name) as T;
@@ -113,9 +118,13 @@ export class EngineAPIImpl implements EngineAPI {
   addComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
     type: D,
-    data: InferComponent<D>
+    data: InferComponent<D>,
   ): void;
-  addComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>, data: unknown): void {
+  addComponent(
+    id: EntityId,
+    type: string | ComponentDefinition<ComponentSchema>,
+    data: unknown,
+  ): void {
     this.components.add(id, type, data);
     this.queryEngine.invalidate();
   }
@@ -123,7 +132,7 @@ export class EngineAPIImpl implements EngineAPI {
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
   getComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
-    type: D
+    type: D,
   ): InferComponent<D> | undefined;
   getComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): unknown {
     return this.components.get(id, type);

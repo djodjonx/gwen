@@ -3,7 +3,6 @@ import { defineComponent, Types } from '../src/schema';
 import type { InferComponent } from '../src/schema';
 
 describe('DSL Components (schema.ts)', () => {
-
   // ── Forme 1 — objet direct ────────────────────────────────────────────────
 
   it('forme 1 — définit un composant correctement', () => {
@@ -14,7 +13,7 @@ describe('DSL Components (schema.ts)', () => {
         max: Types.f32,
         isPoisoned: Types.bool,
         name: Types.string,
-      }
+      },
     });
 
     expect(Health.name).toBe('Health');
@@ -22,7 +21,10 @@ describe('DSL Components (schema.ts)', () => {
     expect(Health.schema.isPoisoned).toBe(Types.bool);
 
     const h: InferComponent<typeof Health> = {
-      current: 100, max: 100, isPoisoned: false, name: 'Player 1',
+      current: 100,
+      max: 100,
+      isPoisoned: false,
+      name: 'Player 1',
     };
     expect(h.current).toBe(100);
   });

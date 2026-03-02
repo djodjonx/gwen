@@ -66,35 +66,42 @@ const engine = new Engine(config?: Partial<EngineConfig>);
 #### Methods
 
 **Lifecycle:**
+
 - `start()` - Start the game loop
 - `stop()` - Stop the game loop
 
 **Entity Management:**
+
 - `createEntity(): number` - Create new entity
 - `destroyEntity(id: number): boolean` - Destroy entity
 - `entityExists(id: number): boolean` - Check if entity exists
 - `getEntityCount(): number` - Get active entity count
 
 **Component Management:**
+
 - `addComponent(entity: number, type: string, data: any)` - Add component to entity
 - `removeComponent(entity: number, type: string)` - Remove component
 - `getComponent(entity: number, type: string): any` - Get component data
 - `hasComponent(entity: number, type: string): boolean` - Check if component exists
 
 **Queries:**
+
 - `query(components: string[]): number[]` - Query entities by components
 - `queryWith(components: string[], filter?: Function): number[]` - Query with custom filter
 
 **Events:**
+
 - `on(event: string, listener: Function)` - Register event listener
 - `off(event: string, listener: Function)` - Remove event listener
 
 **Plugins:**
+
 - `loadPlugin(name: string, plugin: Plugin)` - Load a plugin
 - `getPlugin(name: string): any` - Get loaded plugin
 - `hasPlugin(name: string): boolean` - Check if plugin loaded
 
 **Statistics:**
+
 - `getFPS(): number` - Get current FPS
 - `getDeltaTime(): number` - Get current frame delta
 - `getFrameCount(): number` - Get total frames
@@ -148,7 +155,7 @@ const engine = new Engine(
     canvas: 'canvas',
     width: 800,
     height: 600,
-  })
+  }),
 );
 
 // Create player
@@ -250,6 +257,7 @@ engine.loadPlugin('my-plugin', MyPlugin);
 ### Plugin Types
 
 Plugins can be:
+
 - **TypeScript** - Run in main thread
 - **Rust/WASM** - Run in WASM thread (fast calculations)
 
@@ -401,4 +409,3 @@ console.log(stats.fps, stats.entityCount);
 ## 📄 License
 
 MIT
-

@@ -2,6 +2,9 @@
   "name": "@gwen/plugin-audio",
   "version": "0.1.0",
   "description": "GWEN Audio Plugin — Web Audio API",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,12 +13,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
-  },
-  "files": [
-    "dist"
-  ],
-  "gwen": {
-    "type": "typescript"
   },
   "scripts": {
     "dev": "vite",
@@ -30,5 +27,8 @@
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
+  },
+  "gwen": {
+    "type": "typescript"
   }
 }

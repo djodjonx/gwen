@@ -51,9 +51,7 @@ export const UIComponent = defineComponent({
  * Contrat universel d'une UI GWEN.
  * Agnostique du renderer — HTML, Canvas2D, JSX, WebGL, etc.
  */
-export interface UIDefinition<
-  Services extends Record<string, unknown> = Record<string, unknown>
-> {
+export interface UIDefinition<Services extends Record<string, unknown> = Record<string, unknown>> {
   /** Identifiant unique — correspond à UIComponent.uiName */
   readonly name: string;
 
@@ -77,8 +75,10 @@ export interface UIDefinition<
 }
 
 /** Corps d'une UIDefinition sans le `name` — utilisé par la forme factory. */
-export type UIBody<Services extends Record<string, unknown> = Record<string, unknown>> =
-  Omit<UIDefinition<Services>, 'name'>;
+export type UIBody<Services extends Record<string, unknown> = Record<string, unknown>> = Omit<
+  UIDefinition<Services>,
+  'name'
+>;
 
 /**
  * Définit une UI GWEN — deux syntaxes supportées.
@@ -110,19 +110,18 @@ export type UIBody<Services extends Record<string, unknown> = Record<string, unk
  * ```
  */
 // Surcharge 1 — objet direct
-export function defineUI<
-  Services extends Record<string, unknown> = Record<string, unknown>
->(config: UIDefinition<Services>): UIDefinition<Services>;
+export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+  config: UIDefinition<Services>,
+): UIDefinition<Services>;
 
 // Surcharge 2 — factory OBLIGATOIRE (pas optionnelle)
-export function defineUI<
-  Services extends Record<string, unknown> = Record<string, unknown>
->(name: string, factory: () => UIBody<Services>): UIDefinition<Services>;
+export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+  name: string,
+  factory: () => UIBody<Services>,
+): UIDefinition<Services>;
 
 // Implémentation
-export function defineUI<
-  Services extends Record<string, unknown> = Record<string, unknown>
->(
+export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
   nameOrConfig: string | UIDefinition<Services>,
   factory?: () => UIBody<Services>,
 ): UIDefinition<Services> {
@@ -141,10 +140,10 @@ export function defineUI<
 export class UIManager implements TsPlugin {
   readonly name = 'UIManager';
 
-  private definitions    = new Map<string, UIDefinition<any>>();
-  private definitionOrder= new Map<string, number>(); // uiName → index d'enregistrement
-  private mounted        = new Map<EntityId, string>();
-  private lastApi:       EngineAPI | null = null;
+  private definitions = new Map<string, UIDefinition<any>>();
+  private definitionOrder = new Map<string, number>(); // uiName → index d'enregistrement
+  private mounted = new Map<EntityId, string>();
+  private lastApi: EngineAPI | null = null;
 
   /** Enregistre une UIDefinition. */
   register(def: UIDefinition<any>): this {
@@ -159,7 +158,7 @@ export class UIManager implements TsPlugin {
   onRender(api: EngineAPI): void {
     this.lastApi = api;
     const entities = api.query([UIComponent.name]);
-    const alive    = new Set<EntityId>();
+    const alive = new Set<EntityId>();
 
     // Trier les entités par ordre de registration de leur UIDefinition
     // garantit : BackgroundUI avant BulletUI avant PlayerUI, etc.

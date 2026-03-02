@@ -105,9 +105,9 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
     }
 
     const loadPromise = fetch(url)
-      .then(res => res.arrayBuffer())
-      .then(buf => this.context!.decodeAudioData(buf))
-      .then(buffer => {
+      .then((res) => res.arrayBuffer())
+      .then((buf) => this.context!.decodeAudioData(buf))
+      .then((buffer) => {
         this.sounds.set(id, { buffer, nodes: [] });
         this.pendingLoads.delete(id);
       });
@@ -153,7 +153,7 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
     // Track active nodes for stop/cleanup
     track.nodes.push(source);
     source.onended = () => {
-      track.nodes = track.nodes.filter(n => n !== source);
+      track.nodes = track.nodes.filter((n) => n !== source);
     };
 
     source.start(0);
@@ -165,7 +165,11 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
     const track = this.sounds.get(id);
     if (!track) return;
     for (const node of track.nodes) {
-      try { node.stop(); } catch (_) { /* already stopped */ }
+      try {
+        node.stop();
+      } catch {
+        /* already stopped */
+      }
     }
     track.nodes = [];
   }

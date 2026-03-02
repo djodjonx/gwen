@@ -13,24 +13,25 @@
 
 import process from 'node:process';
 import { prepare } from './prepare.js';
-import { dev }     from './dev.js';
-import { build }   from './builder.js';
+import { dev } from './dev.js';
+import { build } from './builder.js';
 
-const args    = process.argv.slice(2);
+const args = process.argv.slice(2);
 const command = args[0] ?? 'help';
 
-function hasFlag(flag: string): boolean { return args.includes(flag); }
+function hasFlag(flag: string): boolean {
+  return args.includes(flag);
+}
 function getFlag(flag: string, fallback: string): string {
   const idx = args.indexOf(flag);
-  return (idx !== -1 && args[idx + 1]) ? args[idx + 1] : fallback;
+  return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
 }
 
 const verbose = hasFlag('--verbose') || hasFlag('-v');
-const port    = parseInt(getFlag('--port', '3000'), 10);
+const port = parseInt(getFlag('--port', '3000'), 10);
 
 async function main() {
   switch (command) {
-
     case 'prepare': {
       const result = await prepare({ verbose });
       if (!result.success) {
@@ -48,10 +49,10 @@ async function main() {
     case 'build': {
       await prepare({ verbose });
       const result = await build({
-        mode:    hasFlag('--debug') ? 'debug' : 'release',
-        outDir:  hasFlag('--out-dir') ? getFlag('--out-dir', 'dist') : undefined,
+        mode: hasFlag('--debug') ? 'debug' : 'release',
+        outDir: hasFlag('--out-dir') ? getFlag('--out-dir', 'dist') : undefined,
         verbose,
-        dryRun:  hasFlag('--dry-run'),
+        dryRun: hasFlag('--dry-run'),
       });
       if (!result.success) {
         for (const e of result.errors) console.error('[gwen]', e);
@@ -66,10 +67,25 @@ async function main() {
       break;
     }
 
+    case 'lint': {
+      const { lint } = await import('./lint.js');
+      lint({ fix: hasFlag('--fix') });
+      break;
+    }
+
+    case 'format': {
+      const { format } = await import('./format.js');
+      format({ check: hasFlag('--check') });
+      break;
+    }
+
     case 'info': {
       const { findConfigFile, parseConfigFile } = await import('./config-parser.js');
       const configPath = findConfigFile(process.cwd());
-      if (!configPath) { console.error('gwen.config.ts not found'); process.exit(1); }
+      if (!configPath) {
+        console.error('gwen.config.ts not found');
+        process.exit(1);
+      }
       const parsed = parseConfigFile(configPath);
       console.log(JSON.stringify(parsed, null, 2));
       break;
@@ -88,6 +104,8 @@ Commands:
   dev           Start dev server (Vite abstracted)
   build         Production build (WASM + bundle)
   preview       Preview production build
+  lint          Lint src/ with oxlint
+  format        Format src/ with oxfmt
   info          Show parsed gwen.config.ts
 
 Options:
@@ -95,6 +113,8 @@ Options:
   --open        Open browser on start
   --debug       Build in debug mode (faster, larger WASM)
   --out-dir     Output directory (default: dist/)
+  --fix         Auto-fix lint errors (lint only)
+  --check       Check format without writing (format only)
   --verbose     Show detailed logs
   --dry-run     Simulate without writing files
 
@@ -108,7 +128,7 @@ All config lives in gwen.config.ts — no vite.config.ts needed.
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('[gwen]', err instanceof Error ? err.message : err);
   process.exit(1);
 });

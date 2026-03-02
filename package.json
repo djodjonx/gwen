@@ -13,10 +13,15 @@
     "dev": "concurrently \"cargo watch -x 'build --target wasm32-unknown-unknown'\" \"pnpm -r dev\"",
     "test": "cargo test && pnpm -r test",
     "bench": "cargo bench",
-    "clean": "cargo clean && pnpm -r clean"
+    "clean": "cargo clean && pnpm -r clean",
+    "lint": "oxlint --config oxlint.json packages/",
+    "lint:fix": "oxlint --config oxlint.json --fix packages/",
+    "format": "oxfmt packages/",
+    "format:check": "oxfmt --check packages/"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "oxlint": "^1.51.0",
+    "oxfmt": "^0.36.0"
   }
 }
-

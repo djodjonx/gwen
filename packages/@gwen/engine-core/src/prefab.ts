@@ -60,13 +60,13 @@ export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>
  */
 // Surcharge 1 — objet direct
 export function definePrefab<Args extends any[]>(
-  config: PrefabDefinition<Args>
+  config: PrefabDefinition<Args>,
 ): PrefabDefinition<Args>;
 
 // Surcharge 2 — factory OBLIGATOIRE
 export function definePrefab<Args extends any[]>(
   name: string,
-  factory: () => PrefabBody<Args>
+  factory: () => PrefabBody<Args>,
 ): PrefabDefinition<Args>;
 
 // Implémentation

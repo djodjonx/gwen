@@ -3,7 +3,7 @@
  * Vérifie la résolution du module virtuel et les options du plugin.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,13 +26,15 @@ describe('gwen() plugin factory', () => {
   });
 
   it('accepts all options without throwing', () => {
-    expect(() => gwen({
-      cratePath: '/tmp/crate',
-      wasmOutDir: 'public/wasm',
-      watch: false,
-      wasmMode: 'release',
-      verbose: false,
-    })).not.toThrow();
+    expect(() =>
+      gwen({
+        cratePath: '/tmp/crate',
+        wasmOutDir: 'public/wasm',
+        watch: false,
+        wasmMode: 'release',
+        verbose: false,
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -75,11 +77,14 @@ describe('virtual:gwen-manifest — load', () => {
   it('injects manifest from file when manifestPath provided', () => {
     const tmp = makeTmp();
     const manifestPath = path.join(tmp, 'manifest.json');
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      version: '1.0.0',
-      plugins: [{ name: 'gwen_core', type: 'wasm' }],
-      engine: { maxEntities: 5000 },
-    }));
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        version: '1.0.0',
+        plugins: [{ name: 'gwen_core', type: 'wasm' }],
+        engine: { maxEntities: 5000 },
+      }),
+    );
 
     const plugin = gwen({ manifestPath });
     const load = plugin.load as Function;
@@ -96,11 +101,14 @@ describe('virtual:gwen-manifest — load', () => {
     const distDir = path.join(tmp, 'dist');
     fs.mkdirSync(distDir);
     const manifestFile = path.join(distDir, 'gwen-manifest.json');
-    fs.writeFileSync(manifestFile, JSON.stringify({
-      version: '0.2.0',
-      plugins: [],
-      engine: { targetFPS: 30 },
-    }));
+    fs.writeFileSync(
+      manifestFile,
+      JSON.stringify({
+        version: '0.2.0',
+        plugins: [],
+        engine: { targetFPS: 30 },
+      }),
+    );
 
     const plugin = gwen({ manifestPath: manifestFile });
     const load = plugin.load as Function;
@@ -152,4 +160,3 @@ describe('generateBundle', () => {
     expect(() => JSON.parse(emitted[0].source)).not.toThrow();
   });
 });
-

@@ -46,16 +46,20 @@ import type { TsPlugin, EngineAPI } from './types';
 // ── Types utilitaires ─────────────────────────────────────────────────────────
 
 /** Convertit une union en intersection : A | B | C → A & B & C */
-export type UnionToIntersection<U> =
-  (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
+export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
+  x: infer I,
+) => void
+  ? I
+  : never;
 
 /** Extrait le type `provides` d'un GwenPlugin */
-export type PluginProvides<T> =
-  T extends GwenPlugin<any, infer P> ? P : Record<string, never>;
+export type PluginProvides<T> = T extends GwenPlugin<any, infer P> ? P : Record<string, never>;
 
 /** Fusionne les `provides` de tous les plugins d'une liste */
-export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> =
-  UnionToIntersection<PluginProvides<Plugins[number]>> & Record<string, unknown>;
+export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToIntersection<
+  PluginProvides<Plugins[number]>
+> &
+  Record<string, unknown>;
 
 // ── Interface GwenPlugin ──────────────────────────────────────────────────────
 
@@ -108,10 +112,7 @@ export interface GwenPluginMeta {
 // ── createPlugin() ────────────────────────────────────────────────────────────
 
 /** Définition complète passée à la forme objet de createPlugin() */
-export interface GwenPluginDef<
-  N extends string,
-  P extends Record<string, unknown>,
-> {
+export interface GwenPluginDef<N extends string, P extends Record<string, unknown>> {
   readonly name: N;
   readonly provides?: P;
   onInit?(api: EngineAPI): void;
@@ -122,9 +123,10 @@ export interface GwenPluginDef<
 }
 
 /** Corps d'un plugin sans le `name` — utilisé par la forme factory */
-export type GwenPluginBody<
-  P extends Record<string, unknown> = Record<string, never>,
-> = Omit<GwenPluginDef<string, P>, 'name'>;
+export type GwenPluginBody<P extends Record<string, unknown> = Record<string, never>> = Omit<
+  GwenPluginDef<string, P>,
+  'name'
+>;
 
 /**
  * Factory de plugin retournée par `createPlugin(name, factory)`.
@@ -147,10 +149,7 @@ export function createPlugin<
   N extends string,
   P extends Record<string, unknown> = Record<string, never>,
   Args extends unknown[] = [],
->(
-  name: N,
-  factory: (...args: Args) => GwenPluginBody<P>,
-): GwenPluginFactory<N, P, Args>;
+>(name: N, factory: (...args: Args) => GwenPluginBody<P>): GwenPluginFactory<N, P, Args>;
 
 // Implémentation
 export function createPlugin<

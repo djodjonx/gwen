@@ -9,7 +9,7 @@ describe('UIManager', () => {
 
   beforeEach(() => {
     api = createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
-    ui  = new UIManager();
+    ui = new UIManager();
   });
 
   // ── defineUI ──────────────────────────────────────────────────────────────
@@ -44,11 +44,13 @@ describe('UIManager', () => {
       expect(def.name).toBe('CountUI');
     });
 
-    it('forme 2 — factory : l\'état en closure est isolé par définition', () => {
+    it("forme 2 — factory : l'état en closure est isolé par définition", () => {
       const def = defineUI('StatefulUI', () => {
         const state = { count: 0 };
         return {
-          render: (_api: any, _id: any) => { state.count++; },
+          render: (_api: any, _id: any) => {
+            state.count++;
+          },
           getCount: () => state.count, // pour le test
         } as any;
       });
@@ -58,11 +60,11 @@ describe('UIManager', () => {
     });
 
     it('forme 2 — factory : onMount et onUnmount fonctionnent', () => {
-      const mountFn   = vi.fn();
+      const mountFn = vi.fn();
       const unmountFn = vi.fn();
       const def = defineUI('LifecycleUI', () => ({
-        onMount:   mountFn,
-        render:    vi.fn(),
+        onMount: mountFn,
+        render: vi.fn(),
         onUnmount: unmountFn,
       }));
       expect(def.onMount).toBe(mountFn);
@@ -209,13 +211,19 @@ describe('UIManager', () => {
   describe('multiple entities', () => {
     it('manages multiple entities with the same UI independently', () => {
       const renders: number[] = [];
-      ui.register(defineUI({
-        name: 'HUD',
-        render(_a, id) { renders.push(id); },
-      }));
+      ui.register(
+        defineUI({
+          name: 'HUD',
+          render(_a, id) {
+            renders.push(id);
+          },
+        }),
+      );
 
-      const e1 = api.createEntity(); api.addComponent(e1, UIComponent, { uiName: 'HUD' });
-      const e2 = api.createEntity(); api.addComponent(e2, UIComponent, { uiName: 'HUD' });
+      const e1 = api.createEntity();
+      api.addComponent(e1, UIComponent, { uiName: 'HUD' });
+      const e2 = api.createEntity();
+      api.addComponent(e2, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       expect(renders).toContain(e1);
@@ -226,8 +234,10 @@ describe('UIManager', () => {
       const onUnmount = vi.fn();
       ui.register(defineUI({ name: 'HUD', render: vi.fn(), onUnmount }));
 
-      const e1 = api.createEntity(); api.addComponent(e1, UIComponent, { uiName: 'HUD' });
-      const e2 = api.createEntity(); api.addComponent(e2, UIComponent, { uiName: 'HUD' });
+      const e1 = api.createEntity();
+      api.addComponent(e1, UIComponent, { uiName: 'HUD' });
+      const e2 = api.createEntity();
+      api.addComponent(e2, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       api.destroyEntity(e1);
@@ -265,20 +275,20 @@ describe('Scene.ui — auto-injection UIManager', () => {
 
   it('injecte un UIManager quand scene.ui est défini', () => {
     const renderFn = vi.fn();
-    const BgUI     = defineUI({ name: 'BgUI', render: renderFn });
+    const BgUI = defineUI({ name: 'BgUI', render: renderFn });
 
-    const api      = makeApi();
-    const scenes   = new SceneManager();
+    const api = makeApi();
+    const scenes = new SceneManager();
     scenes.onInit(api);
 
     const scene: import('../src/scene').Scene = {
-      name:    'Test',
-      ui:      [BgUI],
+      name: 'Test',
+      ui: [BgUI],
       onEnter: (_api) => {
         const e = _api.createEntity();
         _api.addComponent(e, UIComponent, { uiName: 'BgUI' });
       },
-      onExit:  () => {},
+      onExit: () => {},
     };
 
     scenes.register(scene);
@@ -290,19 +300,34 @@ describe('Scene.ui — auto-injection UIManager', () => {
     expect(renderFn).toHaveBeenCalled();
   });
 
-  it('respecte l\'ordre de déclaration pour le rendu', () => {
+  it("respecte l'ordre de déclaration pour le rendu", () => {
     const order: string[] = [];
-    const DefA = defineUI({ name: 'A', render: () => { order.push('A'); } });
-    const DefB = defineUI({ name: 'B', render: () => { order.push('B'); } });
-    const DefC = defineUI({ name: 'C', render: () => { order.push('C'); } });
+    const DefA = defineUI({
+      name: 'A',
+      render: () => {
+        order.push('A');
+      },
+    });
+    const DefB = defineUI({
+      name: 'B',
+      render: () => {
+        order.push('B');
+      },
+    });
+    const DefC = defineUI({
+      name: 'C',
+      render: () => {
+        order.push('C');
+      },
+    });
 
-    const api    = makeApi();
+    const api = makeApi();
     const scenes = new SceneManager();
     scenes.onInit(api);
 
     const scene: import('../src/scene').Scene = {
       name: 'Ordered',
-      ui:   [DefA, DefB, DefC],
+      ui: [DefA, DefB, DefC],
       onEnter(_api) {
         for (const name of ['A', 'B', 'C']) {
           const e = _api.createEntity();
@@ -320,14 +345,14 @@ describe('Scene.ui — auto-injection UIManager', () => {
   });
 
   it('ne crée pas de UIManager si ui est vide ou absent', () => {
-    const api    = makeApi();
+    const api = makeApi();
     const scenes = new SceneManager();
     scenes.onInit(api);
 
     const scene: import('../src/scene').Scene = {
-      name:    'NoUI',
+      name: 'NoUI',
       onEnter: () => {},
-      onExit:  () => {},
+      onExit: () => {},
     };
 
     scenes.register(scene);
@@ -336,18 +361,23 @@ describe('Scene.ui — auto-injection UIManager', () => {
     expect(() => scenes.onRender(api)).not.toThrow();
   });
 
-  it('démonte l\'UIManager lors d\'une transition de scène', () => {
-    const mountFn   = vi.fn();
+  it("démonte l'UIManager lors d'une transition de scène", () => {
+    const mountFn = vi.fn();
     const unmountFn = vi.fn();
-    const TestUI    = defineUI({ name: 'TestUI', onMount: mountFn, render: vi.fn(), onUnmount: unmountFn });
+    const TestUI = defineUI({
+      name: 'TestUI',
+      onMount: mountFn,
+      render: vi.fn(),
+      onUnmount: unmountFn,
+    });
 
-    const api    = makeApi();
+    const api = makeApi();
     const scenes = new SceneManager();
     scenes.onInit(api);
 
     const sceneA: import('../src/scene').Scene = {
       name: 'SceneA',
-      ui:   [TestUI],
+      ui: [TestUI],
       onEnter(_api) {
         const e = _api.createEntity();
         _api.addComponent(e, UIComponent, { uiName: 'TestUI' });
@@ -355,8 +385,10 @@ describe('Scene.ui — auto-injection UIManager', () => {
       onExit: () => {},
     };
     const sceneB: import('../src/scene').Scene = {
-      name: 'SceneB', ui: [],
-      onEnter: () => {}, onExit: () => {},
+      name: 'SceneB',
+      ui: [],
+      onEnter: () => {},
+      onExit: () => {},
     };
 
     scenes.register(sceneA);
@@ -370,4 +402,3 @@ describe('Scene.ui — auto-injection UIManager', () => {
     expect(unmountFn).toHaveBeenCalledTimes(1);
   });
 });
-

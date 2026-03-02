@@ -39,4 +39,3 @@ export const gwenConfig = defineConfig({
  * Exportez-le et utilisez-le pour typer vos systèmes.
  */
 export type GwenServices = GwenConfigServices<typeof gwenConfig>;
-

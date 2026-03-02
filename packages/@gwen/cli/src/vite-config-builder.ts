@@ -35,7 +35,6 @@ export async function buildViteConfig(
   // Construire les alias de packages (monorepo dev ou node_modules)
   const alias = buildAliases(projectDir);
 
-
   // Headers COOP/COEP requis pour SharedArrayBuffer (WASM threads)
   const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
@@ -57,15 +56,17 @@ export async function buildViteConfig(
     },
 
     plugins: gwenPlugin
-      ? [gwenPlugin({
-        // cratePath seulement si un crate Rust custom est présent dans le projet
-        // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
-        // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
-        ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
-        watch: options.mode === 'development',
-        wasmMode: options.mode === 'development' ? 'debug' : 'release',
-        verbose: false,
-      })]
+      ? [
+          gwenPlugin({
+            // cratePath seulement si un crate Rust custom est présent dans le projet
+            // Sans ça, le vite-plugin cherche Cargo.toml dans les parents et
+            // tombe sur le workspace monorepo (sans [package]) → erreur wasm-pack
+            ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
+            watch: options.mode === 'development',
+            wasmMode: options.mode === 'development' ? 'debug' : 'release',
+            verbose: false,
+          }),
+        ]
       : [],
 
     resolve: {
@@ -120,7 +121,9 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
         const mod = await import(candidate);
         return mod.gwen ?? mod.default?.gwen ?? null;
       }
-    } catch { /* essayer le suivant */ }
+    } catch {
+      /* essayer le suivant */
+    }
   }
 
   // Fallback — importer depuis @gwen/vite-plugin (si installé)
@@ -128,7 +131,9 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
     // @ts-ignore - Prevent tsc from pulling the vite-plugin workspace into the cli compilation scope
     const mod = await import('@gwen/vite-plugin');
     return (mod as any).gwen ?? null;
-  } catch { /* pas installé */ }
+  } catch {
+    /* pas installé */
+  }
 
   return null;
 }
@@ -171,4 +176,3 @@ function isRustPackage(dir: string): boolean {
   const content = fs.readFileSync(cargoPath, 'utf-8');
   return content.includes('[package]');
 }
-

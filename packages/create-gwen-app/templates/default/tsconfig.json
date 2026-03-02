@@ -9,4 +9,3 @@
   },
   "include": ["src", "gwen.config.ts", "vite.config.ts"]
 }
-

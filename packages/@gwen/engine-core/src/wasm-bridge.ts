@@ -22,7 +22,7 @@ export interface WasmEntityId {
 /** Interface minimale du module wasm-bindgen gwen_core */
 export interface GwenCoreWasm {
   Engine: {
-    new(maxEntities: number): WasmEngine;
+    new (maxEntities: number): WasmEngine;
   };
 }
 
@@ -116,8 +116,8 @@ export async function initWasm(
 
   if (!resolvedJsUrl) {
     throw new Error(
-      '[GWEN] initWasm(): impossible de résoudre l\'URL du glue WASM.\n' +
-      'Assurez-vous que @gwen/engine-core est correctement installé.'
+      "[GWEN] initWasm(): impossible de résoudre l'URL du glue WASM.\n" +
+        'Assurez-vous que @gwen/engine-core est correctement installé.',
     );
   }
 
@@ -132,7 +132,9 @@ export async function initWasm(
       const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
       glue.initSync({ module: buf });
     } else {
-      throw new Error('[GWEN] Le glue WASM ne contient pas de fonction init() — fichier corrompu ?');
+      throw new Error(
+        '[GWEN] Le glue WASM ne contient pas de fonction init() — fichier corrompu ?',
+      );
     }
 
     if (typeof glue.Engine !== 'function') {
@@ -143,7 +145,7 @@ export async function initWasm(
     _wasmEngine = new glue.Engine(maxEntities);
 
     console.log('[GWEN] WASM core loaded — Rust ECS active');
-  })().catch(err => {
+  })().catch((err) => {
     // Nettoyer pour permettre une nouvelle tentative
     _initPromise = null;
     _wasmEngine = null;
@@ -171,11 +173,14 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
       return;
     }
 
-    const blob = new Blob([
-      `import * as glue from '${new URL(jsUrl, location.href).href}';`,
-      `window['${key}'] = glue;`,
-      `window['${key}__resolve']?.();`,
-    ], { type: 'text/javascript' });
+    const blob = new Blob(
+      [
+        `import * as glue from '${new URL(jsUrl, location.href).href}';`,
+        `window['${key}'] = glue;`,
+        `window['${key}__resolve']?.();`,
+      ],
+      { type: 'text/javascript' },
+    );
 
     const blobUrl = URL.createObjectURL(blob);
 
@@ -240,8 +245,8 @@ export interface WasmBridge {
 function requireWasm(): WasmEngine {
   if (!_wasmEngine) {
     throw new Error(
-      '[GWEN] Le core WASM n\'est pas initialisé.\n' +
-      'Appelez `await initWasm()` avant de démarrer l\'Engine.'
+      "[GWEN] Le core WASM n'est pas initialisé.\n" +
+        "Appelez `await initWasm()` avant de démarrer l'Engine.",
     );
   }
   return _wasmEngine;
@@ -303,9 +308,9 @@ class WasmBridgeImpl implements WasmBridge {
   queryEntities(typeIds: number[]): number[] {
     const indices = Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
     // Reconstruire les EntityIds packés : (generation << 20) | index
-    return indices.map(idx => {
+    return indices.map((idx) => {
       const gen = requireWasm().get_entity_generation(idx);
-      return (gen << 20) | (idx & 0xFFFFF);
+      return (gen << 20) | (idx & 0xfffff);
     });
   }
 
@@ -345,4 +350,3 @@ export function _resetWasmBridge(): void {
   _wasmModule = null;
   _initPromise = null;
 }
-

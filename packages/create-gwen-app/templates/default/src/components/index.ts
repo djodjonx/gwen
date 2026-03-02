@@ -23,4 +23,3 @@ export const Health = defineComponent('Health', {
 // Types inférés automatiquement — intellisense complet
 // export type PositionData = InferComponent<typeof Position>;
 // → { x: number, y: number }
-

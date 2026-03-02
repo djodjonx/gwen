@@ -7,7 +7,7 @@ describe('computeSchemaLayout', () => {
       x: Types.f32,
       y: Types.f32,
       health: Types.i32,
-      alive: Types.bool
+      alive: Types.bool,
     });
 
     expect(layout.byteLength).toBe(4 + 4 + 4 + 1); // 13 bytes
@@ -19,7 +19,7 @@ describe('computeSchemaLayout', () => {
   it('should treat strings as i32 identifiers using StringPool', () => {
     const layout = computeSchemaLayout({
       x: Types.f32,
-      name: Types.string
+      name: Types.string,
     });
 
     expect(layout.hasString).toBe(true); // string field detected via StringPool
@@ -31,7 +31,7 @@ describe('computeSchemaLayout', () => {
     const layout = computeSchemaLayout({
       speed: Types.f32,
       maxHp: Types.i32,
-      isFlying: Types.bool
+      isFlying: Types.bool,
     });
 
     const buffer = new ArrayBuffer(layout.byteLength);
@@ -40,7 +40,7 @@ describe('computeSchemaLayout', () => {
     const data = {
       speed: 12.5,
       maxHp: 100,
-      isFlying: true
+      isFlying: true,
     };
 
     const bytesWritten = layout.serialize!(data, view);

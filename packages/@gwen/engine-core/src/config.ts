@@ -108,9 +108,7 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * @param config Configuration du projet. `plugins` accepte tout plugin
  *   implémentant `GwenPlugin` (avec `provides`) ou `TsPlugin` (sans typage).
  */
-export function defineConfig<
-  const Plugins extends readonly AnyGwenPlugin[],
->(config: {
+export function defineConfig<const Plugins extends readonly AnyGwenPlugin[]>(config: {
   /** Raccourci Nuxt-like : engine: { maxEntities, targetFPS, debug } */
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
   plugins?: [...Plugins];
@@ -195,15 +193,12 @@ export function createEngine(
     // 2. mainScene dans la config
     // 3. Convention : 'Main', 'MainMenu', 'Boot'
     // 4. Fallback : première scène enregistrée
-    const resolvedMain =
-      mainScene ??
-      raw.mainScene ??
-      resolveMainScene(scenes);
+    const resolvedMain = mainScene ?? raw.mainScene ?? resolveMainScene(scenes);
 
     if (resolvedMain) {
       try {
         scenes.loadSceneImmediate(resolvedMain, engine.getAPI());
-      } catch (e) {
+      } catch {
         console.warn(`[GWEN] mainScene '${resolvedMain}' not found — no scene loaded.`);
       }
     }
@@ -327,4 +322,3 @@ export class ConfigBuilder {
     return mergeConfigs(defaultConfig, this.config);
   }
 }
-

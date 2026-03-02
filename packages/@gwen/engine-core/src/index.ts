@@ -5,13 +5,7 @@ export * from './types';
 export * from './schema';
 
 // Config — defineConfig() générique + TypedEngineConfig
-export {
-  defaultConfig,
-  mergeConfigs,
-  defineConfig,
-  createEngine,
-  ConfigBuilder,
-} from './config';
+export { defaultConfig, mergeConfigs, defineConfig, createEngine, ConfigBuilder } from './config';
 export type { TypedEngineConfig, GwenConfigServices } from './config';
 
 // Plugin system typé — GwenPlugin<N, P> + createPlugin()
@@ -54,4 +48,3 @@ export type { PrefabDefinition } from './prefab';
 // WASM Bridge
 export { initWasm, getWasmBridge, _resetWasmBridge, _injectMockWasmEngine } from './wasm-bridge';
 export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './wasm-bridge';
-

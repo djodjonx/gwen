@@ -18,7 +18,7 @@ export class PluginManager {
    * Returns false if plugin with same name already registered.
    */
   register(plugin: TsPlugin, api: EngineAPI): boolean {
-    if (this.plugins.find(p => p.name === plugin.name)) {
+    if (this.plugins.find((p) => p.name === plugin.name)) {
       console.warn(`[GWEN:PluginManager] '${plugin.name}' already registered — skipping.`);
       return false;
     }
@@ -41,7 +41,7 @@ export class PluginManager {
    * Returns false if plugin was not found.
    */
   unregister(name: string): boolean {
-    const idx = this.plugins.findIndex(p => p.name === name);
+    const idx = this.plugins.findIndex((p) => p.name === name);
     if (idx === -1) return false;
     this.plugins[idx].onDestroy?.();
     this.plugins.splice(idx, 1);
@@ -52,19 +52,19 @@ export class PluginManager {
    * Check if a plugin is registered by name.
    */
   has(name: string): boolean {
-    return this.plugins.some(p => p.name === name);
+    return this.plugins.some((p) => p.name === name);
   }
 
   /**
    * Get a registered plugin by name.
    */
   get<T extends TsPlugin>(name: string): T | undefined {
-    return this.plugins.find(p => p.name === name) as T | undefined;
+    return this.plugins.find((p) => p.name === name) as T | undefined;
   }
 
   /** All registered plugin names (in order). */
   names(): string[] {
-    return this.plugins.map(p => p.name);
+    return this.plugins.map((p) => p.name);
   }
 
   /** Total number of registered plugins. */

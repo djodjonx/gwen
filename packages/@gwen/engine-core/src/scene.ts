@@ -296,8 +296,8 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     this.currentScene = next;
 
     // Résoudre les PluginEntries : objet direct ou factory sans-args
-    const resolvedPlugins: TsPlugin[] = (next.plugins ?? []).map(p =>
-      typeof p === 'function' ? p() : p
+    const resolvedPlugins: TsPlugin[] = (next.plugins ?? []).map((p) =>
+      typeof p === 'function' ? p() : p,
     );
 
     // Enregistrer les plugins résolus
@@ -314,7 +314,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
         uiManager.register(def);
       }
       this.sceneUIManager = uiManager; // stocké localement → dispatché par onRender
-      registrar?.register(uiManager);  // enregistré dans le PluginManager si dispo
+      registrar?.register(uiManager); // enregistré dans le PluginManager si dispo
     }
 
     if (next.layout) {

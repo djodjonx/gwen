@@ -18,14 +18,14 @@ describe('Prefab System (prefab.ts)', () => {
         const id = api.createEntity();
         api.addComponent(id, 'Position', { x, y });
         return id;
-      }
+      },
     });
 
     api.prefabs.register(BulletPrefab);
     expect(api.prefabs.has('Bullet')).toBe(true);
 
     const bulletId = api.prefabs.instantiate('Bullet', 10, 20);
-    const pos = api.getComponent<{ x: number, y: number }>(bulletId, 'Position');
+    const pos = api.getComponent<{ x: number; y: number }>(bulletId, 'Position');
     expect(pos?.x).toBe(10);
     expect(pos?.y).toBe(20);
   });
@@ -47,7 +47,7 @@ describe('Prefab System (prefab.ts)', () => {
   it('forme 2 — factory : closure state locale', () => {
     let callCount = 0;
     const def = definePrefab('Counter', () => {
-      callCount++;  // factory appelée une seule fois
+      callCount++; // factory appelée une seule fois
       return {
         create: (api: any) => api.createEntity(),
       };

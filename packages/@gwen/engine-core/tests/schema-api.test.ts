@@ -7,12 +7,12 @@ describe('EngineAPI + DSL Components integration', () => {
 
   const Position = defineComponent({
     name: 'Position',
-    schema: { x: Types.f32, y: Types.f32 }
+    schema: { x: Types.f32, y: Types.f32 },
   });
 
   const Velocity = defineComponent({
     name: 'Velocity',
-    schema: { vx: Types.f32, vy: Types.f32 }
+    schema: { vx: Types.f32, vy: Types.f32 },
   });
 
   beforeEach(() => {

@@ -70,7 +70,9 @@ export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginService
   }
 
   onInit(api: EngineAPI): void {
-    this.target = this.config.eventTarget ?? (typeof window !== 'undefined' ? window : globalThis as unknown as EventTarget);
+    this.target =
+      this.config.eventTarget ??
+      (typeof window !== 'undefined' ? window : (globalThis as unknown as EventTarget));
 
     this.keyboard = new KeyboardInput();
     this.mouse = new MouseInput();

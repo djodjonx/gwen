@@ -9,14 +9,13 @@ import { EntityManager, ComponentRegistry, QueryEngine } from '../src/ecs';
 import { createEngineAPI } from '../src/api';
 
 function makeAPI(): EngineAPI {
-  return createEngineAPI(
-    new EntityManager(100),
-    new ComponentRegistry(),
-    new QueryEngine(),
-  );
+  return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
 }
 
-function makePlugin(name: string, overrides: Partial<TsPlugin> = {}): TsPlugin & {
+function makePlugin(
+  name: string,
+  overrides: Partial<TsPlugin> = {},
+): TsPlugin & {
   calls: string[];
 } {
   const calls: string[] = [];
@@ -182,11 +181,11 @@ describe('PluginManager', () => {
   describe('Full lifecycle order', () => {
     it('should follow onInit → onBeforeUpdate → onUpdate → onRender → onDestroy', () => {
       const p = makePlugin('lifecycle');
-      pm.register(p, api);                        // → init
-      pm.dispatchBeforeUpdate(api, 0.016);        // → beforeUpdate
-      pm.dispatchUpdate(api, 0.016);              // → update
-      pm.dispatchRender(api);                     // → render
-      pm.destroyAll();                            // → destroy
+      pm.register(p, api); // → init
+      pm.dispatchBeforeUpdate(api, 0.016); // → beforeUpdate
+      pm.dispatchUpdate(api, 0.016); // → update
+      pm.dispatchRender(api); // → render
+      pm.destroyAll(); // → destroy
 
       expect(p.calls).toEqual(['init', 'beforeUpdate', 'update', 'render', 'destroy']);
     });
@@ -219,7 +218,6 @@ describe('PluginManager', () => {
         onInit: vi.fn(),
       };
 
-      const inputRef: { keys: Record<string, boolean> } | null = null;
       const playerPlugin: TsPlugin = {
         name: 'PlayerController',
         onInit: (api) => {

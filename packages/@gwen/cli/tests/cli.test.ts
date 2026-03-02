@@ -16,8 +16,12 @@ import { prepare } from '../src/prepare';
 
 describe('prepare', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('fails gracefully if no gwen.config.ts found', async () => {
     const result = await prepare({ projectDir: tmp });
@@ -63,7 +67,7 @@ describe('prepare', () => {
     writeConfig(tmp, src, 'gwen.config.ts');
     await prepare({ projectDir: tmp });
     const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
-    expect(dts).toContain("import type { gwenConfig as _cfg }");
+    expect(dts).toContain('import type { gwenConfig as _cfg }');
   });
 
   it('creates tsconfig.json if absent and sets extends', async () => {
@@ -108,9 +112,9 @@ describe('prepare', () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
     expect(result.files).toHaveLength(3);
-    expect(result.files.some(f => f.endsWith('tsconfig.generated.json'))).toBe(true);
-    expect(result.files.some(f => f.endsWith('gwen.d.ts'))).toBe(true);
-    expect(result.files.some(f => f.endsWith('index.html'))).toBe(true);
+    expect(result.files.some((f) => f.endsWith('tsconfig.generated.json'))).toBe(true);
+    expect(result.files.some((f) => f.endsWith('gwen.d.ts'))).toBe(true);
+    expect(result.files.some((f) => f.endsWith('index.html'))).toBe(true);
   });
 
   // ── typeReferences collectées depuis pluginMeta ──────────────────────────
@@ -132,11 +136,15 @@ describe('prepare', () => {
       'utf-8',
     );
     // gwen.config.ts important ce plugin
-    writeConfig(tmp, `
+    writeConfig(
+      tmp,
+      `
 import { defineConfig } from '@gwen/engine-core';
 import { FakePlugin } from '@gwen/plugin-fake';
 export default defineConfig({ plugins: [new FakePlugin()] });
-    `, 'gwen.config.ts');
+    `,
+      'gwen.config.ts',
+    );
 
     await prepare({ projectDir: tmp });
     const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
@@ -157,11 +165,15 @@ export default defineConfig({ plugins: [new FakePlugin()] });
       `exports.NoTypePlugin = class {};`,
       'utf-8',
     );
-    writeConfig(tmp, `
+    writeConfig(
+      tmp,
+      `
 import { defineConfig } from '@gwen/engine-core';
 import { NoTypePlugin } from '@gwen/plugin-notype';
 export default defineConfig({ plugins: [new NoTypePlugin()] });
-    `, 'gwen.config.ts');
+    `,
+      'gwen.config.ts',
+    );
 
     await prepare({ projectDir: tmp });
     const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
@@ -173,18 +185,28 @@ export default defineConfig({ plugins: [new NoTypePlugin()] });
     for (const name of ['plugin-a', 'plugin-b']) {
       const dir = path.join(tmp, 'node_modules', '@gwen', name);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'package.json'),
-        JSON.stringify({ name: `@gwen/${name}`, main: 'index.js' }), 'utf-8');
-      fs.writeFileSync(path.join(dir, 'index.js'),
+      fs.writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: `@gwen/${name}`, main: 'index.js' }),
+        'utf-8',
+      );
+      fs.writeFileSync(
+        path.join(dir, 'index.js'),
         `exports.pluginMeta = { typeReferences: ['@gwen/shared/vite-env'] };
-exports.${name === 'plugin-a' ? 'APlugin' : 'BPlugin'} = class {};`, 'utf-8');
+exports.${name === 'plugin-a' ? 'APlugin' : 'BPlugin'} = class {};`,
+        'utf-8',
+      );
     }
-    writeConfig(tmp, `
+    writeConfig(
+      tmp,
+      `
 import { defineConfig } from '@gwen/engine-core';
 import { APlugin } from '@gwen/plugin-a';
 import { BPlugin } from '@gwen/plugin-b';
 export default defineConfig({ plugins: [new APlugin(), new BPlugin()] });
-    `, 'gwen.config.ts');
+    `,
+      'gwen.config.ts',
+    );
 
     await prepare({ projectDir: tmp });
     const dts = fs.readFileSync(path.join(tmp, '.gwen', 'gwen.d.ts'), 'utf-8');
@@ -192,7 +214,6 @@ export default defineConfig({ plugins: [new APlugin(), new BPlugin()] });
     expect(count).toBe(1);
   });
 });
-
 
 function makeTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gwen-cli-test-'));
@@ -232,8 +253,12 @@ export function configureEngine() {
 
 describe('findConfigFile', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('finds engine.config.ts in the same directory', () => {
     writeConfig(tmp, MINIMAL_CONFIG);
@@ -267,8 +292,12 @@ describe('findConfigFile', () => {
 
 describe('parseConfigFile — engine config', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('extracts maxEntities', () => {
     const p = writeConfig(tmp, MINIMAL_CONFIG);
@@ -307,13 +336,17 @@ describe('parseConfigFile — engine config', () => {
 
 describe('parseConfigFile — plugins', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('extracts InputPlugin from @gwen/plugin-input', () => {
     const p = writeConfig(tmp, FULL_CONFIG);
     const result = parseConfigFile(p);
-    const input = result.plugins.find(pl => pl.symbolName === 'InputPlugin');
+    const input = result.plugins.find((pl) => pl.symbolName === 'InputPlugin');
     expect(input).toBeDefined();
     expect(input!.packageName).toBe('@gwen/plugin-input');
     expect(input!.type).toBe('ts');
@@ -322,7 +355,7 @@ describe('parseConfigFile — plugins', () => {
   it('extracts AudioPlugin from @gwen/plugin-audio', () => {
     const p = writeConfig(tmp, FULL_CONFIG);
     const result = parseConfigFile(p);
-    const audio = result.plugins.find(pl => pl.symbolName === 'AudioPlugin');
+    const audio = result.plugins.find((pl) => pl.symbolName === 'AudioPlugin');
     expect(audio).toBeDefined();
     expect(audio!.type).toBe('ts');
   });
@@ -334,7 +367,7 @@ describe('parseConfigFile — plugins', () => {
     `;
     const p = writeConfig(tmp, src);
     const result = parseConfigFile(p);
-    const phys = result.plugins.find(pl => pl.symbolName === 'Physics2DPlugin');
+    const phys = result.plugins.find((pl) => pl.symbolName === 'Physics2DPlugin');
     expect(phys).toBeDefined();
     expect(phys!.type).toBe('wasm');
   });
@@ -342,7 +375,7 @@ describe('parseConfigFile — plugins', () => {
   it('does not include non-plugin imports (Engine, SceneManager)', () => {
     const p = writeConfig(tmp, FULL_CONFIG);
     const result = parseConfigFile(p);
-    const names = result.plugins.map(pl => pl.symbolName);
+    const names = result.plugins.map((pl) => pl.symbolName);
     expect(names).not.toContain('Engine');
     expect(names).not.toContain('SceneManager');
   });
@@ -360,7 +393,7 @@ describe('parseConfigFile — plugins', () => {
     `;
     const p = writeConfig(tmp, src);
     const result = parseConfigFile(p);
-    const inputs = result.plugins.filter(pl => pl.packageName === '@gwen/plugin-input');
+    const inputs = result.plugins.filter((pl) => pl.packageName === '@gwen/plugin-input');
     expect(inputs.length).toBe(1);
   });
 });
@@ -369,8 +402,12 @@ describe('parseConfigFile — plugins', () => {
 
 describe('parseConfigFile — scenes', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('extracts scene names from loadScene()', () => {
     const p = writeConfig(tmp, FULL_CONFIG);
@@ -389,8 +426,12 @@ describe('parseConfigFile — scenes', () => {
 
 describe('parseConfigFile — rustCratePath', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('detects Cargo.toml in parent dir', () => {
     fs.writeFileSync(path.join(tmp, 'Cargo.toml'), '[workspace]', 'utf-8');
@@ -412,8 +453,12 @@ describe('parseConfigFile — rustCratePath', () => {
 
 describe('build() — dry-run mode', () => {
   let tmp: string;
-  beforeEach(() => { tmp = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
 
   it('returns success: false when no config found', async () => {
     const result = await build({ projectDir: tmp, dryRun: true });
@@ -481,4 +526,3 @@ describe('build() — dry-run mode', () => {
     expect(result.wasmBuilt).toBe(true);
   });
 });
-

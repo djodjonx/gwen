@@ -7,15 +7,14 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'GwenCore',
       formats: ['es', 'cjs'],
-      fileName: (format) => `index.${format === 'es' ? 'js' : 'cjs'}`
+      fileName: (format) => `index.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
       output: {
         globals: {
-          '@gwen/engine-core': 'GwenCore'
-        }
-      }
-    }
-  }
+          '@gwen/engine-core': 'GwenCore',
+        },
+      },
+    },
+  },
 });
-

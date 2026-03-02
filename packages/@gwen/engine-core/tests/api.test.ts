@@ -16,7 +16,7 @@ describe('ServiceLocator', () => {
   });
 
   it('should register and retrieve a service', () => {
-    const audio = { play: () => { } };
+    const audio = { play: () => {} };
     locator.register('audio', audio);
     expect(locator.get('audio')).toBe(audio);
   });
@@ -59,7 +59,9 @@ describe('ServiceLocator', () => {
   });
 
   it('should support typed get()', () => {
-    interface AudioService { volume: number }
+    interface AudioService {
+      volume: number;
+    }
     const audio: AudioService = { volume: 0.8 };
     locator.register('audio', audio);
     const retrieved = locator.get<AudioService>('audio');
@@ -173,7 +175,7 @@ describe('EngineAPIImpl', () => {
 
   describe('Services', () => {
     it('should expose ServiceLocator via api.services', () => {
-      api.services.register('audio', { play: () => { } });
+      api.services.register('audio', { play: () => {} });
       expect(api.services.has('audio')).toBe(true);
     });
   });

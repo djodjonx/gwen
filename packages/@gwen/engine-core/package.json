@@ -2,6 +2,10 @@
   "name": "@gwen/engine-core",
   "version": "0.1.0",
   "description": "GWEN Core Engine - ECS + WASM",
+  "files": [
+    "dist",
+    "wasm"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,10 +15,6 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "wasm"
-  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -29,4 +29,3 @@
     "vitest": "^1.0.0"
   }
 }
-

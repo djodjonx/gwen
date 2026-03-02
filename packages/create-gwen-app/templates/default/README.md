@@ -46,4 +46,3 @@ export default defineConfig({
 - [GWEN Documentation](https://gwen.dev/docs)
 - [Plugin API](https://gwen.dev/docs/plugins)
 - [Schema DSL](https://gwen.dev/docs/schema)
-

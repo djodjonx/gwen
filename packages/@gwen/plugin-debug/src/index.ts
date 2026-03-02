@@ -26,12 +26,7 @@
 import type { EngineAPI, GwenPlugin } from '@gwen/engine-core';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
-import type {
-  DebugMetrics,
-  DebugPluginConfig,
-  DebugOverlayConfig,
-  FpsDropConfig,
-} from './types';
+import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';
 
 export type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig };
 
@@ -67,12 +62,12 @@ export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginService
   };
 
   // ─── Config résolue ───────────────────────────────────────────────────────
-  private readonly windowSize:      number;
-  private readonly updateInterval:  number;
-  private readonly dropThreshold:   number;
-  private readonly dropGrace:       number;
-  private readonly dropCallback:    FpsDropConfig['onDrop'];
-  private readonly overlayConfig:   DebugOverlayConfig | false;
+  private readonly windowSize: number;
+  private readonly updateInterval: number;
+  private readonly dropThreshold: number;
+  private readonly dropGrace: number;
+  private readonly dropCallback: FpsDropConfig['onDrop'];
+  private readonly overlayConfig: DebugOverlayConfig | false;
 
   // ─── État interne ─────────────────────────────────────────────────────────
   private tracker!: FpsTracker;
@@ -83,11 +78,11 @@ export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginService
   private framesSinceUpdate = 0;
 
   constructor(config: DebugPluginConfig = {}) {
-    this.windowSize     = config.rollingWindowSize ?? 60;
-    this.updateInterval = config.updateInterval    ?? 10;
-    this.dropThreshold  = config.fpsDrop?.threshold        ?? 45;
-    this.dropGrace      = config.fpsDrop?.gracePeriodFrames ?? 3;
-    this.dropCallback   = config.fpsDrop?.onDrop;
+    this.windowSize = config.rollingWindowSize ?? 60;
+    this.updateInterval = config.updateInterval ?? 10;
+    this.dropThreshold = config.fpsDrop?.threshold ?? 45;
+    this.dropGrace = config.fpsDrop?.gracePeriodFrames ?? 3;
+    this.dropCallback = config.fpsDrop?.onDrop;
 
     if (config.overlay === true) {
       this.overlayConfig = {};
@@ -107,12 +102,13 @@ export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginService
       this.overlay = new DebugOverlay(this.overlayConfig);
     }
 
-    const self = this;
-
     const service: DebugService = {
-      getMetrics()                    { return self.metrics; },
-      reset()                         { self.tracker.reset(); self.consecutiveDropFrames = 0; },
-      setOverlayVisible(v: boolean)   { self.overlay?.setVisible(v); },
+      getMetrics: () => this.metrics,
+      reset: () => {
+        this.tracker.reset();
+        this.consecutiveDropFrames = 0;
+      },
+      setOverlayVisible: (v: boolean) => this.overlay?.setVisible(v),
     };
 
     api.services.register('debug', service);
@@ -148,17 +144,17 @@ export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginService
       this.framesSinceUpdate = 0;
 
       this.metrics = {
-        fps:         instant,
-        rollingFps:  this.tracker.rollingFps(),
-        minFps:      this.tracker.minFps(),
-        maxFps:      this.tracker.maxFps(),
-        jitter:      this.tracker.jitter(),
+        fps: instant,
+        rollingFps: this.tracker.rollingFps(),
+        minFps: this.tracker.minFps(),
+        maxFps: this.tracker.maxFps(),
+        jitter: this.tracker.jitter(),
         frameTimeMs: dt * 1000,
-        frameCount:  api.frameCount,
+        frameCount: api.frameCount,
         entityCount: this.countEntities(api),
-        memoryMB:    this.readMemoryMB(),
+        memoryMB: this.readMemoryMB(),
         isDropping,
-        lastDropAt:  isDropping ? this.lastDropAt : this.metrics.lastDropAt,
+        lastDropAt: isDropping ? this.lastDropAt : this.metrics.lastDropAt,
       };
 
       // 5. Rafraîchir l'overlay si actif
@@ -200,11 +196,17 @@ export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginService
 
   private static emptyMetrics(): DebugMetrics {
     return {
-      fps: 0, rollingFps: 0, minFps: 0, maxFps: 0,
-      jitter: 0, frameTimeMs: 0, frameCount: 0,
-      entityCount: 0, memoryMB: undefined,
-      isDropping: false, lastDropAt: 0,
+      fps: 0,
+      rollingFps: 0,
+      minFps: 0,
+      maxFps: 0,
+      jitter: 0,
+      frameTimeMs: 0,
+      frameCount: 0,
+      entityCount: 0,
+      memoryMB: undefined,
+      isDropping: false,
+      lastDropAt: 0,
     };
   }
 }
-

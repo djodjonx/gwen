@@ -12,7 +12,10 @@ const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
 
 /** Importe et exécute la logique de scaffold directement (sans spawn). */
 async function scaffold(projectName: string, destBase: string): Promise<string> {
-  const safeName = projectName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/^-+|-+$/g, '');
+  const safeName = projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, '-')
+    .replace(/^-+|-+$/g, '');
   const destDir = path.join(destBase, safeName);
   const templateDir = path.join(TEMPLATES_DIR, 'default');
 
@@ -186,4 +189,3 @@ describe('create-gwen-app scaffold', () => {
     expect(fs.existsSync(path.join(TEMPLATES_DIR, 'default'))).toBe(true);
   });
 });
-

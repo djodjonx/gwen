@@ -4,7 +4,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config';
-import type { EngineConfig } from '../src/types';
 
 describe('Configuration', () => {
   describe('defaultConfig', () => {
@@ -84,17 +83,13 @@ describe('Configuration', () => {
     });
 
     it('should set max entities', () => {
-      const config = new ConfigBuilder()
-        .setMaxEntities(10000)
-        .build();
+      const config = new ConfigBuilder().setMaxEntities(10000).build();
 
       expect(config.maxEntities).toBe(10000);
     });
 
     it('should set target FPS', () => {
-      const config = new ConfigBuilder()
-        .setTargetFPS(120)
-        .build();
+      const config = new ConfigBuilder().setTargetFPS(120).build();
 
       expect(config.targetFPS).toBe(120);
     });
@@ -117,10 +112,7 @@ describe('Configuration', () => {
       const tsPlugin1 = { name: 'input', version: '1.0.0' };
       const tsPlugin2 = { name: 'audio', version: '1.0.0' };
 
-      const config = new ConfigBuilder()
-        .addTsPlugin(tsPlugin1)
-        .addTsPlugin(tsPlugin2)
-        .build();
+      const config = new ConfigBuilder().addTsPlugin(tsPlugin1).addTsPlugin(tsPlugin2).build();
 
       expect(config.tsPlugins).toContain(tsPlugin1);
       expect(config.tsPlugins).toContain(tsPlugin2);
@@ -131,10 +123,7 @@ describe('Configuration', () => {
       const wasmPlugin = { id: 'physics' };
       const tsPlugin = { name: 'input' };
 
-      const config = new ConfigBuilder()
-        .addWasmPlugin(wasmPlugin)
-        .addTsPlugin(tsPlugin)
-        .build();
+      const config = new ConfigBuilder().addWasmPlugin(wasmPlugin).addTsPlugin(tsPlugin).build();
 
       expect(config.wasmPlugins?.length).toBe(1);
       expect(config.tsPlugins?.length).toBe(1);
@@ -143,26 +132,18 @@ describe('Configuration', () => {
     });
 
     it('should enable/disable debug', () => {
-      let config = new ConfigBuilder()
-        .enableDebug()
-        .build();
+      let config = new ConfigBuilder().enableDebug().build();
       expect(config.debug).toBe(true);
 
-      config = new ConfigBuilder()
-        .disableDebug()
-        .build();
+      config = new ConfigBuilder().disableDebug().build();
       expect(config.debug).toBe(false);
     });
 
     it('should enable/disable stats', () => {
-      let config = new ConfigBuilder()
-        .enableStats()
-        .build();
+      let config = new ConfigBuilder().enableStats().build();
       expect(config.enableStats).toBe(true);
 
-      config = new ConfigBuilder()
-        .disableStats()
-        .build();
+      config = new ConfigBuilder().disableStats().build();
       expect(config.enableStats).toBe(false);
     });
 
@@ -220,4 +201,3 @@ describe('Configuration', () => {
     });
   });
 });
-

@@ -167,7 +167,7 @@ describe('Types', () => {
       expect(config1.canvas).toBe('my-canvas');
       // Note: HTMLCanvasElement type is checked at compile time
     });
-  });;
+  });
 
   describe('EngineStats', () => {
     it('should have all stats fields', () => {
@@ -202,8 +202,8 @@ describe('Types', () => {
       const plugin: Plugin = {
         name: 'my-plugin',
         version: '1.0.0',
-        init: (engine: any) => console.log('initialized'),
-        update: (dt: number) => console.log('updating'),
+        init: (_engine: any) => console.log('initialized'),
+        update: (_dt: number) => console.log('updating'),
         destroy: () => console.log('destroyed'),
       };
 
@@ -226,4 +226,3 @@ describe('Types', () => {
     });
   });
 });
-

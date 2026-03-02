@@ -9,9 +9,7 @@ Plugin GWEN pour le rendu UI via le DOM HTML.
 import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
 
 export default defineConfig({
-  plugins: [
-    new HtmlUIPlugin(),
-  ],
+  plugins: [new HtmlUIPlugin()],
 });
 ```
 
@@ -44,9 +42,9 @@ import scoreHtml from './score.html?raw';
 
 ```ts
 // src/ui/ScoreUI.ts
-import { defineUI }  from '@gwen/engine-core';
-import { Score }     from '../components';
-import scoreHtml     from './score.html?raw';
+import { defineUI } from '@gwen/engine-core';
+import { Score } from '../components';
+import scoreHtml from './score.html?raw';
 
 export const ScoreUI = defineUI<GwenServices>({
   name: 'ScoreUI',
@@ -72,9 +70,20 @@ export const ScoreUI = defineUI<GwenServices>({
 ```html
 <!-- src/ui/score.html — vraie autocomplétion HTML/CSS dans l'IDE -->
 <style>
-  .hud { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); }
-  .hud-score { color: #4fffb0; font-size: 20px; }
-  .hud-lives { color: #ff6b6b; font-size: 14px; }
+  .hud {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .hud-score {
+    color: #4fffb0;
+    font-size: 20px;
+  }
+  .hud-lives {
+    color: #ff6b6b;
+    font-size: 14px;
+  }
 </style>
 <div class="hud">
   <div id="score" class="hud-score">SCORE: 0</div>
@@ -93,4 +102,3 @@ interface HtmlUI {
   style(entityId: EntityId, id: string, prop: string, value: string): void;
 }
 ```
-

@@ -18,12 +18,12 @@ export class MainScene implements TsPlugin {
     console.log(`[MainScene] Initialized with ${this.entities.length} entities`);
   }
 
-  onUpdate(api: EngineAPI, dt: number): void {
+  onUpdate(_api: EngineAPI, _dt: number): void {
     // Votre logique de jeu ici
-    // dt = delta time en secondes
+    // _dt = delta time en secondes
   }
 
-  onRender(api: EngineAPI): void {
+  onRender(_api: EngineAPI): void {
     // Votre rendu ici
     // Utilisez Canvas2DRenderer via api.services.get('Canvas2DRenderer')
   }
@@ -32,4 +32,3 @@ export class MainScene implements TsPlugin {
     console.log('[MainScene] Destroyed');
   }
 }
-

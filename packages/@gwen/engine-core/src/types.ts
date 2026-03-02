@@ -111,7 +111,9 @@ export interface SceneNavigator {
  */
 export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Query entities by required component types */
-  query(componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<any>>): EntityId[];
+  query(
+    componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<any>>,
+  ): EntityId[];
 
   /** Create a new entity */
   createEntity(): EntityId;
@@ -125,7 +127,7 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
   addComponent<D extends import('./schema').ComponentDefinition<any>>(
     id: EntityId,
     type: D,
-    data: import('./schema').InferComponent<D>
+    data: import('./schema').InferComponent<D>,
   ): void;
 
   /** Get a component from an entity (string type) */
@@ -133,15 +135,20 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
   /** Get a component using a ComponentDefinition DSL */
   getComponent<D extends import('./schema').ComponentDefinition<any>>(
     id: EntityId,
-    type: D
+    type: D,
   ): import('./schema').InferComponent<D> | undefined;
 
   /** Check if an entity has a component */
-  hasComponent(id: EntityId, type: ComponentType | import('./schema').ComponentDefinition<any>): boolean;
+  hasComponent(
+    id: EntityId,
+    type: ComponentType | import('./schema').ComponentDefinition<any>,
+  ): boolean;
 
   /** Remove a component from an entity */
-  removeComponent(id: EntityId, type: ComponentType | import('./schema').ComponentDefinition<any>): boolean;
-
+  removeComponent(
+    id: EntityId,
+    type: ComponentType | import('./schema').ComponentDefinition<any>,
+  ): boolean;
 
   /** Service locator — typé sur les services des plugins déclarés */
   services: TypedServiceLocator<M>;

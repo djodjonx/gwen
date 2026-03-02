@@ -62,8 +62,8 @@ describe('FpsTracker', () => {
 
   it('détecte le min et max', () => {
     const t = new FpsTracker(10);
-    t.push(1 / 30);  // 30 FPS
-    t.push(1 / 60);  // 60 FPS
+    t.push(1 / 30); // 30 FPS
+    t.push(1 / 60); // 60 FPS
     t.push(1 / 120); // 120 FPS
     expect(t.minFps()).toBeCloseTo(30, 0);
     expect(t.maxFps()).toBeCloseTo(120, 0);
@@ -103,8 +103,8 @@ describe('FpsTracker', () => {
 
   it('clamp les deltas aberrants', () => {
     const t = new FpsTracker(5);
-    t.push(-1);   // négatif → clamped à 0.001
-    t.push(999);  // trop grand → clamped à 1.0 (= 1 FPS)
+    t.push(-1); // négatif → clamped à 0.001
+    t.push(999); // trop grand → clamped à 1.0 (= 1 FPS)
     expect(t.instantFps()).toBeGreaterThanOrEqual(1);
   });
 });
@@ -122,7 +122,7 @@ describe('DebugPlugin', () => {
     expect(new DebugPlugin().name).toBe('DebugPlugin');
   });
 
-  it('enregistre le service debug dans api.services à l\'init', () => {
+  it("enregistre le service debug dans api.services à l'init", () => {
     const plugin = new DebugPlugin();
     plugin.onInit(api);
     expect(api.services.register).toHaveBeenCalledWith('debug', expect.any(Object));
@@ -133,7 +133,9 @@ describe('DebugPlugin', () => {
     const api2 = makeAPI({
       frameCount: 10,
       services: {
-        register: (name: string, instance: unknown) => { registeredServices.set(name, instance); },
+        register: (name: string, instance: unknown) => {
+          registeredServices.set(name, instance);
+        },
         get: (name: string) => registeredServices.get(name),
         has: (name: string) => registeredServices.has(name),
       } as unknown as EngineAPI['services'],
@@ -143,7 +145,9 @@ describe('DebugPlugin', () => {
     plugin.onInit(api2);
     plugin.onBeforeUpdate(api2, 1 / 60);
 
-    const service = registeredServices.get('debug') as { getMetrics: () => import('../src/types').DebugMetrics };
+    const service = registeredServices.get('debug') as {
+      getMetrics: () => import('../src/types').DebugMetrics;
+    };
     const m = service.getMetrics();
 
     expect(m.fps).toBeGreaterThan(0);
@@ -158,7 +162,9 @@ describe('DebugPlugin', () => {
     const api2 = makeAPI({
       frameCount: 100,
       services: {
-        register: (name: string, instance: unknown) => { registeredServices.set(name, instance); },
+        register: (name: string, instance: unknown) => {
+          registeredServices.set(name, instance);
+        },
         get: (name: string) => registeredServices.get(name),
         has: (name: string) => registeredServices.has(name),
       } as unknown as EngineAPI['services'],
@@ -197,7 +203,9 @@ describe('DebugPlugin', () => {
     const registeredServices = new Map<string, unknown>();
     const api2 = makeAPI({
       services: {
-        register: (name: string, instance: unknown) => { registeredServices.set(name, instance); },
+        register: (name: string, instance: unknown) => {
+          registeredServices.set(name, instance);
+        },
         get: (name: string) => registeredServices.get(name),
         has: (name: string) => registeredServices.has(name),
       } as unknown as EngineAPI['services'],
@@ -207,17 +215,19 @@ describe('DebugPlugin', () => {
     plugin.onInit(api2);
     plugin.onBeforeUpdate(api2, 1 / 60);
 
-    const service = registeredServices.get('debug') as { reset: () => void; getMetrics: () => import('../src/types').DebugMetrics };
+    const service = registeredServices.get('debug') as {
+      reset: () => void;
+      getMetrics: () => import('../src/types').DebugMetrics;
+    };
     service.reset();
     const m = service.getMetrics();
     // Après reset, les métriques restent le dernier snapshot (reset ne les efface pas)
     expect(m).toBeDefined();
   });
 
-  it('onDestroy ne jette pas d\'erreur', () => {
+  it("onDestroy ne jette pas d'erreur", () => {
     const plugin = new DebugPlugin();
     plugin.onInit(api);
     expect(() => plugin.onDestroy()).not.toThrow();
   });
 });
-

@@ -19,9 +19,9 @@ describe('HtmlUIPlugin', () => {
   beforeEach(() => {
     // Nettoyer le DOM entre chaque test
     document.getElementById('gwen-html-ui')?.remove();
-    document.querySelectorAll('style[data-gwen-ui]').forEach(el => el.remove());
+    document.querySelectorAll('style[data-gwen-ui]').forEach((el) => el.remove());
 
-    api    = makeApi();
+    api = makeApi();
     plugin = new HtmlUIPlugin();
     plugin.onInit(api);
   });
@@ -49,7 +49,7 @@ describe('HtmlUIPlugin', () => {
     ui.mount(1, TEMPLATE);
 
     const container = document.getElementById('gwen-html-ui')!;
-    const root      = container.querySelector('[data-gwen-entity="1"]');
+    const root = container.querySelector('[data-gwen-entity="1"]');
     expect(root).not.toBeNull();
   });
 
@@ -68,14 +68,14 @@ describe('HtmlUIPlugin', () => {
     ui.mount(2, TEMPLATE);
 
     const allStyles = document.querySelectorAll('style[data-gwen-ui]');
-    const hashes    = Array.from(allStyles).map(s => s.getAttribute('data-gwen-ui'));
-    const unique    = new Set(hashes);
+    const hashes = Array.from(allStyles).map((s) => s.getAttribute('data-gwen-ui'));
+    const unique = new Set(hashes);
     expect(hashes.length).toBe(unique.size);
   });
 
   it('mount warns and remounts if entity already mounted', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const ui   = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get<HtmlUI>('htmlUI');
     ui.mount(1, TEMPLATE);
     ui.mount(1, TEMPLATE);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('already has a mounted template'));
@@ -150,4 +150,3 @@ describe('HtmlUIPlugin', () => {
     expect(document.getElementById('gwen-html-ui')).toBeNull();
   });
 });
-

@@ -40,7 +40,7 @@ export interface SpriteComponent {
 export interface TransformComponent {
   x: number;
   y: number;
-  rotation?: number;   // radians
+  rotation?: number; // radians
   scaleX?: number;
   scaleY?: number;
 }
@@ -90,7 +90,10 @@ type ResolvedRendererConfig = Required<Omit<Canvas2DRendererConfig, 'canvas' | '
 
 // ============= Canvas2DRenderer =============
 
-export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { renderer: Canvas2DRenderer }> {
+export class Canvas2DRenderer implements GwenPlugin<
+  'Canvas2DRenderer',
+  { renderer: Canvas2DRenderer }
+> {
   readonly name = 'Canvas2DRenderer' as const;
 
   /**
@@ -104,9 +107,13 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   private config: ResolvedRendererConfig;
 
   /** Canvas element — disponible après onInit() */
-  get canvas(): HTMLCanvasElement { return this._canvas; }
+  get canvas(): HTMLCanvasElement {
+    return this._canvas;
+  }
   /** 2D rendering context — disponible après onInit() */
-  get ctx(): CanvasRenderingContext2D { return this._ctx; }
+  get ctx(): CanvasRenderingContext2D {
+    return this._ctx;
+  }
   private camera: Camera = { x: 0, y: 0, zoom: 1 };
   private imageCache = new Map<string, HTMLImageElement>();
 
@@ -130,14 +137,19 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
         throw new Error(`[Canvas2DRenderer] Canvas element '${this.config.canvas}' not found.`);
       }
       this._canvas = el as HTMLCanvasElement;
-    } else if (this.config.canvas && typeof this.config.canvas === 'object' && 'getContext' in this.config.canvas) {
+    } else if (
+      this.config.canvas &&
+      typeof this.config.canvas === 'object' &&
+      'getContext' in this.config.canvas
+    ) {
       this._canvas = this.config.canvas as HTMLCanvasElement;
     } else {
       // Auto-création du canvas et montage dans le container
       const containerCfg = this.config.container;
-      const container = typeof containerCfg === 'string'
-        ? (document.querySelector(containerCfg) ?? document.body)
-        : (containerCfg ?? document.body);
+      const container =
+        typeof containerCfg === 'string'
+          ? (document.querySelector(containerCfg) ?? document.body)
+          : (containerCfg ?? document.body);
       this._canvas = document.createElement('canvas');
       this._canvas.id = 'gwen-canvas';
       this.resize(this.config.width!, this.config.height!);
@@ -214,12 +226,20 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
 
   // ── Canvas utilities ───────────────────────────────────────────────────
 
-  get width(): number { return this._canvas.width; }
-  get height(): number { return this._canvas.height; }
+  get width(): number {
+    return this._canvas.width;
+  }
+  get height(): number {
+    return this._canvas.height;
+  }
   /** Largeur logique (CSS pixels, sans le pixel ratio) */
-  get logicalWidth(): number { return this._canvas.width / this.config.pixelRatio; }
+  get logicalWidth(): number {
+    return this._canvas.width / this.config.pixelRatio;
+  }
   /** Hauteur logique (CSS pixels, sans le pixel ratio) */
-  get logicalHeight(): number { return this._canvas.height / this.config.pixelRatio; }
+  get logicalHeight(): number {
+    return this._canvas.height / this.config.pixelRatio;
+  }
 
   resize(width: number, height: number): void {
     this._canvas.width = width * this.config.pixelRatio;

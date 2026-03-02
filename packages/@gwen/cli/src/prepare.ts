@@ -38,7 +38,9 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   const gwenDir = path.join(projectDir, '.gwen');
   const result: PrepareResult = { success: false, gwenDir, files: [], errors: [] };
 
-  const log = (msg: string) => { if (verbose) console.log(msg); };
+  const log = (msg: string) => {
+    if (verbose) console.log(msg);
+  };
 
   // Vérifier que gwen.config.ts existe
   const configPath = findConfigFile(projectDir);
@@ -99,7 +101,9 @@ function collectPluginTypeReferences(
   configPath: string,
   verbose: boolean,
 ): string[] {
-  const log = (msg: string) => { if (verbose) console.log(msg); };
+  const log = (msg: string) => {
+    if (verbose) console.log(msg);
+  };
   const parsed = parseConfigFile(configPath);
   const refs = new Set<string>();
 
@@ -158,7 +162,10 @@ function extractTypeRefsFromSource(filePath: string): string[] {
     const candidates = [filePath, filePath.replace(/\.js$/, '.ts')];
     let source = '';
     for (const c of candidates) {
-      if (fs.existsSync(c)) { source = fs.readFileSync(c, 'utf-8'); break; }
+      if (fs.existsSync(c)) {
+        source = fs.readFileSync(c, 'utf-8');
+        break;
+      }
     }
     if (!source) return [];
 
@@ -185,7 +192,10 @@ function extractTypeRefsFromSource(filePath: string): string[] {
 
 // ── Génération du index.html virtuel ──────────────────────────────────────────
 
-function generateIndexHtml(projectDir: string, options: { title?: string; background?: string }): string {
+function generateIndexHtml(
+  projectDir: string,
+  options: { title?: string; background?: string },
+): string {
   const title = options.title ?? path.basename(projectDir);
   const bg = options.background ?? '#000';
 
@@ -266,37 +276,34 @@ function generateTsconfig(projectDir: string): object {
       // Alias de packages
       ...(Object.keys(paths).length > 0 ? { baseUrl: '..', paths } : {}),
     },
-    include: [
-      '../src',
-      '../*.ts',
-      './*.d.ts',
-    ],
-    exclude: [
-      '../node_modules',
-      '../dist',
-    ],
+    include: ['../src', '../*.ts', './*.d.ts'],
+    exclude: ['../node_modules', '../dist'],
   };
 }
 
 // ── Génération du gwen.d.ts ──────────────────────────────────────────────────
 
 function generateDts(projectDir: string, configPath: string, typeRefs: string[] = []): string {
-  const relConfig = path.relative(path.join(projectDir, '.gwen'), configPath)
-    .replace(/\\/g, '/').replace(/\.ts$/, '');
+  const relConfig = path
+    .relative(path.join(projectDir, '.gwen'), configPath)
+    .replace(/\\/g, '/')
+    .replace(/\.ts$/, '');
 
   const source = fs.readFileSync(configPath, 'utf-8');
   const exportStyle = detectConfigExportStyle(source);
 
-  const configImport = exportStyle.type === 'default'
-    ? `import type _cfg from '${relConfig}';`
-    : `import type { ${exportStyle.name} as _cfg } from '${relConfig}';`;
+  const configImport =
+    exportStyle.type === 'default'
+      ? `import type _cfg from '${relConfig}';`
+      : `import type { ${exportStyle.name} as _cfg } from '${relConfig}';`;
 
   const displayName = exportStyle.type === 'default' ? 'default export' : exportStyle.name;
 
   // Bloc /// <reference types="..." /> injecté uniquement si des plugins en ont besoin
-  const refBlock = typeRefs.length > 0
-    ? typeRefs.map(r => `/// <reference types="${r}" />`).join('\n') + '\n\n'
-    : '';
+  const refBlock =
+    typeRefs.length > 0
+      ? typeRefs.map((r) => `/// <reference types="${r}" />`).join('\n') + '\n\n'
+      : '';
 
   return `/**
  * GWEN — Types globaux auto-générés
@@ -338,7 +345,9 @@ export {};
  *   export default defineConfig(...)          → { type: 'default' }
  *   export const gwenConfig = defineConfig(…) → { type: 'named', name: 'gwenConfig' }
  */
-function detectConfigExportStyle(source: string): { type: 'default' } | { type: 'named'; name: string } {
+function detectConfigExportStyle(
+  source: string,
+): { type: 'default' } | { type: 'named'; name: string } {
   if (/export\s+default\s+defineConfig\s*\(/.test(source)) return { type: 'default' };
   const match = source.match(/export\s+const\s+(\w+)\s*=\s*defineConfig\s*\(/);
   if (match) return { type: 'named', name: match[1] };
@@ -350,7 +359,9 @@ function detectConfigExportStyle(source: string): { type: 'default' } | { type: 
 function ensureProjectTsconfig(projectDir: string, gwenDir: string, verbose: boolean): void {
   const tsconfigPath = path.join(projectDir, 'tsconfig.json');
   const relExtends = './.gwen/tsconfig.generated.json';
-  const log = (msg: string) => { if (verbose) console.log(msg); };
+  const log = (msg: string) => {
+    if (verbose) console.log(msg);
+  };
 
   if (!fs.existsSync(tsconfigPath)) {
     // Créer un tsconfig.json minimal qui étend le généré
@@ -394,7 +405,6 @@ function ensureProjectTsconfig(projectDir: string, gwenDir: string, verbose: boo
   }
 }
 
-
 // ── .gitignore ────────────────────────────────────────────────────────────────
 
 function ensureGitignore(projectDir: string): void {
@@ -411,4 +421,3 @@ function ensureGitignore(projectDir: string): void {
     fs.appendFileSync(gitignorePath, `\n# GWEN generated\n${entry}\n`);
   }
 }
-

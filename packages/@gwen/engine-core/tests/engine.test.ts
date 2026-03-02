@@ -69,12 +69,12 @@ function createMockWasmEngine(): WasmEngine {
       const result: number[] = [];
       for (const [index] of entities) {
         const arch = archetypes.get(index) ?? [];
-        if (needed.every(t => arch.includes(t))) result.push(index);
+        if (needed.every((t) => arch.includes(t))) result.push(index);
       }
       return new Uint32Array(result);
     }),
     get_entity_generation: vi.fn((index: number): number => {
-      return entities.get(index) ?? 0xFFFFFFFF;
+      return entities.get(index) ?? 0xffffffff;
     }),
 
     tick: vi.fn(),
@@ -301,7 +301,9 @@ describe('Engine', () => {
   describe('Event System', () => {
     it('should fire stop event', () => {
       let called = false;
-      engine.on('stop', () => { called = true; });
+      engine.on('stop', () => {
+        called = true;
+      });
       engine.stop();
       expect(called).toBe(true);
     });
@@ -317,7 +319,9 @@ describe('Engine', () => {
 
     it('should fire entityCreated event', () => {
       let created = false;
-      engine.on('entityCreated', () => { created = true; });
+      engine.on('entityCreated', () => {
+        created = true;
+      });
       engine.createEntity();
       expect(created).toBe(true);
     });
@@ -328,19 +332,34 @@ describe('Engine', () => {
   describe('Plugin System (TsPlugin lifecycle)', () => {
     it('should call onInit when plugin is registered', () => {
       let initCalled = false;
-      engine.registerSystem({ name: 'test', onInit: () => { initCalled = true; } });
+      engine.registerSystem({
+        name: 'test',
+        onInit: () => {
+          initCalled = true;
+        },
+      });
       expect(initCalled).toBe(true);
     });
 
     it('should receive EngineAPI in onInit', () => {
       let apiReceived = false;
-      engine.registerSystem({ name: 'test', onInit: (api) => { apiReceived = api !== undefined; } });
+      engine.registerSystem({
+        name: 'test',
+        onInit: (api) => {
+          apiReceived = api !== undefined;
+        },
+      });
       expect(apiReceived).toBe(true);
     });
 
     it('should not register same plugin twice', () => {
       let initCount = 0;
-      const plugin = { name: 'dup', onInit: () => { initCount++; } };
+      const plugin = {
+        name: 'dup',
+        onInit: () => {
+          initCount++;
+        },
+      };
       engine.registerSystem(plugin);
       engine.registerSystem(plugin);
       expect(initCount).toBe(1);
@@ -353,7 +372,12 @@ describe('Engine', () => {
 
     it('should call onDestroy when stopped', () => {
       let destroyed = false;
-      engine.registerSystem({ name: 'test', onDestroy: () => { destroyed = true; } });
+      engine.registerSystem({
+        name: 'test',
+        onDestroy: () => {
+          destroyed = true;
+        },
+      });
       engine.stop();
       expect(destroyed).toBe(true);
     });
@@ -364,7 +388,11 @@ describe('Engine', () => {
   describe('Legacy Plugin API', () => {
     it('should load plugin and call init', () => {
       let initCalled = false;
-      engine.loadPlugin('legacy', { init: () => { initCalled = true; } });
+      engine.loadPlugin('legacy', {
+        init: () => {
+          initCalled = true;
+        },
+      });
       expect(initCalled).toBe(true);
       expect(engine.hasPlugin('legacy')).toBe(true);
     });

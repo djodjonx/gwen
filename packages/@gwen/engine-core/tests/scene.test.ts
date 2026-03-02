@@ -152,9 +152,9 @@ describe('SceneManager', () => {
       sm.register(menu).register(game);
 
       sm.loadSceneImmediate('Menu', api);
-      sm.onUpdate(api, 0.016);         // Menu:update
+      sm.onUpdate(api, 0.016); // Menu:update
       sm.loadSceneImmediate('Game', api); // Menu:exit, Game:enter
-      sm.onUpdate(api, 0.016);         // Game:update
+      sm.onUpdate(api, 0.016); // Game:update
 
       expect(menu.calls).toEqual(['Menu:enter', 'Menu:update', 'Menu:exit']);
       expect(game.calls).toEqual(['Game:enter', 'Game:update']);
@@ -181,7 +181,7 @@ describe('defineScene', () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     });
     expect(scene.name).toBe('Pause');
     expect(typeof scene.onEnter).toBe('function');
@@ -191,9 +191,9 @@ describe('defineScene', () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     });
-    const sm  = new SceneManager();
+    const sm = new SceneManager();
     const api = makeAPI();
     sm.onInit(api);
     sm.register(scene);
@@ -204,7 +204,7 @@ describe('defineScene', () => {
     const scene = defineScene({
       name: 'Minimal',
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     });
     expect(scene.ui).toBeUndefined();
     expect(scene.plugins).toBeUndefined();
@@ -213,9 +213,9 @@ describe('defineScene', () => {
   // ── Forme 2 — factory ─────────────────────────────────────────────────────
 
   it('forme 2 — retourne une fonction callable', () => {
-    const GameScene = defineScene('Game', (dep: string) => ({
+    const GameScene = defineScene('Game', (_dep: string) => ({
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
     expect(typeof GameScene).toBe('function');
   });
@@ -223,7 +223,7 @@ describe('defineScene', () => {
   it('forme 2 — appel produit une Scene avec le bon name', () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
     const scene = GameScene();
     expect(scene.name).toBe('Game');
@@ -233,7 +233,7 @@ describe('defineScene', () => {
     const enterFn = vi.fn();
     const GameScene = defineScene('Game', (dep: { value: number }) => ({
       onEnter: () => enterFn(dep.value),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
     const scene = GameScene({ value: 42 });
     scene.onEnter(null as any);
@@ -241,9 +241,9 @@ describe('defineScene', () => {
   });
 
   it('forme 2 — chaque appel produit une instance indépendante', () => {
-    const GameScene = defineScene('Game', (id: number) => ({
+    const GameScene = defineScene('Game', (_id: number) => ({
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
     const a = GameScene(1);
     const b = GameScene(2);
@@ -253,10 +253,10 @@ describe('defineScene', () => {
 
   it('forme 2 — plugins transmis correctement', () => {
     const mockPlugin = { name: 'MockPlugin', onUpdate: vi.fn() };
-    const GameScene  = defineScene('Game', () => ({
+    const GameScene = defineScene('Game', () => ({
       plugins: [mockPlugin],
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
     const scene = GameScene();
     expect(scene.plugins).toContain(mockPlugin);
@@ -265,9 +265,9 @@ describe('defineScene', () => {
   it('forme 2 — enregistrable dans SceneManager après appel', () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
-      onExit:  vi.fn(),
+      onExit: vi.fn(),
     }));
-    const sm  = new SceneManager();
+    const sm = new SceneManager();
     const api = makeAPI();
     sm.onInit(api);
     sm.register(GameScene()); // ← appel de la factory puis register
@@ -278,8 +278,10 @@ describe('defineScene', () => {
     const GameScene = defineScene('Game', () => {
       let count = 0;
       return {
-        onEnter: () => { count++; },
-        onExit:  vi.fn(),
+        onEnter: () => {
+          count++;
+        },
+        onExit: vi.fn(),
         getCount: () => count,
       } as any;
     });
@@ -291,4 +293,3 @@ describe('defineScene', () => {
     expect(b.getCount()).toBe(0); // isolation garantie
   });
 });
-

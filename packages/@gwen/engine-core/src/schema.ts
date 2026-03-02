@@ -26,17 +26,57 @@
 
 // Supported scalar types for WASM memory layout
 export const Types = {
-  f32:    { type: 'f32'    as const, byteLength: 4, read: 'getFloat32'  as const, write: 'setFloat32'  as const },
-  f64:    { type: 'f64'    as const, byteLength: 8, read: 'getFloat64'  as const, write: 'setFloat64'  as const },
-  i32:    { type: 'i32'    as const, byteLength: 4, read: 'getInt32'    as const, write: 'setInt32'    as const },
-  i64:    { type: 'i64'    as const, byteLength: 8, read: 'getBigInt64' as const, write: 'setBigInt64' as const },
-  u32:    { type: 'u32'    as const, byteLength: 4, read: 'getUint32'   as const, write: 'setUint32'   as const },
-  u64:    { type: 'u64'    as const, byteLength: 8, read: 'getBigUint64'as const, write: 'setBigUint64'as const },
-  bool:   { type: 'bool'   as const, byteLength: 1, read: 'getInt8'     as const, write: 'setInt8'     as const },
-  string: { type: 'string' as const, byteLength: 4, read: 'getString'   as const, write: 'setString'   as const },
+  f32: {
+    type: 'f32' as const,
+    byteLength: 4,
+    read: 'getFloat32' as const,
+    write: 'setFloat32' as const,
+  },
+  f64: {
+    type: 'f64' as const,
+    byteLength: 8,
+    read: 'getFloat64' as const,
+    write: 'setFloat64' as const,
+  },
+  i32: {
+    type: 'i32' as const,
+    byteLength: 4,
+    read: 'getInt32' as const,
+    write: 'setInt32' as const,
+  },
+  i64: {
+    type: 'i64' as const,
+    byteLength: 8,
+    read: 'getBigInt64' as const,
+    write: 'setBigInt64' as const,
+  },
+  u32: {
+    type: 'u32' as const,
+    byteLength: 4,
+    read: 'getUint32' as const,
+    write: 'setUint32' as const,
+  },
+  u64: {
+    type: 'u64' as const,
+    byteLength: 8,
+    read: 'getBigUint64' as const,
+    write: 'setBigUint64' as const,
+  },
+  bool: {
+    type: 'bool' as const,
+    byteLength: 1,
+    read: 'getInt8' as const,
+    write: 'setInt8' as const,
+  },
+  string: {
+    type: 'string' as const,
+    byteLength: 4,
+    read: 'getString' as const,
+    write: 'setString' as const,
+  },
 };
 
-export type SchemaType = typeof Types[keyof typeof Types];
+export type SchemaType = (typeof Types)[keyof typeof Types];
 
 export interface ComponentSchema {
   [field: string]: SchemaType;
@@ -55,12 +95,12 @@ export interface SchemaLayout<T> {
 type NumericSchemaTypeName = 'f32' | 'f64' | 'i32' | 'u32';
 
 /** Accesseurs DataView pour les types numériques — liaison stricte */
-type NumericReadMethod  = 'getFloat32' | 'getFloat64' | 'getInt32' | 'getUint32';
+type NumericReadMethod = 'getFloat32' | 'getFloat64' | 'getInt32' | 'getUint32';
 type NumericWriteMethod = 'setFloat32' | 'setFloat64' | 'setInt32' | 'setUint32';
 
 /** Types entiers 64-bit : nécessitent bigint */
 type BigIntSchemaTypeName = 'i64' | 'u64';
-type BigIntReadMethod  = 'getBigInt64' | 'getBigUint64';
+type BigIntReadMethod = 'getBigInt64' | 'getBigUint64';
 type BigIntWriteMethod = 'setBigInt64' | 'setBigUint64';
 
 /** Valeur JS d'un champ selon son type schema */
@@ -98,10 +138,10 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
         const strId = GlobalStringPool.intern(val as string);
         view.setInt32(meta.offset, strId, true);
       } else if (meta.type === 'i64' || meta.type === 'u64') {
-        const method = (Types[meta.type as BigIntSchemaTypeName].write) as BigIntWriteMethod;
+        const method = Types[meta.type as BigIntSchemaTypeName].write as BigIntWriteMethod;
         view[method](meta.offset, BigInt(val as number), true);
       } else {
-        const method = (Types[meta.type as NumericSchemaTypeName].write) as NumericWriteMethod;
+        const method = Types[meta.type as NumericSchemaTypeName].write as NumericWriteMethod;
         view[method](meta.offset, val as number, true);
       }
       bytesWritten += meta.byteLength;
@@ -118,10 +158,10 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
         const strId = view.getInt32(meta.offset, true);
         obj[key] = GlobalStringPool.get(strId);
       } else if (meta.type === 'i64' || meta.type === 'u64') {
-        const method = (Types[meta.type as BigIntSchemaTypeName].read) as BigIntReadMethod;
+        const method = Types[meta.type as BigIntSchemaTypeName].read as BigIntReadMethod;
         obj[key] = view[method](meta.offset, true);
       } else {
-        const method = (Types[meta.type as NumericSchemaTypeName].read) as NumericReadMethod;
+        const method = Types[meta.type as NumericSchemaTypeName].read as NumericReadMethod;
         obj[key] = view[method](meta.offset, true);
       }
     }
@@ -137,11 +177,13 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
 }
 
 // Maps SchemaType to actual TypeScript types
-export type InferSchemaType<T extends SchemaType> =
-  T['type'] extends 'bool'   ? boolean :
-  T['type'] extends 'string' ? string  :
-  T['type'] extends 'i64' | 'u64' ? bigint :
-  number;
+export type InferSchemaType<T extends SchemaType> = T['type'] extends 'bool'
+  ? boolean
+  : T['type'] extends 'string'
+    ? string
+    : T['type'] extends 'i64' | 'u64'
+      ? bigint
+      : number;
 
 /**
  * Extracts the TypeScript interface from a ComponentDefinition.
@@ -178,13 +220,13 @@ export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<
  */
 // Surcharge 1 — objet direct
 export function defineComponent<S extends ComponentSchema>(
-  config: ComponentDefinition<S>
+  config: ComponentDefinition<S>,
 ): ComponentDefinition<S>;
 
 // Surcharge 2 — factory OBLIGATOIRE
 export function defineComponent<S extends ComponentSchema>(
   name: string,
-  factory: () => ComponentBody<S>
+  factory: () => ComponentBody<S>,
 ): ComponentDefinition<S>;
 
 // Implémentation

@@ -17,7 +17,9 @@ function makeSourceNode() {
     onended: null as (() => void) | null,
     connect: vi.fn(),
     start: vi.fn(),
-    stop: vi.fn(() => { node.onended?.(); }),
+    stop: vi.fn(() => {
+      node.onended?.();
+    }),
   };
   return node;
 }
@@ -36,7 +38,7 @@ function makeAudioContextMock() {
     createBufferSource: vi.fn(() => makeSourceNode()),
     createGain: vi.fn(() => makeGainNode()),
     decodeAudioData: vi.fn((_buf: ArrayBuffer) =>
-      Promise.resolve({ duration: 1, numberOfChannels: 1 } as unknown as AudioBuffer)
+      Promise.resolve({ duration: 1, numberOfChannels: 1 } as unknown as AudioBuffer),
     ),
     resume: vi.fn(),
     close: vi.fn(() => Promise.resolve()),
@@ -210,7 +212,7 @@ describe('AudioPlugin', () => {
     it('should preload sound from URL', async () => {
       // Mock fetch
       (globalThis as any).fetch = vi.fn(() =>
-        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })
+        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
       );
 
       const plugin = new AudioPlugin();
@@ -224,7 +226,7 @@ describe('AudioPlugin', () => {
 
     it('should not double-load the same sound', async () => {
       (globalThis as any).fetch = vi.fn(() =>
-        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })
+        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
       );
 
       const plugin = new AudioPlugin();

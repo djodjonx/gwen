@@ -20,7 +20,11 @@ export class KeyboardInput {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     const key = e.code; // Use e.code for layout-independent detection
-    if (!this.states.has(key) || this.states.get(key) === 'idle' || this.states.get(key) === 'justReleased') {
+    if (
+      !this.states.has(key) ||
+      this.states.get(key) === 'idle' ||
+      this.states.get(key) === 'justReleased'
+    ) {
       this.pendingDown.add(key);
     }
   };

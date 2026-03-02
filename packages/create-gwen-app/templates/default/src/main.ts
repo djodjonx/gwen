@@ -22,10 +22,9 @@ const scene = new MainScene();
 engine.registerSystem(scene);
 
 // 4. Activer le cœur WASM (résolution automatique — pas besoin de Rust)
-initWasm().then(active => {
+initWasm().then((active) => {
   if (active) console.log('[GWEN] WASM core active');
 });
 
 // 5. Démarrer la boucle
 engine.start();
-

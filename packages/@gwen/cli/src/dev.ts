@@ -21,7 +21,7 @@ export interface DevOptions {
 
 export async function dev(options: DevOptions = {}): Promise<void> {
   const projectDir = path.resolve(options.projectDir ?? process.cwd());
-  const port       = options.port ?? 3000;
+  const port = options.port ?? 3000;
 
   // 1. Vérifier la config
   const configPath = findConfigFile(projectDir);
@@ -48,4 +48,3 @@ export async function dev(options: DevOptions = {}): Promise<void> {
 
   console.log(`\n[gwen dev] 🚀 GWEN dev server running on http://localhost:${port}`);
 }
-

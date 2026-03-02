@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
+import {} from 'node:child_process';
 import readline from 'node:readline';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,11 +27,21 @@ const c = {
   dim: '\x1b[2m',
 };
 
-function log(msg) { process.stdout.write(msg + '\n'); }
-function success(msg) { log(`${c.green}✅ ${msg}${c.reset}`); }
-function info(msg) { log(`${c.cyan}   ${msg}${c.reset}`); }
-function warn(msg) { log(`${c.yellow}⚠  ${msg}${c.reset}`); }
-function title(msg) { log(`\n${c.bold}${c.cyan}${msg}${c.reset}`); }
+function log(msg) {
+  process.stdout.write(msg + '\n');
+}
+function success(msg) {
+  log(`${c.green}✅ ${msg}${c.reset}`);
+}
+function info(msg) {
+  log(`${c.cyan}   ${msg}${c.reset}`);
+}
+function warn(msg) {
+  log(`${c.yellow}⚠  ${msg}${c.reset}`);
+}
+function title(msg) {
+  log(`\n${c.bold}${c.cyan}${msg}${c.reset}`);
+}
 
 // ── Utilitaires ───────────────────────────────────────────────────────────────
 
@@ -44,8 +54,15 @@ function copyTemplate(src, dest, vars) {
 
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name);
-    // _gitignore → .gitignore (npm strips .gitignore from published packages)
-    const destName = entry.name.startsWith('_') ? '.' + entry.name.slice(1) : entry.name;
+    // Règles de renommage des fichiers template :
+    //   __name  → name          (fichier sans préfixe — ex: __oxlint.json → oxlint.json)
+    //   _name   → .name         (dotfile — ex: _gitignore → .gitignore)
+    //   name    → name          (inchangé)
+    const destName = entry.name.startsWith('__')
+      ? entry.name.slice(2)
+      : entry.name.startsWith('_')
+        ? '.' + entry.name.slice(1)
+        : entry.name;
     const destPath = path.join(dest, destName);
 
     if (entry.isDirectory()) {
@@ -69,7 +86,12 @@ function detectPackageManager() {
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans.trim()); }));
+  return new Promise((resolve) =>
+    rl.question(question, (ans) => {
+      rl.close();
+      resolve(ans.trim());
+    }),
+  );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -89,7 +111,10 @@ async function main() {
   }
 
   // Sanitiser : kebab-case, minuscules
-  const safeName = projectName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/^-+|-+$/g, '');
+  const safeName = projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, '-')
+    .replace(/^-+|-+$/g, '');
   const destDir = path.resolve(process.cwd(), safeName);
 
   if (fs.existsSync(destDir)) {
@@ -132,8 +157,7 @@ async function main() {
   log('');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

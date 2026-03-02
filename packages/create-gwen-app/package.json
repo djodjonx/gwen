@@ -2,7 +2,13 @@
   "name": "create-gwen-app",
   "version": "0.1.0",
   "description": "Scaffold a new GWEN game project — no Rust required",
-  "type": "module",
+  "keywords": [
+    "create-app",
+    "game-engine",
+    "gwen",
+    "scaffold"
+  ],
+  "license": "MIT",
   "bin": {
     "create-gwen-app": "./bin/index.js"
   },
@@ -10,20 +16,18 @@
     "bin",
     "templates"
   ],
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "typescript": "^5.3.0",
-    "vitest": "^1.0.0",
-    "@types/node": "^20.0.0"
+    "vitest": "^1.0.0"
   },
   "engines": {
     "node": ">=18"
-  },
-  "keywords": ["gwen", "game-engine", "scaffold", "create-app"],
-  "license": "MIT"
+  }
 }
-

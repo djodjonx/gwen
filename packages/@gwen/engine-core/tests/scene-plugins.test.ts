@@ -24,7 +24,10 @@ function makeMock() {
 }
 
 describe('SceneManager + Local Plugins', () => {
-  beforeEach(() => { _resetWasmBridge(); _injectMockWasmEngine(makeMock()); });
+  beforeEach(() => {
+    _resetWasmBridge();
+    _injectMockWasmEngine(makeMock());
+  });
   afterEach(() => _resetWasmBridge());
 
   it('should register and unregister scene local plugins on transition', () => {

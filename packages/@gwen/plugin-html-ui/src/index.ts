@@ -75,19 +75,19 @@ export interface HtmlUI {
 // ── Internal DOM context per entity ──────────────────────────────────────────
 
 interface DomContext {
-  root:     HTMLElement;
+  root: HTMLElement;
   elements: Map<string, HTMLElement>;
 }
 
 // ── HtmlUIPlugin ──────────────────────────────────────────────────────────────
 
 export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI }> {
-  readonly name     = 'HtmlUIPlugin' as const;
+  readonly name = 'HtmlUIPlugin' as const;
   readonly provides = { htmlUI: {} as HtmlUI };
 
   private container: HTMLElement | null = null;
   private instances: Map<EntityId, DomContext> = new Map();
-  private service!:  HtmlUI;
+  private service!: HtmlUI;
 
   onInit(api: EngineAPI): void {
     // Créer le conteneur overlay au dessus du canvas
@@ -96,12 +96,9 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
       if (!el) {
         el = document.createElement('div');
         el.id = 'gwen-html-ui';
-        el.style.cssText = [
-          'position:fixed',
-          'inset:0',
-          'pointer-events:none',
-          'z-index:100',
-        ].join(';');
+        el.style.cssText = ['position:fixed', 'inset:0', 'pointer-events:none', 'z-index:100'].join(
+          ';',
+        );
         document.body.appendChild(el);
       }
       this.container = el;
@@ -109,11 +106,11 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
 
     // Construire le service
     this.service = {
-      mount:   this.mount.bind(this),
+      mount: this.mount.bind(this),
       unmount: this.unmount.bind(this),
-      el:      this.el.bind(this),
-      text:    this.text.bind(this),
-      style:   this.styleEl.bind(this),
+      el: this.el.bind(this),
+      text: this.text.bind(this),
+      style: this.styleEl.bind(this),
     };
 
     api.services.register('htmlUI', this.service);
@@ -136,17 +133,19 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
   private mount(entityId: EntityId, template: string): void {
     if (!this.container) return;
     if (this.instances.has(entityId)) {
-      console.warn(`[HtmlUIPlugin] entity ${entityId} already has a mounted template — unmounting first.`);
+      console.warn(
+        `[HtmlUIPlugin] entity ${entityId} already has a mounted template — unmounting first.`,
+      );
       this.unmount(entityId);
     }
 
     // Séparer <style> et le reste du template
     const styleMatch = template.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-    const html       = template.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').trim();
+    const html = template.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').trim();
 
     // Injecter le <style> une seule fois — déduplication par hash dans le DOM
     if (styleMatch && typeof document !== 'undefined') {
-      const css  = styleMatch[1].trim();
+      const css = styleMatch[1].trim();
       const hash = css.length + '_' + css.slice(0, 32).replace(/\s/g, '');
       const existing = document.querySelector(`style[data-gwen-ui="${hash}"]`);
       if (!existing) {
@@ -166,7 +165,7 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
 
     // Index des éléments par ID pour accès O(1)
     const elements = new Map<string, HTMLElement>();
-    root.querySelectorAll('[id]').forEach(el => {
+    root.querySelectorAll('[id]').forEach((el) => {
       elements.set(el.id, el as HTMLElement);
     });
 
@@ -194,4 +193,3 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
     if (el) (el.style as any)[prop] = value;
   }
 }
-

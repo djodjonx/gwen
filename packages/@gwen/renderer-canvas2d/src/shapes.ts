@@ -154,4 +154,3 @@ export const ShapeRenderer = {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   },
 };
-

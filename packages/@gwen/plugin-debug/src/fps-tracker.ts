@@ -86,4 +86,3 @@ export class FpsTracker {
     this.buffer.fill(0);
   }
 }
-

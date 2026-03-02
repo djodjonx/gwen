@@ -23,8 +23,12 @@ import { AudioPlugin } from '../../plugin-audio/src/index';
 
 // ── Helpers de test ───────────────────────────────────────────────────────────
 
-interface MockService { value: number }
-interface OtherService { label: string }
+interface MockService {
+  value: number;
+}
+interface OtherService {
+  label: string;
+}
 
 // ── createPlugin() ────────────────────────────────────────────────────────────
 
@@ -49,7 +53,9 @@ describe('createPlugin()', () => {
     let initCalled = false;
     const plugin = createPlugin({
       name: 'Lifecycle' as const,
-      onInit: () => { initCalled = true; },
+      onInit: () => {
+        initCalled = true;
+      },
     });
     plugin.onInit?.({} as EngineAPI);
     expect(initCalled).toBe(true);
@@ -132,17 +138,17 @@ describe('defineConfig() — inférence des services', () => {
 
     // keyboard, mouse, gamepad depuis InputPlugin
     const _kb: Services['keyboard'] = {} as any; // KeyboardInput
-    const _ms: Services['mouse'] = {} as any;    // MouseInput
-    const _gp: Services['gamepad'] = {} as any;  // GamepadInput
+    const _ms: Services['mouse'] = {} as any; // MouseInput
+    const _gp: Services['gamepad'] = {} as any; // GamepadInput
     // audio depuis AudioPlugin
-    const _au: Services['audio'] = {} as any;    // AudioPlugin
+    const _au: Services['audio'] = {} as any; // AudioPlugin
 
     expect(true).toBe(true); // compile = test réussi
   });
 
   it('config sans plugins compile (Record<string, never>)', () => {
     const config = defineConfig({ maxEntities: 500 });
-    type Services = GwenConfigServices<typeof config>;
+
     expect((config as any).maxEntities).toBe(500);
   });
 
@@ -205,9 +211,6 @@ describe('Rétro-compatibilité — TsPlugin sans provides', () => {
   });
 
   it('les services des plugins sans provides sont Record<string, never>', () => {
-    const legacy: GwenPlugin = { name: 'Legacy' };
-    type M = MergeProvides<[typeof legacy]>;
     expect(true).toBe(true); // compile = OK
   });
 });
-

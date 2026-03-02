@@ -89,9 +89,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ── Step 1: Parse engine.config.ts ──────────────────────────────────────────
   const configPath = findConfigFile(projectDir);
   if (!configPath) {
-    result.errors.push(
-      `No engine.config.ts or gwen.config.ts found starting from: ${projectDir}`
-    );
+    result.errors.push(`No engine.config.ts or gwen.config.ts found starting from: ${projectDir}`);
     result.durationMs = Date.now() - start;
     return result;
   }
@@ -108,8 +106,14 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     return result;
   }
 
-  log(verbose, `[gwen build] Engine: maxEntities=${parsed.engine.maxEntities}, fps=${parsed.engine.targetFPS}`);
-  log(verbose, `[gwen build] Plugins: ${parsed.plugins.map(p => p.symbolName).join(', ') || 'none'}`);
+  log(
+    verbose,
+    `[gwen build] Engine: maxEntities=${parsed.engine.maxEntities}, fps=${parsed.engine.targetFPS}`,
+  );
+  log(
+    verbose,
+    `[gwen build] Plugins: ${parsed.plugins.map((p) => p.symbolName).join(', ') || 'none'}`,
+  );
 
   // ── Step 2: WASM — compile ou copie ─────────────────────────────────────────
   const wasmOutDir = path.join(outDir, 'wasm');
@@ -134,7 +138,10 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     }
   } else {
     // ── 2b. Projet standard → copie les artefacts pré-compilés du package ──
-    log(verbose, `[gwen build] No custom Rust crate — using pre-compiled WASM from @gwen/engine-core`);
+    log(
+      verbose,
+      `[gwen build] No custom Rust crate — using pre-compiled WASM from @gwen/engine-core`,
+    );
     const copyResult = copyPrecompiledWasm(wasmOutDir, verbose);
     if (!copyResult.success) {
       result.warnings.push(...copyResult.warnings);
@@ -153,7 +160,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     version: '0.1.0',
     builtAt: new Date().toISOString(),
     engine: parsed.engine,
-    plugins: parsed.plugins.map(p => {
+    plugins: parsed.plugins.map((p) => {
       const entry: WasmManifest['plugins'][number] = {
         name: p.symbolName,
         type: p.type,
@@ -167,7 +174,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   };
 
   // Toujours inclure le gwen_core WASM s'il a été copié/compilé
-  if (result.wasmBuilt && !manifest.plugins.find(p => p.name === 'gwen_core')) {
+  if (result.wasmBuilt && !manifest.plugins.find((p) => p.name === 'gwen_core')) {
     manifest.plugins.unshift({
       name: 'gwen_core',
       type: 'wasm',
@@ -269,16 +276,16 @@ function copyPrecompiledWasm(
   if (!sourceDir) {
     warnings.push(
       'Pre-compiled WASM not found in @gwen/engine-core/wasm/. ' +
-      'Run: npm install @gwen/engine-core'
+        'Run: npm install @gwen/engine-core',
     );
     return { success: false, warnings };
   }
 
   fs.mkdirSync(destDir, { recursive: true });
 
-  const wasmFiles = fs.readdirSync(sourceDir).filter(f =>
-    f.endsWith('.wasm') || f.endsWith('.js') || f.endsWith('.d.ts')
-  );
+  const wasmFiles = fs
+    .readdirSync(sourceDir)
+    .filter((f) => f.endsWith('.wasm') || f.endsWith('.js') || f.endsWith('.d.ts'));
 
   if (wasmFiles.length === 0) {
     warnings.push(`No WASM artifacts found in ${sourceDir}`);
@@ -310,8 +317,8 @@ function buildWasmFromCrate(
   if (!wasmPack) {
     errors.push(
       'wasm-pack not found. Install with: cargo install wasm-pack\n' +
-      'Or: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh\n' +
-      'Note: wasm-pack is only needed for custom Rust plugins, not for standard GWEN projects.'
+        'Or: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh\n' +
+        'Note: wasm-pack is only needed for custom Rust plugins, not for standard GWEN projects.',
     );
     return { success: false, errors, warnings };
   }
@@ -320,8 +327,10 @@ function buildWasmFromCrate(
 
   const args = [
     'build',
-    '--target', 'web',
-    '--out-dir', outDir,
+    '--target',
+    'web',
+    '--out-dir',
+    outDir,
     mode === 'release' ? '--release' : '--dev',
     cratePath,
   ];
@@ -352,7 +361,9 @@ function findWasmPack(): string | null {
     try {
       execSync(`"${candidate}" --version`, { stdio: 'ignore' });
       return candidate;
-    } catch { /* not found */ }
+    } catch {
+      /* not found */
+    }
   }
   return null;
 }
@@ -360,4 +371,3 @@ function findWasmPack(): string | null {
 function log(verbose: boolean, msg: string): void {
   if (verbose) console.log(msg);
 }
-

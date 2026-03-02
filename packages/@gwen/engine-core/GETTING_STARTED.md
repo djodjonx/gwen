@@ -7,6 +7,7 @@
 ## 🎯 What is GWEN?
 
 GWEN is a **modern game engine for the web** that combines:
+
 - **Rust/WASM Core** - Fast game logic (entities, components, physics, AI)
 - **TypeScript Layer** - Web integration (rendering, input, UI, assets)
 - **Plugin System** - Extend with your own systems
@@ -45,29 +46,29 @@ npm install @gwen/engine-core
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GWEN Game</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #222;
-    }
-    canvas {
-      border: 2px solid #fff;
-    }
-  </style>
-</head>
-<body>
-  <canvas id="game-canvas" width="1280" height="720"></canvas>
-  <script type="module" src="/src/main.ts"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GWEN Game</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #222;
+      }
+      canvas {
+        border: 2px solid #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game-canvas" width="1280" height="720"></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
 ```
 
@@ -158,7 +159,7 @@ const engine = new Engine(
     canvas: 'game-canvas',
     width: 800,
     height: 600,
-  })
+  }),
 );
 
 let ball: Ball;
@@ -321,7 +322,7 @@ const engine = new Engine(
   defineConfig({
     canvas: 'game-canvas',
     plugins: [PhysicsPlugin],
-  })
+  }),
 );
 
 engine.on('start', () => {
@@ -495,4 +496,3 @@ A: Add sprite components and the renderer displays them.
 ---
 
 **Happy game development with GWEN! 🎮**
-

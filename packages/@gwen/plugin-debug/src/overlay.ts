@@ -7,9 +7,9 @@
 import type { DebugMetrics, DebugOverlayConfig } from './types';
 
 const POSITION_STYLES: Record<NonNullable<DebugOverlayConfig['position']>, string> = {
-  'top-left':     'top:8px; left:8px;',
-  'top-right':    'top:8px; right:8px;',
-  'bottom-left':  'bottom:8px; left:8px;',
+  'top-left': 'top:8px; left:8px;',
+  'top-right': 'top:8px; right:8px;',
+  'bottom-left': 'bottom:8px; left:8px;',
   'bottom-right': 'bottom:8px; right:8px;',
 };
 
@@ -19,9 +19,9 @@ export class DebugOverlay {
 
   constructor(config: DebugOverlayConfig = {}) {
     this.config = {
-      position:          config.position          ?? 'top-left',
-      colorNormal:       config.colorNormal       ?? '#00ff88',
-      colorDrop:         config.colorDrop         ?? '#ff4444',
+      position: config.position ?? 'top-left',
+      colorNormal: config.colorNormal ?? '#00ff88',
+      colorDrop: config.colorDrop ?? '#ff4444',
       backgroundOpacity: config.backgroundOpacity ?? 0.75,
     };
 
@@ -36,21 +36,21 @@ export class DebugOverlay {
     const bg = `rgba(0,0,0,${backgroundOpacity})`;
 
     Object.assign(this.el.style, {
-      position:      'fixed',
-      zIndex:        '99999',
-      padding:       '8px 12px',
-      borderRadius:  '6px',
-      background:    bg,
-      fontFamily:    '"Courier New", Courier, monospace',
-      fontSize:      '12px',
-      lineHeight:    '1.6',
+      position: 'fixed',
+      zIndex: '99999',
+      padding: '8px 12px',
+      borderRadius: '6px',
+      background: bg,
+      fontFamily: '"Courier New", Courier, monospace',
+      fontSize: '12px',
+      lineHeight: '1.6',
       pointerEvents: 'none',
-      userSelect:    'none',
-      whiteSpace:    'pre',
+      userSelect: 'none',
+      whiteSpace: 'pre',
     });
 
     // Appliquer la position (top/right/bottom/left)
-    posStyle.split(';').forEach(rule => {
+    posStyle.split(';').forEach((rule) => {
       const [prop, val] = rule.split(':');
       if (prop && val) {
         (this.el.style as unknown as Record<string, string>)[prop.trim()] = val.trim();
@@ -92,4 +92,3 @@ export class DebugOverlay {
     this.el.style.display = visible ? 'block' : 'none';
   }
 }
-

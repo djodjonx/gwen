@@ -11,7 +11,7 @@
  * Avec WASM actif (après initWasm()), les deux colonnes sont comparées.
  */
 
-import { bench, describe, beforeAll } from 'vitest';
+import { bench, describe } from 'vitest';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/ecs';
 import { getWasmBridge, _resetWasmBridge } from '../src/wasm-bridge';
 
@@ -138,4 +138,3 @@ describe('Entity lifecycle (create + delete) — 5 000 cycles', () => {
     for (const id of ids) bridge.deleteEntity(id.index, id.generation);
   });
 });
-

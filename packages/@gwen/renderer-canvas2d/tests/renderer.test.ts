@@ -46,11 +46,7 @@ function makeCanvasMock(width = 800, height = 600) {
 }
 
 function makeAPI(): EngineAPI {
-  return createEngineAPI(
-    new EntityManager(100),
-    new ComponentRegistry(),
-    new QueryEngine(),
-  );
+  return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -115,7 +111,12 @@ describe('Canvas2DRenderer', () => {
     it('should draw rect sprite', () => {
       const e = api.createEntity();
       api.addComponent<TransformComponent>(e, 'transform', { x: 50, y: 50 });
-      api.addComponent<SpriteComponent>(e, 'sprite', { shape: 'rect', width: 32, height: 32, color: '#ff0000' });
+      api.addComponent<SpriteComponent>(e, 'sprite', {
+        shape: 'rect',
+        width: 32,
+        height: 32,
+        color: '#ff0000',
+      });
       renderer.onRender(api);
       expect(ctx.fillRect).toHaveBeenCalled();
     });
@@ -123,7 +124,11 @@ describe('Canvas2DRenderer', () => {
     it('should draw circle sprite', () => {
       const e = api.createEntity();
       api.addComponent<TransformComponent>(e, 'transform', { x: 200, y: 200 });
-      api.addComponent<SpriteComponent>(e, 'sprite', { shape: 'circle', width: 20, color: '#00ff00' });
+      api.addComponent<SpriteComponent>(e, 'sprite', {
+        shape: 'circle',
+        width: 20,
+        color: '#00ff00',
+      });
       renderer.onRender(api);
       expect(ctx.beginPath).toHaveBeenCalled();
       expect(ctx.arc).toHaveBeenCalled();
@@ -132,7 +137,12 @@ describe('Canvas2DRenderer', () => {
     it('should skip invisible sprites', () => {
       const e = api.createEntity();
       api.addComponent<TransformComponent>(e, 'transform', { x: 0, y: 0 });
-      api.addComponent<SpriteComponent>(e, 'sprite', { shape: 'rect', width: 10, height: 10, visible: false });
+      api.addComponent<SpriteComponent>(e, 'sprite', {
+        shape: 'rect',
+        width: 10,
+        height: 10,
+        visible: false,
+      });
       renderer.onRender(api);
       expect(ctx.fillRect).toHaveBeenCalledTimes(1); // only background
     });
@@ -140,7 +150,11 @@ describe('Canvas2DRenderer', () => {
     it('should apply transform (translate/rotate/scale)', () => {
       const e = api.createEntity();
       api.addComponent<TransformComponent>(e, 'transform', {
-        x: 100, y: 200, rotation: Math.PI / 4, scaleX: 2, scaleY: 2,
+        x: 100,
+        y: 200,
+        rotation: Math.PI / 4,
+        scaleX: 2,
+        scaleY: 2,
       });
       renderer.onRender(api);
       expect(ctx.translate).toHaveBeenCalled();
@@ -249,7 +263,14 @@ describe('ShapeRenderer', () => {
 
     it('strokes a rect when strokeColor provided', () => {
       const ctx = makeCtx2();
-      ShapeRenderer.rect(ctx, { x: 0, y: 0, width: 40, height: 20, strokeColor: 'blue', strokeWidth: 2 });
+      ShapeRenderer.rect(ctx, {
+        x: 0,
+        y: 0,
+        width: 40,
+        height: 20,
+        strokeColor: 'blue',
+        strokeWidth: 2,
+      });
       expect(ctx.strokeRect).toHaveBeenCalledWith(-20, -10, 40, 20);
     });
 
@@ -342,4 +363,3 @@ describe('ShapeRenderer', () => {
     });
   });
 });
-

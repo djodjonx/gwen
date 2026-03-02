@@ -159,7 +159,9 @@ describe('WasmBridge — avec mock injecté', () => {
   });
 
   it('queryEntities() returns packed EntityIds from mock', () => {
-    (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(new Uint32Array([0, 1, 2]));
+    (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Uint32Array([0, 1, 2]),
+    );
     // get_entity_generation retourne 0 pour tous → packed = (0 << 20) | index = index
     const result = bridge.queryEntities([0]);
     expect(result).toEqual([0, 1, 2]); // generation=0 → packed === index
@@ -233,4 +235,3 @@ describe('Engine — WASM bridge integration', () => {
     engine.stop();
   });
 });
-

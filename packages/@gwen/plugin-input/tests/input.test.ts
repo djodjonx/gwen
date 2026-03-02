@@ -3,7 +3,7 @@
  * All tests run headlessly (no real events, tested via synthetic dispatch).
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { KeyboardInput } from '../src/keyboard';
 import { MouseInput } from '../src/mouse';
 import { GamepadInput } from '../src/gamepad';

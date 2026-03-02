@@ -95,4 +95,3 @@ export interface DebugOverlayConfig {
   /** Opacité du fond (0-1). @default 0.75 */
   backgroundOpacity?: number;
 }
-
