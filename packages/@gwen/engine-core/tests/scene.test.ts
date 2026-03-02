@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SceneManager } from '../src/scene';
+import { SceneManager, defineScene } from '../src/scene';
 import type { Scene } from '../src/scene';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
 import type { EngineAPI } from '../src/index';
@@ -167,3 +167,128 @@ describe('SceneManager', () => {
     });
   });
 });
+
+// ── defineScene ───────────────────────────────────────────────────────────────
+
+describe('defineScene', () => {
+  function makeAPI(): EngineAPI {
+    return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
+  }
+
+  // ── Forme 1 — objet direct ────────────────────────────────────────────────
+
+  it('forme 1 — retourne la scène telle quelle', () => {
+    const scene = defineScene({
+      name: 'Pause',
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    });
+    expect(scene.name).toBe('Pause');
+    expect(typeof scene.onEnter).toBe('function');
+  });
+
+  it('forme 1 — enregistrable directement dans SceneManager', () => {
+    const scene = defineScene({
+      name: 'Pause',
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    });
+    const sm  = new SceneManager();
+    const api = makeAPI();
+    sm.onInit(api);
+    sm.register(scene);
+    expect(sm.hasScene('Pause')).toBe(true);
+  });
+
+  it('forme 1 — ui[] et plugins sont optionnels', () => {
+    const scene = defineScene({
+      name: 'Minimal',
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    });
+    expect(scene.ui).toBeUndefined();
+    expect(scene.plugins).toBeUndefined();
+  });
+
+  // ── Forme 2 — factory ─────────────────────────────────────────────────────
+
+  it('forme 2 — retourne une fonction callable', () => {
+    const GameScene = defineScene('Game', (dep: string) => ({
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    }));
+    expect(typeof GameScene).toBe('function');
+  });
+
+  it('forme 2 — appel produit une Scene avec le bon name', () => {
+    const GameScene = defineScene('Game', () => ({
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    }));
+    const scene = GameScene();
+    expect(scene.name).toBe('Game');
+  });
+
+  it('forme 2 — les dépendances sont capturées en closure', () => {
+    const enterFn = vi.fn();
+    const GameScene = defineScene('Game', (dep: { value: number }) => ({
+      onEnter: () => enterFn(dep.value),
+      onExit:  vi.fn(),
+    }));
+    const scene = GameScene({ value: 42 });
+    scene.onEnter(null as any);
+    expect(enterFn).toHaveBeenCalledWith(42);
+  });
+
+  it('forme 2 — chaque appel produit une instance indépendante', () => {
+    const GameScene = defineScene('Game', (id: number) => ({
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    }));
+    const a = GameScene(1);
+    const b = GameScene(2);
+    expect(a).not.toBe(b); // instances distinctes
+    expect(a.name).toBe(b.name); // même name
+  });
+
+  it('forme 2 — plugins transmis correctement', () => {
+    const mockPlugin = { name: 'MockPlugin', onUpdate: vi.fn() };
+    const GameScene  = defineScene('Game', () => ({
+      plugins: [mockPlugin],
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    }));
+    const scene = GameScene();
+    expect(scene.plugins).toContain(mockPlugin);
+  });
+
+  it('forme 2 — enregistrable dans SceneManager après appel', () => {
+    const GameScene = defineScene('Game', () => ({
+      onEnter: vi.fn(),
+      onExit:  vi.fn(),
+    }));
+    const sm  = new SceneManager();
+    const api = makeAPI();
+    sm.onInit(api);
+    sm.register(GameScene()); // ← appel de la factory puis register
+    expect(sm.hasScene('Game')).toBe(true);
+  });
+
+  it('forme 2 — état en closure est isolé par instance', () => {
+    const GameScene = defineScene('Game', () => {
+      let count = 0;
+      return {
+        onEnter: () => { count++; },
+        onExit:  vi.fn(),
+        getCount: () => count,
+      } as any;
+    });
+    const a = GameScene() as any;
+    const b = GameScene() as any;
+    a.onEnter(null);
+    a.onEnter(null);
+    expect(a.getCount()).toBe(2);
+    expect(b.getCount()).toBe(0); // isolation garantie
+  });
+});
+

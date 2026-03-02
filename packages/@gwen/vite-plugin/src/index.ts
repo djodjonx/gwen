@@ -83,7 +83,9 @@ interface SceneInfo {
   className: string;
   sceneName: string;
   isDefault: boolean;
-  relPath: string; // relative to project root, for virtual module resolution
+  isFactory: boolean; // defineScene forme 2 — factory callable
+  isConst:   boolean; // defineScene forme 1 — objet direct (export const)
+  relPath: string;
 }
 
 function scanScenes(projectRoot: string): SceneInfo[] {
@@ -94,14 +96,29 @@ function scanScenes(projectRoot: string): SceneInfo[] {
     .filter(f => f.endsWith('.ts') && !f.startsWith('_') && !f.startsWith('.'))
     .sort()
     .map(file => {
-      const base = file.replace(/\.ts$/, '');
+      const base   = file.replace(/\.ts$/, '');
       const source = fs.readFileSync(path.join(scenesDir, file), 'utf-8');
 
       const defaultMatch = source.match(/export\s+default\s+class\s+(\w+)/);
-      const namedMatch   = source.match(/export\s+(?:class|const)\s+(\w+)/);
+      const classMatch   = source.match(/export\s+class\s+(\w+)/);
+      const constMatch   = source.match(/export\s+const\s+(\w+)/);
+      const namedMatch   = classMatch ?? constMatch;
       const className    = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
 
+      // defineScene forme 2 = export const + defineScene('string', factory)
+      const isFactory =
+        !!constMatch &&
+        /defineScene\s*\(\s*['"`][^'"`,]+['"`]\s*,/.test(source) &&
+        !classMatch;
+
+      // defineScene forme 1 = export const + defineScene({ ... })
+      const isConst =
+        !!constMatch &&
+        /defineScene\s*\(\s*\{/.test(source) &&
+        !classMatch;
+
       const sceneName =
+        source.match(/defineScene\s*\(\s*['"]([^'"]+)['"]/)?.[1] ??
         source.match(/readonly\s+name\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
         source.match(/\bname\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
         className.replace(/Scene$/, '');
@@ -111,6 +128,8 @@ function scanScenes(projectRoot: string): SceneInfo[] {
         className,
         sceneName,
         isDefault: !!defaultMatch,
+        isFactory,
+        isConst,
         relPath: `/src/scenes/${base}.ts`,
       };
     });
@@ -191,7 +210,18 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
   ).join('\n');
 
   const registrations = scenes
-    .map(s => `  scenes.register(new ${s.className}(scenes));`)
+    .map(s => {
+      if (s.isFactory) {
+        // defineScene forme 2 — factory callable avec dépendances
+        return `  scenes.register(${s.className}(scenes));`;
+      }
+      if (s.isConst) {
+        // defineScene forme 1 — objet direct, s'enregistre tel quel
+        return `  scenes.register(${s.className});`;
+      }
+      // class (rétrocompat)
+      return `  scenes.register(new ${s.className}(scenes));`;
+    })
     .join('\n');
 
   const mainSceneValue = mainScene ? JSON.stringify(mainScene) : 'undefined';

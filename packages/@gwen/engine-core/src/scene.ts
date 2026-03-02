@@ -79,6 +79,74 @@ export interface Scene {
   onExit(api: EngineAPI): void;
 }
 
+// ── SceneBody ─────────────────────────────────────────────────────────────────
+
+/** Corps d'une Scene sans le `name` — utilisé par defineScene. */
+export type SceneBody = Omit<Scene, 'name'>;
+
+/**
+ * Définit une Scene GWEN — deux syntaxes supportées.
+ *
+ * **Forme 1 — objet direct** (sans dépendances externes) :
+ * ```ts
+ * export const PauseScene = defineScene({
+ *   name: 'Pause',
+ *   ui: [PauseUI],
+ *   onEnter(api) { ... },
+ *   onExit(api)  { ... },
+ * });
+ * // Usage :
+ * sceneManager.register(PauseScene);
+ * ```
+ *
+ * **Forme 2 — factory** (avec dépendances injectées, typées) :
+ * ```ts
+ * export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
+ *   ui: [BackgroundUI, PlayerUI],
+ *   plugins: [makePlayerSystem(scenes)],
+ *   onEnter(api) { ... },
+ *   onExit(api)  { ... },
+ * }));
+ * // Usage — dépendances injectées à l'enregistrement :
+ * sceneManager.register(GameScene(scenes));
+ * //                     ↑ (scenes: SceneManager) → Scene
+ * ```
+ *
+ * TypeScript exige la factory si un string est passé :
+ * ```ts
+ * defineScene('Game')             // ❌ TS2554 — Expected 2 arguments
+ * defineScene({ onEnter: fn })    // ❌ TS     — manque name
+ * defineScene('Game', () => ({})) // ❌ TS     — manque onEnter et onExit
+ * ```
+ *
+ * Les classes implémentant `Scene` restent supportées — zéro breaking change.
+ */
+
+// Surcharge 1 — objet direct
+export function defineScene(config: Scene): Scene;
+
+// Surcharge 2 — factory OBLIGATOIRE, retourne une fonction callable
+export function defineScene<Args extends any[]>(
+  name: string,
+  factory: (...args: Args) => SceneBody,
+): (...args: Args) => Scene;
+
+// Implémentation
+export function defineScene<Args extends any[]>(
+  nameOrConfig: string | Scene,
+  factory?: (...args: Args) => SceneBody,
+): Scene | ((...args: Args) => Scene) {
+  if (typeof nameOrConfig === 'string') {
+    // Forme 2 — retourne une factory callable
+    return (...args: Args): Scene => ({
+      name: nameOrConfig,
+      ...factory!(...args),
+    });
+  }
+  // Forme 1 — objet direct
+  return nameOrConfig;
+}
+
 // ============= SceneManager =============
 
 export class SceneManager implements TsPlugin {

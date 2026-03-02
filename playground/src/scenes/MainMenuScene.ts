@@ -1,28 +1,24 @@
-import type { Scene, EngineAPI, SceneManager } from '@gwen/engine-core';
-import { UIComponent } from '@gwen/engine-core';
+import { defineScene, UIComponent } from '@gwen/engine-core';
+import type { EngineAPI, SceneManager } from '@gwen/engine-core';
 import type { KeyboardInput } from '@gwen/plugin-input';
 import { MainMenuUI } from '../ui/MainMenuUI';
 
-export class MainMenuScene implements Scene {
-  readonly name = 'MainMenu';
+export const MainMenuScene = defineScene('MainMenu', (scenes: SceneManager) => {
+  let keyboard: KeyboardInput | null = null;
 
-  readonly ui = [MainMenuUI];
+  return {
+    ui: [MainMenuUI],
 
-  private keyboard!: KeyboardInput;
+    onEnter(api: EngineAPI<GwenServices>) {
+      keyboard = api.services.get('keyboard');
+      const id = api.createEntity();
+      api.addComponent(id, UIComponent, { uiName: 'MainMenuUI' });
+    },
 
-  constructor(private scenes: SceneManager) {}
+    onUpdate(_api: EngineAPI<GwenServices>, _dt: number) {
+      if (keyboard?.isJustPressed('Space')) scenes.loadScene('Game');
+    },
 
-  onEnter(api: EngineAPI<GwenServices>) {
-    this.keyboard = api.services.get('keyboard');
-
-    // Entité porteuse du MainMenuUI
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'MainMenuUI' });
-  }
-
-  onUpdate(_api: EngineAPI<GwenServices>, _dt: number) {
-    if (this.keyboard?.isJustPressed('Space')) this.scenes.loadScene('Game');
-  }
-
-  onExit() {}
-}
+    onExit(_api: EngineAPI<GwenServices>) {},
+  };
+});
