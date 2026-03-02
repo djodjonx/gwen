@@ -107,7 +107,7 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   constructor(config: Canvas2DRendererConfig) {
     this.config = {
       canvas: undefined,
-      container: document.body,
+      container: undefined, // résolu lazily dans onInit
       width: 480,
       height: 640,
       background: '#000000',
@@ -120,20 +120,22 @@ export class Canvas2DRenderer implements GwenPlugin<'Canvas2DRenderer', { render
   onInit(api: EngineAPI): void {
     if (typeof this.config.canvas === 'string') {
       const el = document.getElementById(this.config.canvas);
-      if (!el || !(el instanceof HTMLCanvasElement)) {
+      if (!el || el.tagName.toLowerCase() !== 'canvas') {
         throw new Error(`[Canvas2DRenderer] Canvas element '${this.config.canvas}' not found.`);
       }
-      this._canvas = el;
-    } else if (this.config.canvas instanceof HTMLCanvasElement) {
-      this._canvas = this.config.canvas;
+      this._canvas = el as HTMLCanvasElement;
+    } else if (this.config.canvas && typeof this.config.canvas === 'object' && 'getContext' in this.config.canvas) {
+      this._canvas = this.config.canvas as HTMLCanvasElement;
     } else {
       // Auto-création du canvas et montage dans le container
-      const container = typeof this.config.container === 'string'
-        ? (document.querySelector(this.config.container) ?? document.body)
-        : (this.config.container ?? document.body);
+      const containerCfg = this.config.container;
+      const container = typeof containerCfg === 'string'
+        ? (document.querySelector(containerCfg) ?? document.body)
+        : (containerCfg ?? document.body);
       this._canvas = document.createElement('canvas');
       this._canvas.id = 'gwen-canvas';
-      this.resize(this.config.width, this.config.height);
+      this.resize(this.config.width!, this.config.height!);
+      (container as HTMLElement).appendChild(this._canvas);
       (container as HTMLElement).appendChild(this._canvas);
     }
 
