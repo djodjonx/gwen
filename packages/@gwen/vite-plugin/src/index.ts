@@ -63,10 +63,129 @@ export interface GwenPluginOptions {
   verbose?: boolean;
 }
 
-// ── Virtual module ID pour le manifeste ──────────────────────────────────────
+// ── Virtual module IDs ────────────────────────────────────────────────────────
 
 const VIRTUAL_MANIFEST_ID = 'virtual:gwen-manifest';
-const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_MANIFEST_ID;
+const RESOLVED_VIRTUAL_MANIFEST = '\0' + VIRTUAL_MANIFEST_ID;
+
+const VIRTUAL_ENTRY_ID = 'virtual:gwen/entry';
+const RESOLVED_VIRTUAL_ENTRY = '\0' + VIRTUAL_ENTRY_ID;
+
+const VIRTUAL_SCENES_ID = 'virtual:gwen/scenes';
+const RESOLVED_VIRTUAL_SCENES = '\0' + VIRTUAL_SCENES_ID;
+
+// ── Scan src/scenes/ ──────────────────────────────────────────────────────────
+
+interface SceneInfo {
+  file: string;
+  className: string;
+  sceneName: string;
+  isDefault: boolean;
+  relPath: string; // relative to project root, for virtual module resolution
+}
+
+function scanScenes(projectRoot: string): SceneInfo[] {
+  const scenesDir = path.join(projectRoot, 'src', 'scenes');
+  if (!fs.existsSync(scenesDir)) return [];
+
+  return fs.readdirSync(scenesDir)
+    .filter(f => f.endsWith('.ts') && !f.startsWith('_') && !f.startsWith('.'))
+    .sort()
+    .map(file => {
+      const base = file.replace(/\.ts$/, '');
+      const source = fs.readFileSync(path.join(scenesDir, file), 'utf-8');
+
+      const defaultMatch = source.match(/export\s+default\s+class\s+(\w+)/);
+      const namedMatch   = source.match(/export\s+(?:class|const)\s+(\w+)/);
+      const className    = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
+
+      const sceneName =
+        source.match(/readonly\s+name\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
+        source.match(/\bname\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
+        className.replace(/Scene$/, '');
+
+      return {
+        file,
+        className,
+        sceneName,
+        isDefault: !!defaultMatch,
+        relPath: `/src/scenes/${base}.ts`,
+      };
+    });
+}
+
+function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | undefined {
+  if (fromConfig) return fromConfig;
+  const candidates = ['Main', 'MainMenu', 'Boot'];
+  return (
+    candidates.find(c => scenes.some(s => s.sceneName === c)) ??
+    scenes[0]?.sceneName
+  );
+}
+
+// ── Génération des virtual modules ────────────────────────────────────────────
+
+function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined): string {
+  if (scenes.length === 0) {
+    return [
+      'import type { SceneManager } from "@gwen/engine-core";',
+      'export function registerScenes(_scenes: SceneManager): void {}',
+      'export const mainScene = undefined;',
+    ].join('\n');
+  }
+
+  const imports = scenes.map(s =>
+    s.isDefault
+      ? `import ${s.className} from ${JSON.stringify(s.relPath)};`
+      : `import { ${s.className} } from ${JSON.stringify(s.relPath)};`
+  ).join('\n');
+
+  const registrations = scenes
+    .map(s => `  scenes.register(new ${s.className}(scenes));`)
+    .join('\n');
+
+  const mainSceneValue = mainScene ? JSON.stringify(mainScene) : 'undefined';
+
+  return [
+    'import type { SceneManager } from "@gwen/engine-core";',
+    imports,
+    '',
+    'export function registerScenes(scenes) {',
+    registrations,
+    '}',
+    '',
+    `export const mainScene = ${mainSceneValue};`,
+  ].join('\n');
+}
+
+function generateEntryModule(hasScenesDir: boolean): string {
+  const lines = [
+    'import { initWasm, createEngine } from "@gwen/engine-core";',
+    'import gwenConfig from "/gwen.config.ts";',
+  ];
+
+  if (hasScenesDir) {
+    lines.push('import { registerScenes, mainScene } from "virtual:gwen/scenes";');
+  }
+
+  lines.push(
+    '',
+    'async function bootstrap() {',
+    '  await initWasm();',
+    hasScenesDir
+      ? '  const { engine } = createEngine(gwenConfig, registerScenes, mainScene);'
+      : '  const { engine } = createEngine(gwenConfig);',
+    '  engine.start();',
+    '}',
+    '',
+    'bootstrap().catch(err => {',
+    '  console.error("[GWEN] Fatal:", err);',
+    '  document.body.innerHTML = `<pre style="color:red;padding:2rem">[GWEN] Fatal:\\n${err}</pre>`;',
+    '});',
+  );
+
+  return lines.join('\n');
+}
 
 // ── Plugin principal ──────────────────────────────────────────────────────────
 
@@ -243,38 +362,63 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     name: 'gwen',
     enforce: 'pre',
 
-    // ── Résolution du module virtuel ─────────────────────────────────────
+    // ── Résolution des virtual modules ───────────────────────────────────
     resolveId(id) {
-      if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_ID;
+      if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_MANIFEST;
+      if (id === VIRTUAL_ENTRY_ID)    return RESOLVED_VIRTUAL_ENTRY;
+      if (id === VIRTUAL_SCENES_ID)   return RESOLVED_VIRTUAL_SCENES;
       return null;
     },
 
     load(id) {
-      if (id === RESOLVED_VIRTUAL_ID) {
+      if (id === RESOLVED_VIRTUAL_MANIFEST) {
         const manifest = loadManifest();
         return `export default ${manifest};`;
       }
+
+      if (id === RESOLVED_VIRTUAL_ENTRY) {
+        const hasScenesDir = fs.existsSync(path.join(projectRoot, 'src', 'scenes'));
+        return generateEntryModule(hasScenesDir);
+      }
+
+      if (id === RESOLVED_VIRTUAL_SCENES) {
+        const scenes = scanScenes(projectRoot);
+        // Lire mainScene depuis gwen.config.ts
+        const configPath = path.join(projectRoot, 'gwen.config.ts');
+        let mainSceneFromConfig: string | undefined;
+        if (fs.existsSync(configPath)) {
+          const src = fs.readFileSync(configPath, 'utf-8');
+          mainSceneFromConfig = src.match(/mainScene\s*:\s*['"]([^'"]+)['"]/)?.[1];
+        }
+        return generateScenesModule(scenes, resolveMainScene(scenes, mainSceneFromConfig));
+      }
+
       return null;
     },
 
-    // ── Build initial ─────────────────────────────────────────────────────
-    buildStart() {
-      projectRoot = (this as any).meta?.watchMode ? projectRoot : process.cwd();
-    },
-
-    // ── Mode dev : watch Rust sources + HMR ──────────────────────────────
+    // ── HMR : invalider virtual:gwen/scenes quand src/scenes/ change ─────
     configureServer(devServer) {
       server = devServer;
       projectRoot = devServer.config.root;
       cratePath = resolveCratePath(projectRoot);
 
-      // Initial build
+      // Watcher sur src/scenes/ pour invalider le virtual module
+      const scenesDir = path.join(projectRoot, 'src', 'scenes');
+      if (fs.existsSync(scenesDir)) {
+        fs.watch(scenesDir, () => {
+          const mod = devServer.moduleGraph.getModuleById(RESOLVED_VIRTUAL_SCENES);
+          if (mod) devServer.moduleGraph.invalidateModule(mod);
+          const entryMod = devServer.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ENTRY);
+          if (entryMod) devServer.moduleGraph.invalidateModule(entryMod);
+          devServer.ws.send({ type: 'full-reload' });
+        });
+      }
+
       if (options.watch !== false) {
         buildWasm(projectRoot);
         startWatcher(projectRoot);
       }
 
-      // Serve WASM files from public/wasm/
       devServer.middlewares.use((req, res, next) => {
         if (req.url?.startsWith('/wasm/')) {
           const filePath = path.join(projectRoot, 'public', req.url);
