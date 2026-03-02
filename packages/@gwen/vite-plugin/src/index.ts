@@ -133,6 +133,7 @@ interface HtmlConfig {
   canvasWidth?: number;
   canvasHeight?: number;
   background?: string;
+  overlay?: string;
 }
 
 function readHtmlConfig(projectRoot: string): HtmlConfig {
@@ -140,26 +141,29 @@ function readHtmlConfig(projectRoot: string): HtmlConfig {
     const configPath = path.join(projectRoot, 'gwen.config.ts');
     if (!fs.existsSync(configPath)) return {};
     const src = fs.readFileSync(configPath, 'utf-8');
-    // Extraire le bloc html: { ... } de la config (parsing statique)
     const htmlBlock = src.match(/html\s*:\s*\{([^}]*)\}/s)?.[1] ?? '';
     const get = (key: string, fallback: string) =>
       htmlBlock.match(new RegExp(`${key}\\s*:\\s*['"\`]?([^,'"\`\\n}]+)['"\`]?`))?.[1]?.trim() ?? fallback;
+    // overlay : capturer le contenu du template literal (backtick)
+    const overlayMatch = src.match(/overlay\s*:\s*`([\s\S]*?)`/);
     return {
       title:        get('title', ''),
       canvasId:     get('canvasId', 'game-canvas'),
       canvasWidth:  Number(get('canvasWidth', '480')) || 480,
       canvasHeight: Number(get('canvasHeight', '640')) || 640,
       background:   get('background', '#000'),
+      overlay:      overlayMatch?.[1]?.trim(),
     };
   } catch { return {}; }
 }
 
 function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
-  const title       = cfg.title       ?? path.basename(projectRoot);
-  const canvasId    = cfg.canvasId    ?? 'game-canvas';
-  const canvasWidth = cfg.canvasWidth ?? 480;
-  const canvasHeight= cfg.canvasHeight?? 640;
-  const bg          = cfg.background  ?? '#000';
+  const title        = cfg.title       ?? path.basename(projectRoot);
+  const canvasId     = cfg.canvasId    ?? 'game-canvas';
+  const canvasWidth  = cfg.canvasWidth ?? 480;
+  const canvasHeight = cfg.canvasHeight ?? 640;
+  const bg           = cfg.background  ?? '#000';
+  const overlay      = cfg.overlay     ?? '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -182,6 +186,7 @@ function generateIndexHtml(cfg: HtmlConfig, projectRoot: string): string {
 </head>
 <body>
   <canvas id="${canvasId}" width="${canvasWidth}" height="${canvasHeight}"></canvas>
+  ${overlay}
 </body>
 </html>`;
 }

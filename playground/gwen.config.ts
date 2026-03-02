@@ -30,6 +30,12 @@ export default defineConfig({
     canvasWidth: 480,
     canvasHeight: 640,
     background: '#000814',
+    overlay: `
+      <div id="ui" style="position:absolute;top:16px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;font-family:'Courier New',monospace;color:#4fffb0;">
+        <div id="score" style="font-size:20px;letter-spacing:2px;text-shadow:0 0 8px #4fffb0">SCORE: 0</div>
+        <div id="lives" style="font-size:14px;color:#ff6b6b;margin-top:4px">♥ ♥ ♥</div>
+      </div>
+    `,
   },
   plugins: [
     new InputPlugin(),
