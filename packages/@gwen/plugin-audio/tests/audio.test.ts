@@ -74,7 +74,7 @@ describe('AudioPlugin', () => {
       plugin.onInit(api);
 
       expect(api.services.has('audio')).toBe(true);
-      expect(api.services.get<AudioPlugin>('audio')).toBe(plugin);
+      expect(api.services.get('audio')).toBe(plugin);
 
       plugin.onDestroy();
     });
@@ -256,7 +256,7 @@ describe('AudioPlugin', () => {
       audio.onInit(api);
 
       // Another plugin retrieves audio in its onInit
-      const retrieved = api.services.get<AudioPlugin>('audio');
+      const retrieved = api.services.get('audio') as unknown as AudioPlugin;
       retrieved.preloadBuffer('hit', {} as AudioBuffer);
       const result = retrieved.play('hit');
 

@@ -181,7 +181,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   onInit(api: EngineAPI): void {
     this.api = api;
     // Auto-register comme SceneNavigator
-    api.services.register<SceneNavigator>('SceneManager', this);
+    api.services.register('SceneManager', this as SceneNavigator);
   }
 
   onBeforeUpdate(api: EngineAPI, _dt: number): void {
@@ -271,7 +271,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   private applyTransition(api: EngineAPI, name: string): void {
     const next = this.scenes.get(name)!;
     const registrar = api.services.has('PluginRegistrar')
-      ? api.services.get<import('./types').IPluginRegistrar>('PluginRegistrar')
+      ? (api.services as any).get('PluginRegistrar')
       : null;
 
     // 1. Exit current scene

@@ -20,7 +20,7 @@ export const ScoreUI = defineUI<GwenServices>({
     const score = api.getComponent(entityId, Score);
     if (!score) return;
 
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI');
     ui.text(entityId, 'hud-score', `SCORE: ${score.value}`);
     ui.text(entityId, 'hud-lives', '♥ '.repeat(Math.max(0, score.lives)).trim());
   },

@@ -240,7 +240,7 @@ describe('InputPlugin', () => {
     const plugin = new InputPlugin({ eventTarget: target });
     plugin.onInit(api);
 
-    const kb = api.services.get<KeyboardInput>('keyboard');
+    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
     expect(kb).toBeInstanceOf(KeyboardInput);
 
     plugin.onDestroy();
@@ -250,7 +250,7 @@ describe('InputPlugin', () => {
     const plugin = new InputPlugin({ eventTarget: target });
     plugin.onInit(api);
 
-    const kb = api.services.get<KeyboardInput>('keyboard');
+    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
     target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'KeyA' }));
     plugin.onBeforeUpdate(api, 0.016);
 
@@ -263,7 +263,7 @@ describe('InputPlugin', () => {
     plugin.onInit(api);
     plugin.onDestroy();
 
-    const kb = api.services.get<KeyboardInput>('keyboard');
+    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
     target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'KeyA' }));
     plugin.onBeforeUpdate(api, 0.016); // update after destroy
     // After detach, key presses should be ignored
@@ -280,7 +280,7 @@ describe('InputPlugin', () => {
       plugin.onInit(api);
 
       // Simulate PlayerController resolving input in onInit
-      const kb = api.services.get<KeyboardInput>('keyboard');
+      const kb = api.services.get('keyboard') as unknown as KeyboardInput;
 
       // Simulate a keypress
       target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'ArrowRight' }));

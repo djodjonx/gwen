@@ -12,6 +12,7 @@
 
 import type {
   ServiceLocator as IServiceLocator,
+  TypedServiceLocator,
   EngineAPI,
   ComponentType,
   SceneNavigator,
@@ -22,24 +23,25 @@ import { PrefabManager } from './prefab';
 
 // ============= ServiceLocator =============
 
-export class ServiceLocator implements IServiceLocator {
+export class ServiceLocator<M extends Record<string, unknown> = Record<string, unknown>>
+  implements TypedServiceLocator<M> {
   private registry = new Map<string, unknown>();
 
-  register<T>(name: string, instance: T): void {
+  register<K extends keyof M & string>(name: K, instance: M[K]): void {
     if (this.registry.has(name)) {
       console.warn(`[GWEN:ServiceLocator] '${name}' already registered — overwriting.`);
     }
     this.registry.set(name, instance);
   }
 
-  get<T>(name: string): T {
+  get<K extends keyof M & string>(name: K): M[K] {
     if (!this.registry.has(name)) {
       throw new Error(
         `[GWEN:ServiceLocator] Service '${name}' not found. ` +
-          `Available: [${[...this.registry.keys()].join(', ')}]`,
+        `Available: [${[...this.registry.keys()].join(', ')}]`,
       );
     }
-    return this.registry.get(name) as T;
+    return this.registry.get(name) as M[K];
   }
 
   has(name: string): boolean {
@@ -68,15 +70,16 @@ export interface EngineState {
  * Concrete implementation of EngineAPI.
  * Wraps the internal ECS and exposes a clean surface to plugins.
  */
-export class EngineAPIImpl implements EngineAPI {
-  readonly services: IServiceLocator;
+export class EngineAPIImpl<M extends Record<string, unknown> = Record<string, unknown>>
+  implements EngineAPI<M> {
+  readonly services: TypedServiceLocator<M>;
   readonly prefabs: PrefabManager;
 
   constructor(
     private entityManager: EntityManager,
     private components: ComponentRegistry,
     private queryEngine: QueryEngine,
-    services: IServiceLocator,
+    services: TypedServiceLocator<M>,
     private state: EngineState,
   ) {
     this.services = services;
@@ -94,7 +97,7 @@ export class EngineAPIImpl implements EngineAPI {
 
   get scene(): SceneNavigator | null {
     return this.services.has('SceneManager')
-      ? this.services.get<SceneNavigator>('SceneManager')
+      ? (this.services.get as any)('SceneManager')
       : null;
   }
 
@@ -166,13 +169,13 @@ export class EngineAPIImpl implements EngineAPI {
 /**
  * Factory — creates a fully wired EngineAPI for a given ECS context.
  */
-export function createEngineAPI(
+export function createEngineAPI<M extends Record<string, unknown> = Record<string, unknown>>(
   entityManager: EntityManager,
   components: ComponentRegistry,
   queryEngine: QueryEngine,
-  services?: IServiceLocator,
-): EngineAPIImpl {
-  const locator = services ?? new ServiceLocator();
+  services?: TypedServiceLocator<M>,
+): EngineAPIImpl<M> {
+  const locator = services ?? new ServiceLocator<M>();
   const state: EngineState = { deltaTime: 0, frameCount: 0 };
-  return new EngineAPIImpl(entityManager, components, queryEngine, locator, state);
+  return new EngineAPIImpl<M>(entityManager, components, queryEngine, locator, state);
 }

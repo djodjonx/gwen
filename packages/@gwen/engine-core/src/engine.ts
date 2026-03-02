@@ -227,11 +227,12 @@ export class Engine {
 
     this.pluginManager = new PluginManager();
 
-    this.api.services.register<import('./types').IPluginRegistrar>('PluginRegistrar', {
-      register: (plugin) => this.pluginManager.register(plugin, this.api),
-      unregister: (name) => this.pluginManager.unregister(name),
-      get: <T extends TsPlugin>(name: string) => this.pluginManager.get<T>(name),
-    });
+    // Inject PluginRegistrar directly into services for dynamic late-registration
+    this.api.services.register('PluginRegistrar', {
+      register: (plugin: TsPlugin) => this.pluginManager.register(plugin, this.api),
+      unregister: (name: string) => this.pluginManager.unregister(name),
+      get: (name: string) => this.pluginManager.get(name),
+    } as import('./types').IPluginRegistrar);
 
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
@@ -267,13 +268,13 @@ export class Engine {
     if (!layout) {
       throw new Error(
         `[GWEN] Composant "${componentId}" n'a pas de layout enregistré. ` +
-          `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
+        `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
       );
     }
     if (layout.byteLength === 0) {
       throw new Error(
         `[GWEN] Composant "${componentId}" a un schema vide (byteLength === 0). ` +
-          `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
+        `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
       );
     }
     if (this.scratchBuffer.byteLength < layout.byteLength) {
@@ -414,7 +415,7 @@ export class Engine {
     if (!this.wasmBridge.isActive()) {
       throw new Error(
         "[GWEN] Impossible de démarrer : le core WASM n'est pas initialisé.\n" +
-          'Appelez `await initWasm()` avant engine.start().',
+        'Appelez `await initWasm()` avant engine.start().',
       );
     }
 

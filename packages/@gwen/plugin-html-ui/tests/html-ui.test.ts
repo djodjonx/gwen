@@ -45,7 +45,7 @@ describe('HtmlUIPlugin', () => {
   // ── mount ────────────────────────────────────────────────────────────────
 
   it('mount creates DOM for entity', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
 
     const container = document.getElementById('gwen-html-ui')!;
@@ -54,7 +54,7 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('mount injects <style> into <head>', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
 
     const styles = document.querySelectorAll('style[data-gwen-ui]');
@@ -63,7 +63,7 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('mount deduplicates identical <style> blocks', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.mount(2, TEMPLATE);
 
@@ -74,8 +74,8 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('mount warns and remounts if entity already mounted', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.mount(1, TEMPLATE);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('already has a mounted template'));
@@ -85,7 +85,7 @@ describe('HtmlUIPlugin', () => {
   // ── el / text / style ────────────────────────────────────────────────────
 
   it('el returns element by ID', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
 
     const el = ui.el(1, 'score');
@@ -94,20 +94,20 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('el returns undefined for unknown ID', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     expect(ui.el(1, 'nonexistent')).toBeUndefined();
   });
 
   it('text updates textContent', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.text(1, 'score', 'SCORE: 42');
     expect(ui.el(1, 'score')!.textContent).toBe('SCORE: 42');
   });
 
   it('style updates element style', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.style(1, 'score', 'color', 'red');
     expect(ui.el(1, 'score')!.style.color).toBe('red');
@@ -116,7 +116,7 @@ describe('HtmlUIPlugin', () => {
   // ── unmount ──────────────────────────────────────────────────────────────
 
   it('unmount removes DOM for entity', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
 
     const container = document.getElementById('gwen-html-ui')!;
@@ -127,12 +127,12 @@ describe('HtmlUIPlugin', () => {
   });
 
   it('unmount is a no-op for unknown entity', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     expect(() => ui.unmount(999)).not.toThrow();
   });
 
   it('el returns undefined after unmount', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.unmount(1);
     expect(ui.el(1, 'score')).toBeUndefined();
@@ -141,7 +141,7 @@ describe('HtmlUIPlugin', () => {
   // ── onDestroy ────────────────────────────────────────────────────────────
 
   it('onDestroy cleans up container', () => {
-    const ui = api.services.get<HtmlUI>('htmlUI');
+    const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.mount(2, TEMPLATE);
 

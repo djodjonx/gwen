@@ -53,13 +53,12 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
   : never;
 
 /** Extrait le type `provides` d'un GwenPlugin */
-export type PluginProvides<T> = T extends GwenPlugin<any, infer P> ? P : Record<string, never>;
+export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, never>;
 
 /** Fusionne les `provides` de tous les plugins d'une liste */
 export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
-> &
-  Record<string, unknown>;
+> & Record<string, unknown>;
 
 // ── Interface GwenPlugin ──────────────────────────────────────────────────────
 

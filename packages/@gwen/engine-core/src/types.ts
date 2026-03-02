@@ -56,23 +56,15 @@ export interface ComponentAccessor<T> {
 export interface TypedServiceLocator<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Enregistre un service. La clé et la valeur sont typées si M est inféré. */
   register<K extends keyof M & string>(name: K, instance: M[K]): void;
-  /** Enregistre un service avec une clé arbitraire (rétro-compat) */
-  register<T>(name: string, instance: T): void;
 
   /** Récupère un service typé par sa clé */
   get<K extends keyof M & string>(name: K): M[K];
-  /** Récupère un service avec cast explicite (rétro-compat) */
-  get<T>(name: string): T;
 
   /** Vérifie si un service est enregistré */
   has(name: string): boolean;
 }
 
-/**
- * Alias non typé pour la rétro-compatibilité.
- * Les anciens plugins utilisent `ServiceLocator` sans paramètre de type.
- */
-export type ServiceLocator = TypedServiceLocator<Record<string, unknown>>;
+export type ServiceLocator = TypedServiceLocator<Record<string, never>>;
 
 export interface IPluginRegistrar {
   register(plugin: TsPlugin): void;
@@ -112,7 +104,7 @@ export interface SceneNavigator {
 export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   /** Query entities by required component types */
   query(
-    componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<any>>,
+    componentTypes: Array<ComponentType | import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>,
   ): EntityId[];
 
   /** Create a new entity */
@@ -123,8 +115,7 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
 
   /** Add / update a component on an entity (string type) */
   addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
-  /** Add / update a component using a ComponentDefinition DSL */
-  addComponent<D extends import('./schema').ComponentDefinition<any>>(
+  addComponent<D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>(
     id: EntityId,
     type: D,
     data: import('./schema').InferComponent<D>,
@@ -132,8 +123,7 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
 
   /** Get a component from an entity (string type) */
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
-  /** Get a component using a ComponentDefinition DSL */
-  getComponent<D extends import('./schema').ComponentDefinition<any>>(
+  getComponent<D extends import('./schema').ComponentDefinition<import('./schema').ComponentSchema>>(
     id: EntityId,
     type: D,
   ): import('./schema').InferComponent<D> | undefined;

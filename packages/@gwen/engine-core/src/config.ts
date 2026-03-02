@@ -133,7 +133,7 @@ export function defineConfig<const Plugins extends readonly AnyGwenPlugin[]>(con
     background?: string;
   };
 }): TypedEngineConfig<MergeProvides<Plugins>> {
-  return config as any;
+  return config as unknown as TypedEngineConfig<MergeProvides<Plugins>>;
 }
 
 /**
@@ -159,14 +159,18 @@ export function defineConfig<const Plugins extends readonly AnyGwenPlugin[]>(con
  * ```
  */
 export function createEngine(
-  config: TypedEngineConfig<any>,
+  config: TypedEngineConfig<Record<string, unknown>>,
   sceneLoader?: (scenes: SceneManager) => void,
   mainScene?: string,
 ): {
   engine: Engine;
   scenes: SceneManager;
 } {
-  const raw = config as any;
+  const raw = config as unknown as EngineConfig & {
+    plugins?: TsPlugin[];
+    mainScene?: string;
+    engine?: Partial<EngineConfig>;
+  };
   const engineOpts = raw.engine ?? {};
   const engine = new Engine({
     maxEntities: engineOpts.maxEntities ?? raw.maxEntities ?? 5000,
@@ -294,7 +298,7 @@ export class ConfigBuilder {
    * Add WASM plugin (Rust-compiled, performance-critical)
    * Examples: Physics2D, NetworkingEngine, CustomAI
    */
-  public addWasmPlugin(plugin: any): this {
+  public addWasmPlugin(plugin: WasmPlugin): this {
     if (!this.config.wasmPlugins) {
       this.config.wasmPlugins = [];
     }
@@ -306,7 +310,7 @@ export class ConfigBuilder {
    * Add TypeScript plugin (bundled with game, web APIs)
    * Examples: Input, Audio, AssetManager, UI
    */
-  public addTsPlugin(plugin: any): this {
+  public addTsPlugin(plugin: TsPlugin): this {
     if (!this.config.tsPlugins) {
       this.config.tsPlugins = [];
     }
