@@ -24,7 +24,7 @@ export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
 
   plugins: [
     MovementSystem,
-    PlayerSystem(scenes),
+    PlayerSystem(),
     AiSystem,
     SpawnerSystem(),
     CollisionSystem(scenes),

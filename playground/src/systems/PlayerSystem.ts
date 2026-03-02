@@ -1,12 +1,12 @@
 import { createPlugin } from '@gwen/engine-core';
-import type { EngineAPI, SceneManager } from '@gwen/engine-core';
+import type { EngineAPI } from '@gwen/engine-core';
 import type { KeyboardInput } from '@gwen/plugin-input';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
 const W = 480, H = 640;
 
-export const PlayerSystem = createPlugin('PlayerSystem', (scenes: SceneManager) => {
+export const PlayerSystem = createPlugin('PlayerSystem', () => {
   let keyboard: KeyboardInput | null = null;
 
   return {
