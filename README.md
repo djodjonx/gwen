@@ -26,16 +26,34 @@ GWEN is a **modular game engine** designed for:
 
 ## 🚀 Quick Start
 
-### Installation
+### Option 1: Create a New Project (Recommended)
 
 ```bash
-# Clone and install
+# Scaffold a new game project
+pnpm create @gwen/app my-game
+cd my-game
+pnpm dev
+```
+
+This generates a complete project structure with:
+- ✅ Game components & systems
+- ✅ Configuration file
+- ✅ TypeScript setup
+- ✅ Example game scene
+
+### Option 2: Development Setup (For Contributors)
+
+```bash
+# Clone and contribute to GWEN itself
 git clone https://github.com/djodjonx/gwen.git
 cd gwen
 pnpm install:all
 
 # Start development
 pnpm dev
+
+# Run tests
+pnpm test
 ```
 
 ### Your First Game
@@ -102,9 +120,29 @@ Core Engine (Rust/WASM ECS)
 
 ---
 
+## 🛠️ CLI Tool
+
+GWEN includes a powerful CLI for scaffolding and managing projects:
+
+```bash
+# Create new project
+pnpm create @gwen/app my-game
+
+# Available commands
+gwen dev      # Start development server
+gwen build    # Build for production
+gwen prepare  # Prepare dev environment
+gwen lint     # Check code quality
+```
+
+**Learn more:** [CLI Guide](./docs/CLI.md)
+
+---
+
 ## 📚 Documentation
 
 - 🎯 [Getting Started](./docs/GETTING_STARTED.md) - Installation & setup
+- 🛠️ [CLI Guide](./docs/CLI.md) - Scaffolding & commands
 - 🔗 [API Reference](./docs/API.md) - Complete API documentation
 - 🏗️ [Architecture](./docs/ARCHITECTURE.md) - How GWEN works
 - 🆘 [Troubleshooting](./docs/TROUBLESHOOTING.md) - FAQ & common issues
