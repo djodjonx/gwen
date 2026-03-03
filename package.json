@@ -21,6 +21,7 @@
     "lint:fix": "oxlint --config oxlint.json --fix packages/",
     "format": "oxfmt packages/",
     "format:check": "oxfmt --check packages/",
+    "typecheck": "pnpm --filter '@gwen/*' --filter '!@gwen/playground' exec tsc --noEmit",
     "changeset": "changeset",
     "changeset:status": "changeset status",
     "changeset:version": "changeset version",

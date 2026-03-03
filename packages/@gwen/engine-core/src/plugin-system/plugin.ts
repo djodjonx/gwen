@@ -93,7 +93,6 @@ export interface GwenPlugin<
   readonly provides?: P;
 }
 
-
 // ── GwenPluginMeta ────────────────────────────────────────────────────────────
 
 /**

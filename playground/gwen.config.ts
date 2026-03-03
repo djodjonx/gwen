@@ -31,7 +31,7 @@ export default defineConfig({
     title: 'GWEN — Space Shooter',
     background: '#000814',
   },
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({ width: 480, height: 640, background: '#000814', pixelRatio: 1, manualRender: true }),

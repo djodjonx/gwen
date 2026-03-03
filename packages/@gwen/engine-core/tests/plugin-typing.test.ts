@@ -187,4 +187,3 @@ describe('Rétro-compatibilité — TsPlugin sans provides', () => {
     expect(true).toBe(true); // compile = OK
   });
 });
-
