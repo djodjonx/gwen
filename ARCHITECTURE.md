@@ -1,280 +1,416 @@
-# 🎯 GWEN Architecture Clarification
+# 🏗️ Architecture du Framework GWEN — Moteur de Jeu Hybride WASM/TS
 
-**Date:** March 1, 2026
-**Update:** Architecture correctly defined
-
----
-
-## 📋 Correct Architecture
-
-GWEN is a **composable game engine** where:
-- **Rust/WASM** = Core logic (fast calculations)
-- **TypeScript** = Display and interaction (web-friendly)
-
-### Layer Separation
-
-```
-┌─────────────────────────────────────────────┐
-│         TypeScript Layer                    │
-│  (@gwen/engine-core)                        │
-├─────────────────────────────────────────────┤
-│ • Renderer (Canvas2D/WebGL)                 │
-│ • Input System                              │
-│ • UI Components                             │
-│ • Asset Management                          │
-│ • Plugin System (TypeScript)                │
-│                                             │
-│         ↕️ wasm-bindgen                      │
-│                                             │
-├─────────────────────────────────────────────┤
-│    Rust/WASM Core                           │
-│  (crates/gwen-core)                         │
-├─────────────────────────────────────────────┤
-│ • Entity Manager        (Game objects)      │
-│ • Component Storage     (Data layout)       │
-│ • Query System          (Fast iteration)    │
-│ • Transform System      (Hierarchies)       │
-│ • Transform Math        (Calculations)      │
-│ • Game Loop             (Frame timing)      │
-│ • Memory Allocator      (Optimization)      │
-│ • Event Bus             (Pub/sub)           │
-│ • Plugin System (Rust)  (Physics, AI, etc)  │
-│                                             │
-└─────────────────────────────────────────────┘
-```
+> **Version :** 1.1 — Document fondateur définitif
+> **Date :** 3 mars 2026
+> **Statut :** ✅ Architecture validée et gravée dans le marbre
 
 ---
 
-## ✅ What's in Each Layer
+## 1. Vision et Philosophie
 
-### Rust/WASM Core (gwen-core)
+L'objectif de GWEN est de fournir un moteur de jeu web 2D/3D qui offre les **performances brutes du bas niveau (Rust)** tout en conservant **l'ergonomie et la Developer Experience (DX) des frameworks web modernes**.
 
-**Purpose:** Fast logic, calculations, data management
+L'architecture repose sur une séparation stricte des responsabilités :
 
-**Components:**
-- ✅ Entity Manager - Create/destroy game objects
-- ✅ Component Storage - Efficient data layout (SoA)
-- ✅ Query System - Fast entity iteration
-- ✅ Transform Math (Vec2, Mat3) - Matrix calculations
-- ✅ Transform System - Hierarchies with world transforms
-- ✅ Game Loop - Frame orchestration
-- ✅ Memory Allocator - Zero-fragmentation allocation
-- ✅ Event Bus - Pub/sub event system
+- **Le Muscle (Rust/WASM) :** Gère la mémoire linéaire, l'ECS, les mathématiques, la physique, l'IA. Le développeur de *jeu* n'écrit jamais de Rust — c'est transparent.
+- **Le Cerveau & Le Visage (TypeScript & DOM) :** Gère la logique métier, les entrées utilisateurs, le rendu, l'orchestration et l'interface (HUD).
 
-**What's NOT here:**
-- ❌ Canvas rendering
-- ❌ WebGL context
-- ❌ Input listeners
-- ❌ DOM manipulation
-- ❌ Asset loading (images, fonts, etc)
+**Principe fondateur :** le développeur écrit son jeu en TypeScript. Le moteur délègue silencieusement les opérations intensives au cœur Rust/WASM — transparent, sans lock-in.
 
-### TypeScript Layer (@gwen/engine-core)
-
-**Purpose:** Display, interaction, web integration
-
-**Components (To Build):**
-- 🚀 **Renderer** - Canvas2D/WebGL rendering
-  - Color management
-  - Sprite drawing
-  - Texture handling
-  - Camera projection
-
-- 🚀 **Input System** - Keyboard/mouse/touch
-  - Event listeners
-  - Input mapping
-  - State tracking
-
-- 🚀 **UI Components** - Web-based UI
-  - Buttons, text, panels
-  - Canvas overlays
-  - HUD elements
-
-- 🚀 **Asset Manager** - Load resources
-  - Images/sprites
-  - Audio files
-  - JSON/data files
-
-- 🚀 **Plugin System** - Extend functionality
-  - TypeScript plugins
-  - Easy integration
-  - Hot reload support
+**Rust n'est jamais requis côté utilisateur.** Les artefacts `.wasm` sont pré-compilés et publiés dans chaque package npm. Seuls les contributeurs du framework compilent du Rust.
 
 ---
 
-## 🔄 Data Flow
+## 2. Fondations Technologiques
 
-### Example: Player Movement
-
-```
-1. Input (TypeScript)
-   └─ "User pressed arrow key"
-
-2. Call WASM Core
-   └─ engine.update_player_position(direction)
-
-3. Rust Calculation
-   └─ Update transform, check collisions, etc
-
-4. Return to TypeScript
-   └─ Get new position, rotation
-
-5. Render (TypeScript)
-   └─ Draw player sprite at new position
-
-6. Next Frame Loop
-```
-
-### Example: Physics Plugin (Rust)
-
-```
-TypeScript Plugin (wasm-based):
-  1. User adds physics plugin
-  2. Plugin code runs in WASM
-  3. Fast calculations (forces, velocities)
-  4. Returns results to TypeScript
-  5. TypeScript applies to display
-```
+1. **Rust/WASM** : Performances natives dans le navigateur. Compilé via `wasm-pack` en CI. L'artefact `gwen_core_bg.wasm` est pré-compilé et embarqué dans `@gwen/engine-core/wasm/`.
+2. **ECS (Entity Component System)** : Les données ne sont pas des objets POO mais des tableaux plats (`ComponentStorage` SoA). Zéro copie, zéro GC, vitesse maximale.
+3. **WASM indépendants + SharedArrayBuffer** : `gwen-core` et les plugins WASM sont des `.wasm` **séparés**, communiquant via un buffer mémoire partagé. Zéro copie, zéro marshalling, deux modules déployables indépendamment.
+4. **Plugin TS comme colle** : Le plugin TypeScript d'un plugin WASM n'est pas un "wrapper qui translate" — il initialise la mémoire partagée et orchestre les appels entre les modules WASM. La logique de simulation reste 100% en Rust.
 
 ---
 
-## 📊 Current Status
+## 3. Modèle de Plugin WASM — La Décision Clé
 
-### Phase 1: Core ECS ✅ COMPLETE
+### Pourquoi pas un build monolithique ?
 
-Rust/WASM: 120 tests, all passing
-- Entity Manager (11 tests)
-- Component Storage (14 tests)
-- Query System (21 tests)
-- Memory Allocator (23 tests)
-- Event Bus (10 tests)
-- Game Loop (12 tests)
-- Extended Tests (19 tests)
-- wasm-bindgen exports
+Compiler `gwen-core + physics2d` en **un seul `.wasm`** est techniquement possible (build-time linking) mais a un coût majeur : **l'utilisateur devrait avoir Rust installé** pour rebuilder dès qu'il déclare un plugin dans sa config. C'est contraire au principe fondateur de GWEN.
 
-### Phase 2: Rendering (IN PROGRESS)
+### Le modèle retenu : deux `.wasm` + SharedArrayBuffer
 
-Rust/WASM: 18 tests
-- Transform Math (10 tests) ✅
-- Transform System (8 tests) ✅
+```
+@gwen/engine-core/wasm/
+  gwen_core_bg.wasm        ← ECS, Transform, GameLoop
 
-TypeScript: TO BUILD
-- Renderer system
-- Canvas2D backend
-- Input handling
-- Asset management
-- Plugin system
+@gwen/plugin-physics2d/wasm/
+  gwen_physics2d_bg.wasm   ← Rapier2D, RigidBody, Collider
+```
+
+Les deux modules partagent la **même mémoire linéaire** via `SharedArrayBuffer`. Le plugin TypeScript (`@gwen/plugin-physics2d`) agit comme **colle d'initialisation** : il monte la mémoire partagée, câble les imports/exports WASM, et expose une API propre au `WasmBridge`.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                   TypeScript (Engine)                    │
+│  WasmBridge.physics_step(delta)   ← API haut niveau      │
+└────────────┬────────────────────────────┬────────────────┘
+             │                            │
+    ┌────────▼────────┐        ┌──────────▼────────┐
+    │  gwen_core.wasm │        │  physics2d.wasm    │
+    │  ECS / GameLoop │        │  Rapier2D          │
+    │                 │        │                    │
+    │  ComponentStorage◄───────► RigidBodySet       │
+    │  (positions,    │        │  (simulation)      │
+    │   velocités)    │        │                    │
+    └────────┬────────┘        └────────────────────┘
+             │
+     SharedArrayBuffer
+     (mémoire partagée — zéro copie)
+```
+
+### Overhead réel
+
+| Approche | Overhead par frame (1000 entités) | Rust requis utilisateur |
+|----------|-----------------------------------|-------------------------|
+| Build monolithique | ~0 ms | ✅ **OUI** — bloquant |
+| Deux WASM + copie JS | ~10 ms | ❌ Non — mais **trop lent** |
+| **Deux WASM + SharedArrayBuffer** | **~0.01 ms** | ❌ **Non — retenu** |
+
+La synchronisation avec `SharedArrayBuffer` est négligeable (< 0.1% du budget frame à 60 FPS).
 
 ---
 
-## 🎯 What Gets Built Where
+## 4. Le Pipeline de Configuration
 
-### Rust/WASM ← Fast Calculations
-
-```rust
-// Spawn entities quickly
-pub fn spawn_entity(&mut self) -> EntityId { ... }
-
-// Update transforms (parent-child hierarchy)
-pub fn update_transforms(&mut self) { ... }
-
-// Query entities efficiently
-pub fn query_by_components(&self, components: &[ComponentId]) -> Vec<EntityId> { ... }
-
-// Physics calculations
-pub fn apply_physics(&mut self) { ... }
-
-// AI decisions
-pub fn update_ai(&mut self) { ... }
-```
-
-### TypeScript ← Display & Interaction
+Point d'entrée du projet utilisateur — le **Composition Root**.
 
 ```typescript
-// Render to screen
-renderer.drawSprite(spriteId, position, rotation);
+// gwen.config.ts (Projet Utilisateur)
+import { defineConfig } from '@gwen/cli';
+import { physics2D } from '@gwen/plugin-physics2d'; // npm install @gwen/plugin-physics2d
+import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { InputPlugin } from '@gwen/plugin-input';
 
-// Handle input
-inputSystem.onKeyPress('arrow_up', () => {
-  engine.move_player(Direction::Up);
+export default defineConfig({
+  core: { maxEntities: 10_000, targetFPS: 60 },
+
+  // Plugins WASM — artefacts pré-compilés dans le package npm.
+  // Aucune installation de Rust. Le CLI charge le .wasm au démarrage.
+  wasm: [
+    physics2D({ gravity: 9.81, friction: 0.9 })
+  ],
+
+  // Plugins TypeScript — logique, DOM, Web APIs
+  plugins: [
+    new InputPlugin(),
+    new Canvas2DRenderer({ width: 800, height: 600 }),
+  ]
+});
+```
+
+---
+
+## 5. Anatomie d'un Plugin WASM
+
+Un plugin WASM GWEN est composé de **deux parties distinctes** :
+
+### A. Le crate Rust (`crates/gwen-plugin-physics2d/`)
+
+Compilé **une seule fois en CI**, artefact publié dans le package npm. L'utilisateur ne voit jamais ce code.
+
+```rust
+// crates/gwen-plugin-physics2d/src/lib.rs
+use wasm_bindgen::prelude::*;
+use rapier2d::prelude::*;
+
+#[wasm_bindgen]
+pub struct Physics2DPlugin {
+    pipeline: PhysicsPipeline,
+    rigid_body_set: RigidBodySet,
+    // ...
+    /// Pointeur vers la mémoire partagée avec gwen-core (SharedArrayBuffer)
+    shared_memory: *mut f32,
+}
+
+#[wasm_bindgen]
+impl Physics2DPlugin {
+    #[wasm_bindgen(constructor)]
+    pub fn new(gravity: f32, shared_ptr: *mut f32) -> Self { ... }
+
+    /// Avance la simulation. Lit/écrit directement dans shared_memory.
+    /// Appelé par le WasmBridge TypeScript à chaque frame.
+    pub fn step(&mut self, delta: f32) { ... }
+
+    /// Retourne les événements de collision (JSON léger).
+    pub fn get_collision_events(&self) -> String { ... }
+}
+```
+
+### B. Le package TypeScript (`packages/@gwen/plugin-physics2d/`)
+
+C'est la **colle** — initialise la mémoire partagée, charge le `.wasm`, enregistre les méthodes dans le `WasmBridge`. Contient **zéro logique de simulation**.
+
+```typescript
+// packages/@gwen/plugin-physics2d/src/index.ts
+import { GwenWasmPlugin, WasmBridge } from '@gwen/engine-core';
+
+export class Physics2DPlugin implements GwenWasmPlugin {
+  readonly name = 'Physics2D';
+
+  async onInit(bridge: WasmBridge, sharedBuffer: SharedArrayBuffer) {
+    // Charge le .wasm pré-compilé depuis le package — zéro Rust requis
+    const wasm = await import('../wasm/gwen_physics2d.js');
+    await wasm.default();
+
+    // Monte la mémoire partagée avec gwen-core
+    const sharedPtr = bridge.getSharedMemoryPtr();
+    this.physics = new wasm.Physics2DPlugin(this.options.gravity, sharedPtr);
+  }
+
+  onStep(delta: number) {
+    this.physics.step(delta); // < 0.5ms, tout en Rust
+  }
+
+  getCollisionEvents(): CollisionEvent[] {
+    return JSON.parse(this.physics.get_collision_events());
+  }
+}
+
+// Helper de config (objet descripteur pur)
+export const physics2D = (options = { gravity: 9.81 }) =>
+  new Physics2DPlugin(options);
+```
+
+---
+
+## 6. L'Architecture des Plugins TypeScript
+
+Les plugins TS purs implémentent `GwenPlugin` et utilisent le **Query System** via `EngineAPI` :
+
+```typescript
+// src/systems/PlayerController.ts
+import { GwenPlugin, EngineAPI } from '@gwen/engine-core';
+
+export class PlayerController implements GwenPlugin {
+  readonly name = 'PlayerController';
+
+  constructor(private audio: IAudioService) {} // Pure DI par constructeur
+
+  onUpdate(api: EngineAPI, deltaTime: number) {
+    const players = api.query(['PlayerInput', 'Velocity']);
+    for (const id of players) {
+      if (api.components.PlayerInput.getIsJumping(id)) {
+        api.components.Velocity.setY(id, -500); // Écriture → mémoire WASM
+        this.audio.playSound('jump.mp3');
+      }
+    }
+  }
+}
+```
+
+---
+
+## 7. Séquençage de la Boucle de Jeu (60 FPS)
+
+```
+1. Temps           → calcul du deltaTime (WasmBridge.tick)           ~0.001ms
+2. onBeforeUpdate  → TsPlugins : capture inputs, intentions           ~0.1ms
+3. WasmStep        → physics.step(), ai.step() (Rust, SharedMem)     ~0.5ms
+4. onUpdate        → TsPlugins : logique métier                       ~1ms
+5. UI.render       → UIManager : DOM dirty-check                      ~0.1ms
+6. onRender        → TsPlugins : dessin Canvas/WebGL                  ~5ms
+                                                         Total : ~7ms (60 FPS ✅)
+```
+
+**Règle d'or :** le WASM est **authoritative** sur ses données. Après `WasmStep`, les positions physiques Rust écrasent tout. Ne jamais écrire depuis TypeScript un composant piloté par la physique Rust.
+
+---
+
+## 8. Pont TypeScript ↔ Rust (WasmBridge)
+
+```
+Engine.createEntity()     → WasmBridge → Rust EntityAllocator
+Engine.addComponent()     → DataView/SchemaLayout → WasmBridge → Rust ComponentStorage
+Engine.query()            → WasmBridge → Rust QuerySystem (cache archétype)
+Engine.tick(delta)        → WasmBridge → Rust GameLoop
+Engine.physics_step()     → Physics2DPlugin.onStep() → Rust Rapier2D (SharedArrayBuffer)
+```
+
+**EntityId packed** : `(generation << 20) | index` — format aligné Rust/TS, zéro conversion.
+
+**Sérialisation binaire** : `computeSchemaLayout()` génère `serialize`/`deserialize` compilés depuis `defineComponent()`. Scratchpad global 1 KB — zéro allocation par frame.
+
+---
+
+## 9. Gestion des Données : Composants DSL
+
+```typescript
+// src/components/Velocity.comp.ts
+import { defineComponent, Types } from '@gwen/engine-core';
+
+export const Velocity = defineComponent({
+  name: 'Velocity',
+  schema: { x: Types.f32, y: Types.f32 }
+});
+```
+
+**Types disponibles :** `f32, f64, i32, i64, u32, u64, bool, string`
+
+---
+
+## 10. Interface Utilisateur (HUD)
+
+Direct Binding DOM, sans Virtual DOM — zéro micro-saccades :
+
+```typescript
+// src/ui/HealthBar.ui.ts
+export const HealthBar = defineUI({
+  name: 'HealthBar',
+  onMount(api, entityId) {
+    api.services.get('htmlUI').mount(entityId, `<div class="fill"></div>`);
+  },
+  render(api, entityId) {
+    const hp = api.components.Health.getCurrent(entityId);
+    api.services.get('htmlUI').style(entityId, 'fill', 'width', `${hp}%`);
+  }
+});
+```
+
+---
+
+## 11. Injection de Dépendances & Service Locator
+
+**Pure DI (constructeur) :** services instanciés dans `gwen.config.ts`, passés aux plugins.
+
+**Service Locator (`api.services`) :** `register` dans `onInit` uniquement, `get` dans `onUpdate`.
+
+```typescript
+// Typage inféré automatiquement depuis la config — zéro cast manuel
+api.services.get('keyboard')  // → KeyboardInput ✅
+api.services.get('renderer')  // → Canvas2DRenderer ✅
+api.services.get('physics')   // → Physics2DAPI ✅ (si wasm: [physics2D()])
+```
+
+---
+
+## 12. Prefabs et Scènes
+
+```typescript
+// Prefab : recette déclarative d'entité
+export const EnemyPrefab = definePrefab({
+  name: 'Enemy',
+  components: [Transform, Velocity, AI, Sprite],
+  defaults: { Velocity: { x: 0, y: 50 } }
 });
 
-// Load assets
-assetManager.loadImage('player.png');
-
-// Create UI
-ui.createButton('Play', () => startGame());
+// Scène : cycle de vie global, nettoie la mémoire WASM au changement
+export const GameScene = defineScene('Game', (scenes) => ({
+  ui: [BackgroundUI, PlayerUI, ScoreUI],
+  plugins: [MovementSystem, PlayerSystem, CollisionSystem],
+  onEnter(api) { api.prefabs.instantiate('Enemy', { x: 100, y: 0 }); },
+  onExit(api)  { /* cleanup */ },
+}));
 ```
 
 ---
 
-## 🚀 Plugin System
+## 13. Topologie du Monorepo
 
-### Rust Plugin Example
-
-```rust
-// my-physics-plugin/src/lib.rs
-#[wasm_bindgen]
-pub fn apply_gravity(entities: &[EntityId], dt: f32) {
-  // Fast physics calculations in WASM
-}
+```
+gwen/
+├── Cargo.toml                          ← workspace Rust
+├── pnpm-workspace.yaml                 ← workspace pnpm
+│
+├── crates/
+│   ├── gwen-core/                      ← ECS + GameLoop + Transform (~150 KB WASM)
+│   │   └── src/
+│   │       ├── entity.rs               ← EntityAllocator avec générations
+│   │       ├── component.rs            ← ComponentStorage SoA
+│   │       ├── query.rs                ← QuerySystem cache archétype
+│   │       ├── allocator.rs            ← allocateur bas niveau
+│   │       ├── events.rs               ← EventBus pub/sub
+│   │       ├── gameloop.rs             ← orchestration de frame
+│   │       ├── transform.rs            ← Transform 2D
+│   │       ├── transform_math.rs       ← maths vectorielles
+│   │       └── bindings.rs             ← exports wasm-bindgen
+│   │
+│   └── gwen-plugin-physics2d/          ← 🔜 Crate Rust indépendant (Rapier2D)
+│       ├── Cargo.toml                  ← dépend de rapier2d, PAS de gwen-core
+│       └── src/
+│           ├── lib.rs                  ← re-exports
+│           ├── components.rs           ← RigidBody, Collider, PhysicsMaterial
+│           ├── world.rs                ← pipeline Rapier2D + mapping EntityId↔Handle
+│           └── bindings.rs             ← exports wasm-bindgen (Physics2DPlugin)
+│
+├── packages/
+│   └── @gwen/
+│       ├── engine-core/                ← Orchestrateur TS (Engine, WasmBridge…)
+│       │   └── wasm/                   ← gwen_core_bg.wasm pré-compilé (CI)
+│       ├── cli/                        ← gwen dev/build/prepare
+│       ├── vite-plugin/                ← virtual modules, HMR, WASM middleware
+│       ├── renderer-canvas2d/          ← Canvas2DRenderer
+│       ├── plugin-input/               ← keyboard/mouse/gamepad
+│       ├── plugin-audio/               ← Web Audio API
+│       ├── plugin-debug/               ← FPS tracker + overlay
+│       ├── plugin-html-ui/             ← UI HTML par entités
+│       └── plugin-physics2d/           ← 🔜 Colle TS + wasm/ pré-compilé
+│           ├── wasm/                   ← gwen_physics2d_bg.wasm pré-compilé (CI)
+│           └── src/
+│               └── index.ts            ← Physics2DPlugin (colle) + physics2D() helper
+│
+└── playground/
+    └── space-shooter/                  ← Démo complète
 ```
 
-### TypeScript Plugin Example
+---
 
-```typescript
-// my-input-plugin/src/index.ts
-export function setupControls(engine: Engine) {
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowUp') {
-      engine.move_player('up');
-    }
-  });
-}
+## 14. Workflow Développeur Cible
+
+```bash
+# Créer un projet — zéro Rust requis
+npm create gwen-app mon-jeu
+
+# Ajouter la physique — simple npm install
+npm install @gwen/plugin-physics2d
+
+# Développement
+gwen dev     # Vite HMR + WASM servi depuis node_modules
+
+# Production
+gwen build   # bundle TS + copie les .wasm depuis node_modules → dist/wasm/
+
+# Déploiement
+gwen preview
 ```
 
----
-
-## ✨ Benefits of This Architecture
-
-✅ **Performance**
-- Calculations in WASM (fast)
-- Only rendering in JS (acceptable)
-- No data serialization overhead
-
-✅ **Maintainability**
-- Clear separation of concerns
-- Rust for logic, TS for UI
-- Each team can work independently
-
-✅ **Flexibility**
-- Swap renderers (Canvas → WebGL → WebGPU)
-- Add/remove plugins easily
-- Reuse WASM core in other projects
-
-✅ **Web Integration**
-- Native web APIs from TypeScript
-- DOM manipulation when needed
-- Asset loading from web sources
+**L'utilisateur ne touche jamais** à Vite, Rust, `wasm-pack`, ni au bootstrap WASM.
 
 ---
 
-## 🎓 What You Have Now
+## 15. Cibles de Performance
 
-**Phase 1 Deliverable:** Production-ready ECS core
-- 120 tests, all passing
-- 0 warnings, 0 errors
-- Performance verified
-- Ready for game logic
-
-**Ready to Add:** Full TypeScript rendering layer
-- Canvas2D implementation
-- Input system
-- Asset management
-- Complete game framework
+| Métrique | Cible |
+|----------|-------|
+| FPS stables | 60 FPS avec 10 000 entités actives |
+| Taille WASM de base | < 150 KB (ECS + Transform) |
+| Taille WASM physics | < 400 KB (Rapier2D) |
+| Overhead SharedArrayBuffer | < 0.01 ms/frame |
+| Physics step (1000 entités) | < 0.5 ms (Rapier2D natif) |
+| TTI | < 2 s sur connexion standard |
 
 ---
 
-**This is the correct separation: WASM for logic, TypeScript for display!** 🎮
+## 16. Décisions Architecturales Clés (ADR)
 
-Now we can build the TypeScript renderer layer properly!
+| ADR | Décision | Raison |
+|-----|----------|--------|
+| **ADR-1** | Plugins WASM = `.wasm` séparés publiés dans npm | Rust jamais requis côté utilisateur — DX maximale |
+| **ADR-2** | Communication inter-WASM via SharedArrayBuffer | Zéro copie entre les modules WASM, overhead ~0.01ms |
+| **ADR-3** | Plugin TS = colle d'initialisation, zéro logique | La simulation reste 100% en Rust, TS n'est qu'un câbleur |
+| **ADR-4** | TS pour la logique de jeu, Rust pour le moteur | Séparation claire, développeur de jeu ne touche pas à Rust |
+| **ADR-5** | Configuration statique compile-time (`gwen.config.ts`) | Typage inféré, Tree-shaking, DX Nuxt-like |
+| **ADR-6** | DSL `defineComponent()` avec `Types.*` | Zéro allocation par frame, serialize/deserialize compilés |
+| **ADR-7** | Pure DI + Service Locator (`api.services`) | Testabilité, multi-instance, typage inféré automatiquement |
 
+---
+
+*Ce document est la source de vérité architecturale de GWEN. Toute décision technique doit être alignée avec ces principes.*

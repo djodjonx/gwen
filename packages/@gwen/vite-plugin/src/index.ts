@@ -201,9 +201,10 @@ function generateEntryModule(hasScenesDir: boolean): string {
     '',
     'async function bootstrap() {',
     '  await initWasm();',
+    // createEngine is now async — must be awaited
     hasScenesDir
-      ? '  const { engine } = createEngine(gwenConfig, registerScenes, mainScene);'
-      : '  const { engine } = createEngine(gwenConfig);',
+      ? '  const { engine } = await createEngine(gwenConfig, registerScenes, mainScene);'
+      : '  const { engine } = await createEngine(gwenConfig);',
     '  engine.start();',
     '}',
     '',
@@ -217,6 +218,52 @@ function generateEntryModule(hasScenesDir: boolean): string {
 }
 
 // ── Plugin principal ──────────────────────────────────────────────────────────
+
+/**
+ * Scan node_modules/@gwen/plugin-* for WASM artifacts.
+ * Returns the full path to the file if found, null otherwise.
+ */
+function findWasmPluginFile(root: string, fileName: string): string | null {
+  const nmDirs = [
+    path.resolve(root, 'node_modules/@gwen'),
+    path.resolve(root, '../node_modules/@gwen'),
+    path.resolve(__dirname, '../../../node_modules/@gwen'),
+  ];
+
+  for (const nmDir of nmDirs) {
+    if (!fs.existsSync(nmDir)) continue;
+    const entries = fs.readdirSync(nmDir);
+    for (const entry of entries) {
+      if (!entry.startsWith('plugin-')) continue;
+      const wasmDir = path.join(nmDir, entry, 'wasm');
+      const candidate = path.join(wasmDir, fileName);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Collect all WASM plugin artifact directories from node_modules.
+ * Used in production build to emit all plugin .wasm files into dist/wasm/.
+ */
+function collectWasmPluginDirs(root: string): string[] {
+  const dirs: string[] = [];
+  const nmDirs = [
+    path.resolve(root, 'node_modules/@gwen'),
+    path.resolve(root, '../node_modules/@gwen'),
+  ];
+
+  for (const nmDir of nmDirs) {
+    if (!fs.existsSync(nmDir)) continue;
+    for (const entry of fs.readdirSync(nmDir)) {
+      if (!entry.startsWith('plugin-')) continue;
+      const wasmDir = path.join(nmDir, entry, 'wasm');
+      if (fs.existsSync(wasmDir)) dirs.push(wasmDir);
+    }
+  }
+  return dirs;
+}
 
 export function gwen(options: GwenPluginOptions = {}): Plugin {
   const { wasmPublicPath = '/wasm', wasmMode = 'debug', verbose = false, manifestPath } = options;
@@ -412,6 +459,18 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     name: 'gwen',
     enforce: 'pre',
 
+    // ── COOP/COEP headers for Vite preview (production) ───────────────────
+    config() {
+      return {
+        preview: {
+          headers: {
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Cross-Origin-Embedder-Policy': 'require-corp',
+          },
+        },
+      };
+    },
+
     // ── Virtual module resolution ──────────────────────────────────────
     resolveId(id) {
       if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_MANIFEST;
@@ -478,18 +537,36 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         startWatcher(projectRoot);
       }
 
-      // WASM middleware + generated HTML if index.html missing
+      // WASM middleware + COOP/COEP headers + generated HTML if index.html missing
       devServer.middlewares.use((req, res, next) => {
+        // ── COOP/COEP headers — required for SharedArrayBuffer (WASM plugins) ──
+        res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+        res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+
         // Serve WASM files directly from wasmSourceDir (no copy to public/)
         const wasmPrefix = wasmPublicPath.endsWith('/') ? wasmPublicPath : wasmPublicPath + '/';
-        if (req.url?.startsWith(wasmPrefix) && wasmSourceDir) {
-          const fileName = req.url.slice(wasmPrefix.length);
-          const filePath = path.join(wasmSourceDir, fileName);
-          if (fs.existsSync(filePath)) {
-            const ext = path.extname(filePath);
+        if (req.url?.startsWith(wasmPrefix)) {
+          const fileName = req.url.slice(wasmPrefix.length).split('?')[0];
+
+          // 1. Try primary wasmSourceDir (gwen-core or custom crate)
+          if (wasmSourceDir) {
+            const filePath = path.join(wasmSourceDir, fileName);
+            if (fs.existsSync(filePath)) {
+              const ext = path.extname(filePath);
+              if (ext === '.wasm') res.setHeader('Content-Type', 'application/wasm');
+              if (ext === '.js') res.setHeader('Content-Type', 'application/javascript');
+              res.end(fs.readFileSync(filePath));
+              return;
+            }
+          }
+
+          // 2. Try WASM plugin packages: node_modules/@gwen/plugin-*/wasm/
+          const pluginWasmFile = findWasmPluginFile(projectRoot, fileName);
+          if (pluginWasmFile) {
+            const ext = path.extname(pluginWasmFile);
             if (ext === '.wasm') res.setHeader('Content-Type', 'application/wasm');
             if (ext === '.js') res.setHeader('Content-Type', 'application/javascript');
-            res.end(fs.readFileSync(filePath));
+            res.end(fs.readFileSync(pluginWasmFile));
             return;
           }
         }
@@ -547,6 +624,21 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         if (files.length > 0) log(`Emitted ${files.length} WASM assets to dist/wasm/`);
       } else {
         console.warn('[gwen-vite] No WASM source found for production build');
+      }
+
+      // Emit WASM plugin assets from node_modules/@gwen/plugin-*/wasm/
+      const pluginDirs = collectWasmPluginDirs(projectRoot);
+      for (const pluginDir of pluginDirs) {
+        const files = listWasmFiles(pluginDir);
+        for (const file of files) {
+          const buffer = fs.readFileSync(path.join(pluginDir, file));
+          this.emitFile({
+            type: 'asset',
+            fileName: `wasm/${file}`,
+            source: new Uint8Array(buffer),
+          });
+        }
+        if (files.length > 0) log(`Emitted ${files.length} WASM plugin assets from ${pluginDir}`);
       }
     },
 

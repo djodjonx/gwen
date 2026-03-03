@@ -40,7 +40,14 @@ export default defineConfig({
         text: 'Plugins',
         items: [
           { text: 'Official Plugins', link: '/plugins/official' },
-          { text: 'Creating Plugins', link: '/plugins/creating' },
+          { text: 'Creating a TypeScript Plugin', link: '/plugins/creating' },
+          {
+            text: 'WASM Plugins (Rust)',
+            items: [
+              { text: 'Guide & API Reference', link: '/plugins/wasm-plugins' },
+              { text: 'Best Practices', link: '/plugins/wasm-plugin-best-practices' },
+            ],
+          },
         ],
       },
       {
