@@ -1,243 +1,165 @@
-# 🎮 GWEN Game Engine
+# GWEN Game Engine
 
 [![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
 [![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwen/engine-core)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue)](https://www.typescriptlang.org/)
 
-**High-performance, composable game engine for the web.**
-Built with Rust + WebAssembly core and TypeScript APIs.
+**Composable web game framework with a Rust/WASM ECS core and TypeScript-first DX.**
 
-[📚 Docs](#documentation) · [🚀 Quick Start](#quick-start) · [🤝 Contributing](./CONTRIBUTING.md) · [📋 Code of Conduct](./CODE_OF_CONDUCT.md)
+GWEN helps you build games with a clear structure:
+- scenes for game flow
+- systems for logic
+- components for data
+- prefabs for reusable entities
+- UI modules for menus/HUD
 
----
-
-## ✨ What is GWEN?
-
-GWEN is a **modular game engine** designed for:
-
-- 🚀 **Ultra-fast performance** - Rust core compiled to WebAssembly
-- 🎯 **Entity Component System** - Flexible game architecture with archetype caching
-- 📦 **Plugin system** - Compose features like Nuxt plugins
-- 🛠️ **Developer-friendly** - TypeScript APIs with 100% type safety
-- 🌐 **Web-native** - Runs in any modern browser
+[Quick Start](#quick-start) · [Project Structure](#project-structure) · [CLI](#cli) · [Documentation](#documentation)
 
 ---
 
-## 🚀 Quick Start
+## Why GWEN?
 
-### Option 1: Create a New Project (Recommended)
+- **Config-first workflow** via `gwen.config.ts`
+- **CLI scaffolding** for fast project creation
+- **Plugin architecture** (input, audio, renderer, debug, html-ui)
+- **High-performance ECS** powered by Rust + WASM
+- **Type-safe APIs** for systems, scenes, services, and plugins
+
+---
+
+## Quick Start
+
+### 1) Scaffold a game project (recommended)
 
 ```bash
-# Scaffold a new game project
 pnpm create @gwen/app my-game
 cd my-game
 pnpm dev
 ```
 
-This generates a complete project structure with:
-- ✅ Game components & systems
-- ✅ Configuration file
-- ✅ TypeScript setup
-- ✅ Example game scene
-
-### Option 2: Development Setup (For Contributors)
+### 2) Open the dev server
 
 ```bash
-# Clone and contribute to GWEN itself
-git clone https://github.com/djodjonx/gwen.git
-cd gwen
-pnpm install:all
-
-# Start development
-pnpm dev
-
-# Run tests
-pnpm test
+# Usually
+http://localhost:3000
 ```
 
-### Your First Game
-
-```typescript
-import { Engine, defineComponent, Types } from '@gwen/engine-core';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
-
-// Define a component
-const Position = defineComponent('Position', {
-  x: Types.f32,
-  y: Types.f32,
-});
-
-// Create engine
-const engine = new Engine({ maxEntities: 1000 });
-engine.registerSystem(new Canvas2DRenderer({ canvas: 'game' }));
-
-// Create entity
-const player = engine.createEntity();
-engine.addComponent(player, Position, { x: 100, y: 100 });
-
-// Update loop
-engine.registerSystem({
-  name: 'movement',
-  onUpdate(api, dt) {
-    const entities = api.query([Position]);
-    for (const [id, pos] of entities) {
-      pos.x += 100 * dt;
-    }
-  },
-});
-
-// Start!
-engine.start();
-```
-
----
-
-## ⚡ Performance
-
-On Apple M1 (2024):
-
-- ✅ 10K entities: < 5ms allocation
-- ✅ 1K queries: < 1ms execution
-- ✅ Full frame loop: ~16ms (60 FPS)
-- ✅ WASM module: 48KB gzipped
-
----
-
-## 🏗️ Architecture
-
-**3-layer design:**
-
-```
-Your Game (TypeScript)
-    ↓
-Plugins (Input, Audio, UI, Rendering)
-    ↓
-Core Engine (Rust/WASM ECS)
-```
-
-**Learn more:** [Architecture Guide](./docs/ARCHITECTURE.md)
-
----
-
-## 🛠️ CLI Tool
-
-GWEN includes a powerful CLI for scaffolding and managing projects:
+### 3) Build for production
 
 ```bash
-# Create new project
+gwen build
+```
+
+---
+
+## CLI
+
+GWEN ships with a CLI designed around the same workflow as the playground.
+
+```bash
+# Create project
 pnpm create @gwen/app my-game
 
-# Available commands
-gwen dev      # Start development server
-gwen build    # Build for production
-gwen prepare  # Prepare dev environment
-gwen lint     # Check code quality
+# Development
+gwen dev
+
+# Prepare generated typing/runtime files
+gwen prepare
+
+# Production build
+gwen build
+
+# Code quality
+gwen lint
+gwen format --check
 ```
 
-**Learn more:** [CLI Guide](./docs/CLI.md)
+See full command reference in [`docs/CLI.md`](docs/CLI.md).
 
 ---
 
-## 📚 Documentation
+## Project Structure
 
-- 🎯 [Getting Started](./docs/GETTING_STARTED.md) - Installation & setup
-- 🛠️ [CLI Guide](./docs/CLI.md) - Scaffolding & commands
-- 🔗 [API Reference](./docs/API.md) - Complete API documentation
-- 🏗️ [Architecture](./docs/ARCHITECTURE.md) - How GWEN works
-- 🆘 [Troubleshooting](./docs/TROUBLESHOOTING.md) - FAQ & common issues
-- 🤝 [Contributing](./CONTRIBUTING.md) - How to contribute
-- 📋 [Code of Conduct](./CODE_OF_CONDUCT.md) - Community standards
-- 🔐 [Security](./SECURITY.md) - Security policy
+GWEN targets a structure like the `playground` app:
 
----
-
-## 📦 Key Features
-
-- **ECS Architecture** - Data-oriented, cache-friendly design
-- **Type Safety** - 100% TypeScript with strict mode
-- **Plugin System** - Hot-pluggable features
-- **Zero-Copy** - Minimal WASM ↔ JS boundary crossing
-- **Archetype Caching** - Lightning-fast queries
-- **Browser-Native** - No build step required (Vite integration)
-
----
-
-## 🎮 Example: Space Shooter
-
-Full working example in the [playground](./playground/):
-
-```bash
-cd playground
-pnpm dev
+```text
+src/
+  components/   # ECS component definitions
+  prefabs/      # reusable entity blueprints
+  scenes/       # game flow and scene lifecycle
+  systems/      # gameplay logic (runs every frame/event)
+  ui/           # HUD/menu UI modules
 ```
 
-Open http://localhost:5173 to play.
+This structure is intentional: it keeps gameplay code discoverable as the project grows.
 
 ---
 
-## 🤝 Contributing
+## Core Workflow
 
-We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for:
+1. Configure engine and plugins in `gwen.config.ts`
+2. Define components in `src/components`
+3. Implement systems in `src/systems`
+4. Compose scenes in `src/scenes`
+5. Reuse entities via `src/prefabs`
+6. Start with `gwen dev`
 
-- How to set up your development environment
-- Commit message format
-- Code of conduct
-- Pull request process
+Example config shape:
 
-**Quick links:**
-- 🐛 [Report a bug](https://github.com/djodjonx/gwen/issues)
-- ✨ [Request a feature](https://github.com/djodjonx/gwen/discussions)
-- 💬 [Ask a question](https://github.com/djodjonx/gwen/discussions)
+```ts
+import { defineConfig } from '@gwen/engine-core';
+import { InputPlugin } from '@gwen/plugin-input';
+import { AudioPlugin } from '@gwen/plugin-audio';
+import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
----
-
-## 📄 License
-
-GWEN is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
-
-**Summary of what you can do:**
-- ✅ Use commercially
-- ✅ Modify the code
-- ✅ Distribute modifications
-- ✅ Patent protection
-
-**Conditions:**
-- ⚠️ License and copyright notice required
-- ⚠️ Disclose source code for modifications
-- ⚠️ State significant changes
-
-**Compatibility:**
-- ✅ Compatible with GPL, LGPL, AGPL
-- ✅ Can be used in proprietary software
-- ✅ Clear patent grants
-
-See [LICENSE](./LICENSE) for full text.
+export default defineConfig({
+  engine: { maxEntities: 2000, targetFPS: 60, debug: false },
+  plugins: [
+    new InputPlugin(),
+    new AudioPlugin(),
+    new Canvas2DRenderer({ width: 480, height: 640 }),
+  ],
+});
+```
 
 ---
 
-## 🙏 Acknowledgments
+## Architecture (high level)
 
-GWEN is inspired by:
-- **Bevy** - ECS architecture
-- **Unity** - Plugin system
-- **Nuxt.js** - Composable patterns
-- **Tauri** - Rust + web integration
+```text
+Your Game (Scenes / Systems / Components / UI)
+  -> GWEN Plugins (Renderer, Input, Audio, Debug, ...)
+    -> GWEN Core (Rust/WASM ECS)
+```
 
----
-
-## 🚀 What's Next?
-
-- [x] Core ECS engine
-- [x] Canvas2D renderer
-- [x] Plugin system
-- [ ] WebGPU renderer
-- [ ] Physics engine
-- [ ] Networking
+For technical details, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-**Made with ❤️ for web developers who love performance.**
+## Documentation
 
-[💬 Join our discussions](https://github.com/djodjonx/gwen/discussions) · [📚 Read the docs](./docs/GETTING_STARTED.md)
+- [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - setup and first run
+- [`docs/CLI.md`](docs/CLI.md) - command reference and scaffolding
+- [`docs/API.md`](docs/API.md) - API reference (base, to expand via VitePress)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - technical architecture
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) - common issues
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) - contribution guide
+- [`SECURITY.md`](SECURITY.md) - vulnerability reporting
 
+---
+
+## Contributing
+
+We welcome issues, ideas, and PRs.
+
+- Report bugs: https://github.com/djodjonx/gwen/issues
+- Discuss features: https://github.com/djodjonx/gwen/discussions
+- Read contribution guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+
+---
+
+## License
+
+GWEN is licensed under **Mozilla Public License 2.0 (MPL-2.0)**.
+See [`LICENSE`](LICENSE).
