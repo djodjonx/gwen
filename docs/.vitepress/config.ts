@@ -5,6 +5,7 @@ export default defineConfig({
   title: 'GWEN',
   description: 'Composable web game framework (Rust/WASM core + TypeScript DX)',
   cleanUrls: true,
+  base: '/gwen/',
 
   themeConfig: {
     nav: [
