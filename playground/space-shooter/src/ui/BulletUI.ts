@@ -20,28 +20,28 @@ export const BulletUI = defineUI<GwenServices>({
 
     if (tag.type === 'bullet') {
       // Balle joueur — trait jaune avec halo
-      ctx.fillStyle   = '#ffe600';
+      ctx.fillStyle = '#ffe600';
       ctx.shadowColor = '#ffe600';
-      ctx.shadowBlur  = 10;
+      ctx.shadowBlur = 10;
       ctx.fillRect(-2, -9, 4, 18);
 
       // Cœur lumineux au centre
-      ctx.shadowBlur  = 4;
-      ctx.fillStyle   = '#fff';
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = '#fff';
       ctx.fillRect(-1, -4, 2, 8);
     } else {
       // Balle ennemi — orbe rouge pulsante
       const pulse = 0.85 + Math.sin(Date.now() / 80) * 0.15;
       ctx.scale(pulse, pulse);
-      ctx.fillStyle   = '#ff4444';
+      ctx.fillStyle = '#ff4444';
       ctx.shadowColor = '#ff2222';
-      ctx.shadowBlur  = 12;
+      ctx.shadowBlur = 12;
       ctx.beginPath();
       ctx.arc(0, 0, 4, 0, Math.PI * 2);
       ctx.fill();
       // Point blanc au centre
       ctx.shadowBlur = 0;
-      ctx.fillStyle  = 'rgba(255,200,200,0.9)';
+      ctx.fillStyle = 'rgba(255,200,200,0.9)';
       ctx.beginPath();
       ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
       ctx.fill();
@@ -50,4 +50,3 @@ export const BulletUI = defineUI<GwenServices>({
     ctx.restore();
   },
 });
-

@@ -1,5 +1,4 @@
 packages:
   - 'packages/**'
   - '!packages/create-gwen-app/templates/**'
-  - 'playground'
-
+  - 'playground/*'

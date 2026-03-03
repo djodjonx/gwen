@@ -19,4 +19,3 @@ export const BackgroundUI = defineUI<GwenServices>({
     drawStars(ctx, W, H);
   },
 });
-

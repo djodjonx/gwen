@@ -3,7 +3,8 @@ import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
-const W = 480, H = 640;
+const W = 480,
+  H = 640;
 
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem' as const,
@@ -21,7 +22,8 @@ export const PlayerSystem = defineSystem({
       if (!pos || !timer) continue;
 
       // Mouvement
-      let vx = 0, vy = 0;
+      let vx = 0,
+        vy = 0;
       if (keyboard.isPressed('ArrowLeft') || keyboard.isPressed('KeyA')) vx = -SPEED;
       if (keyboard.isPressed('ArrowRight') || keyboard.isPressed('KeyD')) vx = SPEED;
       if (keyboard.isPressed('ArrowUp') || keyboard.isPressed('KeyW')) vy = -SPEED;
@@ -35,7 +37,10 @@ export const PlayerSystem = defineSystem({
 
       // Tir
       const elapsed = timer.elapsed + dt;
-      if ((keyboard.isPressed('Space') || keyboard.isPressed('KeyZ')) && elapsed >= timer.cooldown) {
+      if (
+        (keyboard.isPressed('Space') || keyboard.isPressed('KeyZ')) &&
+        elapsed >= timer.cooldown
+      ) {
         api.prefabs.instantiate('Bullet', pos.x, pos.y - 20, 0, -500, 'bullet');
         api.addComponent(id, ShootTimer, { ...timer, elapsed: 0 });
       } else {

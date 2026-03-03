@@ -34,7 +34,13 @@ export default defineConfig({
   tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
-    new Canvas2DRenderer({ width: 480, height: 640, background: '#000814', pixelRatio: 1, manualRender: true }),
+    new Canvas2DRenderer({
+      width: 480,
+      height: 640,
+      background: '#000814',
+      pixelRatio: 1,
+      manualRender: true,
+    }),
     new HtmlUIPlugin(),
     // new DebugPlugin({
     //   overlay: { position: 'top-right' },
@@ -47,5 +53,3 @@ export default defineConfig({
     // }),
   ],
 });
-
-

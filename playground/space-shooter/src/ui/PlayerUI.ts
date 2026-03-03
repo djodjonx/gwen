@@ -73,8 +73,6 @@ export const PlayerUI = defineUI<GwenServices>({
     ctx.closePath();
     ctx.fill();
 
-
     ctx.restore();
   },
 });
-

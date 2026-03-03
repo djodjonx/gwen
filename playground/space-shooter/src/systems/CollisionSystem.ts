@@ -17,7 +17,9 @@ export const CollisionSystem = defineSystem({
     if (!score) return;
 
     const entities = api.query([Tag.name, Position.name, Collider.name]);
-    const playerId = api.query([Tag.name]).find(id => api.getComponent(id, Tag)?.type === 'player');
+    const playerId = api
+      .query([Tag.name])
+      .find((id) => api.getComponent(id, Tag)?.type === 'player');
 
     // Balles joueur vs ennemis
     for (const bid of entities) {

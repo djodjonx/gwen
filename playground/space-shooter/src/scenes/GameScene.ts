@@ -14,21 +14,9 @@ import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
 export const GameScene = defineScene('Game', () => ({
-  ui: [
-    BackgroundUI,
-    BulletUI,
-    EnemyUI,
-    PlayerUI,
-    ScoreUI,
-  ],
+  ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
-  systems: [
-    MovementSystem,
-    PlayerSystem,
-    AiSystem,
-    SpawnerSystem,
-    CollisionSystem,
-  ],
+  systems: [MovementSystem, PlayerSystem, AiSystem, SpawnerSystem, CollisionSystem],
 
   onEnter(api: EngineAPI<GwenServices>) {
     api.prefabs.register(PlayerPrefab);
@@ -48,5 +36,5 @@ export const GameScene = defineScene('Game', () => ({
     }
   },
 
-  onExit(_api: EngineAPI<GwenServices>) { },
+  onExit(_api: EngineAPI<GwenServices>) {},
 }));
