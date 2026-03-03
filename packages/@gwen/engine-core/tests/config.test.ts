@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type { EngineConfig } from '../src/types';
 import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
 
 describe('Configuration', () => {
@@ -44,10 +45,10 @@ describe('Configuration', () => {
 
     it('should support TypeScript plugins', () => {
       const config = defineConfig({
-        plugins: [{ name: 'input' } as any],
+        tsPlugins: [{ name: 'input' } as any],
       });
 
-      expect(config.plugins?.length).toBe(1);
+      expect(config.tsPlugins?.length).toBe(1);
     });
   });
 
@@ -178,18 +179,11 @@ describe('Configuration', () => {
       const config = defineConfig({
         maxEntities: 10000,
         wasmPlugins: [{ id: 'physics', name: 'Physics' }],
-        plugins: [{ name: 'input' }],
+        tsPlugins: [{ name: 'input' }],
       });
 
-      // defineConfig returns TypedEngineConfig with 'plugins', but mergeConfigs expects EngineConfig with 'tsPlugins'
-      // In real usage, the Engine handles this conversion
-      const configForMerge = {
-        maxEntities: config.maxEntities,
-        wasmPlugins: config.wasmPlugins,
-        tsPlugins: config.plugins, // conversion
-      };
-
-      const merged = mergeConfigs(defaultConfig, configForMerge);
+      // defineConfig returns TypedEngineConfig with 'tsPlugins', but mergeConfigs expects EngineConfig with 'tsPlugins'
+      const merged = mergeConfigs(defaultConfig, config as EngineConfig);
 
       expect(merged.maxEntities).toBe(10000);
       expect(merged.wasmPlugins?.length).toBe(1);

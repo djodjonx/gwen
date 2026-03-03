@@ -94,7 +94,7 @@ describe('MergeProvides<> — fusion des services', () => {
 describe('defineConfig() — inférence des services', () => {
   it('retourne un objet avec les plugins passés', () => {
     const config = defineConfig({
-      plugins: [new InputPlugin()],
+      tsPlugins: [new InputPlugin()],
       maxEntities: 1000,
     });
     expect((config as any).maxEntities).toBe(1000);
@@ -102,7 +102,7 @@ describe('defineConfig() — inférence des services', () => {
 
   it('GwenConfigServices extrait le bon ServiceMap', () => {
     const config = defineConfig({
-      plugins: [new InputPlugin(), new AudioPlugin()],
+      tsPlugins: [new InputPlugin(), new AudioPlugin()],
     });
 
     // Vérification compile-time — si ça compile, l'inférence est correcte
@@ -126,7 +126,7 @@ describe('defineConfig() — inférence des services', () => {
 
   it('wasmPlugins ne contribuent pas aux services TS (non typés)', () => {
     const config = defineConfig({
-      plugins: [new InputPlugin()],
+      tsPlugins: [new InputPlugin()],
       wasmPlugins: [{ id: 'physics', name: 'Physics2D' }],
     });
     type Services = GwenConfigServices<typeof config>;
@@ -178,7 +178,7 @@ describe('Rétro-compatibilité — TsPlugin sans provides', () => {
       onInit: () => {},
     };
     // Doit compiler sans erreur même sans provides
-    const config = defineConfig({ plugins: [legacyPlugin] });
+    const config = defineConfig({ tsPlugins: [legacyPlugin] });
     expect(config).toBeDefined();
   });
 

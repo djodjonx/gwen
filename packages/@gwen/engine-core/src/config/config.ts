@@ -43,7 +43,7 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
   readonly targetFPS?: number;
   readonly debug?: boolean;
   readonly enableStats?: boolean;
-  readonly plugins?: TsPlugin[];
+  readonly tsPlugins?: TsPlugin[];
   readonly wasmPlugins?: WasmPlugin[];
   /**
    * Scene to load at engine startup.
@@ -93,7 +93,7 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * ```typescript
  * // gwen.config.ts
  * export default defineConfig({
- *   plugins: [new InputPlugin(), new AudioPlugin()],
+ *   tsPlugins: [new InputPlugin(), new AudioPlugin()],
  *   wasmPlugins: [Physics2D({ gravity: 9.81 })],
  *   maxEntities: 10_000,
  *   targetFPS: 60,
@@ -106,13 +106,13 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * }
  * ```
  *
- * @param config Project configuration. `plugins` accepts any plugin
+ * @param config Project configuration. `tsPlugins` accepts any plugin
  *   implementing `GwenPlugin` (with `provides`) or `TsPlugin` (untyped).
  */
 export function defineConfig<const Plugins extends readonly AnyGwenPlugin[]>(config: {
   /** Nuxt-like shorthand: engine: { maxEntities, targetFPS, debug } */
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
-  plugins?: [...Plugins];
+  tsPlugins?: [...Plugins];
   wasmPlugins?: WasmPlugin[];
   maxEntities?: number;
   targetFPS?: number;
@@ -168,7 +168,7 @@ export function createEngine(
   scenes: SceneManager;
 } {
   const raw = config as unknown as EngineConfig & {
-    plugins?: TsPlugin[];
+    tsPlugins?: TsPlugin[];
     mainScene?: string;
     engine?: Partial<EngineConfig>;
   };
@@ -183,8 +183,8 @@ export function createEngine(
   const scenes = new SceneManager();
   engine.registerSystem(scenes);
 
-  // Register plugins declared in config.plugins
-  const plugins: TsPlugin[] = raw.plugins ?? [];
+  // Register plugins declared in config.tsPlugins
+  const plugins: TsPlugin[] = raw.tsPlugins ?? [];
   for (const plugin of plugins) {
     engine.registerSystem(plugin);
   }
