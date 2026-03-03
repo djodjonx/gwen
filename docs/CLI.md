@@ -72,12 +72,10 @@ my-game/
 │   ├── ui/
 │   │   └── index.ts
 │   └── main.ts
-├── public/
-│   └── index.html
 ├── gwen.config.ts
 ├── tsconfig.json
-├── vite.config.ts
 ├── package.json
+└── README.md
 └── README.md
 ```
 

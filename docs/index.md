@@ -1,47 +1,103 @@
-# GWEN Documentation
+---
+layout: home
 
-GWEN is a composable web game framework with a Rust/WASM ECS core and TypeScript-first developer experience.
+hero:
+  name: GWEN
+  text: Web Game Framework
+  tagline: Build games with TypeScript, powered by Rust/WASM
+  actions:
+    - theme: brand
+      text: Quick Start
+      link: /guide/quick-start
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/djodjonx/gwen
 
-## Start Here
+features:
+  - icon: 🎯
+    title: Scene-Driven
+    details: Organize your game with scenes, systems, and prefabs for clear structure and reusability.
 
-- [Getting Started](./GETTING_STARTED.md)
-- [CLI Guide](./CLI.md)
-- [API Reference](./API.md)
-- [Architecture](./ARCHITECTURE.md)
-- [Troubleshooting](./TROUBLESHOOTING.md)
+  - icon: 🔧
+    title: TypeScript-First
+    details: Write game logic with defineComponent, defineScene, definePrefab helpers and full type safety.
 
-## Framework Mental Model
+  - icon: ⚡
+    title: High Performance
+    details: Rust/WASM ECS core delivers 10K+ entities at 60 FPS without breaking a sweat.
 
-GWEN projects are typically structured like this:
+  - icon: 🔌
+    title: Plugin System
+    details: Compose features with official plugins (input, audio, renderer, debug, UI) or create your own.
 
-```text
-src/
-  components/
-  prefabs/
-  scenes/
-  systems/
-  ui/
+  - icon: 🎨
+    title: Custom Rendering
+    details: Use defineUI() for full Canvas2D control or integrate with HTML/CSS for menus and HUD.
+
+  - icon: 📦
+    title: CLI Scaffolding
+    details: Start in seconds with 'pnpm create @gwen/app' and focus on gameplay, not setup.
+---
+
+## What is GWEN?
+
+GWEN is a **composable web game framework** designed for TypeScript developers who want structure without complexity.
+
+Your game is organized in clear folders:
+- **components/** - data definitions
+- **scenes/** - game flow and lifecycle
+- **systems/** - gameplay logic
+- **prefabs/** - reusable entities
+- **ui/** - custom rendering
+
+Everything is configured in one place (`gwen.config.ts`) and runs with `gwen dev`.
+
+## Quick Example
+
+```typescript
+// components/index.ts
+import { defineComponent, Types } from '@gwen/engine-core';
+
+export const Position = defineComponent({
+  name: 'position',
+  schema: { x: Types.f32, y: Types.f32 }
+});
+
+// systems/PlayerSystem.ts
+import { createPlugin } from '@gwen/engine-core';
+
+export const PlayerSystem = createPlugin({
+  name: 'PlayerSystem',
+  onUpdate(api, dt) {
+    const keyboard = api.services.get('keyboard');
+    const entities = api.query(['position']);
+
+    for (const id of entities) {
+      const pos = api.getComponent(id, Position);
+      if (keyboard.isPressed('ArrowRight')) {
+        api.addComponent(id, Position, { x: pos.x + 100 * dt, y: pos.y });
+      }
+    }
+  }
+});
+
+// scenes/GameScene.ts
+import { defineScene } from '@gwen/engine-core';
+
+export const GameScene = defineScene('Game', () => ({
+  plugins: [PlayerSystem],
+  onEnter(api) {
+    const player = api.createEntity();
+    api.addComponent(player, Position, { x: 100, y: 100 });
+  }
+}));
 ```
 
-Workflow:
+No Vite config. No Rust setup. Just game logic.
 
-1. Configure plugins in `gwen.config.ts`
-2. Define data in `components/`
-3. Write gameplay logic in `systems/`
-4. Orchestrate flow in `scenes/`
-5. Run with `gwen dev`
+## Ready to Start?
 
-## CLI-First Project Scaffolding
-
-```bash
-pnpm create @gwen/app my-game
-cd my-game
-pnpm dev
-```
-
-## More
-
-- Main project README: [../README.md](https://github.com/djodjonx/gwen/blob/main/README.md)
-- Contributing guide: [../CONTRIBUTING.md](https://github.com/djodjonx/gwen/blob/main/CONTRIBUTING.md)
-- Security policy: [../SECURITY.md](https://github.com/djodjonx/gwen/blob/main/SECURITY.md)
+<div class="vp-doc">
+  <a href="/guide/quick-start" class="vp-button brand">Get Started →</a>
+</div>
 

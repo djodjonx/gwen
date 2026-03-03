@@ -498,6 +498,6 @@ scoreService.addScore(10);
 
 ---
 
-**For more examples, check the [playground](../playground/).**
+**For more examples, check the [playground](https://github.com/djodjonx/gwen/tree/main/playground).**
 
 

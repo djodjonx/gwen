@@ -379,7 +379,7 @@ class Player extends GameObject {
 
 **Want to dive deeper?** Check:
 - [API Reference](./API.md) - Full API docs
-- [Source Code](../crates/gwen-core/) - Read the code
-- [Playground](../playground/) - Working example
+- [Source Code](https://github.com/djodjonx/gwen/tree/main/crates/gwen-core) - Read the code
+- [Playground](https://github.com/djodjonx/gwen/tree/main/playground) - Working example
 
 
