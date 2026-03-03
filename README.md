@@ -1,6 +1,6 @@
 # GWEN Game Engine
 
-[![CI Status](https://github.com/yourusername/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
+[![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwen/engine-core)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue)](https://www.typescriptlang.org/)
