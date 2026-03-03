@@ -8,6 +8,7 @@
     "packages/**"
   ],
   "scripts": {
+    "prepare": "husky",
     "install:all": "pnpm install && rustup target add wasm32-unknown-unknown",
     "build": "cargo build --release --target wasm32-unknown-unknown && pnpm -r build",
     "dev": "concurrently \"cargo watch -x 'build --target wasm32-unknown-unknown'\" \"pnpm -r dev\"",
@@ -24,10 +25,18 @@
     "release:dry": "pnpm changeset:version --canary",
     "release": "pnpm changeset:version && pnpm -r publish --filter='!create-gwen-app'"
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint --fix",
+      "oxfmt"
+    ]
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
     "concurrently": "^8.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.1",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0"
   }

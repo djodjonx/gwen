@@ -41,6 +41,75 @@ pnpm lint
 pnpm lint:fix
 ```
 
+## 🪝 Git Hooks
+
+This project uses [Husky](https://typicode.github.io/husky/) to automatically run checks before commits and pushes.
+
+### Pre-commit Hook
+
+**Runs automatically before every commit**
+
+The pre-commit hook ensures code quality by:
+- 🔍 **Linting** - Automatically fixes linting issues with `oxlint --fix`
+- ✨ **Formatting** - Auto-formats code with `oxfmt`
+- ⚡ **Fast** - Only checks staged files (via lint-staged)
+
+**What happens:**
+```bash
+git add .
+git commit -m "feat: add new feature"
+# → 🔍 Running pre-commit checks...
+# → ✅ Pre-commit checks passed!
+```
+
+### Commit Message Validation
+
+**Enforces Conventional Commits format**
+
+All commit messages must follow this format:
+```
+type(scope): description
+```
+
+**Valid types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation changes
+- `style` - Code style changes (formatting, etc.)
+- `refactor` - Code refactoring
+- `test` - Test changes
+- `chore` - Build/tooling changes
+- `perf` - Performance improvements
+- `ci` - CI/CD changes
+- `build` - Build system changes
+
+**Examples:**
+```bash
+✅ feat(engine-core): add particle system
+✅ fix(cli): resolve import path issue
+✅ docs: update README with examples
+✅ refactor(plugin-audio): simplify AudioManager
+✅ test: add prefab tests
+
+❌ added new feature        # Missing type
+❌ fix: bug                 # Too short
+❌ update(core): changes    # Invalid type
+```
+
+### Skipping Hooks (Emergency Only)
+
+If you absolutely need to skip the hooks:
+
+```bash
+# Skip pre-commit checks
+git commit --no-verify -m "emergency fix"
+
+# Skip pre-push checks
+git push --no-verify
+```
+
+**⚠️ Warning:** Only use `--no-verify` in emergencies. Skipped checks may cause CI to fail.
+
 ## Project Structure
 
 ```
