@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/gwen-core",
+    "crates/gwen-plugin-physics2d",
 ]
 resolver = "2"
 

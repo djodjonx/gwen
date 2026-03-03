@@ -1,0 +1,34 @@
+[package]
+name = "gwen-plugin-physics2d"
+version.workspace = true
+edition.workspace = true
+license = "MPL-2.0"
+authors = ["Jonathan Moutier <jonathan.moutier.dev@gmail.com>"]
+description = "2D physics plugin for the GWEN game engine (Rapier2D + WASM)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2.87"
+js-sys       = "0.3.64"
+
+# Rapier2D — 2D physics engine with WASM support
+# f32 : single precision (smaller .wasm, faster on GPU-backed JS)
+# dim2 : 2D only (avoids pulling in 3D math)
+rapier2d = { version = "0.22", default-features = false, features = [
+    "f32",
+    "dim2",
+] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+# Disable wasm-opt (same reasoning as gwen-core — bundled wasm-opt version
+# may not support all bulk-memory opcodes emitted by recent rustc)
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
+
