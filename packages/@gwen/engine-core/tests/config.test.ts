@@ -36,18 +36,18 @@ describe('Configuration', () => {
 
     it('should support wasm plugins', () => {
       const config = defineConfig({
-        wasmPlugins: [{ id: 'physics' }],
+        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
       });
 
       expect(config.wasmPlugins?.length).toBe(1);
     });
 
-    it('should support ts plugins', () => {
+    it('should support TypeScript plugins', () => {
       const config = defineConfig({
-        tsPlugins: [{ name: 'input' }],
+        plugins: [{ name: 'input' } as any],
       });
 
-      expect(config.tsPlugins?.length).toBe(1);
+      expect(config.plugins?.length).toBe(1);
     });
   });
 
@@ -68,7 +68,7 @@ describe('Configuration', () => {
     });
 
     it('should merge plugin arrays', () => {
-      const defaults = { ...defaultConfig, wasmPlugins: [{ id: 'physics' }] };
+      const defaults = { ...defaultConfig, wasmPlugins: [{ id: 'physics', name: 'Physics' }] };
       const user = { wasmPlugins: [{ id: 'ai' }] };
       const merged = mergeConfigs(defaults, user);
 
@@ -120,7 +120,7 @@ describe('Configuration', () => {
     });
 
     it('should separate WASM and TS plugins', () => {
-      const wasmPlugin = { id: 'physics' };
+      const wasmPlugin = { id: 'physics', name: 'Physics' };
       const tsPlugin = { name: 'input' };
 
       const config = new ConfigBuilder().addWasmPlugin(wasmPlugin).addTsPlugin(tsPlugin).build();
@@ -151,7 +151,7 @@ describe('Configuration', () => {
       const config = new ConfigBuilder()
         .setMaxEntities(5000)
         .setTargetFPS(60)
-        .addWasmPlugin({ id: 'physics' })
+        .addWasmPlugin({ id: 'physics', name: 'Physics' })
         .addTsPlugin({ name: 'input' })
         .enableDebug()
         .build();
@@ -177,11 +177,19 @@ describe('Configuration', () => {
     it('should work with defineConfig', () => {
       const config = defineConfig({
         maxEntities: 10000,
-        wasmPlugins: [{ id: 'physics' }],
-        tsPlugins: [{ name: 'input' }],
+        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
+        plugins: [{ name: 'input' }],
       });
 
-      const merged = mergeConfigs(defaultConfig, config);
+      // defineConfig returns TypedEngineConfig with 'plugins', but mergeConfigs expects EngineConfig with 'tsPlugins'
+      // In real usage, the Engine handles this conversion
+      const configForMerge = {
+        maxEntities: config.maxEntities,
+        wasmPlugins: config.wasmPlugins,
+        tsPlugins: config.plugins, // conversion
+      };
+
+      const merged = mergeConfigs(defaultConfig, configForMerge);
 
       expect(merged.maxEntities).toBe(10000);
       expect(merged.wasmPlugins?.length).toBe(1);
@@ -190,7 +198,7 @@ describe('Configuration', () => {
 
     it('should merge defineConfig with defaults', () => {
       const config = defineConfig({
-        wasmPlugins: [{ id: 'physics' }],
+        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
       });
 
       const merged = mergeConfigs(defaultConfig, config);

@@ -20,6 +20,8 @@ function makeMock() {
     delta_time: vi.fn(() => 0.016),
     total_time: vi.fn(() => 0),
     stats: vi.fn(() => '{}'),
+    remove_entity_from_query: vi.fn(),
+    get_entity_generation: vi.fn(() => 0),
   };
 }
 

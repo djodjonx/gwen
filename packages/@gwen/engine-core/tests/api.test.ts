@@ -64,7 +64,7 @@ describe('ServiceLocator', () => {
     }
     const audio: AudioService = { volume: 0.8 };
     locator.register('audio', audio);
-    const retrieved = locator.get<AudioService>('audio');
+    const retrieved = locator.get('audio') as AudioService;
     expect(retrieved.volume).toBe(0.8);
   });
 
@@ -74,8 +74,9 @@ describe('ServiceLocator', () => {
       const inputState = { keys: {} as Record<string, boolean> };
       locator.register('InputPlugin', inputState);
 
-      // Plugin B (e.g. PlayerController) retrieves it in onInit
-      const retrieved = locator.get<typeof inputState>('InputPlugin');
+      // Plugin B retrieves it
+      const retrieved = locator.get('InputPlugin') as typeof inputState;
+      expect(retrieved).toBe(inputState);
       expect(retrieved).toBe(inputState);
     });
   });
@@ -205,6 +206,6 @@ describe('createEngineAPI', () => {
     const qe = new QueryEngine();
     const api = createEngineAPI(em, reg, qe, locator);
 
-    expect(api.services.get<{ value: number }>('custom').value).toBe(42);
+    expect((api.services.get('custom') as { value: number }).value).toBe(42);
   });
 });

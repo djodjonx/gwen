@@ -223,7 +223,7 @@ describe('PluginManager', () => {
         onInit: (api) => {
           // Resolve Input in onInit (not onUpdate — per ENGINE.md rule)
           api.services.register('Input', inputPlugin);
-          const input = api.services.get<IInputPlugin>('Input');
+          const input = api.services.get('Input') as IInputPlugin;
           expect(input.getState().keys['ArrowRight']).toBe(true);
         },
       };

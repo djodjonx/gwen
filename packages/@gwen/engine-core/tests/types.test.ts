@@ -2,17 +2,14 @@
  * Type Definitions and Validation Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type {
   EngineConfig,
   EntityId,
-  Component,
-  Transform,
   Color,
-  Sprite,
   Vector2D,
   EngineStats,
-  Plugin,
+  TsPlugin,
 } from '../src/types';
 
 describe('Types', () => {
@@ -64,108 +61,36 @@ describe('Types', () => {
     });
   });
 
-  describe('Transform', () => {
-    it('should have position', () => {
-      const t: Transform = { x: 100, y: 200, rotation: 0 };
-      expect(t.x).toBe(100);
-      expect(t.y).toBe(200);
-    });
-
-    it('should have optional scale', () => {
-      const t: Transform = {
-        x: 50,
-        y: 50,
-        rotation: 0,
-        scaleX: 2,
-        scaleY: 2,
-      };
-
-      expect(t.scaleX).toBe(2);
-      expect(t.scaleY).toBe(2);
-    });
-  });
-
-  describe('Sprite', () => {
-    it('should have dimensions', () => {
-      const sprite: Sprite = {
-        width: 32,
-        height: 32,
-      };
-
-      expect(sprite.width).toBe(32);
-      expect(sprite.height).toBe(32);
-    });
-
-    it('should have optional color', () => {
-      const sprite: Sprite = {
-        width: 64,
-        height: 64,
-        color: { r: 1, g: 0, b: 0, a: 1 },
-        opacity: 0.8,
-      };
-
-      expect(sprite.color?.r).toBe(1);
-      expect(sprite.opacity).toBe(0.8);
-    });
-  });
-
-  describe('Component', () => {
-    it('should have type and data', () => {
-      const component: Component = {
-        type: 'transform',
-        data: { x: 100, y: 100 },
-      };
-
-      expect(component.type).toBe('transform');
-      expect(component.data.x).toBe(100);
-    });
-  });
 
   describe('EngineConfig', () => {
-    it('should have required fields', () => {
+    it('should have engine config fields', () => {
       const config: EngineConfig = {
         maxEntities: 5000,
-        canvas: 'game-canvas',
-        width: 1280,
-        height: 720,
         targetFPS: 60,
       };
 
       expect(config.maxEntities).toBe(5000);
-      expect(config.width).toBe(1280);
-      expect(config.height).toBe(720);
       expect(config.targetFPS).toBe(60);
     });
 
-    it('should have optional fields', () => {
+    it('should have optional debug and stats fields', () => {
       const config: EngineConfig = {
         maxEntities: 5000,
-        canvas: 'game-canvas',
-        width: 1280,
-        height: 720,
         targetFPS: 60,
         debug: true,
         enableStats: true,
-        plugins: [],
       };
 
       expect(config.debug).toBe(true);
       expect(config.enableStats).toBe(true);
-      expect(config.plugins).toEqual([]);
     });
 
-    it('should accept canvas string or element', () => {
-      // Test with string (most common)
-      const config1: EngineConfig = {
-        maxEntities: 5000,
-        canvas: 'my-canvas',
-        width: 1280,
-        height: 720,
+    it('should accept minimal config', () => {
+      const config: EngineConfig = {
+        maxEntities: 1000,
         targetFPS: 60,
       };
-
-      expect(config1.canvas).toBe('my-canvas');
-      // Note: HTMLCanvasElement type is checked at compile time
+      expect(config).toBeDefined();
     });
   });
 
@@ -187,42 +112,42 @@ describe('Types', () => {
     });
   });
 
-  describe('Plugin', () => {
-    it('should have name and version', () => {
-      const plugin: Plugin = {
+  describe('TsPlugin', () => {
+    it('should have required name field', () => {
+      const plugin: TsPlugin = {
         name: 'my-plugin',
-        version: '1.0.0',
       };
 
       expect(plugin.name).toBe('my-plugin');
-      expect(plugin.version).toBe('1.0.0');
     });
 
-    it('should have optional methods', () => {
-      const plugin: Plugin = {
+    it('should have optional lifecycle methods', () => {
+      const plugin: TsPlugin = {
         name: 'my-plugin',
-        version: '1.0.0',
-        init: (_engine: any) => console.log('initialized'),
-        update: (_dt: number) => console.log('updating'),
-        destroy: () => console.log('destroyed'),
+        onInit: vi.fn(),
+        onUpdate: vi.fn(),
+        onDestroy: vi.fn(),
       };
 
-      expect(typeof plugin.init).toBe('function');
-      expect(typeof plugin.update).toBe('function');
-      expect(typeof plugin.destroy).toBe('function');
+      expect(typeof plugin.onInit).toBe('function');
+      expect(typeof plugin.onUpdate).toBe('function');
+      expect(typeof plugin.onDestroy).toBe('function');
     });
   });
 
   describe('Type Safety', () => {
-    it('should enforce type constraints', () => {
-      // This test verifies TypeScript compilation - no runtime check needed
+    it('should enforce Color type constraints', () => {
       const color: Color = { r: 1, g: 0, b: 0, a: 1 };
-      const sprite: Sprite = { width: 32, height: 32, color };
-      const transform: Transform = { x: 0, y: 0, rotation: 0 };
-
       expect(color.r).toBe(1);
-      expect(sprite.width).toBe(32);
-      expect(transform.x).toBe(0);
+      expect(color.g).toBe(0);
+      expect(color.b).toBe(0);
+      expect(color.a).toBe(1);
+    });
+
+    it('should enforce Vector2D type constraints', () => {
+      const vec: Vector2D = { x: 10, y: 20 };
+      expect(vec.x).toBe(10);
+      expect(vec.y).toBe(20);
     });
   });
 });

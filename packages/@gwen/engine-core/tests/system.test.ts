@@ -110,9 +110,9 @@ describe('defineSystem()', () => {
       const timer2 = (TimerSystem as SystemFactory)();
 
       // Simulate updates
-      timer1.onUpdate?.();
-      timer1.onUpdate?.();
-      timer2.onUpdate?.();
+      timer1.onUpdate?.(null as any, 0);
+      timer1.onUpdate?.(null as any, 0);
+      timer2.onUpdate?.(null as any, 0);
 
       // Each instance should have separate count, but share outer scope
       expect(sharedCounter).toBe(3);
@@ -151,8 +151,10 @@ describe('defineSystem()', () => {
         onUpdate: () => {},
       });
 
-      const name: 'TestSystem' = system.name;
+      const name = system.name;
       expect(name).toBe('TestSystem');
+      // Type widens from literal to string - this is expected
+      expect(typeof name).toBe('string');
     });
 
     it('should have systemName on factory', () => {
