@@ -21,6 +21,10 @@ export type {
   UnionToIntersection,
 } from './plugin-system/plugin';
 
+// System definition — defineSystem() for game logic
+export { defineSystem } from './plugin-system/system';
+export type { System, SystemBody, SystemFactory } from './plugin-system/system';
+
 // ECS internals (kept for tests / advanced usage)
 export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
 

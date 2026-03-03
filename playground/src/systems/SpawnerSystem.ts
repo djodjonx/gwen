@@ -1,10 +1,10 @@
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 
 const WAVE_INTERVAL = 3.5;
 const COLS = 5;
 
-export const SpawnerSystem = createPlugin('SpawnerSystem', () => {
+export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
   let spawnTimer = 0;
 
   return {

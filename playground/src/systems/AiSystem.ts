@@ -1,8 +1,8 @@
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, ShootTimer } from '../components';
 
-export const AiSystem = createPlugin({
+export const AiSystem = defineSystem({
   name: 'AiSystem' as const,
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
     const enemies = api.query([Tag.name, Position.name, ShootTimer.name]);
@@ -25,4 +25,3 @@ export const AiSystem = createPlugin({
     }
   },
 });
-

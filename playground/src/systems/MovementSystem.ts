@@ -1,8 +1,8 @@
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Position, Velocity } from '../components';
 
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem' as const,
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
     const movables = api.query([Position.name, Velocity.name]);

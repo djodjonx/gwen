@@ -1,4 +1,4 @@
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, Collider, Score, Health } from '../components';
 
@@ -6,7 +6,7 @@ function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(ax - bx, ay - by);
 }
 
-export const CollisionSystem = createPlugin({
+export const CollisionSystem = defineSystem({
   name: 'CollisionSystem' as const,
 
   onUpdate(api: EngineAPI<GwenServices>) {

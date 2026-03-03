@@ -1,11 +1,11 @@
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
 const W = 480, H = 640;
 
-export const PlayerSystem = createPlugin({
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem' as const,
 
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
