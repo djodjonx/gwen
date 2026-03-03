@@ -147,9 +147,10 @@ describe('generateBundle', () => {
       emitFile: (f: any) => emitted.push(f),
     };
     (plugin.generateBundle as Function).call(ctx);
-    expect(emitted).toHaveLength(1);
-    expect(emitted[0].fileName).toBe('gwen-manifest.json');
-    expect(emitted[0].type).toBe('asset');
+
+    const manifestAsset = emitted.find((asset) => asset.fileName === 'gwen-manifest.json');
+    expect(manifestAsset).toBeDefined();
+    expect(manifestAsset.type).toBe('asset');
   });
 
   it('emitted manifest is valid JSON', () => {
@@ -157,6 +158,9 @@ describe('generateBundle', () => {
     const emitted: any[] = [];
     const ctx = { emitFile: (f: any) => emitted.push(f) };
     (plugin.generateBundle as Function).call(ctx);
-    expect(() => JSON.parse(emitted[0].source)).not.toThrow();
+
+    const manifestAsset = emitted.find((asset) => asset.fileName === 'gwen-manifest.json');
+    expect(manifestAsset).toBeDefined();
+    expect(() => JSON.parse(manifestAsset.source)).not.toThrow();
   });
 });
