@@ -2,6 +2,7 @@
 
 [![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
 [![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwen/engine-core)
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue)](https://djodjonx.github.io/gwen/)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue)](https://www.typescriptlang.org/)
 
@@ -14,7 +15,7 @@ GWEN helps you build games with a clear structure:
 - prefabs for reusable entities
 - UI modules for menus/HUD
 
-[Quick Start](#quick-start) · [Project Structure](#project-structure) · [CLI](#cli) · [Documentation](#documentation)
+[Quick Start](#quick-start) · [Documentation](https://djodjonx.github.io/gwen/) · [Project Structure](#project-structure) · [CLI](#cli)
 
 ---
 
@@ -139,11 +140,12 @@ For technical details, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Documentation
 
+**Full Documentation:** [https://djodjonx.github.io/gwen/](https://djodjonx.github.io/gwen/)
+
+Reference files:
 - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - setup and first run
 - [`docs/CLI.md`](docs/CLI.md) - command reference and scaffolding
-- [`docs/API.md`](docs/API.md) - API reference (base, to expand via VitePress)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - technical architecture
-- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) - common issues
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) - contribution guide
 - [`SECURITY.md`](SECURITY.md) - vulnerability reporting
 
