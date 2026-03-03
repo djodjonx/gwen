@@ -70,7 +70,7 @@ describe('Configuration', () => {
 
     it('should merge plugin arrays', () => {
       const defaults = { ...defaultConfig, wasmPlugins: [{ id: 'physics', name: 'Physics' }] };
-      const user = { wasmPlugins: [{ id: 'ai' }] };
+      const user = { wasmPlugins: [{ id: 'ai', name: 'AIEngine' }] };
       const merged = mergeConfigs(defaults, user);
 
       expect(merged.wasmPlugins?.length).toBe(2);
