@@ -7,6 +7,44 @@ on:
     branches: [main]
 
 jobs:
+  # ── Linting & Formatting ──────────────────────────────────────────────────
+  lint:
+    name: Lint & Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint (oxlint)
+        run: pnpm lint
+
+      - name: Format check (oxfmt)
+        run: pnpm format:check
+
   # ── Tests Rust + compilation WASM ─────────────────────────────────────────
   rust:
     name: Rust tests + WASM build
@@ -52,6 +90,7 @@ jobs:
   typescript:
     name: TypeScript tests
     runs-on: ubuntu-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v4
 
@@ -65,41 +104,95 @@ jobs:
         with:
           version: 9
 
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
         run: pnpm install
 
-      - name: Test engine-core
-        run: pnpm --filter @gwen/engine-core test
-
-      - name: Test plugin-input
-        run: pnpm --filter @gwen/plugin-input test
-
-      - name: Test plugin-audio
-        run: pnpm --filter @gwen/plugin-audio test
-
-      - name: Test renderer-canvas2d
-        run: pnpm --filter @gwen/renderer-canvas2d test
-
-      - name: Test cli
-        run: pnpm --filter @gwen/cli test
-
-      - name: Test vite-plugin
-        run: pnpm --filter @gwen/vite-plugin test
+      - name: Test all packages
+        run: pnpm test
 
   # ── Typecheck global ──────────────────────────────────────────────────────
   typecheck:
     name: TypeScript type check
     runs-on: ubuntu-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - run: pnpm install
-      - run: pnpm --filter @gwen/engine-core exec tsc --noEmit
-      - run: pnpm --filter @gwen/cli exec tsc --noEmit
-      - run: pnpm --filter @gwen/vite-plugin exec tsc --noEmit
+
+      - name: Typecheck all packages
+        run: |
+          pnpm --filter @gwen/engine-core exec tsc --noEmit
+          pnpm --filter @gwen/cli exec tsc --noEmit
+          pnpm --filter @gwen/vite-plugin exec tsc --noEmit
+          pnpm --filter @gwen/plugin-audio exec tsc --noEmit
+          pnpm --filter @gwen/plugin-debug exec tsc --noEmit
+          pnpm --filter @gwen/plugin-input exec tsc --noEmit
+          pnpm --filter @gwen/plugin-html-ui exec tsc --noEmit
+          pnpm --filter @gwen/renderer-canvas2d exec tsc --noEmit
+
+  # ── Build verification ────────────────────────────────────────────────────
+  build:
+    name: Build all packages
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm install
+
+      - name: Build all packages
+        run: pnpm -r build
 
