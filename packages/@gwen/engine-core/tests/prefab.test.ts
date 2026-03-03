@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { definePrefab } from '../src/prefab';
+import { definePrefab } from '../src/core/prefab';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
 
 describe('Prefab System (prefab.ts)', () => {

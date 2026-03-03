@@ -12,7 +12,7 @@
  */
 
 import { bench, describe } from 'vitest';
-import { EntityManager, ComponentRegistry, QueryEngine } from '../src/ecs';
+import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 import { getWasmBridge, _resetWasmBridge } from '../src/wasm-bridge';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

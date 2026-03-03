@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { EntityManager, ComponentRegistry, QueryEngine } from '../src/ecs';
+import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 
 // ============= EntityManager =============
 

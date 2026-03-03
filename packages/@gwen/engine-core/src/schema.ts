@@ -118,7 +118,7 @@ interface FieldMeta {
   byteLength: number;
 }
 
-import { GlobalStringPool } from './string-pool.js';
+import { GlobalStringPool } from './utils/string-pool.js';
 
 export function computeSchemaLayout<T extends Record<string, FieldValue>>(
   schema: ComponentSchema,

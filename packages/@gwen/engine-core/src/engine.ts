@@ -20,7 +20,7 @@
 
 import type { EngineConfig, TsPlugin, ComponentType } from './types';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
-import { PluginManager } from './plugin-manager';
+import { PluginManager } from './plugin-system/plugin-manager';
 import { defaultConfig, mergeConfigs } from './config';
 import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
 import {
@@ -29,7 +29,7 @@ import {
   computeSchemaLayout,
   type SchemaLayout,
 } from './schema';
-import type { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
+import type { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
 
 // EntityId is now a packed number (index | generation<<20) aligned with Rust format
 export type EntityId = number;

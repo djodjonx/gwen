@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../src/api';
-import { EntityManager, ComponentRegistry, QueryEngine } from '../src/ecs';
+import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 
 // ============= ServiceLocator =============
 

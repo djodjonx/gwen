@@ -25,7 +25,7 @@
  */
 
 import type { EngineAPI } from './types';
-import type { EntityId } from './ecs';
+import type { EntityId } from '../engine';
 
 export interface PrefabDefinition<Args extends any[] = any[]> {
   /** Unique name of the prefab */

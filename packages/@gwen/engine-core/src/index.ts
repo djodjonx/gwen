@@ -9,7 +9,7 @@ export { defaultConfig, mergeConfigs, defineConfig, createEngine, ConfigBuilder 
 export type { TypedEngineConfig, GwenConfigServices } from './config';
 
 // Typed plugin system — GwenPlugin<N, P> + createPlugin()
-export { createPlugin } from './plugin';
+export { createPlugin } from './plugin-system/plugin';
 export type {
   GwenPlugin,
   AnyGwenPlugin,
@@ -18,10 +18,10 @@ export type {
   PluginProvides,
   MergeProvides,
   UnionToIntersection,
-} from './plugin';
+} from './plugin-system/plugin';
 
 // ECS internals (kept for tests / advanced usage)
-export { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
+export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
 
 // Engine
 export { Engine, getEngine, useEngine, resetEngine } from './engine';
@@ -31,7 +31,7 @@ export { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
 export type { EngineState } from './api';
 
 // Plugin manager
-export { PluginManager } from './plugin-manager';
+export { PluginManager } from './plugin-system/plugin-manager';
 
 // Scene system
 export { SceneManager, defineScene } from './scene';
@@ -42,8 +42,8 @@ export { UIManager, defineUI, UIComponent } from './ui';
 export type { UIDefinition } from './ui';
 
 // Prefab system
-export { definePrefab, PrefabManager } from './prefab';
-export type { PrefabDefinition } from './prefab';
+export { definePrefab, PrefabManager } from './core/prefab';
+export type { PrefabDefinition } from './core/prefab';
 
 // WASM Bridge
 export { initWasm, getWasmBridge, _resetWasmBridge, _injectMockWasmEngine } from './wasm-bridge';
