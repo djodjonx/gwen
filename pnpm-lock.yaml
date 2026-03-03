@@ -179,32 +179,32 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@20.19.35)(jsdom@28.1.0)
 
-  playground:
+  playground/space-shooter:
     dependencies:
       '@gwen/cli':
         specifier: workspace:*
-        version: link:../packages/@gwen/cli
+        version: link:../../packages/@gwen/cli
       '@gwen/engine-core':
         specifier: workspace:*
-        version: link:../packages/@gwen/engine-core
+        version: link:../../packages/@gwen/engine-core
       '@gwen/plugin-audio':
         specifier: workspace:*
-        version: link:../packages/@gwen/plugin-audio
+        version: link:../../packages/@gwen/plugin-audio
       '@gwen/plugin-debug':
         specifier: workspace:*
-        version: link:../packages/@gwen/plugin-debug
+        version: link:../../packages/@gwen/plugin-debug
       '@gwen/plugin-html-ui':
         specifier: workspace:*
-        version: link:../packages/@gwen/plugin-html-ui
+        version: link:../../packages/@gwen/plugin-html-ui
       '@gwen/plugin-input':
         specifier: workspace:*
-        version: link:../packages/@gwen/plugin-input
+        version: link:../../packages/@gwen/plugin-input
       '@gwen/renderer-canvas2d':
         specifier: workspace:*
-        version: link:../packages/@gwen/renderer-canvas2d
+        version: link:../../packages/@gwen/renderer-canvas2d
       '@gwen/vite-plugin':
         specifier: workspace:*
-        version: link:../packages/@gwen/vite-plugin
+        version: link:../../packages/@gwen/vite-plugin
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
