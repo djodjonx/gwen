@@ -13,8 +13,8 @@ import {
   type WasmBridge,
   type WasmEngine,
   type WasmEntityId,
-} from '../src/wasm-bridge';
-import { Engine } from '../src/engine';
+} from '../src/engine/wasm-bridge';
+import { Engine } from '../src/engine/engine';
 
 // ── Mock helper ───────────────────────────────────────────────────────────────
 

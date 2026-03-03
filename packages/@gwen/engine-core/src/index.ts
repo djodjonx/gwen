@@ -24,7 +24,8 @@ export type {
 export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
 
 // Engine
-export { Engine, getEngine, useEngine, resetEngine } from './engine';
+export { Engine, getEngine, useEngine, resetEngine } from './engine/engine';
+export type { EntityId } from './engine/engine-api';
 
 // API & ServiceLocator
 export { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
@@ -46,5 +47,5 @@ export { definePrefab, PrefabManager } from './core/prefab';
 export type { PrefabDefinition } from './core/prefab';
 
 // WASM Bridge
-export { initWasm, getWasmBridge, _resetWasmBridge, _injectMockWasmEngine } from './wasm-bridge';
-export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './wasm-bridge';
+export { initWasm, getWasmBridge, _resetWasmBridge, _injectMockWasmEngine } from './engine/wasm-bridge';
+export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './engine/wasm-bridge';

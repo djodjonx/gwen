@@ -18,90 +18,25 @@
  * ```
  */
 
-import type { EngineConfig, TsPlugin, ComponentType } from './types';
-import { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api';
-import { PluginManager } from './plugin-system/plugin-manager';
-import { defaultConfig, mergeConfigs } from './config';
+import type { EngineConfig, TsPlugin, ComponentType } from '../types';
+import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../api';
+import { PluginManager } from '../plugin-system/plugin-manager';
+import { defaultConfig, mergeConfigs } from '../config';
 import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
 import {
   type ComponentDefinition,
   type ComponentSchema,
   computeSchemaLayout,
   type SchemaLayout,
-} from './schema';
-import type { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
-
-// EntityId is now a packed number (index | generation<<20) aligned with Rust format
-export type EntityId = number;
-
-// ── WASM shim interfaces ──────────────────────────────────────────────────────
-
-/** Shim that satisfies the EntityManager interface expected by createEngineAPI */
-interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'> {
-  create(): EntityId;
-  destroy(id: EntityId): boolean;
-  isAlive(id: EntityId): boolean;
-  [Symbol.iterator](): Iterator<EntityId>;
-}
-
-/** Shim that satisfies the ComponentRegistry interface expected by createEngineAPI */
-interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'registeredTypes'> {
-  add<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T): void;
-  remove(id: EntityId, type: ComponentType): boolean;
-  get<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): T | undefined;
-  has(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean;
-}
-
-/** Shim that satisfies the QueryEngine interface expected by createEngineAPI */
-interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
-  query(
-    required: ComponentType[],
-    entities: EntityManagerShim,
-    components: ComponentRegistryShim,
-  ): EntityId[];
-}
-
-/** Minimal interface for legacy plugins (before registerSystem) */
-interface LegacyPlugin {
-  init?(engine: Engine): void;
-}
-
-// ── Packed EntityId helpers ────────────────────────────────────────────────────
-
-/** Pack WASM entity ID (index, generation) into a single 32-bit number: (generation << 20) | index */
-function packId(wasmId: WasmEntityId): EntityId {
-  return (wasmId.generation << 20) | (wasmId.index & 0xfffff);
-}
-
-/** Unpack EntityId back to (index, generation) pair */
-function unpackId(id: EntityId): { index: number; generation: number } {
-  return { index: id & 0xfffff, generation: id >>> 20 };
-}
-
-// ── Internal types ─────────────────────────────────────────────────────────────
-
-/** Possible JavaScript value for a serialized component field */
-type ComponentFieldValue = number | bigint | boolean | string;
-
-/**
- * GWEN Engine — Main class
- *
- * Orchestrates ECS, plugins, and the game loop.
- * Uses PluginManager for all plugin lifecycle management.
- * Rendering is handled by a TsPlugin (Canvas2DRenderer) — no special casing.
- *
- * @example
- * ```typescript
- * import { Engine, Canvas2DRenderer } from '@gwen/engine-core';
- *
- * const engine = new Engine({ maxEntities: 5000, targetFPS: 60 });
- *
- * // Register the renderer as a plugin — just like any other
- * engine.registerSystem(new Canvas2DRenderer({ canvas: 'game' }));
- *
- * engine.start();
- * ```
- */
+} from '../schema';
+import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
+import {
+  packId,
+  unpackId,
+  type EntityId,
+  type ComponentFieldValue,
+  createShims,
+} from './engine-api';
 
 export class Engine {
   private config: EngineConfig;
@@ -128,7 +63,7 @@ export class Engine {
     SchemaLayout<Record<string, ComponentFieldValue>>
   >();
   // Scratch buffer for serialization (zero-alloc)
-  private scratchBuffer = new ArrayBuffer(1024); // 1KB is plenty for a single component
+  private scratchBuffer = new ArrayBuffer(1024);
   private scratchDataView = new DataView(this.scratchBuffer);
 
   // Event system
@@ -140,85 +75,8 @@ export class Engine {
 
     this.wasmBridge = getWasmBridge();
 
-    // In tests, the mock is injected before construction — accepted.
-    // In production, start() verifies that isActive() is true.
-
     // Wire up the API — ECS methods delegate to WASM bridge
-    const entityShim: EntityManagerShim = {
-      create: () => {
-        const wid = this.wasmBridge.createEntity();
-        return packId(wid);
-      },
-      destroy: (id: EntityId) => {
-        const { index, generation } = unpackId(id);
-        return this.wasmBridge.deleteEntity(index, generation);
-      },
-      isAlive: (id: EntityId) => {
-        const { index, generation } = unpackId(id);
-        return this.wasmBridge.isAlive(index, generation);
-      },
-      count: () => this.wasmBridge.countEntities(),
-      maxEntities: this.config.maxEntities,
-      [Symbol.iterator]: function* () {
-        /* queries via bridge */
-      },
-    };
-
-    const componentShim: ComponentRegistryShim = {
-      add: <T>(
-        id: EntityId,
-        type: ComponentDefinition<ComponentSchema> | ComponentType,
-        data: T,
-      ) => {
-        this._addComponentInternal(id, type, data);
-      },
-      remove: (id: EntityId, type: ComponentType) => {
-        const typeId = this.componentTypeIds.get(type);
-        if (typeId === undefined) return false;
-        const { index, generation } = unpackId(id);
-        const ok = this.wasmBridge.removeComponent(index, generation, typeId);
-        if (ok) {
-          this.wasmBridge.updateEntityArchetype(index, this._getEntityTypeIds(id));
-        }
-        return ok;
-      },
-      get: <T>(
-        id: EntityId,
-        type: ComponentDefinition<ComponentSchema> | ComponentType,
-      ): T | undefined => {
-        const typeName = typeof type === 'string' ? type : type.name;
-        const typeId = this.componentTypeIds.get(typeName);
-        if (typeId === undefined) return undefined;
-        const { index, generation } = unpackId(id);
-        const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
-        if (raw.length === 0) return undefined;
-        return this._deserializeComponent(typeName, raw) as T;
-      },
-      has: (id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType) => {
-        const typeName = typeof type === 'string' ? type : type.name;
-        const typeId = this.componentTypeIds.get(typeName);
-        if (typeId === undefined) return false;
-        const { index, generation } = unpackId(id);
-        return this.wasmBridge.hasComponent(index, generation, typeId);
-      },
-      removeAll: (id: EntityId) => {
-        const { index, generation } = unpackId(id);
-        for (const [, typeId] of this.componentTypeIds) {
-          this.wasmBridge.removeComponent(index, generation, typeId);
-        }
-      },
-      registeredTypes: () => [...this.componentTypeIds.keys()],
-    };
-
-    const queryShim: QueryEngineShim = {
-      query: (required: ComponentType[]) => {
-        const typeIds = required.map((t) => this._getOrRegisterTypeId(t));
-        return this.wasmBridge.queryEntities(typeIds);
-      },
-      invalidate: () => {
-        /* handled by WASM */
-      },
-    };
+    const { entityShim, componentShim, queryShim } = createShims(this);
 
     this.api = createEngineAPI(
       entityShim as unknown as EntityManager,
@@ -234,7 +92,7 @@ export class Engine {
       register: (plugin: TsPlugin) => this.pluginManager.register(plugin, this.api),
       unregister: (name: string) => this.pluginManager.unregister(name),
       get: (name: string) => this.pluginManager.get(name),
-    } as import('./types').IPluginRegistrar);
+    } as import('../types').IPluginRegistrar);
 
     if (this.config.debug) {
       console.log('[GWEN] Engine initialized', this.config);
@@ -252,7 +110,7 @@ export class Engine {
    * Internal: add a component to an entity and serialize it to WASM.
    * @internal
    */
-  private _addComponentInternal(
+  public _addComponentInternal(
     id: EntityId,
     type: ComponentDefinition<ComponentSchema> | ComponentType,
     data: unknown,
@@ -272,7 +130,7 @@ export class Engine {
    * Serialize component data to binary using the schema layout.
    * @internal
    */
-  private _serializeComponent(componentId: string, data: unknown): Uint8Array {
+  public _serializeComponent(componentId: string, data: unknown): Uint8Array {
     const layout = this.schemaLayouts.get(componentId);
 
     if (!layout) {
@@ -302,7 +160,7 @@ export class Engine {
    * Deserialize component data from binary using the schema layout.
    * @internal
    */
-  private _deserializeComponent(
+  public _deserializeComponent(
     componentId: string,
     raw: Uint8Array,
   ): Record<string, ComponentFieldValue> {
@@ -326,7 +184,7 @@ export class Engine {
    * Get or compute schema layout for a component definition.
    * @internal
    */
-  private _getOrComputeLayout(
+  public _getOrComputeLayout(
     def: ComponentDefinition<ComponentSchema>,
   ): SchemaLayout<Record<string, ComponentFieldValue>> {
     let layout = this.schemaLayouts.get(def.name);
@@ -341,7 +199,7 @@ export class Engine {
    * Get or register a Rust component type ID for a component type name.
    * @internal
    */
-  private _getOrRegisterTypeId(type: ComponentType): number {
+  public _getOrRegisterTypeId(type: ComponentType): number {
     let typeId = this.componentTypeIds.get(type);
     if (typeId === undefined) {
       typeId = this.wasmBridge.registerComponentType();
@@ -354,7 +212,7 @@ export class Engine {
    * Get all type IDs currently on an entity.
    * @internal
    */
-  private _getEntityTypeIds(id: EntityId): number[] {
+  public _getEntityTypeIds(id: EntityId): number[] {
     const { index, generation } = unpackId(id);
     const result: number[] = [];
     for (const [, typeId] of this.componentTypeIds) {
@@ -439,7 +297,7 @@ export class Engine {
   public loadPlugin(name: string, plugin: unknown): void {
     if (this.legacyPlugins.has(name)) return;
     try {
-      const legacy = plugin as LegacyPlugin;
+      const legacy = plugin as { init?: (engine: Engine) => void };
       if (typeof legacy.init === 'function') {
         legacy.init(this);
       }
@@ -455,58 +313,6 @@ export class Engine {
 
   public hasPlugin(name: string): boolean {
     return this.legacyPlugins.has(name);
-  }
-
-  // ============= Lifecycle =============
-
-  public start(): void {
-    if (this.isRunning) return;
-
-    if (!this.wasmBridge.isActive()) {
-      throw new Error(
-        "[GWEN] Impossible de démarrer : le core WASM n'est pas initialisé.\n" +
-          'Appelez `await initWasm()` avant engine.start().',
-      );
-    }
-
-    this.isRunning = true;
-    this.lastFrameTime = performance.now();
-    this.emit('start');
-
-    const loop = (now: number) => {
-      this.tick(now);
-      if (this.isRunning) this.rafHandle = requestAnimationFrame(loop);
-    };
-    this.rafHandle = requestAnimationFrame(loop);
-  }
-
-  public stop(): void {
-    if (this.isRunning) cancelAnimationFrame(this.rafHandle);
-    this.isRunning = false;
-    this.pluginManager.destroyAll();
-    this.emit('stop');
-  }
-
-  private tick(now: number): void {
-    this._deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.1);
-    this.lastFrameTime = now;
-    this._frameCount++;
-
-    if (this._frameCount % 60 === 0) {
-      this.fps = this._deltaTime > 0 ? Math.round(1 / this._deltaTime) : 0;
-    }
-
-    this.api._updateState(this._deltaTime, this._frameCount);
-
-    this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
-
-    // Tick du core Rust — synchronise le game loop WASM avec le TS
-    this.wasmBridge.tick(this._deltaTime * 1000);
-
-    this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
-    this.pluginManager.dispatchRender(this.api);
-
-    this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
   }
 
   // ============= Entity Management =============
@@ -625,7 +431,7 @@ export class Engine {
     this.eventListeners.get(eventType)?.delete(listener);
   }
 
-  private emit(eventType: string, data?: unknown): void {
+  public emit(eventType: string, data?: unknown): void {
     const listeners = this.eventListeners.get(eventType);
     if (listeners) {
       for (const listener of listeners) {
@@ -643,12 +449,15 @@ export class Engine {
   public getFPS(): number {
     return this.fps;
   }
+
   public getDeltaTime(): number {
     return this._deltaTime;
   }
+
   public getFrameCount(): number {
     return this._frameCount;
   }
+
   public getConfig(): EngineConfig {
     return { ...this.config };
   }
@@ -676,8 +485,81 @@ export class Engine {
   public getWasmBridge(): WasmBridge {
     return this.wasmBridge;
   }
+
   public getAPI(): EngineAPIImpl {
     return this.api;
+  }
+
+  // ============= Lifecycle =============
+
+  public start(): void {
+    this._start();
+  }
+
+  public stop(): void {
+    this._stop();
+  }
+
+  public tick(now: number): void {
+    this._tick(now);
+  }
+
+  public _start(): void {
+    if (this.isRunning) return;
+
+    if (!this.wasmBridge.isActive()) {
+      throw new Error(
+        "[GWEN] Impossible de démarrer : le core WASM n'est pas initialisé.\n" +
+          'Appelez `await initWasm()` avant engine.start().',
+      );
+    }
+
+    this.isRunning = true;
+    this.lastFrameTime = performance.now();
+    this.emit('start');
+
+    const loop = (now: number) => {
+      this._tick(now);
+      if (this.isRunning) this.rafHandle = requestAnimationFrame(loop);
+    };
+    this.rafHandle = requestAnimationFrame(loop);
+  }
+
+  public _stop(): void {
+    if (this.isRunning) cancelAnimationFrame(this.rafHandle);
+    this.isRunning = false;
+    this.pluginManager.destroyAll();
+    this.emit('stop');
+  }
+
+  public _tick(now: number): void {
+    this._deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.1);
+    this.lastFrameTime = now;
+    this._frameCount++;
+
+    if (this._frameCount % 60 === 0) {
+      this.fps = this._deltaTime > 0 ? Math.round(1 / this._deltaTime) : 0;
+    }
+
+    this.api._updateState(this._deltaTime, this._frameCount);
+
+    this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
+
+    // Tick du core Rust — synchronise le game loop WASM avec le TS
+    this.wasmBridge.tick(this._deltaTime * 1000);
+
+    this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
+    this.pluginManager.dispatchRender(this.api);
+
+    this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
+  }
+
+  public _getPluginManager(): PluginManager {
+    return this.pluginManager;
+  }
+
+  public _getWasmBridge(): WasmBridge {
+    return this.wasmBridge;
   }
 }
 
@@ -685,8 +567,8 @@ export class Engine {
 
 let globalEngine: Engine | null = null;
 
-export function getEngine(config?: Partial<EngineConfig>): Engine {
-  if (!globalEngine) globalEngine = new Engine(config);
+export function getEngine(userConfig?: any): Engine {
+  if (!globalEngine) globalEngine = new Engine(userConfig);
   return globalEngine;
 }
 

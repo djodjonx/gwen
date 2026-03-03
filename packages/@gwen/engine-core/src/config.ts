@@ -1,6 +1,6 @@
 import type { EngineConfig, WasmPlugin, TsPlugin } from './types';
 import type { AnyGwenPlugin, MergeProvides } from './plugin-system/plugin';
-import { Engine } from './engine';
+import { Engine } from './engine/engine';
 import { SceneManager } from './scene';
 
 // ...existing code...

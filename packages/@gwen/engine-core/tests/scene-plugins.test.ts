@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Engine, SceneManager, type Scene, type TsPlugin } from '../src/index';
-import { _injectMockWasmEngine, _resetWasmBridge } from '../src/wasm-bridge';
+import { _injectMockWasmEngine, _resetWasmBridge } from '../src/engine/wasm-bridge';
 
 function makeMock() {
   return {

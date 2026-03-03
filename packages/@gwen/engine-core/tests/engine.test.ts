@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Engine, getEngine, useEngine, resetEngine } from '../src/engine';
-import { _injectMockWasmEngine, _resetWasmBridge } from '../src/wasm-bridge';
-import type { WasmEngine, WasmEntityId } from '../src/wasm-bridge';
+import { Engine, getEngine, useEngine, resetEngine } from '../src/engine/engine';
+import { _injectMockWasmEngine, _resetWasmBridge } from '../src/engine/wasm-bridge';
+import type { WasmEngine, WasmEntityId } from '../src/engine/wasm-bridge';
 import { Types, defineComponent } from '../src/schema';
 
 const Position = defineComponent('position', () => ({ schema: { x: Types.f32, y: Types.f32 } }));
