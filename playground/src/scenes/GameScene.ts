@@ -26,7 +26,7 @@ export const GameScene = defineScene('Game', () => ({
     MovementSystem,
     PlayerSystem,
     AiSystem,
-    SpawnerSystem,     // factory — le framework appellera SpawnerSystem() automatiquement
+    SpawnerSystem,
     CollisionSystem,
   ],
 
