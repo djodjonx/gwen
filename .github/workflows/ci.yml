@@ -169,32 +169,45 @@ jobs:
   build:
     name: Build all packages
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [lint, typecheck, typescript, rust]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: "20"
+          pnpm-version: '10'
 
-      - uses: pnpm/action-setup@v3
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
         with:
-          version: 9
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - run: pnpm install
+          name: wasm-artifacts
+          path: packages/@gwen/engine-core/wasm
 
       - name: Build all packages
         run: pnpm -r build
 
+      - name: Verify build outputs
+        run: |
+          echo "✅ Verifying build outputs..."
+          [ -d "packages/@gwen/engine-core/dist" ] && echo "✅ engine-core built" || echo "⚠️ engine-core dist not found"
+          [ -d "packages/@gwen/cli/dist" ] && echo "✅ cli built" || echo "⚠️ cli dist not found"
+          true
+
+  # ── CI Status ──────────────────────────────────────────────────────────────
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [lint, typescript, typecheck, rust, build]
+    if: always()
+    steps:
+      - name: Check CI status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.typescript.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.rust.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"
