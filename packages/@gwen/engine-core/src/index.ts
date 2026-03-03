@@ -5,7 +5,8 @@ export * from './types';
 export * from './schema';
 
 // Config — defineConfig() generic + TypedEngineConfig
-export { defaultConfig, mergeConfigs, defineConfig, createEngine, ConfigBuilder } from './config';
+export { defaultConfig, mergeConfigs, defineConfig, createEngine } from './config';
+export { ConfigBuilder } from './config/config-builder';
 export type { TypedEngineConfig, GwenConfigServices } from './config';
 
 // Typed plugin system — GwenPlugin<N, P> + createPlugin()
