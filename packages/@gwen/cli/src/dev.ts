@@ -7,7 +7,7 @@
  * Usage : gwen dev [--port 3000] [--open]
  */
 
-import path from 'node:path';
+import * as path from 'node:path';
 import { findConfigFile } from './config-parser.js';
 import { prepare } from './prepare.js';
 import { buildViteConfig } from './vite-config-builder.js';

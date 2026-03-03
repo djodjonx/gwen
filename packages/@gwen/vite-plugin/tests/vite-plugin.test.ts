@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
+import * as path from 'node:path';
 import { gwen } from '../src/index';
 
 function makeTmp(): string {

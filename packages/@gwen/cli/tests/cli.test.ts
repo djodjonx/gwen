@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
+import * as path from 'node:path';
 import { findConfigFile, parseConfigFile } from '../src/config-parser';
 import { build } from '../src/builder';
 import { prepare } from '../src/prepare';

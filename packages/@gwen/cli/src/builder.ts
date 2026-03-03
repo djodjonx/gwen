@@ -13,7 +13,7 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
+import * as path from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { findConfigFile, parseConfigFile, type EngineConfigParsed } from './config-parser.js';

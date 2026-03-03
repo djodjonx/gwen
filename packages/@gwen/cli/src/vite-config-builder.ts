@@ -8,7 +8,7 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
+import * as path from 'node:path';
 import { parseConfigFile } from './config-parser.js';
 
 // On évite l'import type de Vite au top-level — jiti v2 ne le résout pas bien

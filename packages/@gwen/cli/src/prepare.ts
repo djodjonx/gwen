@@ -15,7 +15,7 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
+import * as path from 'node:path';
 import { findConfigFile, parseConfigFile } from './config-parser.js';
 
 /**

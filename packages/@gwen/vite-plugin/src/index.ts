@@ -27,7 +27,7 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
+import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn, type ChildProcess } from 'node:child_process';
 import type { Plugin, ViteDevServer } from 'vite';
