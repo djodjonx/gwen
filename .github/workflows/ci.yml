@@ -151,7 +151,16 @@ jobs:
           pnpm-version: '10'
 
       - name: Typecheck all packages
-        run: pnpm --filter '@gwen/*' exec tsc --noEmit
+        run: |
+          pnpm --filter @gwen/engine-core exec tsc --noEmit
+          pnpm --filter @gwen/cli exec tsc --noEmit
+          pnpm --filter @gwen/vite-plugin exec tsc --noEmit
+          pnpm --filter @gwen/plugin-audio exec tsc --noEmit
+          pnpm --filter @gwen/plugin-debug exec tsc --noEmit
+          pnpm --filter @gwen/plugin-input exec tsc --noEmit
+          pnpm --filter @gwen/plugin-html-ui exec tsc --noEmit
+          pnpm --filter @gwen/renderer-canvas2d exec tsc --noEmit
+          pnpm --filter create-gwen-app exec tsc --noEmit
 
   # ── Build verification ────────────────────────────────────────────────────
   build:
