@@ -16,6 +16,7 @@
     "@gwen/plugin-debug": "workspace:*",
     "@gwen/plugin-html-ui": "workspace:*",
     "@gwen/plugin-input": "workspace:*",
+    "@gwen/plugin-physics2d": "workspace:*",
     "@gwen/renderer-canvas2d": "workspace:*",
     "@gwen/vite-plugin": "workspace:*",
     "@gwen/cli": "workspace:*"

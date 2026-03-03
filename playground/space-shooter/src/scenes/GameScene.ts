@@ -7,6 +7,7 @@ import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
 import { CollisionSystem } from '../systems/CollisionSystem';
+import { PhysicsBindingSystem } from '../systems/PhysicsBindingSystem';
 import { BackgroundUI } from '../ui/BackgroundUI';
 import { BulletUI } from '../ui/BulletUI';
 import { EnemyUI } from '../ui/EnemyUI';
@@ -16,7 +17,14 @@ import { ScoreUI } from '../ui/ScoreUI';
 export const GameScene = defineScene('Game', () => ({
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
-  systems: [MovementSystem, PlayerSystem, AiSystem, SpawnerSystem, CollisionSystem],
+  systems: [
+    MovementSystem,
+    PlayerSystem,
+    AiSystem,
+    SpawnerSystem,
+    PhysicsBindingSystem, // register entities in Rapier — before CollisionSystem
+    CollisionSystem(), // read Rapier events
+  ],
 
   onEnter(api: EngineAPI<GwenServices>) {
     api.prefabs.register(PlayerPrefab);

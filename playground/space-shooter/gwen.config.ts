@@ -18,8 +18,7 @@ import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
-import { DebugPlugin } from '@gwen/plugin-debug';
-import type { DebugMetrics } from '@gwen/plugin-debug';
+import { physics2D } from '@gwen/plugin-physics2d';
 
 export default defineConfig({
   engine: {
@@ -31,6 +30,13 @@ export default defineConfig({
     title: 'GWEN — Space Shooter',
     background: '#000814',
   },
+  wasmPlugins: [
+    physics2D({
+      gravity: 0, // space — no gravity
+      gravityX: 0,
+      maxEntities: 2_000,
+    }),
+  ],
   tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
@@ -42,14 +48,5 @@ export default defineConfig({
       manualRender: true,
     }),
     new HtmlUIPlugin(),
-    // new DebugPlugin({
-    //   overlay: { position: 'top-right' },
-    //   fpsDrop: {
-    //     threshold: 45,
-    //     onDrop: (fps: number, metrics: DebugMetrics) => {
-    //       console.warn(`[GWEN:Debug] FPS drop detected: ${fps.toFixed(0)} FPS (avg: ${metrics.rollingFps.toFixed(1)})`);
-    //     },
-    //   },
-    // }),
   ],
 });

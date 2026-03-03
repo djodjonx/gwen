@@ -236,6 +236,9 @@ importers:
       '@gwen/plugin-input':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-input
+      '@gwen/plugin-physics2d':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/plugin-physics2d
       '@gwen/renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/@gwen/renderer-canvas2d
