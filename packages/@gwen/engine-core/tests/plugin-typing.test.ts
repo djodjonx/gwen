@@ -152,7 +152,7 @@ describe('InputPlugin — provides', () => {
   });
 
   it('is assignable to AnyGwenPlugin', () => {
-    const p: import('../src/plugin').AnyGwenPlugin = new InputPlugin();
+    const p: import('../src/plugin-system/plugin').AnyGwenPlugin = new InputPlugin();
     expect(p.name).toBe('InputPlugin');
   });
 });

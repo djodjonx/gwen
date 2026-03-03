@@ -17,6 +17,6 @@
     "sourceMap": true,
     "outDir": "./dist"
   },
-  "include": ["src"],
+  "include": ["src", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

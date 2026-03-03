@@ -281,7 +281,7 @@ describe('Scene.ui — auto-injection UIManager', () => {
     const scenes = new SceneManager();
     scenes.onInit(api);
 
-    const scene: import('../src/scene').Scene = {
+    const scene: import('../src/api/scene').Scene = {
       name: 'Test',
       ui: [BgUI],
       onEnter: (_api) => {
@@ -325,7 +325,7 @@ describe('Scene.ui — auto-injection UIManager', () => {
     const scenes = new SceneManager();
     scenes.onInit(api);
 
-    const scene: import('../src/scene').Scene = {
+    const scene: import('../src/api/scene').Scene = {
       name: 'Ordered',
       ui: [DefA, DefB, DefC],
       onEnter(_api) {
@@ -349,7 +349,7 @@ describe('Scene.ui — auto-injection UIManager', () => {
     const scenes = new SceneManager();
     scenes.onInit(api);
 
-    const scene: import('../src/scene').Scene = {
+    const scene: import('../src/api/scene').Scene = {
       name: 'NoUI',
       onEnter: () => {},
       onExit: () => {},
@@ -375,7 +375,7 @@ describe('Scene.ui — auto-injection UIManager', () => {
     const scenes = new SceneManager();
     scenes.onInit(api);
 
-    const sceneA: import('../src/scene').Scene = {
+    const sceneA: import('../src/api/scene').Scene = {
       name: 'SceneA',
       ui: [TestUI],
       onEnter(_api) {
@@ -384,7 +384,7 @@ describe('Scene.ui — auto-injection UIManager', () => {
       },
       onExit: () => {},
     };
-    const sceneB: import('../src/scene').Scene = {
+    const sceneB: import('../src/api/scene').Scene = {
       name: 'SceneB',
       ui: [],
       onEnter: () => {},

@@ -43,7 +43,7 @@ describe('SceneManager + Local Plugins', () => {
 
     const GameScene: Scene = {
       name: 'Game',
-      plugins: [activePlugin],
+      systems: [activePlugin],
       onEnter: vi.fn(),
       onExit: vi.fn(),
     };
