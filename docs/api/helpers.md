@@ -71,14 +71,14 @@ export const PlayerUI = defineUI({
 
 [Learn more](/core/ui)
 
-## createPlugin
+## defineSystem
 
-Create systems:
+Define game systems (pure gameplay logic):
 
 ```typescript
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem',
   onUpdate(api, dt) {
     // Logic
@@ -86,7 +86,29 @@ export const MovementSystem = createPlugin({
 });
 ```
 
+Systems are for game mechanics, entity processing, and state management.
+
 [Learn more](/core/systems)
+
+## createPlugin
+
+Create framework plugins (integrations with services):
+
+```typescript
+import { createPlugin } from '@gwen/engine-core';
+
+export const InputPlugin = createPlugin({
+  name: 'InputPlugin',
+  provides: { keyboard: {} as KeyboardInput },
+  onInit(api) {
+    // Setup
+  }
+});
+```
+
+Plugins provide services and features to other systems.
+
+[Learn more](/plugins/official)
 
 ## defineConfig
 
@@ -97,7 +119,11 @@ import { defineConfig } from '@gwen/engine-core';
 
 export default defineConfig({
   engine: { maxEntities: 5000 },
-  plugins: []
+  plugins: [
+    new InputPlugin(),
+    new AudioPlugin(),
+    new Canvas2DRenderer()
+  ]
 });
 ```
 
@@ -107,4 +133,3 @@ export default defineConfig({
 
 - [Engine API](/api/engine-api) - Runtime API
 - [Types](/api/types) - Type definitions
-
