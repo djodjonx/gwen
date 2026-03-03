@@ -209,6 +209,22 @@ export class Engine {
   }
 
   /**
+   * Get component type ID for a registered component type.
+   * @internal - Used by engine-api shims
+   */
+  public _getComponentTypeId(type: ComponentType): number | undefined {
+    return this.componentTypeIds.get(type);
+  }
+
+  /**
+   * Get all component type IDs as a Map.
+   * @internal - Used by engine-api shims
+   */
+  public _getComponentTypeIds(): ReadonlyMap<ComponentType, number> {
+    return this.componentTypeIds;
+  }
+
+  /**
    * Get all type IDs currently on an entity.
    * @internal
    */
@@ -567,7 +583,7 @@ export class Engine {
 
 let globalEngine: Engine | null = null;
 
-export function getEngine(userConfig?: any): Engine {
+export function getEngine(userConfig?: Partial<EngineConfig>): Engine {
   if (!globalEngine) globalEngine = new Engine(userConfig);
   return globalEngine;
 }

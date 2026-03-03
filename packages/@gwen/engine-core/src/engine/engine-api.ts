@@ -98,8 +98,7 @@ export function createShims(engine: Engine): {
       engine._addComponentInternal(id, type, data);
     },
     remove: (id: EntityId, type: ComponentType) => {
-      // Access componentTypeIds through the type registry
-      const typeId = (engine as any).componentTypeIds?.get(type);
+      const typeId = engine._getComponentTypeId(type);
       if (typeId === undefined) return false;
       const { index, generation } = unpackId(id);
       const ok = wasmBridge.removeComponent(index, generation, typeId);
@@ -113,7 +112,7 @@ export function createShims(engine: Engine): {
       type: ComponentDefinition<ComponentSchema> | ComponentType,
     ): T | undefined => {
       const typeName = typeof type === 'string' ? type : type.name;
-      const typeId = (engine as any).componentTypeIds?.get(typeName);
+      const typeId = engine._getComponentTypeId(typeName);
       if (typeId === undefined) return undefined;
       const { index, generation } = unpackId(id);
       const raw = wasmBridge.getComponentRaw(index, generation, typeId);
@@ -122,20 +121,20 @@ export function createShims(engine: Engine): {
     },
     has: (id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType) => {
       const typeName = typeof type === 'string' ? type : type.name;
-      const typeId = (engine as any).componentTypeIds?.get(typeName);
+      const typeId = engine._getComponentTypeId(typeName);
       if (typeId === undefined) return false;
       const { index, generation } = unpackId(id);
       return wasmBridge.hasComponent(index, generation, typeId);
     },
     removeAll: (id: EntityId) => {
       const { index, generation } = unpackId(id);
-      const componentTypeIds = (engine as any).componentTypeIds;
+      const componentTypeIds = engine._getComponentTypeIds();
       for (const [, typeId] of componentTypeIds) {
         wasmBridge.removeComponent(index, generation, typeId);
       }
     },
     registeredTypes: () => {
-      const componentTypeIds = (engine as any).componentTypeIds;
+      const componentTypeIds = engine._getComponentTypeIds();
       return [...componentTypeIds.keys()];
     },
   };

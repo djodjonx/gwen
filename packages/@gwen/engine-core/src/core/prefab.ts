@@ -120,7 +120,7 @@ export class PrefabManager {
   }
 
   /** Instantiate a registered Prefab by name, passing optional arguments */
-  instantiate(name: string, ...args: any[]): EntityId {
+  instantiate(name: string, ...args: unknown[]): EntityId {
     const def = this.registry.get(name);
     if (!def) {
       throw new Error(`[GWEN:PrefabManager] Unknown prefab '${name}'. Did you call register()?`);

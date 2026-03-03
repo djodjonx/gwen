@@ -383,7 +383,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         { stdio: 'pipe' },
       );
 
-      (watchProcess as any).on('close', (code: number | null) => {
+      watchProcess.on('close', (code: number | null) => {
         if (code === 0) {
           wasmSourceDir = outDir;
           log('WASM rebuilt — triggering HMR full reload');
@@ -536,10 +536,11 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       if (srcDir) {
         const files = listWasmFiles(srcDir);
         for (const file of files) {
+          const buffer = fs.readFileSync(path.join(srcDir, file));
           this.emitFile({
             type: 'asset',
             fileName: `wasm/${file}`,
-            source: fs.readFileSync(path.join(srcDir, file)),
+            source: new Uint8Array(buffer),
           });
         }
         if (files.length > 0) log(`Emitted ${files.length} WASM assets to dist/wasm/`);

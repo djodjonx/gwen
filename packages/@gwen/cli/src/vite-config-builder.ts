@@ -125,7 +125,8 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
   try {
     // @ts-ignore - Prevent tsc from pulling the vite-plugin workspace into the cli compilation scope
     const mod = await import('@gwen/vite-plugin');
-    return (mod as any).gwen ?? null;
+    const gwenPlugin = (mod as { gwen?: unknown }).gwen;
+    return (gwenPlugin && typeof gwenPlugin === 'function' ? gwenPlugin : null) as Function | null;
   } catch {
     /* pas installé */
   }

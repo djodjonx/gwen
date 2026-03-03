@@ -133,7 +133,7 @@ export async function initWasm(
   _initPromise = (async () => {
     const glue = await loadWasmGlue(resolvedJsUrl);
 
-    const wasmInput = resolvedWasmUrl ? fetch(resolvedWasmUrl) : undefined;
+    const wasmInput = resolvedWasmUrl ? await fetch(resolvedWasmUrl) : undefined;
 
     if (typeof glue.default === 'function') {
       await glue.default({ module_or_path: wasmInput });
@@ -167,16 +167,37 @@ export async function initWasm(
  * Charge un module ES via un <script type="module"> injecté dans le DOM.
  * Contourne la restriction Vite sur import() des fichiers /public.
  */
-async function loadWasmGlue(jsUrl: string): Promise<any> {
+/**
+ * Extended Window interface for GWEN WASM module loading.
+ * Allows dynamic property access for WASM glue code caching.
+ */
+interface GwenWindow extends Window {
+  [key: string]: unknown;
+}
+
+declare const window: GwenWindow;
+
+/**
+ * WASM Glue Module interface (from wasm-bindgen output).
+ * Describes the shape of the loaded WASM JS glue file.
+ */
+interface WasmGlueModule {
+  default?: (init: { module_or_path?: Response | undefined }) => Promise<void>;
+  initSync?: (init: { module: ArrayBuffer }) => void;
+  Engine?: new (maxEntities: number) => WasmEngine;
+  [key: string]: unknown;
+}
+
+async function loadWasmGlue(jsUrl: string): Promise<WasmGlueModule> {
   if (typeof document === 'undefined') {
     throw new Error('[GWEN] initWasm() requiert un environnement navigateur (pas de DOM détecté).');
   }
 
-  return new Promise<any>((resolve, reject) => {
+  return new Promise<WasmGlueModule>((resolve, reject) => {
     const key = `__gwenGlue_${jsUrl.replace(/\W/g, '_')}`;
 
-    if ((window as any)[key]) {
-      resolve((window as any)[key]);
+    if (window[key]) {
+      resolve(window[key] as WasmGlueModule);
       return;
     }
 
@@ -191,10 +212,10 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
 
     const blobUrl = URL.createObjectURL(blob);
 
-    (window as any)[`${key}__resolve`] = () => {
+    window[`${key}__resolve`] = () => {
       URL.revokeObjectURL(blobUrl);
       script.remove();
-      resolve((window as any)[key]);
+      resolve(window[key] as WasmGlueModule);
     };
 
     const script = document.createElement('script');

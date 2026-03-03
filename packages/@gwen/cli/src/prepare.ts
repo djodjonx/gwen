@@ -392,9 +392,23 @@ function ensureProjectTsconfig(projectDir: string, gwenDir: string, verbose: boo
 
   // Lire le tsconfig existant et s'assurer qu'il étend .gwen/
   const raw = fs.readFileSync(tsconfigPath, 'utf-8');
-  let tsconfig: any;
+
+  interface TsConfig {
+    extends?: string;
+    compilerOptions?: {
+      paths?: Record<string, string[]>;
+      baseUrl?: string;
+      target?: string;
+      [key: string]: unknown;
+    };
+    include?: string[];
+    exclude?: string[];
+    [key: string]: unknown;
+  }
+
+  let tsconfig: TsConfig;
   try {
-    tsconfig = JSON.parse(raw);
+    tsconfig = JSON.parse(raw) as TsConfig;
   } catch {
     log(`[gwen prepare] ⚠ tsconfig.json is not valid JSON — skipping extends patch`);
     return;

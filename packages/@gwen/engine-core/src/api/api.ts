@@ -92,7 +92,9 @@ export class EngineAPIImpl<
   }
 
   get scene(): SceneNavigator | null {
-    return this.services.has('SceneManager') ? (this.services.get as any)('SceneManager') : null;
+    return this.services.has('SceneManager')
+      ? (this.services.get('SceneManager') as unknown as SceneNavigator)
+      : null;
   }
 
   // ── Entity operations ──────────────────────────────────────────────────

@@ -271,7 +271,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   private applyTransition(api: EngineAPI, name: string): void {
     const next = this.scenes.get(name)!;
     const registrar = api.services.has('PluginRegistrar')
-      ? (api.services as any).get('PluginRegistrar')
+      ? (api.services.get('PluginRegistrar') as unknown as import('../types').IPluginRegistrar)
       : null;
 
     // 1. Exit current scene

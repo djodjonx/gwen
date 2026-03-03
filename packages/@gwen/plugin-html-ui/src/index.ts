@@ -133,6 +133,14 @@ export interface HtmlUI {
 }
 
 /**
+ * Context for managing DOM instances per entity.
+ */
+interface DomContext {
+  root: HTMLElement;
+  elements: Map<string, HTMLElement>;
+}
+
+/**
  * HtmlUIPlugin — Render entity UIs using HTML templates
  *
  * Manages mounting/unmounting HTML templates to entities and provides
@@ -279,6 +287,9 @@ export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI
 
   private styleEl(entityId: EntityId, id: string, prop: string, value: string): void {
     const el = this.el(entityId, id);
-    if (el) (el.style as any)[prop] = value;
+    if (el) {
+      const style = el.style as CSSStyleDeclaration & Record<string, string>;
+      style[prop] = value;
+    }
   }
 }
