@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "yourusername/gwen" }],
+  "commit": false,
+  "fixed": [],
+  "linked": [["@gwen/*"]],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@gwen/vite-plugin", "create-gwen-app"],
+  "privatePackages": {
+    "version": false,
+    "publish": false
+  }
+}
