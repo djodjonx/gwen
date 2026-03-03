@@ -35,6 +35,48 @@ export interface ComponentAccessor<T> {
   remove(entityId: EntityId): boolean;
 }
 
+// ============= Global Service Registry =============
+
+/**
+ * Global service registry interface — augmented by `gwen prepare`.
+ *
+ * This interface is empty by default (safe fallback).
+ * When the developer runs `gwen prepare` (or `gwen dev` / `gwen build`),
+ * the generated `.gwen/gwen.d.ts` enriches it with the project's actual services:
+ *
+ * ```ts
+ * // .gwen/gwen.d.ts — auto-generated
+ * declare global {
+ *   interface GwenDefaultServices extends _GwenServices {}
+ * }
+ * ```
+ *
+ * This allows `EngineAPI` (and all `define*` helpers) to be fully typed
+ * **without any explicit generic annotation** in user code:
+ *
+ * ```ts
+ * // ✅ After gwen prepare — api is fully typed automatically
+ * export const PlayerSystem = defineSystem({
+ *   name: 'PlayerSystem',
+ *   onUpdate(api, dt) {
+ *     const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+ *   }
+ * });
+ * ```
+ *
+ * @see https://www.typescriptlang.org/docs/handbook/declaration-merging.html
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+declare global {
+  /**
+   * Global service registry — enriched by `gwen prepare` with the project's actual services.
+   * The index signature satisfies `Record<string, unknown>` so it works as a generic default.
+   */
+  interface GwenDefaultServices {
+    [key: string]: unknown;
+  }
+}
+
 // ============= Service Locator =============
 
 /**
@@ -54,7 +96,7 @@ export interface ComponentAccessor<T> {
  * api.services.get<MyService>('anything')  // → MyService (explicit cast)
  * ```
  */
-export interface TypedServiceLocator<M extends Record<string, unknown> = Record<string, unknown>> {
+export interface TypedServiceLocator<M extends GwenDefaultServices = GwenDefaultServices> {
   /**
    * Register a service by name. Keys and values are typed if M is inferred.
    * @param name Service name (key)
@@ -108,18 +150,22 @@ export interface SceneNavigator {
  * The API surface exposed to all TsPlugins during lifecycle callbacks.
  *
  * The generic parameter `M` represents the service map available from plugins declared in `defineConfig()`.
- * It is automatically inferred by TypeScript.
+ * It defaults to `GwenDefaultServices` — a global interface enriched by `gwen prepare` with the
+ * project's actual services. This means **no explicit generic annotation is needed** after running
+ * `gwen prepare`:
  *
  * @example
  * ```typescript
- * // Without explicit typing (fallback):
- * onInit(api: EngineAPI) { ... }
+ * // ✅ No annotation needed — api is fully typed after gwen prepare
+ * onUpdate(api, dt) {
+ *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+ * }
  *
- * // With inferred typing via defineConfig():
- * onInit(api: EngineAPI<{ keyboard: KeyboardInput; audio: AudioManager }>) { ... }
+ * // ✅ Explicit annotation still works (for clarity or library authors)
+ * onUpdate(api: EngineAPI<GwenDefaultServices>, dt: number) { ... }
  * ```
  */
-export interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
+export interface EngineAPI<M extends GwenDefaultServices = GwenDefaultServices> {
   /** Query entities by required component types */
   query(
     componentTypes: Array<

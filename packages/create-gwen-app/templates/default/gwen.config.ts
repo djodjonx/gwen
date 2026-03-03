@@ -1,15 +1,15 @@
 import { defineConfig } from '@gwen/engine-core';
-import type { GwenConfigServices } from '@gwen/engine-core';
 
 /**
  * Configuration de votre jeu GWEN.
  *
- * Ajoutez vos plugins dans `plugins` — les services qu'ils exposent
- * sont automatiquement disponibles avec autocomplétion dans vos systèmes.
+ * Ajoutez vos plugins dans `tsPlugins` — les services qu'ils exposent
+ * sont automatiquement disponibles avec autocomplétion dans vos systèmes,
+ * sans aucune annotation explicite après `gwen prepare`.
  *
  * ```typescript
- * // Dans un système, après avoir ajouté InputPlugin :
- * onInit(api: EngineAPI<GwenServices>) {
+ * // Dans un système — aucune annotation nécessaire après gwen prepare :
+ * onUpdate(api, dt) {
  *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
  * }
  * ```
@@ -32,10 +32,3 @@ export const gwenConfig = defineConfig({
   // Plugins WASM — haute performance (physique, IA, ...)
   // wasmPlugins: [Physics2D()],
 });
-
-/**
- * Type global des services disponibles dans ce projet.
- * Inféré automatiquement depuis gwenConfig.
- * Exportez-le et utilisez-le pour typer vos systèmes.
- */
-export type GwenServices = GwenConfigServices<typeof gwenConfig>;

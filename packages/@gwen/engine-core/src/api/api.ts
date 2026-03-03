@@ -18,7 +18,7 @@ import { PrefabManager } from '../core/prefab';
 // ============= ServiceLocator =============
 
 export class ServiceLocator<
-  M extends Record<string, unknown> = Record<string, unknown>,
+  M extends Record<string, unknown> = GwenDefaultServices,
 > implements TypedServiceLocator<M> {
   private registry = new Map<string, unknown>();
 
@@ -66,7 +66,7 @@ export interface EngineState {
  * Wraps the internal ECS and exposes a clean surface to plugins.
  */
 export class EngineAPIImpl<
-  M extends Record<string, unknown> = Record<string, unknown>,
+  M extends Record<string, unknown> = GwenDefaultServices,
 > implements EngineAPI<M> {
   readonly services: TypedServiceLocator<M>;
   readonly prefabs: PrefabManager;

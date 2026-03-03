@@ -325,23 +325,50 @@ function generateDts(projectDir: string, configPath: string, typeRefs: string[] 
  * Généré par \`gwen prepare\` — NE PAS MODIFIER
  * Source : gwen.config.ts
  *
- * GwenServices est inféré automatiquement depuis le ${displayName}.
- * Vous n'avez pas besoin de l'exporter depuis gwen.config.ts.
+ * GwenDefaultServices est enrichi automatiquement depuis le ${displayName}.
+ * Cela rend tous les define* (defineSystem, defineUI, defineScene, definePrefab)
+ * automatiquement typés — aucune annotation explicite requise.
  */
-${refBlock}import type { GwenConfigServices } from '@gwen/engine-core';
+${refBlock}import type { GwenConfigServices, EngineAPI } from '@gwen/engine-core';
 ${configImport}
 
 type _GwenServices = GwenConfigServices<typeof _cfg>;
 
 declare global {
   /**
-   * Type global des services GWEN — inféré depuis gwen.config.ts.
-   * Disponible partout dans le projet sans import.
+   * Enrichit GwenDefaultServices avec les services du projet.
+   * Utilisé comme default générique par EngineAPI, defineUI, etc.
+   * Aucune annotation n'est nécessaire dans les define* :
    *
    * @example
-   * onInit(api: EngineAPI<GwenServices>) {
-   *   const kb = api.services.get('keyboard'); // ✅ KeyboardInput
-   * }
+   * export const PlayerSystem = defineSystem({
+   *   name: 'PlayerSystem',
+   *   onUpdate(api, dt) {
+   *     const kb = api.services.get('keyboard'); // ✅ KeyboardInput — sans annotation
+   *   }
+   * });
+   *
+   * export const PlayerUI = defineUI({
+   *   name: 'PlayerUI',
+   *   render(api, id) {
+   *     const { ctx } = api.services.get('renderer'); // ✅ Canvas2DRenderer — sans generic
+   *   }
+   * });
+   */
+  interface GwenDefaultServices extends _GwenServices {}
+
+  /**
+   * Alias de commodité — équivalent à EngineAPI<GwenDefaultServices>.
+   * Utile pour annoter explicitement (plugins, bibliothèques tierces).
+   *
+   * @example
+   * onInit(api: GwenAPI) { ... }
+   */
+  type GwenAPI = EngineAPI<GwenDefaultServices>;
+
+  /**
+   * @deprecated Utiliser GwenAPI ou laisser TypeScript inférer automatiquement.
+   * Conservé pour la rétrocompatibilité.
    */
   type GwenServices = _GwenServices;
 

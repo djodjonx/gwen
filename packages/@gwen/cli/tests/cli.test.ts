@@ -48,7 +48,9 @@ describe('prepare', () => {
     const dts = path.join(tmp, '.gwen', 'gwen.d.ts');
     expect(fs.existsSync(dts)).toBe(true);
     const content = fs.readFileSync(dts, 'utf-8');
+    expect(content).toContain('GwenDefaultServices');
     expect(content).toContain('GwenServices');
+    expect(content).toContain('GwenAPI');
     expect(content).toContain('__GWEN_VERSION__');
     expect(content).toContain('declare global');
   });

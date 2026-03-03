@@ -53,7 +53,7 @@ export const UIComponent = defineComponent({
  * Universal contract for a GWEN UI.
  * Renderer-agnostic — HTML, Canvas2D, JSX, WebGL, etc.
  */
-export interface UIDefinition<Services extends Record<string, unknown> = Record<string, unknown>> {
+export interface UIDefinition<Services extends GwenDefaultServices = GwenDefaultServices> {
   /** Unique identifier — corresponds to UIComponent.uiName */
   readonly name: string;
 
@@ -79,7 +79,7 @@ export interface UIDefinition<Services extends Record<string, unknown> = Record<
 /**
  * Body of a UIDefinition without the `name` — used by factory form.
  */
-export type UIBody<Services extends Record<string, unknown> = Record<string, unknown>> = Omit<
+export type UIBody<Services extends GwenDefaultServices = GwenDefaultServices> = Omit<
   UIDefinition<Services>,
   'name'
 >;
@@ -114,18 +114,18 @@ export type UIBody<Services extends Record<string, unknown> = Record<string, unk
  * ```
  */
 // Surcharge 1 — objet direct
-export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+export function defineUI<Services extends GwenDefaultServices = GwenDefaultServices>(
   config: UIDefinition<Services>,
 ): UIDefinition<Services>;
 
 // Surcharge 2 — factory OBLIGATOIRE (pas optionnelle)
-export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+export function defineUI<Services extends GwenDefaultServices = GwenDefaultServices>(
   name: string,
   factory: () => UIBody<Services>,
 ): UIDefinition<Services>;
 
 // Implementation
-export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
+export function defineUI<Services extends GwenDefaultServices = GwenDefaultServices>(
   nameOrConfig: string | UIDefinition<Services>,
   factory?: () => UIBody<Services>,
 ): UIDefinition<Services> {
