@@ -90,29 +90,9 @@ Systems are for game mechanics, entity processing, and state management.
 
 [Learn more](/core/systems)
 
-## createPlugin
-
-Create framework plugins (integrations with services):
-
-```typescript
-import { createPlugin } from '@gwen/engine-core';
-
-export const InputPlugin = createPlugin({
-  name: 'InputPlugin',
-  provides: { keyboard: {} as KeyboardInput },
-  onInit(api) {
-    // Setup
-  }
-});
-```
-
-Plugins provide services and features to other systems.
-
-[Learn more](/plugins/official)
-
 ## defineConfig
 
-Configure the engine:
+Configure the engine and register plugins:
 
 ```typescript
 import { defineConfig } from '@gwen/engine-core';
@@ -121,15 +101,35 @@ export default defineConfig({
   engine: { maxEntities: 5000 },
   plugins: [
     new InputPlugin(),
-    new AudioPlugin(),
-    new Canvas2DRenderer()
+    new AudioPlugin({ masterVolume: 0.8 }),
+    new Canvas2DRenderer({ width: 800, height: 600 })
   ]
 });
 ```
 
 [Learn more](/core/configuration)
 
+## GwenPlugin Interface
+
+Create plugins by implementing `GwenPlugin<N, P>`:
+
+```typescript
+import type { GwenPlugin, EngineAPI } from '@gwen/engine-core';
+
+export class MyPlugin implements GwenPlugin<'MyPlugin', { myService: MyService }> {
+  readonly name = 'MyPlugin' as const;
+  readonly provides = { myService: {} as MyService };
+
+  onInit(api: EngineAPI) {
+    api.services.register('myService', { /* ... */ });
+  }
+}
+```
+
+[Learn more](/plugins/creating)
+
 ## Next Steps
 
 - [Engine API](/api/engine-api) - Runtime API
 - [Types](/api/types) - Type definitions
+- [Creating Plugins](/plugins/creating) - Build your own plugins

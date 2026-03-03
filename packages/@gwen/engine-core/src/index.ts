@@ -9,12 +9,10 @@ export { defaultConfig, mergeConfigs, defineConfig, createEngine } from './confi
 export { ConfigBuilder } from './config/config-builder';
 export type { TypedEngineConfig, GwenConfigServices } from './config/config';
 
-// Typed plugin system — GwenPlugin<N, P> + createPlugin()
-export { createPlugin } from './plugin-system/plugin';
+// Typed plugin system — GwenPlugin interface
 export type {
   GwenPlugin,
   AnyGwenPlugin,
-  GwenPluginDef,
   GwenPluginMeta,
   PluginProvides,
   MergeProvides,

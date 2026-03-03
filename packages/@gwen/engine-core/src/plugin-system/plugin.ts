@@ -1,47 +1,52 @@
 /**
- * GWEN Plugin System — typed plugin declaration
+ * GWEN Plugin System — typed plugin interface
  *
- * `createPlugin()` allows you to declare a plugin with its exposed services.
- * Two syntaxes supported — identical to defineUI and defineScene.
+ * Plugins are TypeScript classes that implement `GwenPlugin<N, P>` interface.
  *
- * **Form 1 — direct object** (no local state):
+ * `N` = literal plugin name (e.g., `'InputPlugin'`)
+ * `P` = service map exposed by this plugin (e.g., `{ keyboard: KeyboardInput }`)
+ *
+ * **Example:**
  * ```typescript
- * export const AiSystem = createPlugin({
- *   name: 'AiSystem' as const,
- *   onUpdate(api, dt) { ... },
- * });
- * // Usage:
- * scene.plugins = [AiSystem];
+ * export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices> {
+ *   readonly name = 'InputPlugin' as const;
+ *   readonly provides = {
+ *     keyboard: {} as KeyboardInput,
+ *     mouse: {} as MouseInput,
+ *     gamepad: {} as GamepadInput,
+ *   };
+ *
+ *   onInit(api: EngineAPI) {
+ *     // Initialize services
+ *     api.services.register('keyboard', new KeyboardInput());
+ *     api.services.register('mouse', new MouseInput());
+ *     api.services.register('gamepad', new GamepadInput());
+ *   }
+ *
+ *   onBeforeUpdate(api: EngineAPI, dt: number) {
+ *     // Update input state
+ *   }
+ *
+ *   onDestroy() {
+ *     // Cleanup
+ *   }
+ * }
  * ```
  *
- * **Form 2 — factory** (with local state in closure, no global variables):
+ * **Registration in config:**
  * ```typescript
- * export const SpawnerSystem = createPlugin('SpawnerSystem', () => {
- *   let timer = 0;
- *   return {
- *     onInit()        { timer = 0; },
- *     onUpdate(_, dt) { timer += dt; },
- *   };
+ * export default defineConfig({
+ *   engine: { maxEntities: 5000 },
+ *   plugins: [
+ *     new InputPlugin(),
+ *     new AudioPlugin({ masterVolume: 0.8 }),
+ *     new Canvas2DRenderer({ width: 800, height: 600 })
+ *   ]
  * });
- * // Usage:
- * scene.plugins = [SpawnerSystem()];
- * ```
- *
- * **Form 2 with dependencies** (typed deps, no `any`):
- * ```typescript
- * export const PlayerSystem = createPlugin('PlayerSystem', (scenes: SceneManager) => {
- *   let keyboard: KeyboardInput | null = null;
- *   return {
- *     onInit(api) { keyboard = api.services.get('keyboard'); },
- *     onUpdate(api, dt) { ... },
- *   };
- * });
- * // Usage:
- * scene.plugins = [PlayerSystem(scenes)];
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from '../types';
+import type { TsPlugin } from '../types';
 
 // ── Utility types ────────────────────────────────────────────────────────────
 
@@ -113,68 +118,4 @@ export interface GwenPluginMeta {
    * Activés uniquement si le plugin est déclaré dans `gwen.config.ts`.
    */
   typeReferences?: string[];
-}
-
-// ── createPlugin() ────────────────────────────────────────────────────────────
-
-/** Définition complète passée à la forme objet de createPlugin() */
-export interface GwenPluginDef<N extends string, P extends Record<string, unknown>> {
-  readonly name: N;
-  readonly provides?: P;
-  onInit?(api: EngineAPI): void;
-  onBeforeUpdate?(api: EngineAPI, deltaTime: number): void;
-  onUpdate?(api: EngineAPI, deltaTime: number): void;
-  onRender?(api: EngineAPI): void;
-  onDestroy?(): void;
-}
-
-/** Corps d'un plugin sans le `name` — utilisé par la forme factory */
-export type GwenPluginBody<P extends Record<string, unknown> = Record<string, never>> = Omit<
-  GwenPluginDef<string, P>,
-  'name'
->;
-
-/**
- * Factory de plugin retournée par `createPlugin(name, factory)`.
- * Porte `pluginName` pour l'introspection avant appel.
- */
-export type GwenPluginFactory<
-  N extends string,
-  P extends Record<string, unknown> = Record<string, never>,
-  Args extends unknown[] = [],
-> = ((...args: Args) => GwenPlugin<N, P>) & { readonly pluginName: N };
-
-// Overload 1 — direct object
-export function createPlugin<
-  N extends string,
-  P extends Record<string, unknown> = Record<string, never>,
->(def: GwenPluginDef<N, P>): GwenPlugin<N, P>;
-
-// Overload 2 — factory (required)
-export function createPlugin<
-  N extends string,
-  P extends Record<string, unknown> = Record<string, never>,
-  Args extends unknown[] = [],
->(name: N, factory: (...args: Args) => GwenPluginBody<P>): GwenPluginFactory<N, P, Args>;
-
-// Implementation
-export function createPlugin<
-  N extends string,
-  P extends Record<string, unknown> = Record<string, never>,
-  Args extends unknown[] = [],
->(
-  nameOrDef: N | GwenPluginDef<N, P>,
-  factory?: (...args: Args) => GwenPluginBody<P>,
-): GwenPlugin<N, P> | GwenPluginFactory<N, P, Args> {
-  if (typeof nameOrDef === 'string') {
-    // Form 2 — factory callable with pluginName annotated
-    const fn = (...args: Args): GwenPlugin<N, P> => ({
-      name: nameOrDef,
-      ...factory!(...args),
-    });
-    (fn as GwenPluginFactory<N, P, Args> as { pluginName: N }).pluginName = nameOrDef;
-    return fn as GwenPluginFactory<N, P, Args>;
-  }
-  // Forme 1 — objet direct
-  return nameOrDef as GwenPlugin<N, P>;
 }

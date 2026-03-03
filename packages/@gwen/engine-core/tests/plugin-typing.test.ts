@@ -11,12 +11,10 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  createPlugin,
   defineConfig,
   type GwenPlugin,
   type MergeProvides,
   type GwenConfigServices,
-  type EngineAPI,
 } from '../src/index';
 import { InputPlugin } from '../../plugin-input/src/index';
 import { AudioPlugin } from '../../plugin-audio/src/index';
@@ -29,38 +27,6 @@ interface MockService {
 interface OtherService {
   label: string;
 }
-
-// ── createPlugin() ────────────────────────────────────────────────────────────
-
-describe('createPlugin()', () => {
-  it('returns the definition as-is (identity)', () => {
-    const plugin = createPlugin({
-      name: 'TestPlugin' as const,
-      provides: { myService: {} as MockService },
-      onInit: () => {},
-    });
-    expect(plugin.name).toBe('TestPlugin');
-    expect(plugin.provides).toEqual({ myService: {} });
-  });
-
-  it('works without provides (plain TsPlugin)', () => {
-    const plugin = createPlugin({ name: 'NoProvides' as const });
-    expect(plugin.name).toBe('NoProvides');
-    expect(plugin.provides).toBeUndefined();
-  });
-
-  it('lifecycle methods are preserved', () => {
-    let initCalled = false;
-    const plugin = createPlugin({
-      name: 'Lifecycle' as const,
-      onInit: () => {
-        initCalled = true;
-      },
-    });
-    plugin.onInit?.({} as EngineAPI);
-    expect(initCalled).toBe(true);
-  });
-});
 
 // ── GwenPlugin interface ──────────────────────────────────────────────────────
 
@@ -88,14 +54,17 @@ describe('GwenPlugin interface', () => {
 
 describe('MergeProvides<> — fusion des services', () => {
   it('fusionne les provides de plusieurs plugins (vérification runtime)', () => {
-    const p1 = createPlugin({
-      name: 'P1' as const,
-      provides: { svc1: {} as MockService },
-    });
-    const p2 = createPlugin({
-      name: 'P2' as const,
-      provides: { svc2: {} as OtherService },
-    });
+    class P1 implements GwenPlugin<'P1', { svc1: MockService }> {
+      readonly name = 'P1' as const;
+      readonly provides = { svc1: {} as MockService };
+    }
+    class P2 implements GwenPlugin<'P2', { svc2: OtherService }> {
+      readonly name = 'P2' as const;
+      readonly provides = { svc2: {} as OtherService };
+    }
+
+    const p1 = new P1();
+    const p2 = new P2();
 
     // Vérification TypeScript (compile-time) — si ça compile, le type est correct
     type Merged = MergeProvides<[typeof p1, typeof p2]>;
@@ -109,7 +78,10 @@ describe('MergeProvides<> — fusion des services', () => {
   });
 
   it('plugin sans provides contribue Record<string, never> (neutre)', () => {
-    const p = createPlugin({ name: 'NoProvides' as const });
+    class NoProvides implements GwenPlugin<'NoProvides'> {
+      readonly name = 'NoProvides' as const;
+    }
+    const p = new NoProvides();
     type M = MergeProvides<[typeof p]>;
     // M doit être assignable à Record<string, never> → ne pollue pas le map
     const _: M = {} as any;
