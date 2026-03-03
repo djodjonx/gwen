@@ -172,6 +172,8 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
+  packages/@gwen/plugin-physics2d/wasm: {}
+
   packages/@gwen/renderer-canvas2d:
     dependencies:
       '@gwen/engine-core':
@@ -192,14 +194,16 @@ importers:
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
   packages/@gwen/vite-plugin:
-    dependencies:
-      vite:
-        specifier: ^5.0.0
-        version: 5.4.21(@types/node@25.3.3)
     devDependencies:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@5.4.21(@types/node@25.3.3))
       vitest:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)

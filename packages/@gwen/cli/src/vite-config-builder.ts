@@ -61,7 +61,7 @@ export async function buildViteConfig(
             ...(hasCustomCrate ? { cratePath: parsed.rustCratePath! } : {}),
             watch: options.mode === 'development',
             wasmMode: options.mode === 'development' ? 'debug' : 'release',
-            verbose: false,
+            verbose: true,
           }),
         ]
       : [],

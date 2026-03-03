@@ -232,11 +232,11 @@ function findWasmPluginFile(root: string, fileName: string): string | null {
 
   for (const nmDir of nmDirs) {
     if (!fs.existsSync(nmDir)) continue;
-    const entries = fs.readdirSync(nmDir);
-    for (const entry of entries) {
+    for (const entry of fs.readdirSync(nmDir)) {
       if (!entry.startsWith('plugin-')) continue;
-      const wasmDir = path.join(nmDir, entry, 'wasm');
-      const candidate = path.join(wasmDir, fileName);
+      const pkgPath = path.join(nmDir, entry);
+      const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
+      const candidate = path.join(realPkgPath, 'wasm', fileName);
       if (fs.existsSync(candidate)) return candidate;
     }
   }
@@ -258,7 +258,10 @@ function collectWasmPluginDirs(root: string): string[] {
     if (!fs.existsSync(nmDir)) continue;
     for (const entry of fs.readdirSync(nmDir)) {
       if (!entry.startsWith('plugin-')) continue;
-      const wasmDir = path.join(nmDir, entry, 'wasm');
+      // Resolve symlink (pnpm workspace uses symlinks to source packages)
+      const pkgPath = path.join(nmDir, entry);
+      const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
+      const wasmDir = path.join(realPkgPath, 'wasm');
       if (fs.existsSync(wasmDir)) dirs.push(wasmDir);
     }
   }
