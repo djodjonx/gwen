@@ -200,14 +200,14 @@ describe('defineScene', () => {
     expect(sm.hasScene('Pause')).toBe(true);
   });
 
-  it('forme 1 — ui[] et plugins sont optionnels', () => {
+  it('forme 1 — ui[] et systems sont optionnels', () => {
     const scene = defineScene({
       name: 'Minimal',
       onEnter: vi.fn(),
       onExit: vi.fn(),
     });
     expect(scene.ui).toBeUndefined();
-    expect(scene.plugins).toBeUndefined();
+    expect(scene.systems).toBeUndefined();
   });
 
   // ── Forme 2 — factory ─────────────────────────────────────────────────────
@@ -251,16 +251,16 @@ describe('defineScene', () => {
     expect(a.name).toBe(b.name); // même name
   });
 
-it('forme 2 — systems transmis correctement', () => {
-  const mockSystem = { name: 'MockSystem', onUpdate: vi.fn() };
-  const GameScene = defineScene('Game', () => ({
-    systems: [mockSystem],
-    onEnter: vi.fn(),
-    onExit: vi.fn(),
-  }));
-  const scene = GameScene();
-  expect(scene.systems).toContain(mockSystem);
-});
+  it('forme 2 — systems transmis correctement', () => {
+    const mockSystem = { name: 'MockSystem', onUpdate: vi.fn() };
+    const GameScene = defineScene('Game', () => ({
+      systems: [mockSystem],
+      onEnter: vi.fn(),
+      onExit: vi.fn(),
+    }));
+    const scene = GameScene();
+    expect(scene.systems).toContain(mockSystem);
+  });
 
   it('forme 2 — enregistrable dans SceneManager après appel', () => {
     const GameScene = defineScene('Game', () => ({
