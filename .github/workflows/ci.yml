@@ -79,14 +79,28 @@ jobs:
             --out-dir packages/@gwen/engine-core/wasm \
             crates/gwen-core
 
+      - name: Validate WASM build
+        run: |
+          if [ ! -d "packages/@gwen/engine-core/wasm" ]; then
+            echo "❌ WASM output directory not found"
+            exit 1
+          fi
+          if [ ! -f "packages/@gwen/engine-core/wasm/gwen_core.js" ]; then
+            echo "❌ WASM JavaScript file not generated"
+            exit 1
+          fi
+          if [ ! -f "packages/@gwen/engine-core/wasm/gwen_core_bg.wasm" ]; then
+            echo "❌ WASM binary not generated"
+            exit 1
+          fi
+          echo "✅ WASM build validated successfully"
+
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: wasm-artifacts
           path: packages/@gwen/engine-core/wasm/
           retention-days: 7
-          if-no-files-found: ignore
 
   # ── Tests TypeScript ───────────────────────────────────────────────────────
   typescript:
@@ -179,6 +193,7 @@ jobs:
 
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: wasm-artifacts
           path: packages/@gwen/engine-core/wasm
