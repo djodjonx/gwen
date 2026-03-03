@@ -76,7 +76,7 @@ jobs:
           wasm-pack build \
             --target web \
             --release \
-            --out-dir packages/@gwen/engine-core/wasm \
+            --out-dir $GITHUB_WORKSPACE/packages/@gwen/engine-core/wasm \
             crates/gwen-core
 
       - name: Validate WASM build
