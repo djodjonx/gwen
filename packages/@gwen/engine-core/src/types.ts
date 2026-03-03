@@ -279,7 +279,8 @@ export type PluginEntry = TsPlugin | (() => TsPlugin);
 // ============= Engine Configuration =============
 
 /**
- * WASM Plugin descriptor (pre-compiled Rust crate)
+ * WASM Plugin descriptor (pre-compiled Rust crate) — legacy passive descriptor.
+ * @deprecated Use GwenWasmPlugin for new plugins.
  */
 export interface WasmPlugin {
   id: string;
@@ -288,6 +289,131 @@ export interface WasmPlugin {
   /** Path to .wasm file in dist/plugins/ */
   wasmPath?: string;
   config?: Record<string, unknown>;
+}
+
+/**
+ * Active interface for all GWEN WASM plugins (physics, AI, networking…).
+ *
+ * Each WASM plugin is a separate `.wasm` module published in its npm package.
+ * It communicates with `gwen-core` via a shared memory pointer allocated by
+ * `SharedMemoryManager` and received in `onInit`.
+ *
+ * ## Lifecycle
+ * 1. `SharedMemoryManager.create()` allocates the shared buffer.
+ * 2. `allocateRegion(plugin.id, plugin.sharedMemoryBytes)` carves out a slice.
+ * 3. `await plugin.onInit(bridge, region, api)` — loads the .wasm, mounts memory.
+ * 4. Each frame: `plugin.onStep(delta)` — runs the Rust simulation.
+ * 5. `plugin.onDestroy()` — frees WASM resources.
+ *
+ * ## Example
+ * ```typescript
+ * export class Physics2DPlugin implements GwenWasmPlugin {
+ *   readonly id = 'physics2d';
+ *   readonly name = 'Physics2D';
+ *   readonly sharedMemoryBytes = 10_000 * 32; // maxEntities × TRANSFORM_STRIDE
+ *   readonly provides = { physics: {} as Physics2DAPI };
+ *
+ *   async onInit(bridge, region, api) {
+ *     const wasm = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js', ... });
+ *     this.wasm = new wasm.Physics2DPlugin(gravity, region.ptr);
+ *     api.services.register('physics', this._createAPI());
+ *   }
+ *   onStep(delta) { this.wasm?.step(delta); }
+ *   onDestroy()   { this.wasm?.free?.(); }
+ * }
+ * ```
+ */
+export interface GwenWasmPlugin {
+  /** Unique identifier used for memory region allocation (e.g. `'physics2d'`). */
+  readonly id: string;
+  /** Human-readable name for logs and debug overlay. */
+  readonly name: string;
+  readonly version?: string;
+
+  /**
+   * Bytes to allocate in the shared buffer for this plugin.
+   * Declared statically so `SharedMemoryManager` can pre-allocate before `onInit`.
+   *
+   * Typical formula: `maxEntities × TRANSFORM_STRIDE` (32 bytes/entity).
+   */
+  readonly sharedMemoryBytes: number;
+
+  /**
+   * Services this plugin exposes in `api.services`.
+   * The key becomes the service name, e.g. `{ physics: ... }` → `api.services.get('physics')`.
+   */
+  readonly provides?: Record<string, unknown>;
+
+  /**
+   * Async initialization — loads the `.wasm`, mounts shared memory, registers services.
+   * Called once by `createEngine()` before `engine.start()`.
+   *
+   * @param bridge  Active WasmBridge (gwen-core already initialized).
+   * @param region  Pre-allocated slice of the shared buffer for this plugin.
+   * @param api     EngineAPI — use `api.services.register()` here only.
+   */
+  onInit(
+    bridge: import('./engine/wasm-bridge').WasmBridge,
+    region: import('./wasm/shared-memory').MemoryRegion,
+    api: EngineAPI,
+  ): Promise<void>;
+
+  /**
+   * Optional pre-fetch hook — called in parallel with other plugins' `_prefetch()`
+   * before the sequential `onInit()` phase begins.
+   *
+   * Implement this to kick off the network fetch of your `.wasm` binary early,
+   * storing the result internally so `onInit()` can use it immediately without
+   * a second network round-trip.
+   *
+   * Plugins that do not implement `_prefetch()` simply fetch inside `onInit()`.
+   * Both patterns are valid — `_prefetch()` is purely an optimisation.
+   *
+   * @example
+   * ```typescript
+   * private _module: Physics2DWasmModule | null = null;
+   *
+   * async _prefetch() {
+   *   this._module = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js', ... });
+   * }
+   *
+   * async onInit(bridge, region, api) {
+   *   // _module is already loaded — no network wait here
+   *   this.wasm = new this._module!.Physics2DPlugin(gravity, region.ptr, maxEntities);
+   * }
+   * ```
+   */
+  _prefetch?(): Promise<void>;
+
+  /**
+   * Called each frame at the WasmStep slot — BEFORE `TsPlugin.onUpdate`.
+   * Run the Rust simulation here: `this.wasm.step(delta)`.
+   */
+  onStep?(deltaTime: number): void;
+
+  /**
+   * Called when `gwen-core`'s WASM linear memory grows (`memory.grow()` event).
+   *
+   * A `memory.grow()` replaces the underlying `ArrayBuffer` — any `TypedArray`
+   * or `DataView` built on the old buffer becomes detached. Implement this hook
+   * if your plugin caches a view over the shared buffer in TypeScript:
+   *
+   * ```typescript
+   * private bufferView: Float32Array | null = null;
+   *
+   * onMemoryGrow(newMemory: WebAssembly.Memory) {
+   *   // Recreate the view on the new, valid ArrayBuffer
+   *   this.bufferView = new Float32Array(newMemory.buffer, this.region.ptr, this.slotCount * 8);
+   * }
+   * ```
+   *
+   * Rust-side code is unaffected — Rust always computes addresses from its own
+   * pointer arithmetic and never holds a JS `ArrayBuffer` reference.
+   */
+  onMemoryGrow?(newMemory: WebAssembly.Memory): void;
+
+  /** Called when the engine stops. Free WASM resources: `this.wasm?.free?.()`. */
+  onDestroy?(): void;
 }
 
 /**
@@ -312,7 +438,7 @@ export interface EngineConfig {
   /** Enable performance stats collection */
   enableStats?: boolean;
   /** WASM plugins (Rust-compiled, heavy computation) */
-  wasmPlugins?: WasmPlugin[];
+  wasmPlugins?: GwenWasmPlugin[];
   /** TypeScript plugins (bundled, web APIs) */
   tsPlugins?: TsPlugin[];
 }

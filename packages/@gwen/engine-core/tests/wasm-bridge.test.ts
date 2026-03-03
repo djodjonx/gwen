@@ -1,8 +1,16 @@
 /**
  * WasmBridge tests
  *
- * Le WASM est obligatoire — les méthodes du bridge throw si non initialisé.
- * Les tests avec mock utilisent _injectMockWasmEngine().
+ * WASM is mandatory — bridge methods throw if not initialized.
+ * Tests with a mock use _injectMockWasmEngine().
+ *
+ * Coverage:
+ *   - Uninitialized bridge throws on all methods
+ *   - Initialized bridge (mock) delegates correctly
+ *   - SAB methods: allocSharedBuffer, syncTransformsToBuffer, syncTransformsFromBuffer
+ *   - getLinearMemory() returns null with mock, live WebAssembly.Memory with real module
+ *   - Singleton identity and reset
+ *   - Engine integration
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -37,6 +45,10 @@ function createMockEngine(): WasmEngine {
     frame_count: vi.fn(() => BigInt(1)),
     delta_time: vi.fn(() => 0.016),
     total_time: vi.fn(() => 1.0),
+    // SAB methods
+    alloc_shared_buffer: vi.fn(() => 4096),
+    sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{"entities":0,"frame":1}'),
   };
 }
@@ -175,6 +187,44 @@ describe('WasmBridge — avec mock injecté', () => {
   it('stats() returns mock stats string', () => {
     const s = bridge.stats();
     expect(s).toBe('{"entities":0,"frame":1}');
+  });
+
+  // ── SAB methods ──────────────────────────────────────────────────────────
+
+  it('allocSharedBuffer() delegates to mock and returns the pointer', () => {
+    const ptr = bridge.allocSharedBuffer(320_000);
+    expect(mock.alloc_shared_buffer).toHaveBeenCalledWith(320_000);
+    expect(ptr).toBe(4096); // value returned by the mock
+  });
+
+  it('allocSharedBuffer() with 0 bytes delegates to mock', () => {
+    bridge.allocSharedBuffer(0);
+    expect(mock.alloc_shared_buffer).toHaveBeenCalledWith(0);
+  });
+
+  it('syncTransformsToBuffer() delegates ptr and maxEntities to mock', () => {
+    bridge.syncTransformsToBuffer(4096, 10_000);
+    expect(mock.sync_transforms_to_buffer).toHaveBeenCalledWith(4096, 10_000);
+  });
+
+  it('syncTransformsFromBuffer() delegates ptr and maxEntities to mock', () => {
+    bridge.syncTransformsFromBuffer(4096, 10_000);
+    expect(mock.sync_transforms_from_buffer).toHaveBeenCalledWith(4096, 10_000);
+  });
+
+  it('syncTransformsToBuffer() and syncTransformsFromBuffer() pass different ptr values', () => {
+    bridge.syncTransformsToBuffer(1024, 500);
+    bridge.syncTransformsFromBuffer(2048, 500);
+    expect(mock.sync_transforms_to_buffer).toHaveBeenCalledWith(1024, 500);
+    expect(mock.sync_transforms_from_buffer).toHaveBeenCalledWith(2048, 500);
+  });
+
+  // ── getLinearMemory() ────────────────────────────────────────────────────
+
+  it('getLinearMemory() returns null with a mock engine (no real WASM module)', () => {
+    // _injectMockWasmEngine leaves _wasmModule null intentionally —
+    // test environments must not depend on a real WebAssembly.Memory.
+    expect(bridge.getLinearMemory()).toBeNull();
   });
 });
 

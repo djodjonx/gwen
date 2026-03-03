@@ -6,10 +6,11 @@
  *   onBeforeUpdate → (WASM slot) → onUpdate → onRender
  */
 
-import type { TsPlugin, EngineAPI } from '../types';
+import type { TsPlugin, EngineAPI, GwenWasmPlugin } from '../types';
 
 export class PluginManager {
   private plugins: TsPlugin[] = [];
+  private wasmPlugins: GwenWasmPlugin[] = [];
   private initialized = false;
 
   /**
@@ -101,5 +102,58 @@ export class PluginManager {
       plugin.onDestroy?.();
     }
     this.plugins = [];
+  }
+
+  // ── WASM Plugin support ──────────────────────────────────────────────────
+
+  /**
+   * Register a WASM plugin (already initialized via onInit).
+   * Returns false if a plugin with the same id is already registered.
+   */
+  registerWasmPlugin(plugin: GwenWasmPlugin): boolean {
+    if (this.wasmPlugins.find((p) => p.id === plugin.id)) {
+      console.warn(
+        `[GWEN:PluginManager] WASM plugin '${plugin.id}' already registered — skipping.`,
+      );
+      return false;
+    }
+    this.wasmPlugins.push(plugin);
+    return true;
+  }
+
+  /**
+   * Dispatch WasmStep slot — called BETWEEN dispatchBeforeUpdate and dispatchUpdate.
+   * Runs each plugin's Rust simulation step (physics, AI…).
+   */
+  dispatchWasmStep(deltaTime: number): void {
+    for (const plugin of this.wasmPlugins) {
+      try {
+        plugin.onStep?.(deltaTime);
+      } catch (err) {
+        console.error(`[GWEN:PluginManager] Error in WASM plugin '${plugin.id}' onStep:`, err);
+      }
+    }
+  }
+
+  /** Call onDestroy on all WASM plugins and clear the list. */
+  destroyWasmPlugins(): void {
+    for (const plugin of [...this.wasmPlugins].reverse()) {
+      try {
+        plugin.onDestroy?.();
+      } catch (err) {
+        console.error(`[GWEN:PluginManager] Error destroying WASM plugin '${plugin.id}':`, err);
+      }
+    }
+    this.wasmPlugins = [];
+  }
+
+  /** Number of registered WASM plugins. */
+  wasmPluginCount(): number {
+    return this.wasmPlugins.length;
+  }
+
+  /** Check if a WASM plugin is registered by id. */
+  hasWasmPlugin(id: string): boolean {
+    return this.wasmPlugins.some((p) => p.id === id);
   }
 }

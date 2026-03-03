@@ -28,6 +28,20 @@ export interface GwenCoreWasm {
   Engine: {
     new (maxEntities: number): WasmEngine;
   };
+  /**
+   * The WASM linear memory exported by gwen-core.
+   *
+   * wasm-bindgen always exports the memory object as `wasm.memory` on the
+   * generated glue module. We expose it here so the TypeScript layer can:
+   *   1. Build `DataView` / `TypedArray` views for debug tools.
+   *   2. Detect `memory.grow()` events: when Rust allocates enough to
+   *      trigger a grow, the underlying `ArrayBuffer` is replaced. Any
+   *      previously constructed JS views become "detached" and must be
+   *      recreated.  `getLinearMemory()` on the bridge always returns the
+   *      live `WebAssembly.Memory` object, so callers should re-wrap
+   *      `memory.buffer` on every frame rather than caching the buffer.
+   */
+  memory?: WebAssembly.Memory;
 }
 
 export interface WasmEngine {
@@ -55,6 +69,11 @@ export interface WasmEngine {
   frame_count(): bigint;
   delta_time(): number;
   total_time(): number;
+
+  // Shared Memory (WASM Plugin Bridge)
+  alloc_shared_buffer(byteLength: number): number;
+  sync_transforms_to_buffer(ptr: number, maxEntities: number): void;
+  sync_transforms_from_buffer(ptr: number, maxEntities: number): void;
 
   // Stats
   stats(): string;
@@ -266,6 +285,55 @@ export interface WasmBridge {
   // ── GameLoop ──
   tick(deltaMs: number): void;
 
+  // ── Shared Memory (WASM Plugin Bridge) ──
+  /**
+   * Allocate `byteLength` bytes in gwen-core's WASM linear memory.
+   * Returns a raw pointer (usize) passed to WASM plugins via `onInit(region)`.
+   * Called once by `SharedMemoryManager.create()`.
+   */
+  allocSharedBuffer(byteLength: number): number;
+
+  /**
+   * Copy ECS Transform data → shared buffer so WASM plugins can read it.
+   * Called each frame **before** `dispatchWasmStep`.
+   */
+  syncTransformsToBuffer(ptr: number, maxEntities: number): void;
+
+  /**
+   * Copy shared buffer → ECS Transform data after WASM plugins have written it.
+   * Called each frame **after** `dispatchWasmStep` and after sentinel checks.
+   */
+  syncTransformsFromBuffer(ptr: number, maxEntities: number): void;
+
+  /**
+   * Return the `WebAssembly.Memory` object exported by `gwen_core.wasm`.
+   *
+   * ## Why this matters — buffer-detach on `memory.grow()`
+   * When Rust allocates enough memory to exhaust the current WASM linear
+   * memory, the runtime calls `memory.grow(n_pages)`. This **replaces the
+   * underlying `ArrayBuffer`**. Any `TypedArray` or `DataView` built on the
+   * old buffer becomes "detached" — all reads return `0`, all writes are
+   * silently discarded.
+   *
+   * The risk in GWEN:
+   *   - Rust-side: safe, Rust never holds a raw `ArrayBuffer` reference.
+   *   - TypeScript-side: `SharedMemoryManager.checkSentinels()` and any
+   *     debug-draw tool that builds a `Float32Array` view over `memory.buffer`
+   *     **must** re-wrap `memory.buffer` on every frame, not cache it.
+   *
+   * This method returns the **live** `WebAssembly.Memory` object (not the
+   * buffer). Callers must access `.buffer` fresh on each use:
+   * ```typescript
+   * const view = new Float32Array(bridge.getLinearMemory()!.buffer, ptr, 8);
+   * //                                                      ^^^^^^^^^
+   * //                                 always re-wrap — buffer may have changed
+   * ```
+   *
+   * Returns `null` in Node.js test environments where the real WASM module
+   * is replaced by a mock that does not export memory.
+   */
+  getLinearMemory(): WebAssembly.Memory | null;
+
   // ── Stats ──
   stats(): string;
 }
@@ -349,6 +417,32 @@ class WasmBridgeImpl implements WasmBridge {
     requireWasm().tick(deltaMs);
   }
 
+  allocSharedBuffer(byteLength: number): number {
+    return requireWasm().alloc_shared_buffer(byteLength);
+  }
+
+  syncTransformsToBuffer(ptr: number, maxEntities: number): void {
+    requireWasm().sync_transforms_to_buffer(ptr, maxEntities);
+  }
+
+  syncTransformsFromBuffer(ptr: number, maxEntities: number): void {
+    requireWasm().sync_transforms_from_buffer(ptr, maxEntities);
+  }
+
+  /**
+   * Return the live `WebAssembly.Memory` exported by gwen_core.wasm.
+   *
+   * wasm-bindgen exposes it as `glueModule.memory`. We cache the module
+   * reference in `_wasmModule` at init time, so this is a single property
+   * read — no cost on the hot path.
+   *
+   * Returns `null` when the WASM module is not yet loaded or when running
+   * in a test environment that injects a mock without a real memory export.
+   */
+  getLinearMemory(): WebAssembly.Memory | null {
+    return _wasmModule?.memory ?? null;
+  }
+
   stats(): string {
     return requireWasm().stats();
   }
@@ -364,10 +458,14 @@ export function getWasmBridge(): WasmBridge {
 
 /**
  * Injects a mock WasmEngine directly — reserved for unit tests.
- * Allows testing the Engine without a real browser.
+ * Allows testing the Engine without a real browser or WASM binary.
+ * `getLinearMemory()` returns `null` in this mode — sentinel checks
+ * and debug views are silently skipped, which is the correct behaviour
+ * for a Node.js test environment.
  */
 export function _injectMockWasmEngine(mock: WasmEngine): void {
   _wasmEngine = mock;
+  // _wasmModule intentionally left null so getLinearMemory() returns null
   _initPromise = Promise.resolve();
 }
 

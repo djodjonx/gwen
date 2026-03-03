@@ -18,11 +18,12 @@
  * ```
  */
 
-import type { EngineConfig, TsPlugin, ComponentType } from '../types';
+import type { EngineConfig, TsPlugin, ComponentType, GwenWasmPlugin } from '../types';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../api/api';
 import { PluginManager } from '../plugin-system/plugin-manager';
 import { defaultConfig, mergeConfigs } from '../config/config';
 import { getWasmBridge, type WasmBridge } from './wasm-bridge';
+import type { SharedMemoryManager } from '../wasm/shared-memory';
 import {
   type ComponentDefinition,
   type ComponentSchema,
@@ -53,6 +54,15 @@ export class Engine {
 
   // WASM Bridge — mandatory
   private wasmBridge: WasmBridge;
+
+  // Shared memory pointer for WASM plugins (set by _setSharedMemoryPtr)
+  private sharedMemoryPtr = 0;
+  private sharedMemoryMaxEntities = 0;
+  /**
+   * Reference to the SharedMemoryManager — kept for sentinel checks in debug mode.
+   * Set by `_setSharedMemoryManager()` called from `createEngine()`.
+   */
+  private sharedMemoryManager: SharedMemoryManager | null = null;
 
   // Component type string → Rust numeric typeId mapping
   private componentTypeIds = new Map<ComponentType, number>();
@@ -545,6 +555,7 @@ export class Engine {
     if (this.isRunning) cancelAnimationFrame(this.rafHandle);
     this.isRunning = false;
     this.pluginManager.destroyAll();
+    this.pluginManager.destroyWasmPlugins();
     this.emit('stop');
   }
 
@@ -559,12 +570,37 @@ export class Engine {
 
     this.api._updateState(this._deltaTime, this._frameCount);
 
+    // Step 1 — TsPlugins: capture inputs, intentions
     this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
 
-    // Tick du core Rust — synchronise le game loop WASM avec le TS
+    // Step 2 — Sync ECS Transforms → shared buffer (so WASM plugins can read)
+    if (this.sharedMemoryPtr !== 0) {
+      this.wasmBridge.syncTransformsToBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
+    }
+
+    // Step 3 — WASM plugins: physics, AI… (Rust simulation step)
+    this.pluginManager.dispatchWasmStep(this._deltaTime);
+
+    // Step 4 — Sentinel integrity check (debug mode only, O(n_plugins))
+    // Placed after Rust has written to the buffer but before TS reads it back.
+    // Any buffer overrun from a Rust plugin is caught here as an immediate error
+    // rather than silently corrupting the ECS state.
+    if (this.config.debug && this.sharedMemoryManager !== null) {
+      this.sharedMemoryManager.checkSentinels(this.wasmBridge);
+    }
+
+    // Step 5 — Sync shared buffer → ECS Transforms (WASM plugins wrote new positions)
+    if (this.sharedMemoryPtr !== 0) {
+      this.wasmBridge.syncTransformsFromBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
+    }
+
+    // Step 6 — Tick Rust game loop
     this.wasmBridge.tick(this._deltaTime * 1000);
 
+    // Step 7 — TsPlugins: game logic on updated values
     this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
+
+    // Step 8 — TsPlugins: rendering
     this.pluginManager.dispatchRender(this.api);
 
     this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
@@ -576,6 +612,32 @@ export class Engine {
 
   public _getWasmBridge(): WasmBridge {
     return this.wasmBridge;
+  }
+
+  /**
+   * Set the shared memory pointer and manager for SAB sync each frame.
+   *
+   * Called by `createEngine()` after `SharedMemoryManager.create()`.
+   * The manager reference is kept to call `checkSentinels()` in debug mode.
+   *
+   * @param ptr          Raw pointer into gwen-core's WASM linear memory.
+   * @param maxEntities  Number of entity slots (must match `alloc_shared_buffer` call).
+   * @param manager      SharedMemoryManager instance — used for sentinel checks.
+   * @internal
+   */
+  public _setSharedMemoryPtr(ptr: number, maxEntities: number, manager: SharedMemoryManager): void {
+    this.sharedMemoryPtr = ptr;
+    this.sharedMemoryMaxEntities = maxEntities;
+    this.sharedMemoryManager = manager;
+  }
+
+  /**
+   * Register an already-initialized WASM plugin so it participates in the game loop.
+   * Called by createEngine() after plugin.onInit() resolves.
+   * @internal
+   */
+  public _registerWasmPlugin(plugin: GwenWasmPlugin): void {
+    this.pluginManager.registerWasmPlugin(plugin);
   }
 }
 

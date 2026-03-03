@@ -270,6 +270,117 @@ impl Engine {
         self.gameloop.reset_frame();
     }
 
+    // === Shared Memory API (WASM Plugin Bridge) ===
+
+    /// Allocates `byte_length` bytes in the WASM linear memory and returns
+    /// the raw pointer (as usize) to that region.
+    ///
+    /// Called once by `SharedMemoryManager.create()` in TypeScript to carve
+    /// out a shared buffer that plugin WASM modules can read/write directly.
+    ///
+    /// Layout contract (stride = 32 bytes per entity slot):
+    ///   offset +  0 : pos_x    (f32)
+    ///   offset +  4 : pos_y    (f32)
+    ///   offset +  8 : rotation (f32)
+    ///   offset + 12 : scale_x  (f32)
+    ///   offset + 16 : scale_y  (f32)
+    ///   offset + 20 : flags    (u32)  — bit 0: physics active, bit 1: dirty
+    ///   offset + 24 : reserved (8 bytes)
+    ///
+    /// # Safety
+    /// The returned pointer is valid for the lifetime of the WASM module.
+    /// TypeScript must not access it after the engine is destroyed.
+    pub fn alloc_shared_buffer(&mut self, byte_length: usize) -> usize {
+        let layout = std::alloc::Layout::from_size_align(byte_length, 8)
+            .expect("alloc_shared_buffer: invalid layout");
+        // SAFETY: layout has non-zero size (caller must pass > 0) and is 8-byte aligned
+        let ptr = unsafe { std::alloc::alloc_zeroed(layout) };
+        if ptr.is_null() {
+            panic!("alloc_shared_buffer: allocation failed (OOM)");
+        }
+        ptr as usize
+    }
+
+    /// Copies Transform data from the ECS `ComponentStorage` into the shared
+    /// buffer so plugin WASM modules (physics, AI…) can read up-to-date positions.
+    ///
+    /// `ptr`         — pointer returned by `alloc_shared_buffer`
+    /// `max_entities`— number of entity slots to iterate (must be ≤ original allocation)
+    ///
+    /// Only entities that have a `Transform` component are written.
+    /// Stride is 32 bytes per slot (see `alloc_shared_buffer` layout).
+    pub fn sync_transforms_to_buffer(&self, ptr: usize, max_entities: u32) {
+        const STRIDE: usize = 32;
+        const PHYS_FLAG: u32 = 0b01; // bit 0 — physics active
+
+        for idx in 0..max_entities as usize {
+            let offset = idx * STRIDE;
+            // SAFETY: ptr was allocated by alloc_shared_buffer with size ≥ max_entities*32
+            unsafe {
+                let base = (ptr + offset) as *mut f32;
+
+                // Read Transform from ComponentStorage (raw bytes, SoA layout)
+                // We store pos_x, pos_y, rotation, scale_x, scale_y in the first 20 bytes.
+                // If no transform data exists for this slot, write zeros (already cleared
+                // by alloc_zeroed, but we ensure idempotency on repeated calls).
+                if let Some(raw) = self.component_storage.get_transform_raw(idx as u32) {
+                    // raw is a packed [x: f32, y: f32, rot: f32, sx: f32, sy: f32]
+                    let floats = raw.as_ptr() as *const f32;
+                    base.write(*floats);           // x
+                    base.add(1).write(*floats.add(1)); // y
+                    base.add(2).write(*floats.add(2)); // rot
+                    base.add(3).write(*floats.add(3)); // sx
+                    base.add(4).write(*floats.add(4)); // sy
+                    // flags: mark slot as active
+                    let flags_ptr = (ptr + offset + 20) as *mut u32;
+                    *flags_ptr |= PHYS_FLAG;
+                } else {
+                    // Clear slot
+                    std::ptr::write_bytes(base as *mut u8, 0, STRIDE);
+                }
+            }
+        }
+    }
+
+    /// Copies Transform data back from the shared buffer into the ECS
+    /// `ComponentStorage` after plugin WASM modules (physics, AI…) have
+    /// updated it.
+    ///
+    /// `ptr`         — pointer returned by `alloc_shared_buffer`
+    /// `max_entities`— number of entity slots to iterate
+    ///
+    /// Only slots with the physics-active flag (bit 0) are written back.
+    /// Stride is 32 bytes per slot (see `alloc_shared_buffer` layout).
+    pub fn sync_transforms_from_buffer(&mut self, ptr: usize, max_entities: u32) {
+        const STRIDE: usize = 32;
+        const PHYS_FLAG: u32 = 0b01;
+
+        for idx in 0..max_entities as usize {
+            let offset = idx * STRIDE;
+            unsafe {
+                let flags = *((ptr + offset + 20) as *const u32);
+                if flags & PHYS_FLAG == 0 {
+                    continue; // slot not managed by physics — skip
+                }
+
+                let base = (ptr + offset) as *const f32;
+                let x   = *base;
+                let y   = *base.add(1);
+                let rot = *base.add(2);
+                let sx  = *base.add(3);
+                let sy  = *base.add(4);
+
+                // Write back into ComponentStorage as raw f32 bytes
+                let packed: [f32; 5] = [x, y, rot, sx, sy];
+                let bytes = std::slice::from_raw_parts(
+                    packed.as_ptr() as *const u8,
+                    20,
+                );
+                self.component_storage.upsert_transform_raw(idx as u32, bytes);
+            }
+        }
+    }
+
     // === Engine Stats ===
 
     /// Get engine statistics as JSON string

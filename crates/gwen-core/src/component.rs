@@ -364,6 +364,27 @@ impl ComponentStorage {
     pub fn column(&self, type_id: ComponentTypeId) -> Option<&ComponentColumn> {
         self.columns.get(&type_id)
     }
+
+    // ── Shared Buffer helpers (used by SAB sync in bindings.rs) ──────────────
+
+    /// Reserved ComponentTypeId for the SAB Transform slot.
+    /// Uses u32::MAX - 1 to avoid collision with JS-allocated IDs.
+    const TRANSFORM_SAB_TYPE_ID: u32 = u32::MAX - 1;
+
+    /// Read raw transform bytes for an entity from the SAB column.
+    /// Returns `None` if no transform has been written for this slot.
+    /// Expected layout: [x: f32, y: f32, rot: f32, sx: f32, sy: f32] = 20 bytes.
+    pub fn get_transform_raw(&self, entity_id: u32) -> Option<&[u8]> {
+        let type_id = ComponentTypeId::from_raw(Self::TRANSFORM_SAB_TYPE_ID);
+        self.get_component(entity_id, type_id)
+    }
+
+    /// Write raw transform bytes for an entity into the SAB column.
+    /// Expected layout: [x: f32, y: f32, rot: f32, sx: f32, sy: f32] = 20 bytes.
+    pub fn upsert_transform_raw(&mut self, entity_id: u32, data: &[u8]) {
+        let type_id = ComponentTypeId::from_raw(Self::TRANSFORM_SAB_TYPE_ID);
+        self.upsert_js(entity_id, type_id, data);
+    }
 }
 
 impl Default for ComponentStorage {

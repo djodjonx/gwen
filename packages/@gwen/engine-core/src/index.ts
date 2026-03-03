@@ -56,3 +56,15 @@ export {
   _injectMockWasmEngine,
 } from './engine/wasm-bridge';
 export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './engine/wasm-bridge';
+
+// WASM Plugin Infrastructure
+export {
+  SharedMemoryManager,
+  TRANSFORM_STRIDE,
+  FLAG_PHYSICS_ACTIVE,
+  FLAGS_OFFSET,
+  SENTINEL,
+} from './wasm/shared-memory';
+export type { MemoryRegion } from './wasm/shared-memory';
+export { loadWasmPlugin } from './wasm/wasm-plugin-loader';
+export type { WasmPluginLoadOptions } from './wasm/wasm-plugin-loader';

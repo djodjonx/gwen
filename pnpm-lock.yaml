@@ -138,6 +138,19 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
+  packages/@gwen/plugin-physics2d:
+    dependencies:
+      '@gwen/engine-core':
+        specifier: workspace:*
+        version: link:../engine-core
+    devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
+
   packages/@gwen/renderer-canvas2d:
     dependencies:
       '@gwen/engine-core':

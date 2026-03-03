@@ -1,7 +1,9 @@
-import type { EngineConfig, WasmPlugin, TsPlugin } from '../types';
+import type { EngineConfig, WasmPlugin, TsPlugin, GwenWasmPlugin } from '../types';
 import type { GwenPlugin, MergeProvides } from '../plugin-system/plugin';
 import { Engine } from '../engine/engine';
 import { SceneManager } from '../api/scene';
+import { SharedMemoryManager } from '../wasm/shared-memory';
+import { getWasmBridge } from '../engine/wasm-bridge';
 export { ConfigBuilder } from './config-builder';
 
 // ...existing code...
@@ -159,50 +161,157 @@ export function defineConfig<const Plugins extends readonly GwenPlugin[]>(config
  * engine.start();
  * ```
  */
-export function createEngine(
+/**
+ * Create an Engine and SceneManager from a TypedEngineConfig.
+ *
+ * **This function is async** — it awaits initialization of each WASM plugin
+ * declared in `config.wasmPlugins` before returning.
+ *
+ * ```typescript
+ * // main.ts
+ * await initWasm();
+ * const { engine, scenes } = await createEngine(gwenConfig, registerScenes, mainScene);
+ * engine.start();
+ * ```
+ */
+export async function createEngine(
   config: TypedEngineConfig<Record<string, unknown>>,
   sceneLoader?: (scenes: SceneManager) => void,
   mainScene?: string,
-): {
+): Promise<{
   engine: Engine;
   scenes: SceneManager;
-} {
+}> {
   const raw = config as unknown as EngineConfig & {
     tsPlugins?: TsPlugin[];
+    wasmPlugins?: GwenWasmPlugin[];
     mainScene?: string;
     engine?: Partial<EngineConfig>;
   };
   const engineOpts = raw.engine ?? {};
+  const maxEntities = engineOpts.maxEntities ?? raw.maxEntities ?? 5000;
+
   const engine = new Engine({
-    maxEntities: engineOpts.maxEntities ?? raw.maxEntities ?? 5000,
+    maxEntities,
     targetFPS: engineOpts.targetFPS ?? raw.targetFPS ?? 60,
     debug: engineOpts.debug ?? raw.debug ?? false,
     enableStats: engineOpts.enableStats ?? raw.enableStats ?? true,
   });
 
+  const api = engine.getAPI();
   const scenes = new SceneManager();
   engine.registerSystem(scenes);
 
-  // Register plugins declared in config.tsPlugins
+  // ── WASM plugins ───────────────────────────────────────────────────────────
+  const wasmPlugins: GwenWasmPlugin[] = raw.wasmPlugins ?? [];
+
+  if (wasmPlugins.length > 0) {
+    const bridge = getWasmBridge();
+
+    if (!bridge.isActive()) {
+      throw new Error(
+        '[GWEN] createEngine(): WASM core not initialized.\n' +
+          'Call `await initWasm()` before `await createEngine()`.',
+      );
+    }
+
+    // Warn if the browser context is not cross-origin isolated
+    // (not a hard requirement for our pointer-based bridge, but good practice)
+    if (typeof crossOriginIsolated !== 'undefined' && !crossOriginIsolated) {
+      console.warn(
+        '[GWEN] Cross-origin isolation is inactive (crossOriginIsolated = false).\n' +
+          'Add the following HTTP headers to unlock the full WASM plugin performance:\n' +
+          '  Cross-Origin-Opener-Policy: same-origin\n' +
+          '  Cross-Origin-Embedder-Policy: require-corp\n' +
+          'The engine will still work, but SharedArrayBuffer will not be available.',
+      );
+    }
+
+    // Allocate the shared buffer in gwen-core's WASM linear memory.
+    // The manager is kept on the Engine so _tick() can call checkSentinels() in debug mode.
+    const sharedMemory = SharedMemoryManager.create(bridge, maxEntities);
+    engine._setSharedMemoryPtr(sharedMemory.getTransformRegion().ptr, maxEntities, sharedMemory);
+
+    // ── Phase 1: fetch all WASM binaries in parallel ──────────────────────
+    // Network downloads can overlap — we only need their order to match
+    // declaration order for the sequential memory allocation below.
+    //
+    // Each plugin's onInit() is intentionally split into two phases:
+    //   Phase 1: fetch the .wasm binary (parallel — pure network I/O)
+    //   Phase 2: allocate region, init Rust plugin, register services (sequential)
+    //
+    // This avoids the race condition that would arise from running onInit()
+    // fully in parallel: allocateRegion() mutates `usedBytes` and is not
+    // concurrency-safe.
+    //
+    // Plugins that do not use loadWasmPlugin() internally (e.g. pure-TS adapters
+    // that implement GwenWasmPlugin) still go through Phase 2 sequentially.
+    if (raw.debug) {
+      console.log(`[GWEN] Fetching ${wasmPlugins.length} WASM plugin(s) in parallel…`);
+    }
+
+    const pluginModules = await Promise.all(
+      wasmPlugins.map(async (plugin) => {
+        // Kick off the WASM binary fetch for this plugin.
+        // Plugins that implement the optional `_prefetch()` hook use it to
+        // download their .wasm early; others will fetch lazily inside onInit().
+        await (plugin as GwenWasmPlugin & { _prefetch?(): Promise<void> })._prefetch?.();
+        return plugin;
+      }),
+    );
+
+    // ── Phase 2: allocate regions and initialize sequentially ─────────────
+    // Memory allocation and service registration must happen in order so that
+    // region offsets are deterministic and services are registered before any
+    // subsequent plugin's onInit() might try to access them.
+    for (const plugin of pluginModules) {
+      const region = sharedMemory.allocateRegion(plugin.id, plugin.sharedMemoryBytes);
+      await plugin.onInit(bridge, region, api);
+      engine._registerWasmPlugin(plugin);
+
+      // Register any services declared in plugin.provides that were not
+      // already registered inside onInit() (fallback for simple plugins)
+      if (plugin.provides) {
+        for (const [key, value] of Object.entries(plugin.provides)) {
+          try {
+            api.services.register(key, value as object);
+          } catch {
+            // Service was already registered inside onInit() — that is correct
+          }
+        }
+      }
+
+      if (raw.debug) {
+        console.log(`[GWEN] WASM plugin '${plugin.name}' (id='${plugin.id}') initialized`);
+      }
+    }
+
+    // Write sentinel canaries into the shared buffer now that all regions are
+    // allocated. The Rust plugins have not written anything yet at this point,
+    // so the sentinel positions are guaranteed to be untouched.
+    sharedMemory._writeSentinels(bridge);
+
+    if (raw.debug) {
+      console.log(
+        `[GWEN] Shared buffer: ${sharedMemory.allocatedBytes}B used / ` +
+          `${sharedMemory.capacityBytes}B total — sentinels written`,
+      );
+    }
+  }
+
+  // ── TypeScript plugins ─────────────────────────────────────────────────────
   const plugins: TsPlugin[] = raw.tsPlugins ?? [];
   for (const plugin of plugins) {
     engine.registerSystem(plugin);
   }
 
-  // Load scenes via loader generated by prepare (if provided)
+  // ── Scene loading ──────────────────────────────────────────────────────────
   if (sceneLoader) {
     sceneLoader(scenes);
-
-    // Resolve main scene:
-    // 1. Explicit parameter passed to createEngine
-    // 2. mainScene in config
-    // 3. Convention: 'Main', 'MainMenu', 'Boot'
-    // 4. Fallback: first registered scene
     const resolvedMain = mainScene ?? raw.mainScene ?? resolveMainScene(scenes);
-
     if (resolvedMain) {
       try {
-        scenes.loadSceneImmediate(resolvedMain, engine.getAPI());
+        scenes.loadSceneImmediate(resolvedMain, api);
       } catch {
         console.warn(`[GWEN] mainScene '${resolvedMain}' not found — no scene loaded.`);
       }
