@@ -29,6 +29,7 @@ function getFlag(flag: string, fallback: string): string {
 
 const verbose = hasFlag('--verbose') || hasFlag('-v');
 const port = parseInt(getFlag('--port', '3000'), 10);
+const previewPort = parseInt(getFlag('--preview-port', '4173'), 10);
 
 async function main() {
   switch (command) {
@@ -63,7 +64,28 @@ async function main() {
 
     case 'preview': {
       const { preview } = await import('vite');
-      await preview({ root: process.cwd(), configFile: false });
+      const server = await preview({
+        root: process.cwd(),
+        configFile: false,
+        preview: {
+          port: hasFlag('--port') ? port : previewPort,
+        },
+      });
+
+      const localUrls = server.resolvedUrls?.local ?? [];
+      if (localUrls.length > 0) {
+        console.log(`[gwen] Preview server listening on ${localUrls[0]}`);
+      } else {
+        const addr = server.httpServer?.address();
+        if (addr && typeof addr === 'object') {
+          const host = addr.address === '::' ? 'localhost' : addr.address;
+          console.log(`[gwen] Preview server listening on http://${host}:${addr.port}`);
+        } else {
+          console.log(
+            `[gwen] Preview server started (port=${hasFlag('--port') ? port : previewPort})`,
+          );
+        }
+      }
       break;
     }
 

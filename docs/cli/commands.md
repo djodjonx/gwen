@@ -38,6 +38,11 @@ gwen dev --open
 gwen dev --verbose
 ```
 
+Flags:
+- `--port <n>` (dev server)
+- `--open`
+- `--verbose`
+
 ### `gwen build`
 Build project.
 
@@ -46,13 +51,26 @@ gwen build
 gwen build --debug
 gwen build --out-dir dist
 gwen build --dry-run
+gwen build --verbose
 ```
 
 ### `gwen preview`
 Preview production output.
 
 ```bash
+gwen build
 gwen preview
+gwen preview --preview-port 5000
+```
+
+Flags:
+- `--preview-port <n>`
+- `--port <n>` (legacy fallback)
+
+Preview prints the resolved listening URL:
+
+```text
+[gwen] Preview server listening on http://localhost:4173/
 ```
 
 ### `gwen lint`
