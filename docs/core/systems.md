@@ -4,12 +4,12 @@ Systems contain the gameplay logic that runs every frame. They query entities, r
 
 ## Creating a System
 
-Use `createPlugin()` to define a system:
+Use `defineSystem()` to define a system:
 
 ```typescript
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem',
 
   onUpdate(api, dt) {
@@ -19,12 +19,24 @@ export const MovementSystem = createPlugin({
 });
 ```
 
+Systems are **pure gameplay logic** with no service injection. They are simpler and more focused than plugins.
+
+**Use `defineSystem()` for:**
+- Game mechanics (Movement, Collision, Spawner)
+- Entity processing and queries
+- State management
+
+**Use `createPlugin()` instead for:**
+- Framework integrations (Input, Audio, Renderer)
+- Services that other systems depend on
+- Configuration and metadata
+
 ## System Lifecycle
 
-Systems have three hooks:
+Systems have multiple hooks:
 
 ```typescript
-export const MySystem = createPlugin({
+export const MySystem = defineSystem({
   name: 'MySystem',
 
   // Called once when scene loads
@@ -32,9 +44,19 @@ export const MySystem = createPlugin({
     console.log('System initialized');
   },
 
+  // Called before main update (optional)
+  onBeforeUpdate(api, dt) {
+    // Pre-processing
+  },
+
   // Called every frame
   onUpdate(api, dt) {
     // Main game logic
+  },
+
+  // Called for rendering (optional)
+  onRender(api) {
+    // Rendering logic if needed
   },
 
   // Called when scene unloads
@@ -44,12 +66,58 @@ export const MySystem = createPlugin({
 });
 ```
 
+## Two Forms: Direct Object vs Factory
+
+### Form 1: Direct Object (no local state)
+
+```typescript
+export const MovementSystem = defineSystem({
+  name: 'MovementSystem',
+  onUpdate(api, dt) { ... }
+});
+
+// Register in scene
+export const GameScene = defineScene('Game', () => ({
+  plugins: [MovementSystem]
+}));
+```
+
+### Form 2: Factory (with local state)
+
+For systems that need local state, use a factory:
+
+```typescript
+export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
+  let spawnTimer = 0; // Local state in closure
+
+  return {
+    onInit() {
+      spawnTimer = 0;
+    },
+    onUpdate(api, dt) {
+      spawnTimer += dt;
+      if (spawnTimer >= 2.0) {
+        api.prefabs.instantiate('Enemy', 100, 100);
+        spawnTimer = 0;
+      }
+    }
+  };
+});
+
+// Register in scene (call the factory)
+export const GameScene = defineScene('Game', () => ({
+  plugins: [SpawnerSystem()]  // Note: () to instantiate
+}));
+```
+
+This avoids global variables and keeps state encapsulated.
+
 ## Querying Entities
 
 Systems query entities by component names:
 
 ```typescript
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem',
 
   onUpdate(api, dt) {
@@ -77,14 +145,14 @@ export const MovementSystem = createPlugin({
 From the playground Space Shooter:
 
 ```typescript
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
 const W = 480, H = 640;
 
-export const PlayerSystem = createPlugin({
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
 
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
@@ -134,7 +202,7 @@ export const PlayerSystem = createPlugin({
 Services provide access to plugin functionality:
 
 ```typescript
-export const InputSystem = createPlugin({
+export const InputSystem = defineSystem({
   name: 'InputSystem',
 
   onUpdate(api, dt) {
@@ -181,7 +249,7 @@ api.addComponent(id, Position, {
 ### Movement
 
 ```typescript
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem',
   onUpdate(api, dt) {
     const entities = api.query(['position', 'velocity']);
@@ -201,7 +269,7 @@ export const MovementSystem = createPlugin({
 ### Collision
 
 ```typescript
-export const CollisionSystem = createPlugin({
+export const CollisionSystem = defineSystem({
   name: 'CollisionSystem',
   onUpdate(api, dt) {
     const entities = api.query(['position', 'collider']);
@@ -233,7 +301,7 @@ export const CollisionSystem = createPlugin({
 ### Timer
 
 ```typescript
-export const TimerSystem = createPlugin({
+export const TimerSystem = defineSystem({
   name: 'TimerSystem',
   onUpdate(api, dt) {
     const entities = api.query(['timer']);
@@ -257,7 +325,7 @@ export const TimerSystem = createPlugin({
 ### Spawner
 
 ```typescript
-export const SpawnerSystem = createPlugin({
+export const SpawnerSystem = defineSystem({
   name: 'SpawnerSystem',
 
   onInit(api) {
@@ -281,7 +349,7 @@ export const SpawnerSystem = createPlugin({
 Use tag components to filter entities:
 
 ```typescript
-export const EnemyAISystem = createPlugin({
+export const EnemyAISystem = defineSystem({
   name: 'EnemyAISystem',
   onUpdate(api, dt) {
     const entities = api.query(['tag', 'position']);
@@ -320,7 +388,7 @@ export const GameScene = defineScene('Game', () => ({
 Systems can create entities:
 
 ```typescript
-export const BulletSpawnerSystem = createPlugin({
+export const BulletSpawnerSystem = defineSystem({
   name: 'BulletSpawnerSystem',
 
   onUpdate(api, dt) {
@@ -350,7 +418,7 @@ api.prefabs.instantiate('Bullet', pos.x, pos.y);
 Systems can maintain internal state:
 
 ```typescript
-export const WaveSystem = createPlugin({
+export const WaveSystem = defineSystem({
   name: 'WaveSystem',
 
   onInit(api) {
@@ -385,7 +453,7 @@ Define your services interface for autocomplete:
 import type { EngineAPI } from '@gwen/engine-core';
 import type { GwenServices } from '../types/services';
 
-export const PlayerSystem = createPlugin({
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
 
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {

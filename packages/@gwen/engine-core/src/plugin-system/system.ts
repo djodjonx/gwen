@@ -65,10 +65,47 @@ export type SystemFactory<Args extends unknown[] = []> = (
 
 // ── defineSystem() ────────────────────────────────────────────────────────────
 
-// Overload 1 — direct object
+/**
+ * Define a game system with optional local state.
+ *
+ * Systems are pure gameplay logic with no service injection or metadata.
+ * Use for game mechanics (Movement, Collision, Spawner, etc.).
+ *
+ * **Form 1 — direct object** (no local state):
+ * ```typescript
+ * export const MovementSystem = defineSystem({
+ *   name: 'MovementSystem',
+ *   onUpdate(api, dt) { ... },
+ * });
+ * scene.plugins = [MovementSystem];
+ * ```
+ *
+ * **Form 2 — factory** (with local state):
+ * ```typescript
+ * export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
+ *   let timer = 0;
+ *   return {
+ *     onInit() { timer = 0; },
+ *     onUpdate(_, dt) { timer += dt; },
+ *   };
+ * });
+ * scene.plugins = [SpawnerSystem()];
+ * ```
+ *
+ * @param def - System definition (object form)
+ * @returns The system object ready to register in scenes
+ */
 export function defineSystem(def: System): System;
 
-// Overload 2 — factory
+/**
+ * Define a game system factory with local state.
+ *
+ * Allows systems to maintain internal state without global variables.
+ *
+ * @param name - Unique system name
+ * @param factory - Function returning system implementation with local state
+ * @returns Callable factory that creates system instances
+ */
 export function defineSystem<Args extends unknown[] = []>(
   name: string,
   factory: (...args: Args) => SystemBody,
