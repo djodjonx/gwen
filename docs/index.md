@@ -36,7 +36,7 @@ features:
 
   - icon: 📦
     title: CLI Scaffolding
-    details: Start in seconds with 'pnpm create @gwen/app' and focus on gameplay, not setup.
+    details: Start in seconds with 'pnpm create gwen-app' and focus on gameplay.
 ---
 
 ## What is GWEN?
@@ -55,16 +55,12 @@ Everything is configured in one place (`gwen.config.ts`) and runs with `gwen dev
 ## Quick Example
 
 ```typescript
-// components/Position.ts
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types, createPlugin, defineScene } from '@gwen/engine-core';
 
 export const Position = defineComponent({
   name: 'position',
   schema: { x: Types.f32, y: Types.f32 }
 });
-```
-// systems/PlayerSystem.ts
-import { createPlugin } from '@gwen/engine-core';
 
 export const PlayerSystem = createPlugin({
   name: 'PlayerSystem',
@@ -74,15 +70,13 @@ export const PlayerSystem = createPlugin({
 
     for (const id of entities) {
       const pos = api.getComponent(id, Position);
+      if (!pos) continue;
       if (keyboard.isPressed('ArrowRight')) {
         api.addComponent(id, Position, { x: pos.x + 100 * dt, y: pos.y });
       }
     }
   }
 });
-
-// scenes/GameScene.ts
-import { defineScene } from '@gwen/engine-core';
 
 export const GameScene = defineScene('Game', () => ({
   plugins: [PlayerSystem],
@@ -93,7 +87,7 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-No Vite config. No Rust setup. Just game logic.
+No manual Rust setup for app users. Focus on game logic.
 
 ## Ready to Start?
 

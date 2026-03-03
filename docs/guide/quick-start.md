@@ -12,7 +12,7 @@ No Rust, no Vite config, no WASM setup needed. Everything is handled for you.
 ## Create a New Project
 
 ```bash
-pnpm create @gwen/app my-game
+pnpm create gwen-app my-game
 cd my-game
 ```
 
@@ -143,4 +143,3 @@ pnpm format
 - [Understand the Philosophy](/guide/philosophy) - Why GWEN works this way
 - [Learn Core Concepts](/core/components) - Deep dive into components, scenes, systems
 - [Explore Examples](/examples/space-shooter) - Walk through a complete Space Shooter
-
