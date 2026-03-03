@@ -1,4 +1,4 @@
-# GWEN Game Engine
+# GWEN (Game Web Engine)
 
 [![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
 [![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwen/engine-core)
