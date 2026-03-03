@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { defineUI, UIManager, UIComponent } from '../src/ui';
-import { SceneManager } from '../src/scene';
+import { defineUI, UIManager, UIComponent } from '../src/api/ui';
+import { SceneManager } from '../src/api/scene';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
 
 describe('UIManager', () => {

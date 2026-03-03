@@ -63,6 +63,7 @@ src/
 ## File Responsibilities
 
 ### core/
+
 **Purpose:** ECS fundamentals - the foundation of the engine
 
 - **ecs.ts:** Entity manager, component registry, query engine
@@ -70,17 +71,20 @@ src/
 - **schema.ts:** Component schema definition and layout computation
 
 ### config/
+
 **Purpose:** Configuration handling
 
 - **config.ts:** defineConfig(), config merging, validation
 
 ### plugin-system/
+
 **Purpose:** Plugin infrastructure
 
 - **plugin.ts:** GwenPlugin type system with generics
 - **plugin-manager.ts:** Plugin registration, lifecycle hooks
 
 ### engine/
+
 **Purpose:** Main engine orchestration and state management
 
 - **engine.ts:** Primary Engine class with all public APIs
@@ -90,6 +94,7 @@ src/
 - **wasm-bridge.ts:** WASM module interface
 
 ### api/
+
 **Purpose:** High-level consumer APIs
 
 - **api.ts:** ServiceLocator pattern for services
@@ -97,6 +102,7 @@ src/
 - **ui.ts:** UI component management
 
 ### utils/
+
 **Purpose:** Shared utilities
 
 - **string-pool.ts:** String interning for memory efficiency
@@ -106,12 +112,14 @@ src/
 ### ✅ Good Patterns
 
 **Within a folder:**
+
 ```typescript
 // core/prefab.ts importing from core/
 import { EntityId } from '../engine';
 ```
 
 **Cross-folder:**
+
 ```typescript
 // engine/engine.ts importing from core/
 import type { EntityManager } from '../core/ecs';
@@ -119,12 +127,14 @@ import { PluginManager } from '../plugin-system/plugin-manager';
 ```
 
 **From root level:**
+
 ```typescript
 import type { EngineConfig } from '../types';
 import { schema } from '../schema';
 ```
 
 **External users (via index.ts):**
+
 ```typescript
 // External package importing
 import { Engine, defineConfig } from '@gwen/engine-core';
@@ -203,6 +213,7 @@ import { EntityManager } from '../src/core/ecs';
 ```
 
 ### Running Tests
+
 ```bash
 pnpm test              # Run all tests
 pnpm test --watch     # Watch mode
@@ -211,6 +222,7 @@ pnpm test --watch     # Watch mode
 ## Migration Notes (If Refactoring Existing Code)
 
 ### Old Imports
+
 ```typescript
 import { Engine } from './engine';
 import { EntityManager } from './ecs';
@@ -218,6 +230,7 @@ import { PluginManager } from './plugin-manager';
 ```
 
 ### New Imports
+
 ```typescript
 import { Engine } from './engine/engine';
 import { EntityManager } from './core/ecs';
@@ -225,7 +238,9 @@ import { PluginManager } from './plugin-system/plugin-manager';
 ```
 
 ### Updating External Packages
+
 **No changes needed!** External packages import from the barrel export:
+
 ```typescript
 import { Engine } from '@gwen/engine-core'; // Still works ✓
 ```
@@ -251,4 +266,3 @@ import { Engine } from '@gwen/engine-core'; // Still works ✓
 - See **ARCHITECTURE.md** for overall design
 - See **tests/** for usage examples
 - Check **index.ts** for public API surface
-

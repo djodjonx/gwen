@@ -51,7 +51,7 @@ new GwenPlugin({
   cratePath: '../crates/gwen-core',
   watch: true,
   wasmMode: 'debug', // 'debug' for dev, 'release' for build
-})
+});
 ```
 
 ### 2. **Scene Auto-Discovery**
@@ -170,9 +170,9 @@ Access build metadata:
 ```typescript
 import manifest from 'virtual:gwen-manifest';
 
-console.log(manifest.version);      // Package version
-console.log(manifest.buildDate);    // Build timestamp
-console.log(manifest.wasmPath);     // Path to WASM binary
+console.log(manifest.version); // Package version
+console.log(manifest.buildDate); // Build timestamp
+console.log(manifest.wasmPath); // Path to WASM binary
 ```
 
 ## Troubleshooting
@@ -200,4 +200,3 @@ console.log(manifest.wasmPath);     // Path to WASM binary
 - [@gwen/engine-core](../engine-core/) — Core engine
 - [@gwen/cli](../cli/) — Command-line interface
 - [Vite Documentation](https://vitejs.dev)
-

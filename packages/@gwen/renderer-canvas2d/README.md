@@ -170,4 +170,3 @@ function drawAnimatedSprite(sheet, frameIndex, x, y) {
 - [@gwen/engine-core](../engine-core/) — Core engine
 - [@gwen/plugin-debug](../plugin-debug/) — Performance monitoring
 - [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
-

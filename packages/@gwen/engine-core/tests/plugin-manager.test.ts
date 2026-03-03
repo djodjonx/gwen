@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PluginManager } from '../src/plugin-system/plugin-manager';
 import type { TsPlugin, EngineAPI } from '../src/types';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
-import { createEngineAPI } from '../src/api';
+import { createEngineAPI } from '../src/api/api';
 
 function makeAPI(): EngineAPI {
   return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());

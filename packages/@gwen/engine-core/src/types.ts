@@ -168,7 +168,7 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
   services: TypedServiceLocator<M>;
 
   /** Prefab manager — instantiate pre-assembled entities */
-  readonly prefabs: import('./prefab').PrefabManager;
+  readonly prefabs: import('./core/prefab').PrefabManager;
 
   /**
    * Scene navigator — available if a SceneManager is registered.

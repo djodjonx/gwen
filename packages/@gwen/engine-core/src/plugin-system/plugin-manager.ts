@@ -6,7 +6,7 @@
  *   onBeforeUpdate → (WASM slot) → onUpdate → onRender
  */
 
-import type { TsPlugin, EngineAPI } from './types';
+import type { TsPlugin, EngineAPI } from '../types';
 
 export class PluginManager {
   private plugins: TsPlugin[] = [];

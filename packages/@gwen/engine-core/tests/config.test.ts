@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config';
+import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
 
 describe('Configuration', () => {
   describe('defaultConfig', () => {

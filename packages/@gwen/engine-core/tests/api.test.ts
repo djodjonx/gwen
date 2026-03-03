@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../src/api';
+import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../src/api/api';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 
 // ============= ServiceLocator =============

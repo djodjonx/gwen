@@ -7,9 +7,8 @@
  */
 
 import type { ComponentDefinition, ComponentSchema } from '../schema';
-import type { EngineAPIImpl } from '../api';
 import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
-import type { TsPlugin, ComponentType } from '../types';
+import type { ComponentType } from '../types';
 import type { Engine } from './engine';
 
 // EntityId is now a packed number (index | generation<<20) aligned with Rust format
@@ -95,11 +94,7 @@ export function createShims(engine: Engine): {
   };
 
   const componentShim: ComponentRegistryShim = {
-    add: <T>(
-      id: EntityId,
-      type: ComponentDefinition<ComponentSchema> | ComponentType,
-      data: T,
-    ) => {
+    add: <T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T) => {
       engine._addComponentInternal(id, type, data);
     },
     remove: (id: EntityId, type: ComponentType) => {
@@ -157,4 +152,3 @@ export function createShims(engine: Engine): {
 
   return { entityShim, componentShim, queryShim };
 }
-

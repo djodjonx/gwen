@@ -6,7 +6,7 @@
  */
 
 import type { EngineConfig, WasmPlugin, TsPlugin } from '../types';
-import { defaultConfig, mergeConfigs } from '../config';
+import { defaultConfig, mergeConfigs } from './config';
 
 /**
  * Advanced builder with chaining
@@ -96,4 +96,3 @@ export class ConfigBuilder {
     return mergeConfigs(defaultConfig, this.config);
   }
 }
-

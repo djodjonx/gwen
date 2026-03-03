@@ -25,4 +25,3 @@ export function useEngine(): Engine {
 export function resetEngine(): void {
   globalEngine = null;
 }
-

@@ -31,7 +31,7 @@ describe('DebugPlugin', () => {
 
   it('should count frame drops accurately', () => {
     const frameDrops = 5;
-    const fpsDrop = 30; // threshold
+    const _fpsDrop = 30; // threshold
 
     expect(frameDrops).toBeGreaterThanOrEqual(0);
     expect(frameDrops).toBeLessThan(1000);
@@ -43,4 +43,3 @@ describe('DebugPlugin', () => {
     expect(positions).toContain('top-left');
   });
 });
-

@@ -20,9 +20,7 @@ import { defineConfig } from '@gwen/engine-core';
 import { DebugPlugin } from '@gwen/plugin-debug';
 
 export default defineConfig({
-  plugins: [
-    process.env.NODE_ENV === 'development' && new DebugPlugin(),
-  ].filter(Boolean),
+  plugins: [process.env.NODE_ENV === 'development' && new DebugPlugin()].filter(Boolean),
 });
 ```
 
@@ -60,6 +58,7 @@ Show or hide the debug overlay.
 ### `showMetric(metric: string, show: boolean)`
 
 Toggle specific metrics:
+
 - `'fps'` — Frames per second
 - `'frameTime'` — Frame render time (ms)
 - `'entityCount'` — Number of active entities
@@ -126,6 +125,7 @@ export default defineConfig({ plugins });
 ## Browser DevTools Integration
 
 For deeper analysis, use your browser's DevTools:
+
 - Chrome: DevTools → Performance tab
 - Firefox: Web Performance tools
 - Safari: Develop → Show Web Inspector
@@ -135,4 +135,3 @@ For deeper analysis, use your browser's DevTools:
 - [@gwen/engine-core](../engine-core/) — Core engine
 - [@gwen/plugin-input](../plugin-input/) — Input handling
 - [@gwen/plugin-audio](../plugin-audio/) — Audio system
-

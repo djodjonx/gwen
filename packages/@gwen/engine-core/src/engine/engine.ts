@@ -19,10 +19,10 @@
  */
 
 import type { EngineConfig, TsPlugin, ComponentType } from '../types';
-import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../api';
+import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../api/api';
 import { PluginManager } from '../plugin-system/plugin-manager';
-import { defaultConfig, mergeConfigs } from '../config';
-import { getWasmBridge, type WasmBridge, type WasmEntityId } from './wasm-bridge';
+import { defaultConfig, mergeConfigs } from '../config/config';
+import { getWasmBridge, type WasmBridge } from './wasm-bridge';
 import {
   type ComponentDefinition,
   type ComponentSchema,

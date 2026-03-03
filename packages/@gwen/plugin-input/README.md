@@ -58,6 +58,7 @@ export function createPlayerMovement(api: EngineAPI) {
 Check if a key is currently pressed.
 
 **Keys:**
+
 - Keyboard: `'a'`, `'Enter'`, `'ArrowUp'`, `'Space'`, etc.
 - Mouse: `'MouseLeft'`, `'MouseRight'`, `'MouseMiddle'`
 - Gamepad: `'GamepadButton0'`, `'GamepadAxis0'`, etc.
@@ -124,4 +125,3 @@ if (axes.length > 0) {
 - [@gwen/engine-core](../engine-core/) — Core engine
 - [@gwen/plugin-audio](../plugin-audio/) — Audio system
 - [@gwen/plugin-debug](../plugin-debug/) — Debug overlay
-

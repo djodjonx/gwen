@@ -20,4 +20,3 @@ export function stop(engine: Engine): void {
 // - engine.start() delegates to start(engine)
 // - engine.stop() delegates to stop(engine)
 // - engine.tick() is managed internally via RAF loop in _start()
-

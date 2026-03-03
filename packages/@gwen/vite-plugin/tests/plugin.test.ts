@@ -33,7 +33,7 @@ describe('GwenVitePlugin', () => {
   it('should discover scene files', () => {
     const sceneFiles = ['GameScene.ts', 'MenuScene.ts', 'PauseScene.ts'];
     expect(sceneFiles).toHaveLength(3);
-    expect(sceneFiles.every(f => f.endsWith('.ts'))).toBe(true);
+    expect(sceneFiles.every((f) => f.endsWith('.ts'))).toBe(true);
   });
 
   it('should support debug and release modes', () => {
@@ -55,4 +55,3 @@ describe('GwenVitePlugin', () => {
     expect(manifest.wasmPath).toContain('.wasm');
   });
 });
-

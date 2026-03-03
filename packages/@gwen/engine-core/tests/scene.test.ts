@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SceneManager, defineScene } from '../src/scene';
-import type { Scene } from '../src/scene';
+import { SceneManager, defineScene } from '../src/api/scene';
+import type { Scene } from '../src/api/scene';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
 import type { EngineAPI } from '../src/index';
 

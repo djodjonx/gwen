@@ -141,9 +141,7 @@ export async function initWasm(
       const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
       glue.initSync({ module: buf });
     } else {
-      throw new Error(
-        '[GWEN] WASM glue has no init() function — corrupted file?',
-      );
+      throw new Error('[GWEN] WASM glue has no init() function — corrupted file?');
     }
 
     if (typeof glue.Engine !== 'function') {
@@ -254,8 +252,7 @@ export interface WasmBridge {
 function requireWasm(): WasmEngine {
   if (!_wasmEngine) {
     throw new Error(
-      '[GWEN] WASM core not initialized.\n' +
-        'Call `await initWasm()` before starting the Engine.',
+      '[GWEN] WASM core not initialized.\n' + 'Call `await initWasm()` before starting the Engine.',
     );
   }
   return _wasmEngine;

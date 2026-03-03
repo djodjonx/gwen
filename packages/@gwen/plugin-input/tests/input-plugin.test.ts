@@ -48,4 +48,3 @@ describe('InputPlugin', () => {
     expect(justPressed.size).toBe(0);
   });
 });
-

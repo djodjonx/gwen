@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from './types';
+import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from '../types';
 import { UIManager, type UIDefinition } from './ui';
 
 // ============= Scene Interface =============

@@ -10,10 +10,10 @@
  *    Rule: resolve services only in onInit(), never in onUpdate()
  */
 
-import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } from './types';
-import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema';
-import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from './core/ecs';
-import { PrefabManager } from './core/prefab';
+import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } from '../types';
+import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema';
+import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from '../core/ecs';
+import { PrefabManager } from '../core/prefab';
 
 // ============= ServiceLocator =============
 

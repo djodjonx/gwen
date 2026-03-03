@@ -41,7 +41,7 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from './types';
+import type { TsPlugin, EngineAPI } from '../types';
 
 // ── Utility types ────────────────────────────────────────────────────────────
 

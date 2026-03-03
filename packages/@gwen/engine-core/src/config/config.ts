@@ -1,8 +1,8 @@
-import type { EngineConfig, WasmPlugin, TsPlugin } from './types';
-import type { AnyGwenPlugin, MergeProvides } from './plugin-system/plugin';
-import { Engine } from './engine/engine';
-import { SceneManager } from './scene';
-export { ConfigBuilder } from './config/config-builder';
+import type { EngineConfig, WasmPlugin, TsPlugin } from '../types';
+import type { AnyGwenPlugin, MergeProvides } from '../plugin-system/plugin';
+import { Engine } from '../engine/engine';
+import { SceneManager } from '../api/scene';
+export { ConfigBuilder } from './config-builder';
 
 // ...existing code...
 
@@ -237,4 +237,3 @@ function resolveMainScene(scenes: SceneManager): string | null {
  */
 export type GwenConfigServices<C> =
   C extends TypedEngineConfig<infer S> ? S : Record<string, unknown>;
-

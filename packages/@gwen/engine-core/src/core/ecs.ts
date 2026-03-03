@@ -5,7 +5,7 @@
  * Uses the same patterns: generation counter, free list, SoA-style storage.
  */
 
-import type { ComponentDefinition } from './schema';
+import type { ComponentDefinition } from '../schema';
 
 // ============= Entity Manager =============
 

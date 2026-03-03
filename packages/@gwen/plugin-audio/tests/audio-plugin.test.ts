@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('AudioPlugin', () => {
   it('should accept configuration with masterVolume', () => {
@@ -36,4 +36,3 @@ describe('AudioPlugin', () => {
     expect(playingSounds.size).toBe(1);
   });
 });
-

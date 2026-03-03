@@ -34,6 +34,7 @@ gwen dev
 ```
 
 Options:
+
 - `--port 3000` — Custom port (default: 5173)
 - `--open` — Auto-open in browser
 
@@ -224,4 +225,3 @@ gwen dev --port 3001
 - [@gwen/engine-core](../engine-core/) — Core engine API
 - [@gwen/vite-plugin](../vite-plugin/) — Vite integration
 - [GWEN Documentation](https://gwen.dev/docs)
-

@@ -52,6 +52,7 @@ export function createAudioSystem(api: EngineAPI) {
 Creates an audio plugin instance.
 
 **Options:**
+
 - `masterVolume?: number` — Global volume multiplier (0-1, default: 1)
 
 ### `preload(name: string, url: string)`
@@ -66,6 +67,7 @@ Preload a sound file for later playback.
 Play a preloaded sound.
 
 **Options:**
+
 - `volume?: number` — Volume multiplier (0-1)
 - `pitch?: number` — Playback rate/pitch
 - `loop?: boolean` — Loop the sound
@@ -110,6 +112,7 @@ audio.play(random, { pitch: 0.8 + Math.random() * 0.4 });
 ## Browser Compatibility
 
 Uses the Web Audio API. Supported in all modern browsers:
+
 - Chrome/Edge 14+
 - Firefox 25+
 - Safari 6+
@@ -119,4 +122,3 @@ Uses the Web Audio API. Supported in all modern browsers:
 - [@gwen/engine-core](../engine-core/) — Core engine
 - [@gwen/plugin-input](../plugin-input/) — Input handling
 - [@gwen/plugin-debug](../plugin-debug/) — Debug overlay
-

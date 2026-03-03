@@ -33,9 +33,9 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from './types';
-import type { EntityId } from './core/ecs';
-import { defineComponent, Types } from './schema';
+import type { TsPlugin, EngineAPI } from '../types';
+import type { EntityId } from '../core/ecs';
+import { defineComponent, Types } from '../schema';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

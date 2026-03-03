@@ -53,4 +53,3 @@ describe('HtmlUIPlugin', () => {
     expect(hierarchy.children).toContain('button-ok');
   });
 });
-
