@@ -123,20 +123,17 @@ describe('defineSystem()', () => {
         spawnInterval: number;
       }
 
-      const SpawnerSystem = defineSystem(
-        'SpawnerSystem',
-        (config: SpawnerConfig) => {
-          let timer = 0;
-          return {
-            onUpdate() {
-              timer += 1;
-            },
-            shouldSpawn() {
-              return timer >= config.spawnInterval;
-            },
-          };
-        },
-      );
+      const SpawnerSystem = defineSystem('SpawnerSystem', (config: SpawnerConfig) => {
+        let timer = 0;
+        return {
+          onUpdate() {
+            timer += 1;
+          },
+          shouldSpawn() {
+            return timer >= config.spawnInterval;
+          },
+        };
+      });
 
       const spawner = (SpawnerSystem as SystemFactory<[SpawnerConfig]>)({
         spawnInterval: 10,

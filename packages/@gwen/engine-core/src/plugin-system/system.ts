@@ -59,9 +59,9 @@ export type SystemBody = Omit<System, 'name'>;
  * System factory returned by `defineSystem(name, factory)`.
  * Carries `systemName` for introspection.
  */
-export type SystemFactory<Args extends unknown[] = []> = (
-  (...args: Args) => System
-) & { readonly systemName: string };
+export type SystemFactory<Args extends unknown[] = []> = ((...args: Args) => System) & {
+  readonly systemName: string;
+};
 
 // ── defineSystem() ────────────────────────────────────────────────────────────
 
