@@ -8,9 +8,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import * as path from 'node:path';
-import { findConfigFile, parseConfigFile } from '../src/config-parser';
-import { build } from '../src/builder';
-import { prepare } from '../src/prepare';
+import { findConfigFile, parseConfigFile } from '../src/config-parser.js';
+import { build } from '../src/builder.js';
+import { prepare } from '../src/prepare.js';
 
 // ── prepare ───────────────────────────────────────────────────────────────────
 
@@ -112,9 +112,9 @@ describe('prepare', () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
     expect(result.files).toHaveLength(3);
-    expect(result.files.some((f) => f.endsWith('tsconfig.generated.json'))).toBe(true);
-    expect(result.files.some((f) => f.endsWith('gwen.d.ts'))).toBe(true);
-    expect(result.files.some((f) => f.endsWith('index.html'))).toBe(true);
+    expect(result.files.some((f: string) => f.endsWith('tsconfig.generated.json'))).toBe(true);
+    expect(result.files.some((f: string) => f.endsWith('gwen.d.ts'))).toBe(true);
+    expect(result.files.some((f: string) => f.endsWith('index.html'))).toBe(true);
   });
 
   // ── typeReferences collectées depuis pluginMeta ──────────────────────────

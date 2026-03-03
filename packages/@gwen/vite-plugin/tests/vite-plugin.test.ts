@@ -29,7 +29,6 @@ describe('gwen() plugin factory', () => {
     expect(() =>
       gwen({
         cratePath: '/tmp/crate',
-        wasmOutDir: 'public/wasm',
         watch: false,
         wasmMode: 'release',
         verbose: false,
