@@ -3,14 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type {
-  EngineConfig,
-  EntityId,
-  Color,
-  Vector2D,
-  EngineStats,
-  TsPlugin,
-} from '../src/types';
+import type { EngineConfig, EntityId, Color, Vector2D, EngineStats, TsPlugin } from '../src/types';
 
 describe('Types', () => {
   describe('EntityId', () => {
@@ -60,7 +53,6 @@ describe('Types', () => {
       expect(blue.b).toBe(1);
     });
   });
-
 
   describe('EngineConfig', () => {
     it('should have engine config fields', () => {
