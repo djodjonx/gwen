@@ -15,7 +15,7 @@ export const MainScene = defineScene({
     console.log('[MainScene] Initialized');
   },
 
-  onExit(api) {
+  onExit() {
     console.log('[MainScene] Destroyed');
   },
 });
