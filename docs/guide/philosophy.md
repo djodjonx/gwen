@@ -116,30 +116,59 @@ api.prefabs.instantiate('Enemy', 300, 150);
 
 ## Flexibility Where It Matters
 
-GWEN doesn't force a renderer on you.
+GWEN doesn't force a renderer on you. Choose based on your game's needs:
 
-Use Canvas2D:
+### Canvas2D
+Blazing fast for 2D pixel/sprite games:
 
 ```typescript
 export const PlayerUI = defineUI({
   name: 'PlayerUI',
   render(api, id) {
     const { ctx } = api.services.get('renderer');
-    const pos = api.getComponent(id, Position);
-
     ctx.fillStyle = '#00ff00';
-    ctx.fillRect(pos.x, pos.y, 32, 32);
+    ctx.fillRect(x, y, 32, 32);
   }
 });
 ```
 
-Or use HTML/CSS for UI:
+### HTML/CSS
+Perfect for menus, HUD, UI overlays:
 
 ```typescript
-new HtmlUIPlugin()
+new HtmlUIPlugin() // Enable in config
+
+// Use standard HTML
+api.services.get('htmlUI').mount('menu', '<button>Start</button>');
 ```
 
-Or integrate Three.js, PixiJS, Phaser renderers — your choice.
+### WebGL (Three.js, Babylon.js)
+Integrate any WebGL library via services:
+
+```typescript
+export const Model3DUI = defineUI({
+  name: 'Model3DUI',
+  render(api, id) {
+    const scene = api.services.get('three-scene');
+    // Update your 3D objects directly
+  }
+});
+```
+
+### Mix Multiple Renderers
+Use Canvas for gameplay sprites, HTML for UI:
+
+```typescript
+export const GameScene = defineScene('Game', () => ({
+  ui: [
+    PlayerUI,      // Canvas2D
+    EnemyUI,       // Canvas2D
+    HUDMenuUI      // HTML
+  ]
+}));
+```
+
+**This is a core strength**: no abstraction layer forcing you into one paradigm. You control the rendering layer entirely.
 
 ## Why TypeScript?
 
@@ -195,4 +224,3 @@ Or integrate Three.js, PixiJS, Phaser renderers — your choice.
 - [Project Structure](/guide/project-structure) - How files are organized
 - [Components](/core/components) - Define your game data
 - [Systems](/core/systems) - Implement gameplay logic
-

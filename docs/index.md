@@ -31,8 +31,8 @@ features:
     details: Compose features with official plugins (input, audio, renderer, debug, UI) or create your own.
 
   - icon: 🎨
-    title: Custom Rendering
-    details: Use defineUI() for full Canvas2D control or integrate with HTML/CSS for menus and HUD.
+    title: Renderer-Agnostic UI
+    details: Use Canvas2D, HTML/CSS, WebGL, or mix them. Choose your rendering layer, GWEN doesn't force it.
 
   - icon: 📦
     title: CLI Scaffolding
@@ -94,4 +94,3 @@ No manual Rust setup for app users. Focus on game logic.
 <div class="vp-doc">
   <a href="/guide/quick-start" class="vp-button brand">Get Started →</a>
 </div>
-

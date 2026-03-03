@@ -1,6 +1,82 @@
 # UI Rendering
 
-GWEN gives you full control over how entities are drawn using `defineUI()` with Canvas2D.
+GWEN gives you **complete freedom over rendering**.
+
+The UI system is **renderer-agnostic** — you choose how to draw based on your game's needs.
+
+## Renderer Flexibility
+
+### Use Canvas2D
+
+Fast, immediate-mode drawing with full 2D canvas API:
+
+```typescript
+export const PlayerUI = defineUI({
+  name: 'PlayerUI',
+  render(api, entityId) {
+    const { ctx } = api.services.get('renderer');
+    ctx.fillStyle = '#00ff00';
+    ctx.fillRect(x, y, 32, 32);
+  }
+});
+```
+
+### Use HTML/CSS
+
+Declarative UI for menus, HUD, overlays:
+
+```typescript
+// In gwen.config.ts
+new HtmlUIPlugin()
+
+// In your component
+export const MenuUI = defineUI({
+  name: 'MenuUI',
+  onMount(api) {
+    api.services.get('htmlUI').mount('menu', '<button>Start</button>');
+  }
+});
+```
+
+### Use WebGL (Three.js, Babylon.js, etc.)
+
+Integrate any WebGL library via services:
+
+```typescript
+export const Model3DUI = defineUI({
+  name: 'Model3DUI',
+  render(api, entityId) {
+    const scene = api.services.get('three-scene');
+    const pos = api.getComponent(entityId, Position);
+
+    // Update Three.js objects
+    scene.children[entityId].position.set(pos.x, pos.y, 0);
+  }
+});
+```
+
+### Mix Multiple Renderers
+
+Use Canvas2D for gameplay, HTML for UI menus:
+
+```typescript
+export const GameScene = defineScene('Game', () => ({
+  ui: [
+    PlayerUI,        // Canvas2D sprites
+    EnemyUI,         // Canvas2D sprites
+    HUDMenuUI        // HTML/CSS menu
+  ],
+  // ...
+}));
+```
+
+## Why This Matters
+
+GWEN doesn't lock you into a single rendering paradigm:
+- **No forced abstractions** — you control the rendering layer
+- **Pick the right tool** — Canvas for perf, HTML for UI, WebGL for advanced effects
+- **Hybrid rendering** — mix and match renderers in the same scene
+- **Easy integration** — bring your favorite graphics library
 
 ## Defining UI Components
 
