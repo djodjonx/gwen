@@ -64,6 +64,25 @@ export interface TextOptions {
 export const ShapeRenderer = {
   /**
    * Draw a filled/stroked rectangle, optionally rotated around its center.
+   *
+   * Saves and restores canvas context state (no side effects outside the shape).
+   *
+   * @param ctx Canvas rendering context
+   * @param opts Rectangle position, size, colors, and optional rotation
+   *
+   * @example
+   * ```typescript
+   * ShapeRenderer.rect(ctx, {
+   *   x: 100,
+   *   y: 100,
+   *   width: 50,
+   *   height: 50,
+   *   color: '#FF0000',
+   *   strokeColor: '#000000',
+   *   strokeWidth: 2,
+   *   alpha: 0.8
+   * });
+   * ```
    */
   rect(ctx: CanvasRenderingContext2D, opts: RectOptions): void {
     ctx.save();
@@ -88,6 +107,9 @@ export const ShapeRenderer = {
 
   /**
    * Draw a filled/stroked circle.
+   *
+   * @param ctx Canvas rendering context
+   * @param opts Circle position, radius, colors
    */
   circle(ctx: CanvasRenderingContext2D, opts: CircleOptions): void {
     ctx.save();
@@ -107,7 +129,10 @@ export const ShapeRenderer = {
   },
 
   /**
-   * Draw a line segment.
+   * Draw a line segment between two points.
+   *
+   * @param ctx Canvas rendering context
+   * @param opts Start (x1, y1) and end (x2, y2) points, color, width
    */
   line(ctx: CanvasRenderingContext2D, opts: LineOptions): void {
     ctx.save();
@@ -122,7 +147,25 @@ export const ShapeRenderer = {
   },
 
   /**
-   * Draw text with optional shadow.
+   * Draw text with optional shadow, alignment, and styling.
+   *
+   * @param ctx Canvas rendering context
+   * @param opts Text content, position, color, font, shadow, alignment
+   *
+   * @example
+   * ```typescript
+   * ShapeRenderer.text(ctx, {
+   *   x: 400,
+   *   y: 200,
+   *   text: 'Score: 9999',
+   *   color: '#FFFFFF',
+   *   font: 'bold 24px Arial',
+   *   align: 'center',
+   *   baseline: 'middle',
+   *   shadowBlur: 10,
+   *   shadowColor: '#000000'
+   * });
+   * ```
    */
   text(ctx: CanvasRenderingContext2D, opts: TextOptions): void {
     ctx.save();

@@ -18,20 +18,62 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { findConfigFile, parseConfigFile } from './config-parser.js';
 
+/**
+ * Options for the prepare command
+ */
 export interface PrepareOptions {
+  /**
+   * Project root directory. Defaults to current working directory.
+   * Must contain a gwen.config.ts file.
+   */
   projectDir?: string;
+  /**
+   * Enable detailed logging output (includes file paths, operation status).
+   * Defaults to false.
+   */
   verbose?: boolean;
 }
 
+/**
+ * Result of prepare operation
+ */
 export interface PrepareResult {
+  /** True if all files were generated successfully */
   success: boolean;
+  /** Path to generated .gwen/ directory */
   gwenDir: string;
+  /** List of generated file paths */
   files: string[];
+  /** List of error messages if generation failed */
   errors: string[];
 }
 
-// ── Prépare le dossier .gwen/ ─────────────────────────────────────────────────
-
+/**
+ * Generate the .gwen/ folder from gwen.config.ts
+ *
+ * Generates TypeScript configuration and type definitions for the project.
+ * Creates:
+ * - .gwen/tsconfig.generated.json — Complete tsconfig with strict settings
+ * - .gwen/gwen.d.ts — Global type definitions (GwenServices, __GWEN_VERSION__, etc.)
+ * - .gwen/index.html — Generated HTML entry if none exists
+ *
+ * Identical to Nuxt pattern: `nuxt prepare` → `.nuxt/tsconfig.json`
+ *
+ * @param options Configuration options
+ * @returns Promise<PrepareResult> with success status, generated files list, and errors
+ *
+ * @example
+ * ```typescript
+ * import { prepare } from '@gwen/cli';
+ *
+ * const result = await prepare({ projectDir: process.cwd(), verbose: true });
+ * if (result.success) {
+ *   console.log('Generated files:', result.files);
+ * } else {
+ *   console.error('Errors:', result.errors);
+ * }
+ * ```
+ */
 export async function prepare(options: PrepareOptions = {}): Promise<PrepareResult> {
   const projectDir = path.resolve(options.projectDir ?? process.cwd());
   const verbose = options.verbose ?? false;

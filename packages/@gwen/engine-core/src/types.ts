@@ -38,29 +38,42 @@ export interface ComponentAccessor<T> {
 // ============= Service Locator =============
 
 /**
- * Service locator typé sur un map de services `M`.
+ * Typed service locator parameterized by a service map `M`.
  *
- * Quand `M` est inféré depuis les plugins déclarés dans `defineConfig()`,
- * `get()` et `register()` sont fortement typés sur les clés/valeurs du map.
+ * When `M` is inferred from plugins declared in `defineConfig()`,
+ * both `get()` and `register()` are strongly typed on the map's keys and values.
  *
+ * @example
  * ```typescript
- * // Avec plugins typés :
+ * // With typed plugins:
  * api.services.get('keyboard')  // → KeyboardInput  ✅
  * api.services.get('audio')     // → AudioManager   ✅
  * api.services.get('unknown')   // → TS error       ❌
  *
- * // Sans plugins typés (fallback rétro-compat) :
- * api.services.get<MyService>('anything')  // → MyService (cast explicite)
+ * // Without typed plugins (fallback):
+ * api.services.get<MyService>('anything')  // → MyService (explicit cast)
  * ```
  */
 export interface TypedServiceLocator<M extends Record<string, unknown> = Record<string, unknown>> {
-  /** Enregistre un service. La clé et la valeur sont typées si M est inféré. */
+  /**
+   * Register a service by name. Keys and values are typed if M is inferred.
+   * @param name Service name (key)
+   * @param instance Service instance
+   */
   register<K extends keyof M & string>(name: K, instance: M[K]): void;
 
-  /** Récupère un service typé par sa clé */
+  /**
+   * Get a service by name.
+   * @param name Service name
+   * @returns The service instance, type-safe if M is inferred
+   */
   get<K extends keyof M & string>(name: K): M[K];
 
-  /** Vérifie si un service est enregistré */
+  /**
+   * Check if a service is registered.
+   * @param name Service name
+   * @returns true if registered
+   */
   has(name: string): boolean;
 }
 
@@ -75,13 +88,17 @@ export interface IPluginRegistrar {
 // ============= Scene Navigator =============
 
 /**
- * Contrat minimal pour naviguer entre scènes depuis un plugin.
- * Ne crée pas de couplage circulaire avec SceneManager.
+ * Minimal contract for scene navigation from plugins.
+ * Breaks circular dependency with SceneManager.
  */
 export interface SceneNavigator {
-  /** Charge une scène au prochain frame (safe depuis onUpdate). */
+  /**
+   * Load a scene at the next frame (safe to call from onUpdate).
+   * @param name Scene name
+   */
   load(name: string): void;
-  /** Nom de la scène actuellement active, null si aucune. */
+
+  /** Name of the currently active scene, null if none. */
   readonly current: string | null;
 }
 
@@ -90,14 +107,15 @@ export interface SceneNavigator {
 /**
  * The API surface exposed to all TsPlugins during lifecycle callbacks.
  *
- * Le paramètre générique `M` représente le map des services disponibles.
- * Il est inféré automatiquement depuis les plugins déclarés dans `defineConfig()`.
+ * The generic parameter `M` represents the service map available from plugins declared in `defineConfig()`.
+ * It is automatically inferred by TypeScript.
  *
+ * @example
  * ```typescript
- * // Sans typage explicite — rétro-compat, services non typés
+ * // Without explicit typing (fallback):
  * onInit(api: EngineAPI) { ... }
  *
- * // Avec typage inféré via defineConfig()
+ * // With inferred typing via defineConfig():
  * onInit(api: EngineAPI<{ keyboard: KeyboardInput; audio: AudioManager }>) { ... }
  * ```
  */
@@ -146,15 +164,15 @@ export interface EngineAPI<M extends Record<string, unknown> = Record<string, un
     type: ComponentType | import('./schema').ComponentDefinition<any>,
   ): boolean;
 
-  /** Service locator — typé sur les services des plugins déclarés */
+  /** Service locator — typed on services from declared plugins */
   services: TypedServiceLocator<M>;
 
   /** Prefab manager — instantiate pre-assembled entities */
   readonly prefabs: import('./prefab').PrefabManager;
 
   /**
-   * Navigateur de scènes — disponible si un SceneManager est enregistré.
-   * null si aucun SceneManager n'est actif (tests headless, etc.).
+   * Scene navigator — available if a SceneManager is registered.
+   * null if no SceneManager is active (headless tests, etc.).
    *
    * @example
    * ```ts
@@ -206,9 +224,9 @@ export interface TsPlugin {
 }
 
 /**
- * Un plugin déclaré dans Scene.plugins[].
- * Peut être un objet direct (TsPlugin) ou une factory sans-args (() => TsPlugin).
- * Le SceneManager résout automatiquement les factories au moment de l'activation.
+ * A plugin entry as declared in Scene.plugins[].
+ * Can be a direct TsPlugin object or a no-arg factory (() => TsPlugin).
+ * SceneManager automatically resolves factories when the scene activates.
  */
 export type PluginEntry = TsPlugin | (() => TsPlugin);
 

@@ -31,12 +31,12 @@ import {
 } from './schema';
 import type { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
 
-// EntityId est maintenant un packed number (index | generation<<20) aligné sur le format Rust
+// EntityId is now a packed number (index | generation<<20) aligned with Rust format
 export type EntityId = number;
 
-// ── Interfaces des shims WASM ────────────────────────────────────────────────
+// ── WASM shim interfaces ──────────────────────────────────────────────────────
 
-/** Shim qui satisfait l'interface EntityManager attendue par createEngineAPI */
+/** Shim that satisfies the EntityManager interface expected by createEngineAPI */
 interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'> {
   create(): EntityId;
   destroy(id: EntityId): boolean;
@@ -44,7 +44,7 @@ interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'>
   [Symbol.iterator](): Iterator<EntityId>;
 }
 
-/** Shim qui satisfait l'interface ComponentRegistry attendue par createEngineAPI */
+/** Shim that satisfies the ComponentRegistry interface expected by createEngineAPI */
 interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'registeredTypes'> {
   add<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T): void;
   remove(id: EntityId, type: ComponentType): boolean;
@@ -52,7 +52,7 @@ interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'r
   has(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean;
 }
 
-/** Shim qui satisfait l'interface QueryEngine attendue par createEngineAPI */
+/** Shim that satisfies the QueryEngine interface expected by createEngineAPI */
 interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
   query(
     required: ComponentType[],
@@ -61,24 +61,26 @@ interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
   ): EntityId[];
 }
 
-/** Interface minimale d'un plugin legacy (avant registerSystem) */
+/** Minimal interface for legacy plugins (before registerSystem) */
 interface LegacyPlugin {
   init?(engine: Engine): void;
 }
 
-// ── Helpers packed EntityId ──────────────────────────────────────────────────
+// ── Packed EntityId helpers ────────────────────────────────────────────────────
 
+/** Pack WASM entity ID (index, generation) into a single 32-bit number: (generation << 20) | index */
 function packId(wasmId: WasmEntityId): EntityId {
   return (wasmId.generation << 20) | (wasmId.index & 0xfffff);
 }
 
+/** Unpack EntityId back to (index, generation) pair */
 function unpackId(id: EntityId): { index: number; generation: number } {
   return { index: id & 0xfffff, generation: id >>> 20 };
 }
 
-// ── Type interne de layout ───────────────────────────────────────────────────
+// ── Internal types ─────────────────────────────────────────────────────────────
 
-/** Valeur JS possible d'un champ de composant sérialisé */
+/** Possible JavaScript value for a serialized component field */
 type ComponentFieldValue = number | bigint | boolean | string;
 
 /**
@@ -114,19 +116,19 @@ export class Engine {
   private pluginManager: PluginManager;
   private api: EngineAPIImpl;
 
-  // WASM Bridge — obligatoire
+  // WASM Bridge — mandatory
   private wasmBridge: WasmBridge;
 
-  // Mapping composant string → typeId numérique Rust
+  // Component type string → Rust numeric typeId mapping
   private componentTypeIds = new Map<ComponentType, number>();
 
-  // Layout cache pour la sérialisation binaire accélérée
+  // Layout cache for accelerated binary serialization
   private schemaLayouts = new Map<
     ComponentType,
     SchemaLayout<Record<string, ComponentFieldValue>>
   >();
-  // Scratchpad global pour la serialisation (zero-alloc)
-  private scratchBuffer = new ArrayBuffer(1024); // 1KB suffit amplement pour un seul composant
+  // Scratch buffer for serialization (zero-alloc)
+  private scratchBuffer = new ArrayBuffer(1024); // 1KB is plenty for a single component
   private scratchDataView = new DataView(this.scratchBuffer);
 
   // Event system
@@ -138,10 +140,10 @@ export class Engine {
 
     this.wasmBridge = getWasmBridge();
 
-    // En test, le mock est injecté avant la construction — on accepte.
-    // En production, start() vérifie que isActive() est true.
+    // In tests, the mock is injected before construction — accepted.
+    // In production, start() verifies that isActive() is true.
 
-    // Wire up the API — les méthodes ECS délèguent au WASM bridge
+    // Wire up the API — ECS methods delegate to WASM bridge
     const entityShim: EntityManagerShim = {
       create: () => {
         const wid = this.wasmBridge.createEntity();
@@ -214,7 +216,7 @@ export class Engine {
         return this.wasmBridge.queryEntities(typeIds);
       },
       invalidate: () => {
-        /* géré par le WASM */
+        /* handled by WASM */
       },
     };
 
@@ -239,13 +241,17 @@ export class Engine {
       if (this.wasmBridge.isActive()) {
         console.log('[GWEN] WASM core ready');
       } else {
-        console.warn('[GWEN] WASM core not yet initialized — appelez initWasm() avant start()');
+        console.warn('[GWEN] WASM core not yet initialized — call initWasm() before start()');
       }
     }
   }
 
-  // ── Communication binaire TS -> Rust ────────────────────────────────────────
+  // ── Binary communication TS → Rust ────────────────────────────────────────
 
+  /**
+   * Internal: add a component to an entity and serialize it to WASM.
+   * @internal
+   */
   private _addComponentInternal(
     id: EntityId,
     type: ComponentDefinition<ComponentSchema> | ComponentType,
@@ -262,19 +268,23 @@ export class Engine {
     this.wasmBridge.updateEntityArchetype(index, this._getEntityTypeIds(id));
   }
 
+  /**
+   * Serialize component data to binary using the schema layout.
+   * @internal
+   */
   private _serializeComponent(componentId: string, data: unknown): Uint8Array {
     const layout = this.schemaLayouts.get(componentId);
 
     if (!layout) {
       throw new Error(
-        `[GWEN] Composant "${componentId}" n'a pas de layout enregistré. ` +
-          `Définissez-le avec defineComponent({ name: "${componentId}", schema: { ... } }).`,
+        `[GWEN] Component "${componentId}" has no registered layout. ` +
+          `Define it with defineComponent({ name: "${componentId}", schema: { ... } }).`,
       );
     }
     if (layout.byteLength === 0) {
       throw new Error(
-        `[GWEN] Composant "${componentId}" a un schema vide (byteLength === 0). ` +
-          `Passez la ComponentDefinition complète (defineComponent) au lieu d'une simple string.`,
+        `[GWEN] Component "${componentId}" has empty schema (byteLength === 0). ` +
+          `Pass the full ComponentDefinition (defineComponent) instead of a plain string.`,
       );
     }
     if (this.scratchBuffer.byteLength < layout.byteLength) {
@@ -288,16 +298,20 @@ export class Engine {
     return new Uint8Array(this.scratchBuffer, 0, bytesWritten);
   }
 
+  /**
+   * Deserialize component data from binary using the schema layout.
+   * @internal
+   */
   private _deserializeComponent(
     componentId: string,
     raw: Uint8Array,
   ): Record<string, ComponentFieldValue> {
     const layout = this.schemaLayouts.get(componentId);
     if (!layout) {
-      throw new Error(`[GWEN] Impossible de désérialiser "${componentId}" : layout absent.`);
+      throw new Error(`[GWEN] Cannot deserialize "${componentId}": layout missing.`);
     }
     if (layout.byteLength === 0) {
-      throw new Error(`[GWEN] Composant "${componentId}" a un schema vide (byteLength === 0).`);
+      throw new Error(`[GWEN] Component "${componentId}" has empty schema (byteLength === 0).`);
     }
     if (this.scratchBuffer.byteLength < layout.byteLength) {
       this.scratchBuffer = new ArrayBuffer(layout.byteLength);
@@ -308,6 +322,10 @@ export class Engine {
     return layout.deserialize!(this.scratchDataView) as Record<string, ComponentFieldValue>;
   }
 
+  /**
+   * Get or compute schema layout for a component definition.
+   * @internal
+   */
   private _getOrComputeLayout(
     def: ComponentDefinition<ComponentSchema>,
   ): SchemaLayout<Record<string, ComponentFieldValue>> {
@@ -319,6 +337,10 @@ export class Engine {
     return layout;
   }
 
+  /**
+   * Get or register a Rust component type ID for a component type name.
+   * @internal
+   */
   private _getOrRegisterTypeId(type: ComponentType): number {
     let typeId = this.componentTypeIds.get(type);
     if (typeId === undefined) {
@@ -328,6 +350,10 @@ export class Engine {
     return typeId;
   }
 
+  /**
+   * Get all type IDs currently on an entity.
+   * @internal
+   */
   private _getEntityTypeIds(id: EntityId): number[] {
     const { index, generation } = unpackId(id);
     const result: number[] = [];
@@ -339,6 +365,10 @@ export class Engine {
     return result;
   }
 
+  /**
+   * Validate engine configuration.
+   * @internal
+   */
   private validateConfig(): void {
     if (this.config.maxEntities < 100) {
       throw new Error('[GWEN] maxEntities must be at least 100');
@@ -354,6 +384,9 @@ export class Engine {
    * Register a TsPlugin — it will participate in the game loop lifecycle.
    * The renderer is just another plugin: `engine.registerSystem(new Canvas2DRenderer(...))`.
    * Calls onInit immediately with the EngineAPI.
+   *
+   * @param plugin The plugin to register
+   * @returns this for chaining
    */
   public registerSystem(plugin: TsPlugin): this {
     this.pluginManager.register(plugin, this.api);
@@ -363,29 +396,46 @@ export class Engine {
     return this;
   }
 
-  /** Get a registered plugin by name */
+  /**
+   * Get a registered plugin by name.
+   *
+   * @param name Plugin name
+   * @returns The plugin, or undefined if not found
+   */
   public getSystem<T extends TsPlugin>(name: string): T | undefined {
     return this.pluginManager.get<T>(name);
   }
 
-  /** Check if a plugin is registered */
+  /**
+   * Check if a plugin is registered.
+   *
+   * @param name Plugin name
+   * @returns true if registered
+   */
   public hasSystem(name: string): boolean {
     return this.pluginManager.has(name);
   }
 
-  /** Remove a plugin by name, calling its onDestroy */
+  /**
+   * Remove a plugin by name, calling its onDestroy.
+   *
+   * @param name Plugin name
+   * @returns true if unregistered, false if not found
+   */
   public removeSystem(name: string): boolean {
     return this.pluginManager.unregister(name);
   }
 
   /**
-   * Legacy plugin loader (backward compat).
+   * Legacy plugin loader (backward compatibility).
    * Prefer registerSystem() for TsPlugins.
    * @deprecated Use registerSystem() instead
    */
   private legacyPlugins: Map<string, unknown> = new Map();
 
-  /** @deprecated Use registerSystem() instead */
+  /**
+   * @deprecated Use registerSystem() instead
+   */
   public loadPlugin(name: string, plugin: unknown): void {
     if (this.legacyPlugins.has(name)) return;
     try {
@@ -476,7 +526,7 @@ export class Engine {
       this.wasmBridge.removeComponent(index, generation, typeId);
     }
     const result = this.wasmBridge.deleteEntity(index, generation);
-    // Retirer du query cache Rust — sinon l'entité détruite continue d'apparaître dans les queries
+    // Remove from Rust query cache — otherwise destroyed entity still appears in queries
     this.wasmBridge.removeEntityFromQuery(index);
     this.emit('entityDestroyed', { id });
     return result;

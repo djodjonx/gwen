@@ -1,20 +1,20 @@
 /**
  * GWEN Plugin System — typed plugin declaration
  *
- * `createPlugin()` permet de déclarer un plugin avec ses services exposés.
- * Deux syntaxes supportées — identiques à defineUI et defineScene.
+ * `createPlugin()` allows you to declare a plugin with its exposed services.
+ * Two syntaxes supported — identical to defineUI and defineScene.
  *
- * **Forme 1 — objet direct** (sans état local) :
+ * **Form 1 — direct object** (no local state):
  * ```typescript
  * export const AiSystem = createPlugin({
  *   name: 'AiSystem' as const,
  *   onUpdate(api, dt) { ... },
  * });
- * // Usage :
+ * // Usage:
  * scene.plugins = [AiSystem];
  * ```
  *
- * **Forme 2 — factory** (avec état local en closure, sans variables globales) :
+ * **Form 2 — factory** (with local state in closure, no global variables):
  * ```typescript
  * export const SpawnerSystem = createPlugin('SpawnerSystem', () => {
  *   let timer = 0;
@@ -23,11 +23,11 @@
  *     onUpdate(_, dt) { timer += dt; },
  *   };
  * });
- * // Usage :
+ * // Usage:
  * scene.plugins = [SpawnerSystem()];
  * ```
  *
- * **Forme 2 avec dépendances** (deps typées, pas de `any`) :
+ * **Form 2 with dependencies** (typed deps, no `any`):
  * ```typescript
  * export const PlayerSystem = createPlugin('PlayerSystem', (scenes: SceneManager) => {
  *   let keyboard: KeyboardInput | null = null;
@@ -36,38 +36,44 @@
  *     onUpdate(api, dt) { ... },
  *   };
  * });
- * // Usage :
+ * // Usage:
  * scene.plugins = [PlayerSystem(scenes)];
  * ```
  */
 
 import type { TsPlugin, EngineAPI } from './types';
 
-// ── Types utilitaires ─────────────────────────────────────────────────────────
+// ── Utility types ────────────────────────────────────────────────────────────
 
-/** Convertit une union en intersection : A | B | C → A & B & C */
+/**
+ * Converts a union into an intersection: A | B | C → A & B & C
+ */
 export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
   x: infer I,
 ) => void
   ? I
   : never;
 
-/** Extrait le type `provides` d'un GwenPlugin */
+/**
+ * Extracts the `provides` type from a GwenPlugin.
+ */
 export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, never>;
 
-/** Fusionne les `provides` de tous les plugins d'une liste */
+/**
+ * Merges `provides` from all plugins in a list.
+ */
 export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
 > &
   Record<string, unknown>;
 
-// ── Interface GwenPlugin ──────────────────────────────────────────────────────
+// ── GwenPlugin interface ──────────────────────────────────────────────────────
 
 /**
- * Plugin GWEN typé.
+ * Typed GWEN plugin.
  *
- * `N` = nom littéral du plugin (ex: `'InputPlugin'`)
- * `P` = map des services exposés (ex: `{ keyboard: KeyboardInput }`)
+ * `N` = literal plugin name (e.g., `'InputPlugin'`)
+ * `P` = service map exposed by this plugin (e.g., `{ keyboard: KeyboardInput }`)
  */
 export interface GwenPlugin<
   N extends string = string,
@@ -75,25 +81,25 @@ export interface GwenPlugin<
 > extends TsPlugin {
   readonly name: N;
   /**
-   * Déclare les services que ce plugin injecte dans `api.services`.
-   * Les valeurs sont des types fantômes (`{} as ServiceType`) — jamais lus à runtime.
-   * Utilisés uniquement pour l'inférence TypeScript.
+   * Declares services that this plugin injects into `api.services`.
+   * Values are phantom types (`{} as ServiceType`) — never read at runtime.
+   * Used only for TypeScript type inference.
    */
   readonly provides?: P;
 }
 
-/** Alias pratique pour un GwenPlugin sans contrainte sur N/P */
+/** Convenient alias for a GwenPlugin without constraints on N/P */
 export type AnyGwenPlugin = GwenPlugin<string, Record<string, unknown>>;
 
 // ── GwenPluginMeta ────────────────────────────────────────────────────────────
 
 /**
- * Métadonnées statiques déclarées par un plugin GWEN.
- * Consommées par `gwen prepare` pour enrichir `.gwen/gwen.d.ts`.
+ * Static metadata declared by a GWEN plugin.
+ * Consumed by `gwen prepare` to enrich `.gwen/gwen.d.ts`.
  *
  * @example
  * ```ts
- * // Dans @gwen/plugin-html-ui/src/index.ts
+ * // In @gwen/plugin-html-ui/src/index.ts
  * export const pluginMeta: GwenPluginMeta = {
  *   typeReferences: ['@gwen/plugin-html-ui/vite-env'],
  * };
@@ -138,20 +144,20 @@ export type GwenPluginFactory<
   Args extends unknown[] = [],
 > = ((...args: Args) => GwenPlugin<N, P>) & { readonly pluginName: N };
 
-// Surcharge 1 — objet direct (identique à aujourd'hui)
+// Overload 1 — direct object
 export function createPlugin<
   N extends string,
   P extends Record<string, unknown> = Record<string, never>,
 >(def: GwenPluginDef<N, P>): GwenPlugin<N, P>;
 
-// Surcharge 2 — factory OBLIGATOIRE (args typés via unknown[], pas any[])
+// Overload 2 — factory (required)
 export function createPlugin<
   N extends string,
   P extends Record<string, unknown> = Record<string, never>,
   Args extends unknown[] = [],
 >(name: N, factory: (...args: Args) => GwenPluginBody<P>): GwenPluginFactory<N, P, Args>;
 
-// Implémentation
+// Implementation
 export function createPlugin<
   N extends string,
   P extends Record<string, unknown> = Record<string, never>,
@@ -161,7 +167,7 @@ export function createPlugin<
   factory?: (...args: Args) => GwenPluginBody<P>,
 ): GwenPlugin<N, P> | GwenPluginFactory<N, P, Args> {
   if (typeof nameOrDef === 'string') {
-    // Forme 2 — factory callable avec pluginName annoté
+    // Form 2 — factory callable with pluginName annotated
     const fn = (...args: Args): GwenPlugin<N, P> => ({
       name: nameOrDef,
       ...factory!(...args),

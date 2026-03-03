@@ -57,8 +57,17 @@ export class MouseInput {
   };
 
   /**
-   * Attach event listeners.
-   * @param canvas Optional canvas for position offset calculation.
+   * Attach event listeners for mouse tracking.
+   *
+   * @param target Event target (default: window)
+   * @param canvas Optional canvas element for coordinate offset calculation
+   *
+   * @example
+   * ```typescript
+   * const mouse = new MouseInput();
+   * const canvas = document.getElementById('game') as HTMLCanvasElement;
+   * mouse.attach(window, canvas);
+   * ```
    */
   attach(target: EventTarget = window, canvas?: HTMLCanvasElement): void {
     this.canvas = canvas ?? null;
@@ -108,37 +117,108 @@ export class MouseInput {
     this._wheelAccumulator = 0;
   }
 
-  /** Current mouse position (canvas-relative if canvas provided). */
+  /**
+   * Current mouse position in canvas-relative or screen-relative coordinates.
+   *
+   * If a canvas was provided to attach(), x/y are relative to canvas.
+   * Otherwise, x/y are screen-relative (same as screenX/screenY).
+   *
+   * @returns MousePosition with x/y (canvas or screen space) and screenX/screenY (always screen space)
+   */
   get position(): Readonly<MousePosition> {
     return this._position;
   }
 
-  /** Wheel scroll delta this frame (positive = scroll down). */
+  /**
+   * Mouse wheel scroll delta for this frame.
+   * Positive values = scroll down, negative = scroll up.
+   *
+   * @returns Accumulated wheel ticks this frame (cleared each update)
+   */
   get wheel(): number {
     return this._wheel;
   }
 
+  /**
+   * Get the current state of a mouse button.
+   *
+   * @param btn Mouse button (0=left, 1=middle, 2=right)
+   * @returns Button state: 'idle', 'justPressed', 'held', 'justReleased'
+   */
   getButtonState(btn: MouseButton): MouseButtonState {
     return this.buttonStates.get(btn) ?? 'idle';
   }
 
+  /**
+   * Check if mouse button was just pressed this frame.
+   * Only true on the FIRST frame the button transitions to pressed.
+   *
+   * @param btn Mouse button (0=left, 1=middle, 2=right)
+   * @returns true if justPressed
+   *
+   * @example
+   * ```typescript
+   * if (mouse.isButtonJustPressed(0)) {
+   *   console.log('Click detected this frame');
+   * }
+   * ```
+   */
   isButtonJustPressed(btn: MouseButton): boolean {
     return this.buttonStates.get(btn) === 'justPressed';
   }
 
+  /**
+   * Check if mouse button is currently pressed (held down).
+   * True on all frames the button is down, including the first frame.
+   *
+   * @param btn Mouse button (0=left, 1=middle, 2=right)
+   * @returns true if justPressed or held
+   *
+   * @example
+   * ```typescript
+   * if (mouse.isButtonPressed(0)) {
+   *   player.drag(mouse.position);  // Smooth dragging while held
+   * }
+   * ```
+   */
   isButtonPressed(btn: MouseButton): boolean {
     const s = this.buttonStates.get(btn);
     return s === 'justPressed' || s === 'held';
   }
 
+  /**
+   * Check if mouse button is being held (not on the first frame).
+   * Useful for distinguishing initial click from continuous drag.
+   *
+   * @param btn Mouse button (0=left, 1=middle, 2=right)
+   * @returns true if held
+   */
   isButtonHeld(btn: MouseButton): boolean {
     return this.buttonStates.get(btn) === 'held';
   }
 
+  /**
+   * Check if mouse button was just released this frame.
+   * Only true on the FIRST frame after the button is released.
+   *
+   * @param btn Mouse button (0=left, 1=middle, 2=right)
+   * @returns true if justReleased
+   *
+   * @example
+   * ```typescript
+   * if (mouse.isButtonJustReleased(0)) {
+   *   player.dropItem();  // Execute once on release
+   * }
+   * ```
+   */
   isButtonJustReleased(btn: MouseButton): boolean {
     return this.buttonStates.get(btn) === 'justReleased';
   }
 
+  /**
+   * Reset all mouse button states and wheel accumulator to idle.
+   * Useful when window loses focus to prevent stuck buttons.
+   */
   reset(): void {
     for (const btn of this.buttonStates.keys()) {
       this.buttonStates.set(btn, 'idle');

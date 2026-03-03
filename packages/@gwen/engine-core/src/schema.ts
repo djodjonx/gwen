@@ -89,21 +89,27 @@ export interface SchemaLayout<T> {
   deserialize?: (view: DataView) => T;
 }
 
-// ── Types internes pour la sérialisation ────────────────────────────────────
+// ── Internal types for serialization ──────────────────────────────────────────
 
-/** Types numériques dont les accesseurs DataView acceptent (offset, littleEndian) */
+/**
+ * Numeric schema types whose DataView accessors accept (offset, littleEndian).
+ */
 type NumericSchemaTypeName = 'f32' | 'f64' | 'i32' | 'u32';
 
-/** Accesseurs DataView pour les types numériques — liaison stricte */
+/**
+ * DataView accessor methods for numeric types — strict binding.
+ */
 type NumericReadMethod = 'getFloat32' | 'getFloat64' | 'getInt32' | 'getUint32';
 type NumericWriteMethod = 'setFloat32' | 'setFloat64' | 'setInt32' | 'setUint32';
 
-/** Types entiers 64-bit : nécessitent bigint */
+/**
+ * 64-bit integer schema types — require bigint.
+ */
 type BigIntSchemaTypeName = 'i64' | 'u64';
 type BigIntReadMethod = 'getBigInt64' | 'getBigUint64';
 type BigIntWriteMethod = 'setBigInt64' | 'setBigUint64';
 
-/** Valeur JS d'un champ selon son type schema */
+/** Possible JavaScript value for a schema field */
 type FieldValue = number | bigint | boolean | string;
 
 interface FieldMeta {
@@ -197,13 +203,15 @@ export interface ComponentDefinition<S extends ComponentSchema> {
   readonly schema: S;
 }
 
-/** Corps d'un ComponentDefinition sans le `name` — utilisé par la forme factory. */
+/**
+ * Body of a ComponentDefinition without the `name` — used by factory form.
+ */
 export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<S>, 'name'>;
 
 /**
- * Defines an ECS component schema — deux syntaxes supportées.
+ * Define an ECS component schema — two syntaxes supported.
  *
- * **Forme 1 — objet direct** :
+ * **Form 1 — direct object**:
  * ```ts
  * export const Position = defineComponent({
  *   name: 'position',
@@ -211,25 +219,35 @@ export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<
  * });
  * ```
  *
- * **Forme 2 — factory OBLIGATOIRE** (schéma calculé dynamiquement) :
+ * **Form 2 — factory (required for dynamic schema)**:
  * ```ts
  * export const Position = defineComponent('position', () => ({
  *   schema: { x: Types.f32, y: Types.f32 },
  * }));
  * ```
+ *
+ * @param nameOrConfig Either a string name or a full ComponentDefinition
+ * @param factory Optional factory function (required for Form 2)
+ * @returns The component definition with schema and name
+ *
+ * @example
+ * ```ts
+ * export const Health = defineComponent({
+ *   name: 'health',
+ *   schema: { current: Types.f32, max: Types.f32 }
+ * });
+ * type HealthData = InferComponent<typeof Health>;
+ * ```
  */
-// Surcharge 1 — objet direct
 export function defineComponent<S extends ComponentSchema>(
   config: ComponentDefinition<S>,
 ): ComponentDefinition<S>;
 
-// Surcharge 2 — factory OBLIGATOIRE
 export function defineComponent<S extends ComponentSchema>(
   name: string,
   factory: () => ComponentBody<S>,
 ): ComponentDefinition<S>;
 
-// Implémentation
 export function defineComponent<S extends ComponentSchema>(
   nameOrConfig: string | ComponentDefinition<S>,
   factory?: () => ComponentBody<S>,

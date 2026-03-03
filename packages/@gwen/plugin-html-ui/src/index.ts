@@ -48,39 +48,128 @@ export const pluginMeta: GwenPluginMeta = {
 // ── HtmlUI service ────────────────────────────────────────────────────────────
 
 /**
- * Service exposé par HtmlUIPlugin via api.services.get('htmlUI').
- * Gère le cycle de vie des templates HTML par entité.
+ * Service exposed by HtmlUIPlugin via api.services.get('htmlUI').
+ * Manages HTML template lifecycle for UI entities.
+ *
+ * Templates should use `?raw` import to get raw HTML string:
+ * ```typescript
+ * import scoreTemplate from './score.html?raw';
+ * ```
  */
 export interface HtmlUI {
   /**
-   * Monte un template HTML pour une entité.
-   * Parse le template, injecte le <style> dans <head> (une fois),
-   * et crée un sous-arbre DOM isolé pour l'entité.
+   * Mount an HTML template for an entity.
+   *
+   * Parses the template, injects <style> into document head (once, deduplicated),
+   * and creates an isolated DOM subtree for the entity under #gwen-html-ui.
+   *
+   * @param entityId Unique entity identifier
+   * @param template Raw HTML string (can include <style> tag)
+   *
+   * @example
+   * ```typescript
+   * onMount(api, entityId) {
+   *   const html = `
+   *     <style>
+   *       .score-display { font-size: 24px; color: white; }
+   *     </style>
+   *     <div class="score-display">
+   *       <span id="score">0</span>
+   *     </div>
+   *   `;
+   *   api.services.get('htmlUI').mount(entityId, html);
+   * }
+   * ```
    */
   mount(entityId: EntityId, template: string): void;
 
-  /** Démonte et supprime le DOM de l'entité. */
+  /**
+   * Unmount and remove all DOM for an entity.
+   * Safe to call multiple times; idempotent.
+   *
+   * @param entityId Entity to unmount
+   */
   unmount(entityId: EntityId): void;
 
-  /** Récupère un élément par son ID dans le template de l'entité. */
+  /**
+   * Get a child element by its ID within an entity's template.
+   * Elements are indexed by their `id` attribute.
+   *
+   * @param entityId Entity identifier
+   * @param id Element ID within the template
+   * @returns HTMLElement if found, undefined otherwise
+   */
   el(entityId: EntityId, id: string): HTMLElement | undefined;
 
-  /** Met à jour textContent d'un élément. */
+  /**
+   * Update the text content of an element.
+   * Equivalent to setting `element.textContent`.
+   *
+   * @param entityId Entity identifier
+   * @param id Element ID
+   * @param value New text content
+   */
   text(entityId: EntityId, id: string, value: string): void;
 
-  /** Met à jour une propriété CSS d'un élément. */
+  /**
+   * Update a CSS property on an element.
+   * Equivalent to `element.style[prop] = value`.
+   *
+   * @param entityId Entity identifier
+   * @param id Element ID
+   * @param prop CSS property name (camelCase, e.g., 'backgroundColor')
+   * @param value CSS value
+   *
+   * @example
+   * ```typescript
+   * // Set opacity
+   * api.services.get('htmlUI').style(entityId, 'ui', 'opacity', '0.5');
+   *
+   * // Change color
+   * api.services.get('htmlUI').style(entityId, 'ui', 'color', '#ff0000');
+   * ```
+   */
   style(entityId: EntityId, id: string, prop: string, value: string): void;
 }
 
-// ── Internal DOM context per entity ──────────────────────────────────────────
-
-interface DomContext {
-  root: HTMLElement;
-  elements: Map<string, HTMLElement>;
-}
-
-// ── HtmlUIPlugin ──────────────────────────────────────────────────────────────
-
+/**
+ * HtmlUIPlugin — Render entity UIs using HTML templates
+ *
+ * Manages mounting/unmounting HTML templates to entities and provides
+ * a service for dynamic element manipulation (text updates, style changes).
+ *
+ * Creates a #gwen-html-ui container overlay positioned above the canvas
+ * with `pointer-events: none` to avoid blocking game input.
+ *
+ * @example
+ * ```typescript
+ * // gwen.config.ts
+ * import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+ *
+ * export default defineConfig({
+ *   plugins: [new HtmlUIPlugin()],
+ * });
+ *
+ * // src/ui/ScoreUI.ts
+ * import scoreTemplate from './score.html?raw';
+ *
+ * export const ScoreUI = defineUI<GwenServices>({
+ *   name: 'ScoreUI',
+ *   onMount(api, entityId) {
+ *     api.services.get('htmlUI').mount(entityId, scoreTemplate);
+ *   },
+ *   render(api, entityId) {
+ *     const score = api.getComponent(entityId, Score);
+ *     if (score) {
+ *       api.services.get('htmlUI').text(entityId, 'score', `${score.value}`);
+ *     }
+ *   },
+ *   onUnmount(api, entityId) {
+ *     api.services.get('htmlUI').unmount(entityId);
+ *   },
+ * });
+ * ```
+ */
 export class HtmlUIPlugin implements GwenPlugin<'HtmlUIPlugin', { htmlUI: HtmlUI }> {
   readonly name = 'HtmlUIPlugin' as const;
   readonly provides = { htmlUI: {} as HtmlUI };

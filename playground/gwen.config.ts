@@ -41,7 +41,7 @@ export default defineConfig({
     //   fpsDrop: {
     //     threshold: 45,
     //     onDrop: (fps: number, metrics: DebugMetrics) => {
-    //       console.warn(`[GWEN:Debug] FPS drop détecté : ${fps.toFixed(0)} FPS (avg: ${metrics.rollingFps.toFixed(1)})`);
+    //       console.warn(`[GWEN:Debug] FPS drop detected: ${fps.toFixed(0)} FPS (avg: ${metrics.rollingFps.toFixed(1)})`);
     //     },
     //   },
     // }),

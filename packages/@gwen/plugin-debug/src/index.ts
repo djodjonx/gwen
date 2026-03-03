@@ -33,15 +33,42 @@ export type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig
 // ── DebugService ──────────────────────────────────────────────────────────────
 
 /**
- * Service exposé par DebugPlugin dans `api.services.get('debug')`.
- * Lecture seule pour les consommateurs.
+ * Service exposed by DebugPlugin via api.services.get('debug').
+ * Read-only metrics and controls for debugging and performance monitoring.
+ *
+ * @example
+ * ```typescript
+ * onInit(api: EngineAPI<GwenServices>) {
+ *   const debug = api.services.get('debug');
+ *   const metrics = debug.getMetrics();
+ *   console.log(`FPS: ${metrics.currentFps.toFixed(1)}`);
+ *   console.log(`Average FPS: ${metrics.averageFps.toFixed(1)}`);
+ * }
+ * ```
  */
 export interface DebugService {
-  /** Dernier snapshot de métriques calculé. */
+  /**
+   * Get the latest calculated metrics snapshot.
+   * Updated every frame by the DebugPlugin.
+   *
+   * @returns DebugMetrics with current FPS, frame time, and drop statistics
+   */
   getMetrics(): DebugMetrics;
-  /** Réinitialise le ring buffer FPS (utile après un chargement long). */
+
+  /**
+   * Reset the FPS ring buffer and counters.
+   * Useful after long operations (loading scenes, asset loading) that distort metrics.
+   *
+   * Clears drop flags and sets currentFps to 0.
+   */
   reset(): void;
-  /** Affiche ou masque l'overlay (si activé). */
+
+  /**
+   * Show or hide the debug overlay (if enabled in config).
+   * No-op if overlay is disabled (overlay: false in DebugPluginConfig).
+   *
+   * @param visible true to show overlay, false to hide
+   */
   setOverlayVisible(visible: boolean): void;
 }
 
@@ -54,6 +81,38 @@ export interface DebugPluginServices {
 
 // ── DebugPlugin ───────────────────────────────────────────────────────────────
 
+/**
+ * Performance monitoring and debugging plugin.
+ *
+ * Tracks frame time, FPS, and detects drops. Optionally renders an on-screen
+ * debug overlay. Exposes metrics via the 'debug' service.
+ *
+ * @example
+ * ```typescript
+ * // gwen.config.ts
+ * import { DebugPlugin } from '@gwen/plugin-debug';
+ *
+ * export default defineConfig({
+ *   plugins: [
+ *     new DebugPlugin({
+ *       windowSize: 120,           // FPS window in frames
+ *       overlay: {
+ *         enabled: true,
+ *         position: 'top-left',
+ *         scale: 1.5,
+ *       },
+ *       onFpsDrop: {
+ *         threshold: 45,           // Alert below 45 FPS
+ *         onDrop: (fps, metrics) => {
+ *           console.warn(`⚠️ FPS dropped to ${fps.toFixed(0)}`);
+ *         },
+ *         gracePeriodFrames: 3,   // Require 3 consecutive frames below threshold
+ *       },
+ *     }),
+ *   ],
+ * });
+ * ```
+ */
 export class DebugPlugin implements GwenPlugin<'DebugPlugin', DebugPluginServices> {
   readonly name = 'DebugPlugin' as const;
 

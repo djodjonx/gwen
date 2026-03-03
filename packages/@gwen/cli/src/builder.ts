@@ -23,32 +23,59 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface BuildOptions {
-  /** Répertoire racine du projet (défaut: process.cwd()) */
+  /**
+   * Project root directory (default: process.cwd()).
+   * Must contain a gwen.config.ts file.
+   */
   projectDir?: string;
-  /** Répertoire de sortie (défaut: <projectDir>/dist) */
+  /**
+   * Output directory for built artifacts (default: <projectDir>/dist).
+   * Contains bundled JavaScript, WASM artifacts, and manifest.
+   */
   outDir?: string;
-  /** Mode release (opt-level=z, lto) ou debug */
+  /**
+   * Build mode: 'release' (optimized) or 'debug' (faster build).
+   * Release uses wasm-pack --release with opt-level=z and LTO.
+   * Default: 'release'
+   */
   mode?: 'release' | 'debug';
-  /** Afficher les logs détaillés */
+  /**
+   * Enable detailed logging of build steps and file operations.
+   * Default: false
+   */
   verbose?: boolean;
   /**
-   * Si true, ne lance pas wasm-pack et ne copie pas les artefacts.
-   * Utile pour les tests unitaires du CLI.
+   * Skip WASM compilation and artifact copying (for testing).
+   * Default: false
    */
   dryRun?: boolean;
 }
 
+/**
+ * Result of build operation
+ */
 export interface BuildResult {
+  /** True if build completed without fatal errors */
   success: boolean;
+  /** Path to gwen.config.ts (null if not found) */
   configPath: string | null;
+  /** True if WASM was successfully compiled or copied */
   wasmBuilt: boolean;
+  /** Path to compiled/copied WASM artifacts directory */
   wasmOutputDir: string | null;
+  /** Path to generated gwen-manifest.json */
   manifestPath: string | null;
+  /** Fatal errors that prevented build completion */
   errors: string[];
+  /** Non-fatal warnings (build completed but with issues) */
   warnings: string[];
+  /** Total build time in milliseconds */
   durationMs: number;
 }
 
+/**
+ * Manifest describing built WASM engine and plugins
+ */
 export interface WasmManifest {
   version: string;
   builtAt: string;
@@ -61,8 +88,38 @@ export interface WasmManifest {
   }>;
 }
 
-// ── Build principal ───────────────────────────────────────────────────────────
-
+/**
+ * Build a GWEN project for production
+ *
+ * Complete build pipeline:
+ * 1. Parse gwen.config.ts
+ * 2. Compile Rust WASM (if Cargo.toml exists) or copy pre-compiled artifacts
+ * 3. Generate WASM manifest
+ * 4. Output to dist/
+ *
+ * @param options Build configuration
+ * @returns Promise<BuildResult> with success flag and build artifacts info
+ *
+ * @example
+ * ```typescript
+ * import { build } from '@gwen/cli';
+ *
+ * const result = await build({
+ *   projectDir: process.cwd(),
+ *   outDir: 'dist',
+ *   mode: 'release',
+ *   verbose: true
+ * });
+ *
+ * if (result.success) {
+ *   console.log(`Built in ${result.durationMs}ms`);
+ *   console.log(`WASM: ${result.wasmOutputDir}`);
+ *   console.log(`Manifest: ${result.manifestPath}`);
+ * } else {
+ *   console.error('Build failed:', result.errors);
+ * }
+ * ```
+ */
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const start = Date.now();
   const projectDir = path.resolve(options.projectDir ?? process.cwd());

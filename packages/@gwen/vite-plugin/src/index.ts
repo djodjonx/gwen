@@ -72,9 +72,9 @@ export interface GwenPluginOptions {
 const VIRTUAL_MANIFEST_ID = 'virtual:gwen-manifest';
 const RESOLVED_VIRTUAL_MANIFEST = '\0' + VIRTUAL_MANIFEST_ID;
 
-// /@gwen/ prefix — résolu comme un vrai chemin HTTP par le navigateur,
-// intercepté par resolveId avant que Vite ne le cherche sur disque.
-// Pattern identique à /@vite/ et /@fs/ utilisés par Vite lui-même.
+// /@gwen/ prefix — resolved as real HTTP path by browser,
+// intercepted by resolveId before Vite looks on disk.
+// Pattern identical to /@vite/ and /@fs/ used by Vite itself.
 const GWEN_ENTRY_ID = '/@gwen/entry';
 const GWEN_SCENES_ID = '/@gwen/scenes';
 const RESOLVED_ENTRY = '\0/@gwen/entry';
@@ -87,8 +87,8 @@ interface SceneInfo {
   className: string;
   sceneName: string;
   isDefault: boolean;
-  isFactory: boolean; // defineScene forme 2 — factory callable
-  isConst: boolean; // defineScene forme 1 — objet direct (export const)
+  isFactory: boolean; // defineScene form 2 — callable factory
+  isConst: boolean; // defineScene form 1 — direct object (export const)
   relPath: string;
 }
 
@@ -141,7 +141,7 @@ function resolveMainScene(scenes: SceneInfo[], fromConfig?: string): string | un
   return candidates.find((c) => scenes.some((s) => s.sceneName === c)) ?? scenes[0]?.sceneName;
 }
 
-// ── Génération des virtual modules ────────────────────────────────────────────
+// ── Virtual module generation ─────────────────────────────────────────────────
 
 function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined): string {
   if (scenes.length === 0) {
@@ -162,14 +162,14 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
   const registrations = scenes
     .map((s) => {
       if (s.isFactory) {
-        // defineScene forme 2 — factory callable avec dépendances
+        // defineScene form 2 — callable factory with dependencies
         return `  scenes.register(${s.className}(scenes));`;
       }
       if (s.isConst) {
-        // defineScene forme 1 — objet direct, s'enregistre tel quel
+        // defineScene form 1 — direct object, registers as-is
         return `  scenes.register(${s.className});`;
       }
-      // class (rétrocompat)
+      // class (backward compat)
       return `  scenes.register(new ${s.className}(scenes));`;
     })
     .join('\n');
@@ -303,7 +303,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     const crate = resolveCratePath(root);
 
     if (!crate) {
-      // Pas de crate Rust custom — pointer vers les artefacts pré-compilés
+      // No custom Rust crate — point to pre-compiled artifacts
       const precompiled = findPrecompiledWasmDir(root);
       if (!precompiled) {
         console.warn(
@@ -326,7 +326,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return !!precompiled;
     }
 
-    // Compiler dans .gwen/wasm/ pour éviter de polluer public/
+    // Compile to .gwen/wasm/ to avoid polluting public/
     const outDir = path.resolve(root, '.gwen', 'wasm');
     fs.mkdirSync(outDir, { recursive: true });
 
@@ -411,7 +411,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     name: 'gwen',
     enforce: 'pre',
 
-    // ── Résolution des virtual modules ───────────────────────────────────
+    // ── Virtual module resolution ──────────────────────────────────────
     resolveId(id) {
       if (id === VIRTUAL_MANIFEST_ID) return RESOLVED_VIRTUAL_MANIFEST;
       if (id === GWEN_ENTRY_ID) return RESOLVED_ENTRY;
@@ -444,9 +444,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       return null;
     },
 
-    // ── Injection du script entry dans le HTML servi ─────────────────────
+    // ── Inject entry script into served HTML ────────────────────────────
     transformIndexHtml(html) {
-      // Si le script est déjà présent, ne pas le dupliquer
+      // If script already present, don't duplicate
       if (html.includes('/@gwen/entry')) return html;
       return html.replace(
         '</body>',
@@ -454,13 +454,13 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       );
     },
 
-    // ── HMR : invalider les modules quand src/scenes/ change ─────────────
+    // ── HMR: invalidate modules when src/scenes/ changes ─────────────────
     configureServer(devServer) {
       server = devServer;
       projectRoot = devServer.config.root;
       cratePath = resolveCratePath(projectRoot);
 
-      // Watcher sur src/scenes/ pour invalider les modules
+      // Watcher on src/scenes/ to invalidate modules
       const scenesDir = path.join(projectRoot, 'src', 'scenes');
       if (fs.existsSync(scenesDir)) {
         fs.watch(scenesDir, () => {
@@ -477,9 +477,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         startWatcher(projectRoot);
       }
 
-      // Middleware WASM + HTML généré si index.html absent
+      // WASM middleware + generated HTML if index.html missing
       devServer.middlewares.use((req, res, next) => {
-        // Servir les fichiers WASM directement depuis wasmSourceDir (sans copie dans public/)
+        // Serve WASM files directly from wasmSourceDir (no copy to public/)
         const wasmPrefix = wasmPublicPath.endsWith('/') ? wasmPublicPath : wasmPublicPath + '/';
         if (req.url?.startsWith(wasmPrefix) && wasmSourceDir) {
           const fileName = req.url.slice(wasmPrefix.length);
@@ -493,20 +493,20 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
           }
         }
 
-        // Servir le .gwen/index.html (le fichier préparé par la CLI)
+        // Serve .gwen/index.html (file prepared by CLI)
         if (
           (req.url === '/' || req.url === '/index.html') &&
           !fs.existsSync(path.join(projectRoot, 'index.html'))
         ) {
           const gwenHtmlPath = path.join(projectRoot, '.gwen', 'index.html');
 
-          // Fallback ultra mininal au cas où `gwen prepare` n'aurait pas encore fini
+          // Fallback minimal in case `gwen prepare` hasn't finished yet
           let raw = `<!DOCTYPE html><html><body><script type="module" src="/@gwen/entry"></script></body></html>`;
           if (fs.existsSync(gwenHtmlPath)) {
             raw = fs.readFileSync(gwenHtmlPath, 'utf-8');
           }
 
-          // Passer par le pipeline Vite : inject HMR client + transformIndexHtml hooks
+          // Go through Vite pipeline: inject HMR client + transformIndexHtml hooks
           devServer
             .transformIndexHtml(req.url!, raw, req.originalUrl)
             .then((html) => {
@@ -521,9 +521,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       });
     },
 
-    // ── Build production : émettre le manifeste + les assets WASM ────────
+    // ── Production build: emit manifest + WASM assets ────────────────────
     generateBundle() {
-      // Manifeste
+      // Manifest
       const manifest = loadManifest();
       this.emitFile({
         type: 'asset',
@@ -531,7 +531,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         source: manifest,
       });
 
-      // Artefacts WASM — émis comme assets dans dist/wasm/
+      // WASM artifacts — emitted as assets to dist/wasm/
       const srcDir = wasmSourceDir ?? findPrecompiledWasmDir(projectRoot);
       if (srcDir) {
         const files = listWasmFiles(srcDir);
@@ -548,18 +548,18 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       }
     },
 
-    // ── Build SSR/preview : s'assurer que wasmSourceDir est connu ─────────
+    // ── Build SSR/preview: ensure wasmSourceDir is known ─────────────────
     buildStart() {
       if (!wasmSourceDir) {
         buildWasm(projectRoot);
       }
     },
 
-    // ── vite serve preview : servir le dossier dist/wasm/ ─────────────────
-    // (géré automatiquement par Vite car dist/ est le dossier de build)
-    // Rien de plus à faire ici.
+    // ── Vite serve preview: serve dist/wasm/ folder ─────────────────────
+    // (handled automatically by Vite as dist/ is the build folder)
+    // Nothing more to do here.
   };
 }
 
-// Export par défaut pour la compat CommonJS
+// Default export for CommonJS compatibility
 export default gwen;

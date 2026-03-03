@@ -82,32 +82,79 @@ export class KeyboardInput {
     this.pendingUp.clear();
   }
 
+  /**
+   * Get the current state of a key.
+   *
+   * @param key Key code (e.g., 'ArrowUp', 'Space', 'KeyW')
+   * @returns Current state: 'idle', 'justPressed', 'held', 'justReleased'
+   */
   getState(key: string): KeyState {
     return this.states.get(key) ?? 'idle';
   }
 
-  /** True only on the first frame the key is pressed. */
+  /**
+   * Check if key was just pressed this frame.
+   * Only true on the FIRST frame the key transitions from idle to pressed.
+   *
+   * @param key Key code
+   * @returns true if justPressed, false otherwise
+   *
+   * @example
+   * ```typescript
+   * if (keyboard.isJustPressed('Space')) {
+   *   player.jump();  // Executes once per press
+   * }
+   * ```
+   */
   isJustPressed(key: string): boolean {
     return this.states.get(key) === 'justPressed';
   }
 
-  /** True on all frames the key is held (including first). */
+  /**
+   * Check if key is currently pressed (held down).
+   * True on all frames the key is down, including the first frame.
+   *
+   * @param key Key code
+   * @returns true if justPressed or held
+   *
+   * @example
+   * ```typescript
+   * if (keyboard.isPressed('KeyW')) {
+   *   player.moveForward(dt);  // Smooth movement while key is held
+   * }
+   * ```
+   */
   isPressed(key: string): boolean {
     const s = this.states.get(key);
     return s === 'justPressed' || s === 'held';
   }
 
-  /** True only while key is actively held (not first frame). */
+  /**
+   * Check if key is being held (not on the first frame).
+   * Useful for differentiating between initial press and continuous holding.
+   *
+   * @param key Key code
+   * @returns true if held
+   */
   isHeld(key: string): boolean {
     return this.states.get(key) === 'held';
   }
 
-  /** True only on the first frame the key is released. */
+  /**
+   * Check if key was just released this frame.
+   * Only true on the FIRST frame after the key is released.
+   *
+   * @param key Key code
+   * @returns true if justReleased
+   */
   isJustReleased(key: string): boolean {
     return this.states.get(key) === 'justReleased';
   }
 
-  /** Reset all key states (useful on focus loss). */
+  /**
+   * Reset all key states to idle.
+   * Useful when window loses focus to prevent stuck keys.
+   */
   reset(): void {
     for (const key of this.states.keys()) {
       this.states.set(key, 'idle');

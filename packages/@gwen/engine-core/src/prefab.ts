@@ -34,13 +34,15 @@ export interface PrefabDefinition<Args extends any[] = any[]> {
   create: (api: EngineAPI, ...args: Args) => EntityId;
 }
 
-/** Corps d'un PrefabDefinition sans le `name` — utilisé par la forme factory. */
+/**
+ * Body of a PrefabDefinition without the `name` — used by factory form.
+ */
 export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>, 'name'>;
 
 /**
- * Définit un Prefab GWEN — deux syntaxes supportées.
+ * Define a GWEN Prefab — two syntaxes supported.
  *
- * **Forme 1 — objet direct** :
+ * **Form 1 — direct object**:
  * ```ts
  * export const PlayerPrefab = definePrefab({
  *   name: 'Player',
@@ -48,7 +50,7 @@ export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>
  * });
  * ```
  *
- * **Forme 2 — factory** (état local en closure) :
+ * **Form 2 — factory** (local state in closure):
  * ```ts
  * export const EnemyPrefab = definePrefab('Enemy', () => {
  *   const baseSpeed = 80;
@@ -57,19 +59,32 @@ export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>
  *   };
  * });
  * ```
+ *
+ * @param nameOrConfig Either a string name or a full PrefabDefinition
+ * @param factory Optional factory function (required for Form 2)
+ * @returns The prefab definition
+ *
+ * @example
+ * ```ts
+ * export const BulletPrefab = definePrefab({
+ *   name: 'Bullet',
+ *   create: (api, x: number, y: number) => {
+ *     const id = api.createEntity();
+ *     api.addComponent(id, Position, { x, y });
+ *     return id;
+ *   }
+ * });
+ * ```
  */
-// Surcharge 1 — objet direct
 export function definePrefab<Args extends any[]>(
   config: PrefabDefinition<Args>,
 ): PrefabDefinition<Args>;
 
-// Surcharge 2 — factory OBLIGATOIRE
 export function definePrefab<Args extends any[]>(
   name: string,
   factory: () => PrefabBody<Args>,
 ): PrefabDefinition<Args>;
 
-// Implémentation
 export function definePrefab<Args extends any[]>(
   nameOrConfig: string | PrefabDefinition<Args>,
   factory?: () => PrefabBody<Args>,

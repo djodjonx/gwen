@@ -1,25 +1,29 @@
 /**
- * WASM Bridge — pont entre @gwen/engine-core (TypeScript) et gwen_core.wasm (Rust)
+ * WASM Bridge — Interface between @gwen/engine-core (TypeScript) and gwen_core.wasm (Rust).
  *
- * Le cœur Rust/WASM est OBLIGATOIRE. Il n'existe pas de fallback TS.
- * Appeler `await initWasm()` AVANT de créer l'Engine — une erreur est levée sinon.
+ * The Rust/WASM core is MANDATORY — no TypeScript fallback exists.
+ * Call `await initWasm()` BEFORE creating the Engine, or an error is thrown.
  *
+ * @example
  * ```typescript
- * await initWasm();          // résolution automatique depuis @gwen/engine-core/wasm/
+ * await initWasm();          // Auto-resolves from @gwen/engine-core/wasm/
  * const engine = getEngine();
  * engine.start();
  * ```
  */
 
-// ── Types du module wasm-bindgen généré ──────────────────────────────────────
+// ── wasm-bindgen generated module types ───────────────────────────────────────
 
-/** Handle opaque d'une entité Rust (index + generation). */
+/**
+ * Opaque entity handle from Rust (index + generation pair).
+ * Both fields must be passed back to safely detect stale references.
+ */
 export interface WasmEntityId {
   readonly index: number;
   readonly generation: number;
 }
 
-/** Interface minimale du module wasm-bindgen gwen_core */
+/** Minimal interface for the wasm-bindgen generated gwen_core module */
 export interface GwenCoreWasm {
   Engine: {
     new (maxEntities: number): WasmEngine;
@@ -56,50 +60,55 @@ export interface WasmEngine {
   stats(): string;
 }
 
-// ── État interne ──────────────────────────────────────────────────────────────
+// ── Internal state ────────────────────────────────────────────────────────────
 
 let _wasmEngine: WasmEngine | null = null;
 let _wasmModule: GwenCoreWasm | null = null;
 let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
 
-// URL de base pour les artefacts WASM.
-//
-// Stratégie de résolution (par ordre de priorité) :
-//  1. En navigateur : /wasm/ relatif à l'origine courante.
-//     Le @gwen/vite-plugin sert ce dossier via son middleware (dev)
-//     et le CLI le copie dans dist/wasm/ (build).
-//  2. En Node (SSR / tests) : null — initWasm() doit recevoir une URL explicite.
-//
-// On n'utilise PAS new URL('../wasm/', import.meta.url) car en mode dev Vite
-// cela génère un chemin @fs/.../.../engine-core/wasm sans le slash final,
-// ce qui produit une URL invalide.
+/**
+ * Base URL for WASM artifacts (auto-resolved in browser, null in Node).
+ *
+ * Resolution strategy (in order):
+ *  1. In browser: /wasm/ relative to current origin.
+ *     @gwen/vite-plugin serves this via middleware (dev)
+ *     and CLI copies it to dist/wasm/ (build).
+ *  2. In Node (SSR/tests): null — initWasm() must receive explicit URL.
+ *
+ * We avoid new URL('../wasm/', import.meta.url) because in Vite dev mode
+ * it produces an @fs/.../.../engine-core/wasm path without trailing slash,
+ * resulting in an invalid URL.
+ */
 const _pkgWasmBase: string | null = (() => {
   if (typeof window !== 'undefined' && typeof location !== 'undefined') {
-    // Navigateur — les artefacts sont toujours servis depuis /wasm/ par le plugin Vite
+    // Browser — artifacts always served from /wasm/ by Vite plugin
     return `${location.origin}/wasm/`;
   }
   return null;
 })();
 
-// ── Initialisation ────────────────────────────────────────────────────────────
+// ── Initialization ────────────────────────────────────────────────────────────
 
 /**
- * Charge et initialise le module WASM gwen_core. **Obligatoire** avant tout
- * usage de l'Engine.
+ * Load and initialize the gwen_core WASM module. **REQUIRED** before any Engine usage.
  *
- * **Sans argument** : résout automatiquement depuis `@gwen/engine-core/wasm/`
- * (artefacts pré-compilés, publiés dans le package — pas besoin de Rust).
+ * **Without arguments**: Auto-resolves from `@gwen/engine-core/wasm/`
+ * (pre-compiled artifacts published in the package — no Rust build needed).
  *
+ * @param jsUrl Optional URL to the wasm-bindgen glue (gwen_core.js)
+ * @param wasmUrl Optional URL to the WASM binary (gwen_core_bg.wasm)
+ * @param maxEntities Max number of entities the engine can track (default: 10,000)
+ * @throws {Error} If WASM cannot be loaded or has invalid format
+ *
+ * @example
  * ```typescript
- * // Usage standard — zéro configuration
+ * // Standard usage — zero config
  * await initWasm();
  *
- * // Usage explicite (chemin custom, CDN, etc.)
- * await initWasm('/wasm/gwen_core.js', '/wasm/gwen_core_bg.wasm');
+ * // Explicit URLs (custom path, CDN, etc.)
+ * await initWasm('/custom/gwen_core.js', '/custom/gwen_core_bg.wasm');
  * ```
- *
- * @throws {Error} Si le WASM ne peut pas être chargé.
  */
 export async function initWasm(
   jsUrl?: string,
@@ -116,8 +125,8 @@ export async function initWasm(
 
   if (!resolvedJsUrl) {
     throw new Error(
-      "[GWEN] initWasm(): impossible de résoudre l'URL du glue WASM.\n" +
-        'Assurez-vous que @gwen/engine-core est correctement installé.',
+      '[GWEN] initWasm(): unable to resolve WASM glue URL.\n' +
+        'Make sure @gwen/engine-core is correctly installed.',
     );
   }
 
@@ -133,12 +142,12 @@ export async function initWasm(
       glue.initSync({ module: buf });
     } else {
       throw new Error(
-        '[GWEN] Le glue WASM ne contient pas de fonction init() — fichier corrompu ?',
+        '[GWEN] WASM glue has no init() function — corrupted file?',
       );
     }
 
     if (typeof glue.Engine !== 'function') {
-      throw new Error('[GWEN] Le glue WASM est chargé mais la classe Engine est introuvable.');
+      throw new Error('[GWEN] WASM glue loaded but Engine class not found.');
     }
 
     _wasmModule = glue as GwenCoreWasm;
@@ -146,7 +155,7 @@ export async function initWasm(
 
     console.log('[GWEN] WASM core loaded — Rust ECS active');
   })().catch((err) => {
-    // Nettoyer pour permettre une nouvelle tentative
+    // Clean up to allow retry
     _initPromise = null;
     _wasmEngine = null;
     _wasmModule = null;
@@ -196,24 +205,24 @@ async function loadWasmGlue(jsUrl: string): Promise<any> {
     script.onerror = (e) => {
       URL.revokeObjectURL(blobUrl);
       script.remove();
-      reject(new Error(`[GWEN] Impossible de charger le glue WASM: ${jsUrl}\n${e}`));
+      reject(new Error(`[GWEN] Unable to load WASM glue: ${jsUrl}\n${e}`));
     };
 
     document.head.appendChild(script);
   });
 }
 
-// ── Bridge public ─────────────────────────────────────────────────────────────
+// ── Public Bridge ─────────────────────────────────────────────────────────────
 
 /**
- * Interface du bridge WASM. Toutes les méthodes lèvent une erreur si
- * `initWasm()` n'a pas été appelé au préalable.
+ * WASM bridge interface. All methods throw an error if
+ * `initWasm()` was not called first.
  */
 export interface WasmBridge {
-  /** True si le core Rust/WASM est initialisé et prêt. */
+  /** True if Rust/WASM core is initialized and ready. */
   isActive(): boolean;
 
-  /** Accès direct au WasmEngine Rust. Throw si non initialisé. */
+  /** Direct access to Rust WasmEngine. Throws if not initialized. */
   engine(): WasmEngine;
 
   // ── Entity ──
@@ -245,8 +254,8 @@ export interface WasmBridge {
 function requireWasm(): WasmEngine {
   if (!_wasmEngine) {
     throw new Error(
-      "[GWEN] Le core WASM n'est pas initialisé.\n" +
-        "Appelez `await initWasm()` avant de démarrer l'Engine.",
+      '[GWEN] WASM core not initialized.\n' +
+        'Call `await initWasm()` before starting the Engine.',
     );
   }
   return _wasmEngine;
@@ -307,7 +316,7 @@ class WasmBridgeImpl implements WasmBridge {
 
   queryEntities(typeIds: number[]): number[] {
     const indices = Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
-    // Reconstruire les EntityIds packés : (generation << 20) | index
+    // Reconstruct packed EntityIds: (generation << 20) | index
     return indices.map((idx) => {
       const gen = requireWasm().get_entity_generation(idx);
       return (gen << 20) | (idx & 0xfffff);
@@ -330,21 +339,21 @@ class WasmBridgeImpl implements WasmBridge {
 // Singleton
 const _bridge = new WasmBridgeImpl();
 
-/** Retourne le singleton WasmBridge. */
+/** Returns the WasmBridge singleton. */
 export function getWasmBridge(): WasmBridge {
   return _bridge;
 }
 
 /**
- * Injecte un WasmEngine mock directement — réservé aux tests unitaires.
- * Permet de tester l'Engine sans navigateur réel.
+ * Injects a mock WasmEngine directly — reserved for unit tests.
+ * Allows testing the Engine without a real browser.
  */
 export function _injectMockWasmEngine(mock: WasmEngine): void {
   _wasmEngine = mock;
   _initPromise = Promise.resolve();
 }
 
-/** Reset complet — réservé aux tests unitaires. */
+/** Complete reset — reserved for unit tests. */
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
   _wasmModule = null;

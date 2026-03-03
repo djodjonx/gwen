@@ -95,6 +95,18 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
   /**
    * Preload a sound from a URL. Must be called before play().
    * Returns a promise that resolves when the sound is ready.
+   *
+   * @param id Unique sound identifier
+   * @param url Fetch-able URL to audio file (WAV, MP3, OGG, etc.)
+   * @returns Promise that resolves when audio is decoded and ready
+   * @throws Error if plugin not initialized or fetch fails
+   *
+   * @example
+   * ```typescript
+   * const audio = api.services.get('audio');
+   * await audio.preload('jump', '/sounds/jump.wav');
+   * audio.play('jump');
+   * ```
    */
   async preload(id: string, url: string): Promise<void> {
     if (this.sounds.has(id)) return;
@@ -118,6 +130,10 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
 
   /**
    * Preload from an already-decoded AudioBuffer (useful for tests).
+   * Direct buffer registration without fetching.
+   *
+   * @param id Unique sound identifier
+   * @param buffer Pre-decoded AudioBuffer
    */
   preloadBuffer(id: string, buffer: AudioBuffer): void {
     this.sounds.set(id, { buffer, nodes: [] });
@@ -125,7 +141,25 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
 
   // ── Playback ───────────────────────────────────────────────────────────
 
-  /** Play a preloaded sound. Returns the source node (for advanced control). */
+  /**
+   * Play a preloaded sound. Multiple instances can play simultaneously.
+   *
+   * Automatically resumes AudioContext if suspended (browser autoplay policy).
+   * Returns the source node for advanced control (time, fade, etc.).
+   *
+   * @param id Sound identifier (must be preloaded first)
+   * @param options Volume (0-1), pitch (playback rate), loop flag
+   * @returns AudioBufferSourceNode for advanced control, or null if sound not found
+   *
+   * @example
+   * ```typescript
+   * const source = audio.play('jump', { volume: 0.8, pitch: 1.2 });
+   * if (source) {
+   *   // Stop after 1 second
+   *   setTimeout(() => source.stop(), 1000);
+   * }
+   * ```
+   */
   play(id: string, options: SoundOptions = {}): AudioBufferSourceNode | null {
     const ctx = this.context;
     const track = this.sounds.get(id);
@@ -160,7 +194,17 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
     return source;
   }
 
-  /** Stop all instances of a sound. */
+  /**
+   * Stop all playing instances of a specific sound.
+   * Safe to call even if sound is not playing.
+   *
+   * @param id Sound identifier
+   *
+   * @example
+   * ```typescript
+   * audio.stop('jump');  // Stops all jump sound instances
+   * ```
+   */
   stop(id: string): void {
     const track = this.sounds.get(id);
     if (!track) return;
@@ -174,7 +218,10 @@ export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlug
     track.nodes = [];
   }
 
-  /** Stop all sounds. */
+  /**
+   * Stop all currently playing sounds.
+   * Useful for scene transitions or game over.
+   */
   stopAll(): void {
     for (const id of this.sounds.keys()) {
       this.stop(id);

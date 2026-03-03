@@ -4,11 +4,11 @@
 export * from './types';
 export * from './schema';
 
-// Config — defineConfig() générique + TypedEngineConfig
+// Config — defineConfig() generic + TypedEngineConfig
 export { defaultConfig, mergeConfigs, defineConfig, createEngine, ConfigBuilder } from './config';
 export type { TypedEngineConfig, GwenConfigServices } from './config';
 
-// Plugin system typé — GwenPlugin<N, P> + createPlugin()
+// Typed plugin system — GwenPlugin<N, P> + createPlugin()
 export { createPlugin } from './plugin';
 export type {
   GwenPlugin,
@@ -20,7 +20,7 @@ export type {
   UnionToIntersection,
 } from './plugin';
 
-// ECS internals (gardés pour les tests / usages avancés)
+// ECS internals (kept for tests / advanced usage)
 export { EntityManager, ComponentRegistry, QueryEngine } from './ecs';
 
 // Engine

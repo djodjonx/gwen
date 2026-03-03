@@ -30,31 +30,31 @@ export interface Scene {
   readonly name: string;
 
   /**
-   * Plugins locaux montés uniquement pendant que cette scène est active.
-   * Accepte des objets directs (TsPlugin) ou des factories sans-args (() => TsPlugin).
-   * Le SceneManager résout automatiquement les factories au moment de l'activation.
+   * Plugins mounted locally only while this scene is active.
+   * Accepts direct objects (TsPlugin) or no-arg factories (() => TsPlugin).
+   * SceneManager automatically resolves factories when the scene activates.
    */
   plugins?: PluginEntry[];
 
   /**
-   * UIDefinitions à rendre pour cette scène.
-   * Le framework crée automatiquement un UIManager, les enregistre
-   * dans l'ordre déclaré (= ordre de rendu) et l'injecte après les plugins.
+   * UIDefinitions to render for this scene.
+   * The framework automatically creates a UIManager, registers them
+   * in declared order (= render order), and injects after plugins.
    *
    * @example
    * ```ts
    * readonly ui = [
-   *   BackgroundUI,  // 1er — dessiné en premier
+   *   BackgroundUI,  // First — drawn first
    *   EnemyUI,
    *   PlayerUI,
-   *   ScoreUI,       // dernier — au dessus de tout
+   *   ScoreUI,       // Last — on top of everything
    * ];
    * ```
    */
   ui?: UIDefinition<any>[];
 
   /**
-   * HTML layout injecté dans #gwen-ui pendant que la scène est active.
+   * HTML layout injected into #gwen-ui while the scene is active.
    */
   layout?: string;
 
@@ -99,11 +99,11 @@ export type SceneBody = Omit<Scene, 'name'>;
  *   onEnter(api) { ... },
  *   onExit(api)  { ... },
  * });
- * // Usage :
+ * // Usage:
  * sceneManager.register(PauseScene);
  * ```
  *
- * **Forme 2 — factory** (avec dépendances injectées, typées) :
+ * **Form 2 — factory** (with injected typed dependencies):
  * ```ts
  * export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
  *   ui: [BackgroundUI, PlayerUI],
@@ -111,43 +111,43 @@ export type SceneBody = Omit<Scene, 'name'>;
  *   onEnter(api) { ... },
  *   onExit(api)  { ... },
  * }));
- * // Usage — dépendances injectées à l'enregistrement :
+ * // Usage — dependencies injected at registration:
  * sceneManager.register(GameScene(scenes));
  * //                     ↑ (scenes: SceneManager) → Scene
  * ```
  *
- * TypeScript exige la factory si un string est passé :
+ * TypeScript enforces factory if a string is passed:
  * ```ts
  * defineScene('Game')             // ❌ TS2554 — Expected 2 arguments
- * defineScene({ onEnter: fn })    // ❌ TS     — manque name
- * defineScene('Game', () => ({})) // ❌ TS     — manque onEnter et onExit
+ * defineScene({ onEnter: fn })    // ❌ TS     — missing name
+ * defineScene('Game', () => ({})) // ❌ TS     — missing onEnter and onExit
  * ```
  *
- * Les classes implémentant `Scene` restent supportées — zéro breaking change.
+ * Classes implementing `Scene` are still supported — zero breaking change.
  */
 
-// Surcharge 1 — objet direct
+// Overload 1 — direct object
 export function defineScene(config: Scene): Scene;
 
-// Surcharge 2 — factory OBLIGATOIRE, retourne une fonction callable
+// Overload 2 — factory (required), returns callable function
 export function defineScene<Args extends unknown[]>(
   name: string,
   factory: (...args: Args) => SceneBody,
 ): (...args: Args) => Scene;
 
-// Implémentation
+// Implementation
 export function defineScene<Args extends unknown[]>(
   nameOrConfig: string | Scene,
   factory?: (...args: Args) => SceneBody,
 ): Scene | ((...args: Args) => Scene) {
   if (typeof nameOrConfig === 'string') {
-    // Forme 2 — retourne une factory callable
+    // Form 2 — returns callable factory
     return (...args: Args): Scene => ({
       name: nameOrConfig,
       ...factory!(...args),
     });
   }
-  // Forme 1 — objet direct
+  // Form 1 — direct object
   return nameOrConfig;
 }
 
@@ -282,7 +282,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
           registrar.unregister(p.name);
         }
       }
-      // Démonter l'UIManager auto
+      // Unmount auto-created UIManager
       registrar?.unregister('UIManager');
       this.sceneUIManager?.onDestroy();
       this.sceneUIManager = null;
@@ -295,26 +295,26 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     // 3. Enter new scene
     this.currentScene = next;
 
-    // Résoudre les PluginEntries : objet direct ou factory sans-args
+    // Resolve PluginEntries: direct object or no-arg factory
     const resolvedPlugins: TsPlugin[] = (next.plugins ?? []).map((p) =>
       typeof p === 'function' ? p() : p,
     );
 
-    // Enregistrer les plugins résolus
+    // Register resolved plugins
     if (registrar && resolvedPlugins.length > 0) {
       for (const p of resolvedPlugins) {
         registrar.register(p);
       }
     }
 
-    // Injecter automatiquement un UIManager si la scène déclare des ui[]
+    // Auto-inject UIManager if scene declares ui[]
     if (next.ui && next.ui.length > 0) {
       const uiManager = new UIManager();
       for (const def of next.ui) {
         uiManager.register(def);
       }
-      this.sceneUIManager = uiManager; // stocké localement → dispatché par onRender
-      registrar?.register(uiManager); // enregistré dans le PluginManager si dispo
+      this.sceneUIManager = uiManager; // stored locally → dispatched by onRender
+      registrar?.register(uiManager); // registered in PluginManager if available
     }
 
     if (next.layout) {

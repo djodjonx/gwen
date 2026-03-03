@@ -1,9 +1,9 @@
 /**
  * GWEN UI System
  *
- * `UIDefinition` est un contrat universel et agnostique du rendu.
- * Le framework dispatche onMount / render / onUnmount — c'est tout.
- * Le développeur choisit son renderer via api.services dans ces hooks.
+ * `UIDefinition` is a universal, renderer-agnostic contract.
+ * The framework dispatches onMount / render / onUnmount — that's it.
+ * Developers choose their renderer via api.services in these hooks.
  *
  * @example Canvas2D
  * ```ts
@@ -39,7 +39,9 @@ import { defineComponent, Types } from './schema';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-/** Attache une UIDefinition à une entité. */
+/**
+ * Attaches a UIDefinition to an entity.
+ */
 export const UIComponent = defineComponent({
   name: 'UIComponent',
   schema: { uiName: Types.string },
@@ -48,33 +50,35 @@ export const UIComponent = defineComponent({
 // ── UIDefinition ──────────────────────────────────────────────────────────────
 
 /**
- * Contrat universel d'une UI GWEN.
- * Agnostique du renderer — HTML, Canvas2D, JSX, WebGL, etc.
+ * Universal contract for a GWEN UI.
+ * Renderer-agnostic — HTML, Canvas2D, JSX, WebGL, etc.
  */
 export interface UIDefinition<Services extends Record<string, unknown> = Record<string, unknown>> {
-  /** Identifiant unique — correspond à UIComponent.uiName */
+  /** Unique identifier — corresponds to UIComponent.uiName */
   readonly name: string;
 
   /**
-   * Appelé une fois quand UIComponent est attaché à l'entité.
-   * Allouer les ressources ici : créer des éléments DOM, réserver un slot canvas, etc.
+   * Called once when UIComponent is attached to an entity.
+   * Allocate resources here: create DOM elements, reserve canvas slot, etc.
    */
   onMount?(api: EngineAPI<Services>, entityId: EntityId): void;
 
   /**
-   * Appelé à chaque frame pendant la phase render.
-   * Toute la logique de rendu UI est ici.
+   * Called every frame during the render phase.
+   * All UI rendering logic goes here.
    */
   render(api: EngineAPI<Services>, entityId: EntityId): void;
 
   /**
-   * Appelé quand UIComponent est retiré ou l'entité détruite.
-   * Libérer les ressources allouées dans onMount.
+   * Called when UIComponent is removed or entity destroyed.
+   * Release resources allocated in onMount.
    */
   onUnmount?(api: EngineAPI<Services>, entityId: EntityId): void;
 }
 
-/** Corps d'une UIDefinition sans le `name` — utilisé par la forme factory. */
+/**
+ * Body of a UIDefinition without the `name` — used by factory form.
+ */
 export type UIBody<Services extends Record<string, unknown> = Record<string, unknown>> = Omit<
   UIDefinition<Services>,
   'name'
@@ -120,7 +124,7 @@ export function defineUI<Services extends Record<string, unknown> = Record<strin
   factory: () => UIBody<Services>,
 ): UIDefinition<Services>;
 
-// Implémentation
+// Implementation
 export function defineUI<Services extends Record<string, unknown> = Record<string, unknown>>(
   nameOrConfig: string | UIDefinition<Services>,
   factory?: () => UIBody<Services>,

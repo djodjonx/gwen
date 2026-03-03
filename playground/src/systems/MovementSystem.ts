@@ -16,7 +16,7 @@ export const MovementSystem = createPlugin({
         y: pos.y + vel.vy * dt,
       });
 
-      // Hors écran → destroy
+      // Off-screen → destroy
       if (pos.y < -80 || pos.y > 720 || pos.x < -80 || pos.x > 560) {
         api.destroyEntity(id);
       }
