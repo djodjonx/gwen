@@ -64,7 +64,7 @@ export const GameScene = defineScene('Game', () => ({
 
 ### 2. Modify a Component
 
-Edit `src/components/index.ts`:
+Edit `src/components/Position.ts`:
 
 ```typescript
 export const Position = defineComponent({

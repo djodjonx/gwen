@@ -36,29 +36,46 @@ my-game/
 Components are pure data with no logic. They describe what entities *are*.
 
 ```typescript
-// src/components/index.ts
+// src/components/Position.ts
 import { defineComponent, Types } from '@gwen/engine-core';
 
 export const Position = defineComponent({
   name: 'position',
   schema: { x: Types.f32, y: Types.f32 }
 });
+```
+
+```typescript
+// src/components/Velocity.ts
+import { defineComponent, Types } from '@gwen/engine-core';
 
 export const Velocity = defineComponent({
   name: 'velocity',
   schema: { vx: Types.f32, vy: Types.f32 }
 });
+```
 
-export const Health = defineComponent({
-  name: 'health',
-  schema: { current: Types.i32, max: Types.i32 }
-});
+```typescript
+// src/components/index.ts
+export * from './Position';
+export * from './Velocity';
+export * from './Health';
 ```
 
 **Best practices:**
-- One file (`index.ts`) exporting all components
+- One component per file for maintainability
+- Use `index.ts` to re-export all components
 - Descriptive names (`Position`, not `Pos`)
 - Flat schemas (avoid nesting)
+
+**Structure:**
+```text
+components/
+  Position.ts
+  Velocity.ts
+  Health.ts
+  index.ts      // Re-exports all
+```
 
 ---
 
@@ -69,7 +86,7 @@ export const Health = defineComponent({
 Prefabs encapsulate entity creation logic so you don't repeat yourself.
 
 ```typescript
-// src/prefabs/index.ts
+// src/prefabs/Enemy.ts
 import { definePrefab } from '@gwen/engine-core';
 import { Position, Velocity, Health } from '../components';
 
@@ -85,10 +102,27 @@ export const EnemyPrefab = definePrefab({
 });
 ```
 
+```typescript
+// src/prefabs/index.ts
+export * from './Player';
+export * from './Enemy';
+export * from './Bullet';
+```
+
 **Best practices:**
-- One file (`index.ts`) exporting all prefabs
+- One prefab per file for clarity
+- Use `index.ts` to re-export all prefabs
 - Accept parameters for variation
 - Return the created entity ID
+
+**Structure:**
+```text
+prefabs/
+  Player.ts
+  Enemy.ts
+  Bullet.ts
+  index.ts      // Re-exports all
+```
 
 ---
 
@@ -244,7 +278,7 @@ export default defineConfig({
 ### 1. Define Data (Components)
 
 ```typescript
-// components/index.ts
+// components/Score.ts
 export const Score = defineComponent({
   name: 'score',
   schema: { value: Types.i32 }
@@ -254,7 +288,7 @@ export const Score = defineComponent({
 ### 2. Create Reusable Entities (Prefabs)
 
 ```typescript
-// prefabs/index.ts
+// prefabs/Player.ts
 export const PlayerPrefab = definePrefab({
   name: 'Player',
   create: (api) => {
@@ -306,13 +340,31 @@ export const GameScene = defineScene('Game', () => ({
 
 ## Scaling Patterns
 
-### Small Game (< 1000 LOC)
+### Any Size Game
 
-Keep everything in single files:
-- `components/index.ts`
-- `prefabs/index.ts`
-- `systems/index.ts`
-- `ui/index.ts`
+Always use one file per component/prefab/system:
+```text
+components/
+  Position.ts
+  Velocity.ts
+  index.ts          // Re-exports
+
+prefabs/
+  Player.ts
+  Enemy.ts
+  index.ts          // Re-exports
+
+systems/
+  MovementSystem.ts
+  CollisionSystem.ts
+  index.ts          // Re-exports (optional)
+```
+
+This prevents "god files" and makes code easier to:
+- Navigate
+- Review in PRs
+- Refactor
+- Test individually
 
 ### Medium Game (1K-5K LOC)
 

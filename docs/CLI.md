@@ -312,23 +312,36 @@ export const GameScene = defineScene<GwenServices>({
 });
 ```
 
-#### `src/components/index.ts`
+#### `src/components/`
 
-Define your game components:
+Define your game components (one per file):
 
 ```typescript
+// src/components/Position.ts
 import { defineComponent, Types } from '@gwen/engine-core';
 
 export const Position = defineComponent('Position', {
   x: Types.f32,
   y: Types.f32,
 });
+```
+
+```typescript
+// src/components/Velocity.ts
+import { defineComponent, Types } from '@gwen/engine-core';
 
 export const Velocity = defineComponent('Velocity', {
   x: Types.f32,
   y: Types.f32,
 });
+```
 
+```typescript
+// src/components/index.ts
+export * from './Position';
+export * from './Velocity';
+export * from './Health';
+```
 export const Health = defineComponent('Health', {
   current: Types.f32,
   max: Types.f32,

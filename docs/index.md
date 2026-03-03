@@ -55,14 +55,14 @@ Everything is configured in one place (`gwen.config.ts`) and runs with `gwen dev
 ## Quick Example
 
 ```typescript
-// components/index.ts
+// components/Position.ts
 import { defineComponent, Types } from '@gwen/engine-core';
 
 export const Position = defineComponent({
   name: 'position',
   schema: { x: Types.f32, y: Types.f32 }
 });
-
+```
 // systems/PlayerSystem.ts
 import { createPlugin } from '@gwen/engine-core';
 
