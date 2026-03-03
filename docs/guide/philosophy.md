@@ -33,7 +33,9 @@ export const Health = defineComponent({
 **Systems** are pure logic:
 
 ```typescript
-export const DamageSystem = createPlugin({
+import { defineSystem } from '@gwen/engine-core';
+
+export const DamageSystem = defineSystem({
   name: 'DamageSystem',
   onUpdate(api, dt) {
     const entities = api.query(['health', 'damaged']);
@@ -58,7 +60,7 @@ Want input? Audio? Debug overlay?
 
 ```typescript
 export default defineConfig({
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin(),
     new DebugPlugin()

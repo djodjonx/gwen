@@ -55,10 +55,11 @@ Open `src/scenes/GameScene.ts` to see how a scene is defined:
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  plugins: [MovementSystem, PlayerSystem, CollisionSystem],
+  systems: [MovementSystem, PlayerSystem, CollisionSystem],
   onEnter(api) {
     // Create initial entities
-  }
+  },
+  onExit() {},
 }));
 ```
 
@@ -84,10 +85,10 @@ Save and watch the hot-reload in action.
 Add `src/systems/GravitySystem.ts`:
 
 ```typescript
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import { Position, Velocity } from '../components';
 
-export const GravitySystem = createPlugin({
+export const GravitySystem = defineSystem({
   name: 'GravitySystem',
   onUpdate(api, dt) {
     const entities = api.query(['position', 'velocity']);
@@ -106,7 +107,7 @@ Register it in your scene:
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  plugins: [MovementSystem, GravitySystem], // Add here
+  systems: [MovementSystem, GravitySystem], // Add here
   // ...
 }));
 ```

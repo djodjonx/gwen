@@ -16,7 +16,7 @@ export default defineConfig({
     debug: false
   },
 
-  plugins: []
+  tsPlugins: []
 });
 ```
 
@@ -24,7 +24,7 @@ export default defineConfig({
 
 ```typescript
 engine: {
-  maxEntities: number;   // Maximum entities (default: 10000)
+  maxEntities: number;   // Maximum entities (default: 5000)
   targetFPS: number;     // Target frame rate (default: 60)
   debug: boolean;        // Enable debug mode (default: false)
 }
@@ -105,7 +105,7 @@ import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin(),
     new Canvas2DRenderer({ width: 800, height: 600 })
@@ -137,7 +137,7 @@ export default defineConfig({
     background: '#000814',
   },
 
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({
@@ -268,7 +268,7 @@ export default defineConfig({
     maxEntities: parseInt(process.env.MAX_ENTITIES || '5000')
   },
 
-  plugins: [
+  tsPlugins: [
     new AudioPlugin({
       masterVolume: parseFloat(process.env.VOLUME || '0.7')
     })
@@ -298,7 +298,7 @@ export default defineConfig({
     maxEntities: isDev ? 1000 : 5000
   },
 
-  plugins: [
+  tsPlugins: [
     new Canvas2DRenderer({
       width: 800,
       height: 600,
@@ -316,7 +316,7 @@ export default defineConfig({
 Plugins are initialized in order:
 
 ```typescript
-plugins: [
+tsPlugins: [
   new InputPlugin(),      // 1st - input ready first
   new AudioPlugin(),      // 2nd
   new Canvas2DRenderer(), // 3rd
@@ -326,29 +326,31 @@ plugins: [
 
 ## Type-Safe Services
 
-Define your services interface for autocompletion:
+Service types are inferred **automatically** — no manual interface needed.
+
+Run `gwen prepare` (or `gwen dev` / `gwen build`, which call it automatically) once after adding plugins. GWEN reads your `tsPlugins` list and writes `.gwen/gwen.d.ts` with a global `GwenServices` type available **everywhere in your project without any import**:
 
 ```typescript
-// types/services.ts
-import type { KeyboardInput } from '@gwen/plugin-input';
-import type { AudioPlugin } from '@gwen/plugin-audio';
-import type { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+// gwen.config.ts — declare your plugins
+export const gwenConfig = defineConfig({
+  tsPlugins: [
+    new InputPlugin(),
+    new AudioPlugin({ masterVolume: 0.8 }),
+    new Canvas2DRenderer({ width: 800, height: 600 }),
+  ],
+});
+```
 
-export interface GwenServices {
-  keyboard: KeyboardInput;
-  audio: AudioPlugin;
-  renderer: Canvas2DRenderer;
-}
-
-// Use in systems
+```typescript
+// systems/PlayerSystem.ts — GwenServices is global, no import needed
 import type { EngineAPI } from '@gwen/engine-core';
-import type { GwenServices } from '../types/services';
 
-export const PlayerSystem = createPlugin({
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
-
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
-    const keyboard = api.services.get('keyboard'); // ✅ Typed!
+    const keyboard = api.services.get('keyboard'); // → KeyboardInput ✅
+    const audio    = api.services.get('audio');    // → AudioManager  ✅
+    const renderer = api.services.get('renderer'); // → Canvas2DRenderer ✅
   }
 });
 ```
@@ -400,7 +402,7 @@ import { InputPlugin } from '@gwen/plugin-input';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new Canvas2DRenderer({ width: 800, height: 600 })
   ]
@@ -431,7 +433,7 @@ export default defineConfig({
     background: '#000000',
   },
 
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({

@@ -7,7 +7,9 @@ Reusable techniques for building games with GWEN.
 ### Destroy Offscreen Entities
 
 ```typescript
-export const CleanupSystem = createPlugin({
+import { defineSystem } from '@gwen/engine-core';
+
+export const CleanupSystem = defineSystem({
   name: 'CleanupSystem',
   onUpdate(api, dt) {
     const entities = api.query(['position']);
@@ -158,7 +160,7 @@ const y = startY + (endY - startY) * ease;
 ### Fade Transition
 
 ```typescript
-export const FadeSystem = createPlugin({
+export const FadeSystem = defineSystem({
   name: 'FadeSystem',
   onUpdate(api, dt) {
     const fade = api.services.get('fade');
@@ -167,7 +169,7 @@ export const FadeSystem = createPlugin({
       fade.alpha += dt * fade.speed;
 
       if (fade.alpha >= 1) {
-        api.scene.load(fade.nextScene);
+        api.scene?.load(fade.nextScene);
       }
     }
   }

@@ -141,7 +141,7 @@ import { PlayerPrefab } from '../prefabs';
 
 export const GameScene = defineScene('Game', () => ({
   ui: [PlayerUI, ScoreUI],
-  plugins: [MovementSystem, PlayerSystem],
+  systems: [MovementSystem, PlayerSystem],
 
   onEnter(api) {
     // Setup entities for this scene
@@ -170,10 +170,10 @@ Systems query entities and update components based on game rules.
 
 ```typescript
 // src/systems/MovementSystem.ts
-import { createPlugin } from '@gwen/engine-core';
+import { defineSystem } from '@gwen/engine-core';
 import { Position, Velocity } from '../components';
 
-export const MovementSystem = createPlugin({
+export const MovementSystem = defineSystem({
   name: 'MovementSystem',
 
   onUpdate(api, dt) {
@@ -258,7 +258,7 @@ export default defineConfig({
     background: '#000000'
   },
 
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({ width: 800, height: 600 })
@@ -304,7 +304,9 @@ export const PlayerPrefab = definePrefab({
 
 ```typescript
 // systems/ScoreSystem.ts
-export const ScoreSystem = createPlugin({
+import { defineSystem } from '@gwen/engine-core';
+
+export const ScoreSystem = defineSystem({
   name: 'ScoreSystem',
   onUpdate(api, dt) {
     // Update score logic
@@ -330,11 +332,12 @@ export const ScoreUI = defineUI({
 ```typescript
 // scenes/GameScene.ts
 export const GameScene = defineScene('Game', () => ({
-  plugins: [ScoreSystem],
+  systems: [ScoreSystem],
   ui: [ScoreUI],
   onEnter(api) {
     api.prefabs.instantiate('Player');
-  }
+  },
+  onExit(api) {},
 }));
 ```
 

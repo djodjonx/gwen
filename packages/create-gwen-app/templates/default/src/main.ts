@@ -5,26 +5,19 @@
  * Aucune configuration de chemins nécessaire.
  */
 
-import { getEngine, initWasm } from '@gwen/engine-core';
-import { InputPlugin } from '@gwen/plugin-input';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { createEngine, initWasm } from '@gwen/engine-core';
+import { gwenConfig } from '../gwen.config';
 import { MainScene } from './scenes/MainScene';
 
-// 1. Initialiser l'engine
-const engine = getEngine({ maxEntities: 10_000, targetFPS: 60 });
+// 1. Initialiser le cœur WASM (optionnel — fallback JS si non disponible)
+await initWasm();
 
-// 2. Enregistrer les plugins
-engine.registerSystem(new InputPlugin());
-engine.registerSystem(new Canvas2DRenderer({ canvas: 'game', width: 800, height: 600 }));
+// 2. Créer le moteur depuis la config (plugins enregistrés automatiquement)
+const { engine, scenes } = createEngine(gwenConfig);
 
-// 3. Charger la première scène
-const scene = new MainScene();
-engine.registerSystem(scene);
+// 3. Enregistrer et charger la première scène
+scenes.register(MainScene);
+scenes.loadSceneImmediate('MainScene', engine.getAPI());
 
-// 4. Activer le cœur WASM (résolution automatique — pas besoin de Rust)
-initWasm().then((active) => {
-  if (active) console.log('[GWEN] WASM core active');
-});
-
-// 5. Démarrer la boucle
+// 4. Démarrer la boucle de jeu
 engine.start();

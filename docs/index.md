@@ -55,14 +55,14 @@ Everything is configured in one place (`gwen.config.ts`) and runs with `gwen dev
 ## Quick Example
 
 ```typescript
-import { defineComponent, Types, createPlugin, defineScene } from '@gwen/engine-core';
+import { defineComponent, Types, defineSystem, defineScene } from '@gwen/engine-core';
 
 export const Position = defineComponent({
   name: 'position',
   schema: { x: Types.f32, y: Types.f32 }
 });
 
-export const PlayerSystem = createPlugin({
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
   onUpdate(api, dt) {
     const keyboard = api.services.get('keyboard');
@@ -79,11 +79,12 @@ export const PlayerSystem = createPlugin({
 });
 
 export const GameScene = defineScene('Game', () => ({
-  plugins: [PlayerSystem],
+  systems: [PlayerSystem],
   onEnter(api) {
     const player = api.createEntity();
     api.addComponent(player, Position, { x: 100, y: 100 });
-  }
+  },
+  onExit() {},
 }));
 ```
 

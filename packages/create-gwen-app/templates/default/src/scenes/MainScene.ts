@@ -1,34 +1,21 @@
-import type { TsPlugin, EngineAPI } from '@gwen/engine-core';
+import { defineScene } from '@gwen/engine-core';
 
 /**
  * MainScene — Scène principale de votre jeu.
- * Implémentez votre logique dans onUpdate() et votre rendu dans onRender().
+ * Créez des entités dans onEnter(), utilisez des systèmes pour la logique.
  */
-export class MainScene implements TsPlugin {
-  readonly name = 'MainScene';
+export const MainScene = defineScene({
+  name: 'MainScene',
 
-  private entities: number[] = [];
-
-  onInit(api: EngineAPI): void {
+  onEnter(api) {
     // Créer quelques entités de démo
     for (let i = 0; i < 5; i++) {
-      const id = api.createEntity();
-      this.entities.push(id as number);
+      api.createEntity();
     }
-    console.log(`[MainScene] Initialized with ${this.entities.length} entities`);
-  }
+    console.log('[MainScene] Initialized');
+  },
 
-  onUpdate(_api: EngineAPI, _dt: number): void {
-    // Votre logique de jeu ici
-    // _dt = delta time en secondes
-  }
-
-  onRender(_api: EngineAPI): void {
-    // Votre rendu ici
-    // Utilisez Canvas2DRenderer via api.services.get('Canvas2DRenderer')
-  }
-
-  onDestroy(_api: EngineAPI): void {
+  onExit(api) {
     console.log('[MainScene] Destroyed');
-  }
-}
+  },
+});

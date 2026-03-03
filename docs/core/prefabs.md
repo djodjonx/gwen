@@ -4,7 +4,9 @@ Prefabs are reusable entity templates. They encapsulate entity creation logic so
 
 ## Defining a Prefab
 
-Use `definePrefab()` to create entity templates:
+Use `definePrefab()` to create entity templates. Two forms are supported.
+
+### Form 1 — direct object (recommended)
 
 ```typescript
 import { definePrefab } from '@gwen/engine-core';
@@ -24,6 +26,28 @@ export const PlayerPrefab = definePrefab({
   }
 });
 ```
+
+### Form 2 — factory (local constants or shared setup)
+
+When you need local variables captured once (e.g. config values or derived constants):
+
+```typescript
+export const EnemyPrefab = definePrefab('Enemy', () => {
+  const baseSpeed = 80; // captured once at module load
+
+  return {
+    create: (api, x: number, y: number) => {
+      const id = api.createEntity();
+      api.addComponent(id, Position, { x, y });
+      api.addComponent(id, Velocity, { vx: 0, vy: baseSpeed });
+      api.addComponent(id, Health, { current: 3, max: 3 });
+      return id;
+    }
+  };
+});
+```
+
+Both forms produce an identical `PrefabDefinition` object.
 
 ## Prefabs with Parameters
 
@@ -52,14 +76,15 @@ Register prefabs in a scene's `onEnter`:
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  plugins: [],
+  systems: [],
 
   onEnter(api) {
     // Register prefabs
     api.prefabs.register(PlayerPrefab);
     api.prefabs.register(EnemyPrefab);
     api.prefabs.register(BulletPrefab);
-  }
+  },
+  onExit(api) {},
 }));
 ```
 
@@ -72,7 +97,7 @@ Once registered, instantiate anywhere:
 api.prefabs.instantiate('Player');
 
 // In a system
-export const SpawnerSystem = createPlugin({
+export const SpawnerSystem = defineSystem({
   name: 'SpawnerSystem',
   onUpdate(api, dt) {
     if (shouldSpawn) {
@@ -157,7 +182,7 @@ export const BulletPrefab = definePrefab({
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  plugins: [MovementSystem, CollisionSystem],
+  systems: [MovementSystem, CollisionSystem],
 
   onEnter(api) {
     // Register all prefabs
@@ -172,14 +197,17 @@ export const GameScene = defineScene('Game', () => ({
     for (let i = 0; i < 5; i++) {
       api.prefabs.instantiate('Enemy', 60 + i * 90, -30 - i * 15);
     }
-  }
+  },
+  onExit(api) {},
 }));
 ```
 
 ## Usage in Systems
 
 ```typescript
-export const PlayerSystem = createPlugin({
+import { defineSystem } from '@gwen/engine-core';
+
+export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
 
   onUpdate(api, dt) {
@@ -275,6 +303,38 @@ export const TankPrefab = definePrefab({
   }
 });
 ```
+
+## Typed Services in Prefabs
+
+The `create` function receives `api: EngineAPI`. If your prefab needs to call `api.services` (rare but possible), annotate it with `EngineAPI<GwenServices>`:
+
+```typescript
+// ❌ Without annotation — services are unknown
+export const SpawnWithSoundPrefab = definePrefab({
+  name: 'SpawnWithSound',
+  create: (api, x: number, y: number) => {
+    const audio = api.services.get('audio'); // unknown ⚠️
+    const id = api.createEntity();
+    api.addComponent(id, Position, { x, y });
+    return id;
+  }
+});
+
+// ✅ With EngineAPI<GwenServices> — GwenServices is global, no import needed
+import type { EngineAPI } from '@gwen/engine-core';
+
+export const SpawnWithSoundPrefab = definePrefab({
+  name: 'SpawnWithSound',
+  create: (api: EngineAPI<GwenServices>, x: number, y: number) => {
+    api.services.get('audio').play('spawn'); // → AudioPlugin ✅
+    const id = api.createEntity();
+    api.addComponent(id, Position, { x, y });
+    return id;
+  }
+});
+```
+
+> In practice, most prefabs only call `api.createEntity()` and `api.addComponent()` — both are always typed regardless of `<Services>`. The generic is only needed if you call `api.services.get(...)`.
 
 ## Best Practices
 

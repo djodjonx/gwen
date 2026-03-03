@@ -41,7 +41,7 @@ pnpm dev
 ```
 
 This starts:
-- Vite dev server on 
+- Vite dev server on
 - Rust/WASM file watcher (auto-rebuilds on .rs changes)
 - Full HMR (Hot Module Replacement)
 
@@ -106,7 +106,7 @@ gwen/
 ### 1. Create a New Project
 
 ```bash
-pnpm create @gwen/app my-game
+pnpm create gwen-app my-game
 cd my-game
 ```
 
@@ -119,8 +119,8 @@ import { defineConfig } from '@gwen/engine-core';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
-  plugins: [
-    new Canvas2DRenderer({ canvas: 'game' }),
+  tsPlugins: [
+    new Canvas2DRenderer({ width: 800, height: 600 }),
   ],
 });
 ```
@@ -132,9 +132,12 @@ export default defineConfig({
 ```typescript
 import { defineComponent, Types } from '@gwen/engine-core';
 
-export const Position = defineComponent('Position', {
-  x: Types.f32,
-  y: Types.f32,
+export const Position = defineComponent({
+  name: 'position',
+  schema: {
+    x: Types.f32,
+    y: Types.f32,
+  },
 });
 ```
 
@@ -150,8 +153,10 @@ export const MovementSystem = defineSystem({
   name: 'movement',
   onUpdate(api, dt) {
     const entities = api.query([Position]);
-    for (const [id, pos] of entities) {
-      pos.x += 100 * dt;
+    for (const id of entities) {
+      const pos = api.getComponent(id, Position);
+      if (!pos) continue;
+      api.addComponent(id, Position, { x: pos.x + 100 * dt, y: pos.y });
     }
   },
 });
@@ -162,21 +167,26 @@ export const MovementSystem = defineSystem({
 `src/main.ts`:
 
 ```typescript
-import { getEngine } from '@gwen/engine-core';
-import config from '../gwen.config';
+import { createEngine, initWasm, defineScene } from '@gwen/engine-core';
+import gwenConfig from '../gwen.config';
 import { Position } from './components/Position';
 import { MovementSystem } from './systems/movement';
 
-const engine = getEngine(config);
+// Scene that sets up the initial entities
+const MainScene = defineScene({
+  name: 'Main',
+  systems: [MovementSystem],
+  onEnter(api) {
+    const player = api.createEntity();
+    api.addComponent(player, Position, { x: 0, y: 0 });
+  },
+  onExit() {},
+});
 
-// Register systems
-engine.registerSystem(MovementSystem);
-
-// Create entity
-const player = engine.createEntity();
-engine.addComponent(player, Position, { x: 0, y: 0 });
-
-// Start game loop
+await initWasm();
+const { engine, scenes } = createEngine(gwenConfig);
+scenes.register(MainScene);
+scenes.loadSceneImmediate('Main', engine.getAPI());
 engine.start();
 ```
 

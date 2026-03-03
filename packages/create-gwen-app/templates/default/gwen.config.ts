@@ -23,7 +23,7 @@ export const gwenConfig = defineConfig({
 
   // Plugins TypeScript — légers, DOM-natifs
   // Chaque plugin déclare ses services → autocomplétion garantie
-  plugins: [
+  tsPlugins: [
     // new InputPlugin(),       // expose: keyboard, mouse, gamepad
     // new AudioPlugin(),       // expose: audio
     // new Canvas2DRenderer(),  // expose: renderer

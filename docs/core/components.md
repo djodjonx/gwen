@@ -4,7 +4,11 @@ Components are pure data containers that describe what entities *are*.
 
 ## Defining Components
 
-Use `defineComponent()` to create typed component definitions:
+Use `defineComponent()` to create typed component definitions.
+
+### Two Forms
+
+**Form 1 — direct object** (recommended for most cases):
 
 ```typescript
 import { defineComponent, Types } from '@gwen/engine-core';
@@ -16,7 +20,24 @@ export const Position = defineComponent({
     y: Types.f32
   }
 });
+```
 
+**Form 2 — factory** (when you need local constants or dynamic setup):
+
+```typescript
+export const Position = defineComponent('position', () => ({
+  schema: {
+    x: Types.f32,
+    y: Types.f32
+  }
+}));
+```
+
+Both forms produce identical results. Use Form 2 when the schema depends on a local variable or when you want to group related logic in a closure.
+
+### Full Example
+
+```typescript
 export const Velocity = defineComponent({
   name: 'velocity',
   schema: {
@@ -42,9 +63,11 @@ GWEN provides several primitive types optimized for WASM:
 Types.f32      // 32-bit float (most common)
 Types.f64      // 64-bit float (double precision)
 Types.i32      // 32-bit signed integer
+Types.i64      // 64-bit signed integer (bigint in JS)
 Types.u32      // 32-bit unsigned integer
+Types.u64      // 64-bit unsigned integer (bigint in JS)
 Types.bool     // Boolean
-Types.string   // String (stored as UTF-8)
+Types.string   // String (stored as UTF-8 intern ID)
 ```
 
 **Best practice:** Use `Types.f32` for positions, velocities, and most numeric data. It's fast and precise enough for games.

@@ -68,7 +68,9 @@ console.log(service.method()); // 'result'
 
 ## Type Safety
 
-Define service interfaces and extend `GwenServices`:
+When you implement `GwenPlugin<'MyPlugin', { myService: MyService }>`, GWEN automatically includes `myService` in the inferred `GwenServices` type — **no manual declaration needed**.
+
+Simply declare your service interface and implement the plugin interface:
 
 ```typescript
 // In your plugin file
@@ -77,18 +79,26 @@ export interface MyService {
   method(): string;
 }
 
-// In your types/services.ts
-import type { GwenServices as BaseGwenServices } from '@gwen/engine-core';
-import type { MyService } from './plugins/MyPlugin';
+export class MyPlugin implements GwenPlugin<'MyPlugin', { myService: MyService }> {
+  readonly name = 'MyPlugin' as const;
+  readonly provides = { myService: {} as MyService };
 
-declare global {
-  interface GwenServices extends BaseGwenServices {
-    myService: MyService;
+  onInit(api: EngineAPI) {
+    api.services.register('myService', { value: 42, method: () => 'result' });
   }
 }
 ```
 
-Then use typed API:
+Add it to your config, then run `gwen prepare` (or `gwen dev`) — `GwenServices` is updated automatically:
+
+```typescript
+// gwen.config.ts
+export const gwenConfig = defineConfig({
+  tsPlugins: [new MyPlugin()],
+});
+```
+
+Then use the typed API with no imports:
 
 ```typescript
 import type { EngineAPI } from '@gwen/engine-core';
@@ -96,7 +106,7 @@ import type { EngineAPI } from '@gwen/engine-core';
 export const MySystem = defineSystem({
   name: 'MySystem',
   onUpdate(api: EngineAPI<GwenServices>, dt: number) {
-    const service = api.services.get('myService'); // ✅ Typed
+    const service = api.services.get('myService'); // ✅ Typed — no manual declaration
     console.log(service.value);
   }
 });
@@ -135,7 +145,7 @@ Register in config:
 ```typescript
 export default defineConfig({
   engine: { maxEntities: 5000 },
-  plugins: [
+  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.9 }),
     new Canvas2DRenderer({ width: 800, height: 600 })
