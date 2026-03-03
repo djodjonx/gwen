@@ -62,12 +62,12 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
 /**
  * Extracts the `provides` type from a GwenPlugin.
  */
-export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, never>;
+export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, unknown>;
 
 /**
  * Merges `provides` from all plugins in a list.
  */
-export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToIntersection<
+export type MergeProvides<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
 > &
   Record<string, unknown>;
@@ -82,7 +82,7 @@ export type MergeProvides<Plugins extends readonly AnyGwenPlugin[]> = UnionToInt
  */
 export interface GwenPlugin<
   N extends string = string,
-  P extends Record<string, unknown> = Record<string, never>,
+  out P extends Record<string, unknown> = Record<string, unknown>,
 > extends TsPlugin {
   readonly name: N;
   /**
@@ -93,8 +93,6 @@ export interface GwenPlugin<
   readonly provides?: P;
 }
 
-/** Convenient alias for a GwenPlugin without constraints on N/P */
-export type AnyGwenPlugin = GwenPlugin<string, Record<string, unknown>>;
 
 // ── GwenPluginMeta ────────────────────────────────────────────────────────────
 

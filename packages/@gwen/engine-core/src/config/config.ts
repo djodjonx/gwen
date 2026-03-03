@@ -1,5 +1,5 @@
 import type { EngineConfig, WasmPlugin, TsPlugin } from '../types';
-import type { AnyGwenPlugin, MergeProvides } from '../plugin-system/plugin';
+import type { GwenPlugin, MergeProvides } from '../plugin-system/plugin';
 import { Engine } from '../engine/engine';
 import { SceneManager } from '../api/scene';
 export { ConfigBuilder } from './config-builder';
@@ -109,7 +109,7 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * @param config Project configuration. `tsPlugins` accepts any plugin
  *   implementing `GwenPlugin` (with `provides`) or `TsPlugin` (untyped).
  */
-export function defineConfig<const Plugins extends readonly AnyGwenPlugin[]>(config: {
+export function defineConfig<const Plugins extends readonly GwenPlugin[]>(config: {
   /** Nuxt-like shorthand: engine: { maxEntities, targetFPS, debug } */
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
   tsPlugins?: [...Plugins];

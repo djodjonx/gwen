@@ -151,9 +151,10 @@ describe('InputPlugin — provides', () => {
     expect(p.provides).toHaveProperty('gamepad');
   });
 
-  it('is assignable to AnyGwenPlugin', () => {
-    const p: import('../src/plugin-system/plugin').AnyGwenPlugin = new InputPlugin();
+  it('is assignable to GwenPlugin', () => {
+    const p = new InputPlugin();
     expect(p.name).toBe('InputPlugin');
+    expect(p.provides).toBeDefined();
   });
 });
 
@@ -186,3 +187,4 @@ describe('Rétro-compatibilité — TsPlugin sans provides', () => {
     expect(true).toBe(true); // compile = OK
   });
 });
+

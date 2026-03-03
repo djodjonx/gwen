@@ -12,7 +12,6 @@ export type { TypedEngineConfig, GwenConfigServices } from './config/config';
 // Typed plugin system — GwenPlugin interface
 export type {
   GwenPlugin,
-  AnyGwenPlugin,
   GwenPluginMeta,
   PluginProvides,
   MergeProvides,
