@@ -41,7 +41,7 @@ pnpm dev
 ```
 
 This starts:
-- Vite dev server on http://localhost:5173
+- Vite dev server on 
 - Rust/WASM file watcher (auto-rebuilds on .rs changes)
 - Full HMR (Hot Module Replacement)
 
@@ -283,8 +283,8 @@ pnpm dev -- --port 3000
 
 - 📚 Read the [API Reference](./API.md)
 - 🏗️ Learn about [Architecture](./ARCHITECTURE.md)
-- 🤝 Check [Contributing Guidelines](../CONTRIBUTING.md)
-- 🎮 Explore the [Playground](../playground/) example
+- 🤝 Check [Contributing Guidelines](https://github.com/djodjonx/gwen/blob/main/CONTRIBUTING.md)
+- 🎮 Explore the [Playground](https://github.com/djodjonx/gwen/tree/main/playground) example
 
 ## Getting Help
 
