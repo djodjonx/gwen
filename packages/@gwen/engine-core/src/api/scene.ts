@@ -30,16 +30,28 @@ export interface Scene {
   readonly name: string;
 
   /**
-   * Plugins mounted locally only while this scene is active.
-   * Accepts direct objects (TsPlugin) or no-arg factories (() => TsPlugin).
+   * Systems that run while this scene is active.
+   * Accepts direct objects (System) or no-arg factories (() => System).
    * SceneManager automatically resolves factories when the scene activates.
+   *
+   * Systems provide the game logic (movement, collision, input handling, etc).
+   * They run each frame in the order they're declared.
+   *
+   * @example
+   * ```ts
+   * systems: [
+   *   MovementSystem,      // First
+   *   CollisionSystem,     // Second
+   *   PlayerSystem,        // Third
+   * ]
+   * ```
    */
-  plugins?: PluginEntry[];
+  systems?: PluginEntry[];
 
   /**
    * UIDefinitions to render for this scene.
    * The framework automatically creates a UIManager, registers them
-   * in declared order (= render order), and injects after plugins.
+   * in declared order (= render order), and injects after systems.
    *
    * @example
    * ```ts
@@ -66,7 +78,7 @@ export interface Scene {
 
   /**
    * Called on every frame while the scene is active.
-   * Optional — scenes can rely on TsPlugins for update logic instead.
+   * Optional — scenes can rely on systems for update logic instead.
    */
   onUpdate?(api: EngineAPI, deltaTime: number): void;
 
@@ -89,9 +101,9 @@ export interface Scene {
 export type SceneBody = Omit<Scene, 'name'>;
 
 /**
- * Définit une Scene GWEN — deux syntaxes supportées.
+ * Define a GWEN Scene — two supported syntaxes.
  *
- * **Forme 1 — objet direct** (sans dépendances externes) :
+ * **Form 1 — direct object** (no external dependencies):
  * ```ts
  * export const PauseScene = defineScene({
  *   name: 'Pause',
@@ -107,7 +119,7 @@ export type SceneBody = Omit<Scene, 'name'>;
  * ```ts
  * export const GameScene = defineScene('Game', (scenes: SceneManager) => ({
  *   ui: [BackgroundUI, PlayerUI],
- *   plugins: [makePlayerSystem(scenes)],
+ *   systems: [MovementSystem, PlayerSystem, CollisionSystem],
  *   onEnter(api) { ... },
  *   onExit(api)  { ... },
  * }));
@@ -277,8 +289,8 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     // 1. Exit current scene
     if (this.currentScene) {
       this.currentScene.onExit(api);
-      if (registrar && this.currentScene.plugins) {
-        for (const p of this.currentScene.plugins) {
+      if (registrar && this.currentScene.systems) {
+        for (const p of this.currentScene.systems) {
           registrar.unregister(p.name);
         }
       }
@@ -295,15 +307,15 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     // 3. Enter new scene
     this.currentScene = next;
 
-    // Resolve PluginEntries: direct object or no-arg factory
-    const resolvedPlugins: TsPlugin[] = (next.plugins ?? []).map((p) =>
-      typeof p === 'function' ? p() : p,
+    // Resolve system entries: direct object or no-arg factory
+    const resolvedSystems: TsPlugin[] = (next.systems ?? []).map((s) =>
+      typeof s === 'function' ? s() : s,
     );
 
-    // Register resolved plugins
-    if (registrar && resolvedPlugins.length > 0) {
-      for (const p of resolvedPlugins) {
-        registrar.register(p);
+    // Register resolved systems
+    if (registrar && resolvedSystems.length > 0) {
+      for (const s of resolvedSystems) {
+        registrar.register(s);
       }
     }
 

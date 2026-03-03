@@ -22,7 +22,7 @@ export const GameScene = defineScene('Game', () => ({
     ScoreUI,
   ],
 
-  plugins: [
+  systems: [
     MovementSystem,
     PlayerSystem,
     AiSystem,

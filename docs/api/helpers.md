@@ -26,7 +26,7 @@ import { defineScene } from '@gwen/engine-core';
 
 export const GameScene = defineScene('Game', () => ({
   ui: [],
-  plugins: [],
+  systems: [],
   onEnter(api) { },
   onExit(api) { }
 }));

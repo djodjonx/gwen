@@ -251,16 +251,16 @@ describe('defineScene', () => {
     expect(a.name).toBe(b.name); // même name
   });
 
-  it('forme 2 — plugins transmis correctement', () => {
-    const mockPlugin = { name: 'MockPlugin', onUpdate: vi.fn() };
-    const GameScene = defineScene('Game', () => ({
-      plugins: [mockPlugin],
-      onEnter: vi.fn(),
-      onExit: vi.fn(),
-    }));
-    const scene = GameScene();
-    expect(scene.plugins).toContain(mockPlugin);
-  });
+it('forme 2 — systems transmis correctement', () => {
+  const mockSystem = { name: 'MockSystem', onUpdate: vi.fn() };
+  const GameScene = defineScene('Game', () => ({
+    systems: [mockSystem],
+    onEnter: vi.fn(),
+    onExit: vi.fn(),
+  }));
+  const scene = GameScene();
+  expect(scene.systems).toContain(mockSystem);
+});
 
   it('forme 2 — enregistrable dans SceneManager après appel', () => {
     const GameScene = defineScene('Game', () => ({

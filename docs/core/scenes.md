@@ -76,7 +76,7 @@ export const GameScene = defineScene('Game', () => ({
   ],
 
   // Systems that run each frame
-  plugins: [
+  systems: [
     MovementSystem,
     PlayerSystem,
     CollisionSystem
@@ -180,7 +180,7 @@ You typically have:
 // scenes/MainMenuScene.ts
 export const MainMenuScene = defineScene('MainMenu', () => ({
   ui: [MenuUI],
-  plugins: [MenuInputSystem],
+  systems: [MenuInputSystem],
   onEnter(api) {
     // Show menu
   }
@@ -189,7 +189,7 @@ export const MainMenuScene = defineScene('MainMenu', () => ({
 // scenes/GameScene.ts
 export const GameScene = defineScene('Game', () => ({
   ui: [PlayerUI, EnemyUI, ScoreUI],
-  plugins: [MovementSystem, CollisionSystem, PlayerSystem],
+  systems: [MovementSystem, CollisionSystem, PlayerSystem],
   onEnter(api) {
     // Start game
   }
@@ -198,7 +198,7 @@ export const GameScene = defineScene('Game', () => ({
 // scenes/GameOverScene.ts
 export const GameOverScene = defineScene('GameOver', () => ({
   ui: [GameOverUI],
-  plugins: [GameOverInputSystem],
+  systems: [GameOverInputSystem],
   onEnter(api) {
     const finalScore = api.services.get('gameState').score;
     // Display final score
@@ -272,7 +272,7 @@ export const Scene1 = defineScene('S1', () => ({...}));
 // MainMenuScene.ts
 export const MainMenuScene = defineScene('MainMenu', () => ({
   ui: [MenuUI],
-  plugins: [MenuSystem],
+  systems: [MenuSystem],
 
   onEnter(api) {
     // Listen for start button
@@ -285,7 +285,7 @@ export const MainMenuScene = defineScene('MainMenu', () => ({
 // GameScene.ts
 export const GameScene = defineScene('Game', () => ({
   ui: [PlayerUI, EnemyUI, ScoreUI],
-  plugins: [MovementSystem, PlayerSystem, CollisionSystem],
+  systems: [MovementSystem, PlayerSystem, CollisionSystem],
 
   onEnter(api) {
     api.services.register('gameState', { score: 0, lives: 3 });
@@ -296,7 +296,7 @@ export const GameScene = defineScene('Game', () => ({
 // GameOverScene.ts
 export const GameOverScene = defineScene('GameOver', () => ({
   ui: [GameOverUI],
-  plugins: [GameOverSystem],
+  systems: [GameOverSystem],
 
   onEnter(api) {
     const state = api.services.get('gameState');
