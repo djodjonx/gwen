@@ -60,18 +60,20 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "crates/gwen-core"
+          # Covers the full Cargo workspace (gwen-core + gwen-plugin-physics2d)
+          workspaces: ". -> target"
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Rust tests (native)
-        run: cargo test --manifest-path crates/gwen-core/Cargo.toml
+      # ── gwen-core ──────────────────────────────────────────────────────────
+      - name: Rust tests — gwen-core (native)
+        run: cargo test -p gwen-core
 
-      - name: WASM tests (wasm-pack)
+      - name: WASM tests — gwen-core (wasm-pack + Node)
         run: wasm-pack test --node crates/gwen-core
 
-      - name: Build WASM release
+      - name: Build WASM release — gwen-core
         run: |
           wasm-pack build \
             --target web \
@@ -79,27 +81,39 @@ jobs:
             --out-dir $GITHUB_WORKSPACE/packages/@gwen/engine-core/wasm \
             crates/gwen-core
 
-      - name: Validate WASM build
+      - name: Validate WASM build — gwen-core
         run: |
-          if [ ! -d "packages/@gwen/engine-core/wasm" ]; then
-            echo "❌ WASM output directory not found"
-            exit 1
-          fi
-          if [ ! -f "packages/@gwen/engine-core/wasm/gwen_core.js" ]; then
-            echo "❌ WASM JavaScript file not generated"
-            exit 1
-          fi
-          if [ ! -f "packages/@gwen/engine-core/wasm/gwen_core_bg.wasm" ]; then
-            echo "❌ WASM binary not generated"
-            exit 1
-          fi
-          echo "✅ WASM build validated successfully"
+          [ -f "packages/@gwen/engine-core/wasm/gwen_core_bg.wasm" ] \
+            && echo "✅ gwen-core WASM validated" \
+            || (echo "❌ gwen-core WASM binary missing" && exit 1)
 
+      # ── gwen-plugin-physics2d ──────────────────────────────────────────────
+      - name: Rust tests — gwen-plugin-physics2d (native)
+        run: cargo test -p gwen-plugin-physics2d
+
+      - name: Build WASM release — gwen-plugin-physics2d
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir $GITHUB_WORKSPACE/packages/@gwen/plugin-physics2d/wasm \
+            --out-name gwen_physics2d \
+            crates/gwen-plugin-physics2d
+
+      - name: Validate WASM build — gwen-plugin-physics2d
+        run: |
+          [ -f "packages/@gwen/plugin-physics2d/wasm/gwen_physics2d_bg.wasm" ] \
+            && echo "✅ gwen-plugin-physics2d WASM validated" \
+            || (echo "❌ gwen-plugin-physics2d WASM binary missing" && exit 1)
+
+      # ── Upload all WASM artefacts ──────────────────────────────────────────
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-artifacts
-          path: packages/@gwen/engine-core/wasm/
+          path: |
+            packages/@gwen/engine-core/wasm/
+            packages/@gwen/plugin-physics2d/wasm/
           retention-days: 7
 
   # ── Tests TypeScript ───────────────────────────────────────────────────────
@@ -151,16 +165,7 @@ jobs:
           pnpm-version: '10'
 
       - name: Typecheck all packages
-        run: |
-          pnpm --filter @gwen/engine-core exec tsc --noEmit
-          pnpm --filter @gwen/cli exec tsc --noEmit
-          pnpm --filter @gwen/vite-plugin exec tsc --noEmit
-          pnpm --filter @gwen/plugin-audio exec tsc --noEmit
-          pnpm --filter @gwen/plugin-debug exec tsc --noEmit
-          pnpm --filter @gwen/plugin-input exec tsc --noEmit
-          pnpm --filter @gwen/plugin-html-ui exec tsc --noEmit
-          pnpm --filter @gwen/renderer-canvas2d exec tsc --noEmit
-          pnpm --filter create-gwen-app exec tsc --noEmit
+        run: pnpm typecheck
 
   # ── Build verification ────────────────────────────────────────────────────
   build:
@@ -179,7 +184,7 @@ jobs:
         continue-on-error: true
         with:
           name: wasm-artifacts
-          path: packages/@gwen/engine-core/wasm
+          path: packages/
 
       - name: Build all packages
         run: pnpm -r build

@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import dts from 'vite-plugin-dts';
 
 export default defineConfig({
+  plugins: [dts({ include: ['src'], outDir: 'dist', rollupTypes: true })],
   resolve: {
     alias: {
       // Resolve workspace package directly from source during tests
