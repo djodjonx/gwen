@@ -194,7 +194,25 @@ We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for:
 
 ## 📄 License
 
-MIT - See [LICENSE](./LICENSE)
+GWEN is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
+
+**Summary of what you can do:**
+- ✅ Use commercially
+- ✅ Modify the code
+- ✅ Distribute modifications
+- ✅ Patent protection
+
+**Conditions:**
+- ⚠️ License and copyright notice required
+- ⚠️ Disclose source code for modifications
+- ⚠️ State significant changes
+
+**Compatibility:**
+- ✅ Compatible with GPL, LGPL, AGPL
+- ✅ Can be used in proprietary software
+- ✅ Clear patent grants
+
+See [LICENSE](./LICENSE) for full text.
 
 ---
 
