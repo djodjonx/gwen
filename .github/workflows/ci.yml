@@ -146,38 +146,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: "20"
-
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - run: pnpm install
+          pnpm-version: '10'
 
       - name: Typecheck all packages
-        run: |
-          pnpm --filter @gwen/engine-core exec tsc --noEmit
-          pnpm --filter @gwen/cli exec tsc --noEmit
-          pnpm --filter @gwen/vite-plugin exec tsc --noEmit
-          pnpm --filter @gwen/plugin-audio exec tsc --noEmit
-          pnpm --filter @gwen/plugin-debug exec tsc --noEmit
-          pnpm --filter @gwen/plugin-input exec tsc --noEmit
-          pnpm --filter @gwen/plugin-html-ui exec tsc --noEmit
-          pnpm --filter @gwen/renderer-canvas2d exec tsc --noEmit
+        run: pnpm --filter '@gwen/*' exec tsc --noEmit
 
   # ── Build verification ────────────────────────────────────────────────────
   build:
