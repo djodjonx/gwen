@@ -221,8 +221,8 @@ export const CollisionSystem = createPlugin({
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < colA.radius + colB.radius) {
-          // Collision detected
-          api.emit('collision', { idA, idB });
+          // Collision detected: apply direct game logic
+          // (damage, destroy, score update, etc.)
         }
       }
     }
@@ -243,8 +243,8 @@ export const TimerSystem = createPlugin({
       const elapsed = timer.elapsed + dt;
 
       if (elapsed >= timer.duration) {
-        // Timer finished
-        api.emit('timer-complete', { id });
+        // Timer finished: apply action directly
+        // then remove timer component
         api.removeComponent(id, Timer);
       } else {
         api.addComponent(id, Timer, { ...timer, elapsed });

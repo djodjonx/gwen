@@ -1,6 +1,6 @@
 # Engine API
 
-Runtime API available in systems, scenes, and prefabs.
+Runtime API available inside systems, scenes, UI, and prefabs.
 
 ## Entity Management
 
@@ -9,82 +9,74 @@ Runtime API available in systems, scenes, and prefabs.
 const id = api.createEntity();
 
 // Destroy
-api.destroyEntity(id);
-
-// Check existence
-if (api.entityExists(id)) { }
+const removed = api.destroyEntity(id); // boolean
 ```
 
 ## Component Management
 
 ```typescript
-// Add/Update
 api.addComponent(id, Position, { x: 100, y: 200 });
 
-// Get
 const pos = api.getComponent(id, Position);
 
-// Remove
 api.removeComponent(id, Position);
 
-// Check
-if (api.hasComponent(id, Position)) { }
+if (api.hasComponent(id, Position)) {
+  // ...
+}
 ```
 
 ## Queries
 
 ```typescript
-// Query by component names
+// By names
 const entities = api.query(['position', 'velocity']);
 
-for (const id of entities) {
-  const pos = api.getComponent(id, Position);
-  const vel = api.getComponent(id, Velocity);
-  // ...
-}
+// By component definitions (also supported)
+const entities2 = api.query([Position, Velocity]);
 ```
 
 ## Prefabs
 
 ```typescript
-// Register
 api.prefabs.register(PlayerPrefab);
-
-// Instantiate
-const id = api.prefabs.instantiate('Player', x, y);
+const playerId = api.prefabs.instantiate('Player', 100, 200);
 ```
 
 ## Services
 
 ```typescript
-// Get service
 const keyboard = api.services.get('keyboard');
-
-// Register service (in plugins)
-api.services.register('myService', { value: 42 });
 ```
 
-## Scene Management
+Service registration is typically done inside plugins (`onInit`).
+
+## Scene Navigation
 
 ```typescript
-// Load scene
-api.scene.load(GameScene);
+// Scene manager may be absent in some contexts, so use optional chaining
+api.scene?.load('Game');
+
+const current = api.scene?.current;
 ```
 
-## Events
+## Frame State
 
 ```typescript
-// Emit
-api.emit('collision', { idA, idB });
-
-// Listen (in plugins)
-api.on('collision', (data) => {
-  console.log(data);
-});
+const dt = api.deltaTime;
+const frame = api.frameCount;
 ```
+
+## Not in EngineAPI
+
+These are **not** part of `EngineAPI`:
+- `api.entityExists(...)`
+- `api.emit(...)`
+- `api.on(...)`
+
+Use plugin/service patterns for custom event buses when needed.
 
 ## Next Steps
 
-- [Helpers](/api/helpers) - Define functions
-- [Types](/api/types) - Type definitions
-
+- [Helpers](/api/helpers)
+- [Types](/api/types)

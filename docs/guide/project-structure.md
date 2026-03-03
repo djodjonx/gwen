@@ -4,7 +4,7 @@ GWEN projects follow a consistent structure that keeps code organized as your ga
 
 ## Generated Structure
 
-When you run `pnpm create @gwen/app my-game`, you get:
+When you run `pnpm create gwen-app my-game`, you get:
 
 ```text
 my-game/
@@ -402,4 +402,3 @@ src/
 - [Components](/core/components) - Learn component definition
 - [Scenes](/core/scenes) - Master scene lifecycle
 - [Systems](/core/systems) - Write game logic
-

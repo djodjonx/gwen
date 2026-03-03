@@ -1,78 +1,88 @@
 # CLI Commands
 
-GWEN's CLI helps you scaffold, develop, and build games.
+GWEN uses two CLIs:
 
-## Available Commands
+1. `create-gwen-app` for project scaffolding
+2. `gwen` for development/build commands
 
-### create
-
-Scaffold a new game project:
-
-```bash
-pnpm create @gwen/app my-game
-```
-
-Options:
-- `--template <name>` - Use a specific template (default: `default`)
-- `--no-install` - Skip dependency installation
-
-### dev
-
-Start the development server:
+## Scaffold
 
 ```bash
-gwen dev
+pnpm create gwen-app my-game
 ```
 
-Options:
-- `--port <number>` - Port to run on (default: 3000)
-- `--open` - Open browser automatically
-- `--verbose` - Detailed logging
-
-### build
-
-Build for production:
+Alternatives:
 
 ```bash
-gwen build
+npm create gwen-app my-game
+npx create-gwen-app my-game
 ```
 
-Output goes to `dist/`
+## `gwen` Commands
 
-### prepare
-
-Generate type definitions and runtime files:
+### `gwen prepare`
+Generate `.gwen/` files.
 
 ```bash
 gwen prepare
+gwen prepare --verbose
 ```
 
-Usually runs automatically with `gwen dev`.
+### `gwen dev`
+Start development server.
 
-### lint
+```bash
+gwen dev
+gwen dev --port 3000
+gwen dev --open
+gwen dev --verbose
+```
 
-Check code quality:
+### `gwen build`
+Build project.
+
+```bash
+gwen build
+gwen build --debug
+gwen build --out-dir dist
+gwen build --dry-run
+```
+
+### `gwen preview`
+Preview production output.
+
+```bash
+gwen preview
+```
+
+### `gwen lint`
+Run linting.
 
 ```bash
 gwen lint
-```
-
-Auto-fix:
-
-```bash
 gwen lint --fix
 ```
 
-### format
-
-Format code:
+### `gwen format`
+Run formatter.
 
 ```bash
-gwen format --check  # Check only
-gwen format --write  # Auto-format
+gwen format
+gwen format --check
 ```
 
-## Next Steps
+### `gwen info`
+Print parsed config.
 
-- [Quick Start](/guide/quick-start) - Create your first game
+```bash
+gwen info
+```
 
+## Notes
+
+Supported global flags by command are implemented in `@gwen/cli`.
+If in doubt, run:
+
+```bash
+gwen --help
+```

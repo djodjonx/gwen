@@ -2,116 +2,105 @@
 
 Type definitions used throughout GWEN.
 
-## Component Schema Types
+## Schema Types
 
 ```typescript
 import { Types } from '@gwen/engine-core';
 
-Types.f32      // 32-bit float
-Types.f64      // 64-bit double
-Types.i32      // 32-bit signed integer
-Types.u32      // 32-bit unsigned integer
-Types.bool     // Boolean
-Types.string   // String
+Types.f32
+Types.f64
+Types.i32
+Types.u32
+Types.bool
+Types.string
 ```
 
-## EngineAPI
-
-Main API interface:
+## EngineAPI (runtime surface)
 
 ```typescript
-interface EngineAPI<S = unknown> {
+type EntityId = number;
+type ComponentType = string;
+
+interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
   // Entity
-  createEntity(): number;
-  destroyEntity(id: number): void;
-  entityExists(id: number): boolean;
+  createEntity(): EntityId;
+  destroyEntity(id: EntityId): boolean;
 
   // Components
-  addComponent<T>(id: number, type: ComponentDefinition<T>, data: T): void;
-  getComponent<T>(id: number, type: ComponentDefinition<T>): T | undefined;
-  removeComponent(id: number, type: ComponentDefinition): boolean;
-  hasComponent(id: number, type: ComponentDefinition): boolean;
+  addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
+  getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
+  hasComponent(id: EntityId, type: ComponentType): boolean;
+  removeComponent(id: EntityId, type: ComponentType): boolean;
 
   // Queries
-  query(componentNames: string[]): number[];
-
-  // Prefabs
-  prefabs: {
-    register(prefab: PrefabDefinition): void;
-    instantiate(name: string, ...args: any[]): number;
-  };
+  query(componentTypes: Array<ComponentType | ComponentDefinition<any>>): EntityId[];
 
   // Services
-  services: {
-    get<K extends keyof S>(name: K): S[K];
-    register<K extends keyof S>(name: K, service: S[K]): void;
-  };
+  services: TypedServiceLocator<M>;
 
-  // Scene
-  scene: {
-    load(scene: SceneDefinition): void;
-  };
+  // Prefabs
+  prefabs: PrefabManager;
 
-  // Events
-  emit(event: string, data?: any): void;
-  on(event: string, listener: Function): void;
+  // Scene navigator (nullable)
+  scene: SceneNavigator | null;
+
+  // Frame state
+  deltaTime: number;
+  frameCount: number;
+}
+```
+
+## SceneNavigator
+
+```typescript
+interface SceneNavigator {
+  load(name: string): void;
+  current: string | null;
 }
 ```
 
 ## ComponentDefinition
 
 ```typescript
-interface ComponentDefinition<T = any> {
+interface ComponentDefinition<S extends ComponentSchema = ComponentSchema> {
   name: string;
-  schema: Record<string, ComponentType>;
+  schema: S;
 }
 ```
 
 ## PrefabDefinition
 
 ```typescript
-interface PrefabDefinition {
+interface PrefabDefinition<Args extends unknown[] = unknown[]> {
   name: string;
-  create: (api: EngineAPI, ...args: any[]) => number;
-}
-```
-
-## SceneDefinition
-
-```typescript
-interface SceneDefinition {
-  name: string;
-  factory: () => {
-    ui?: UIDefinition[];
-    plugins?: PluginDefinition[];
-    onEnter?: (api: EngineAPI) => void;
-    onExit?: (api: EngineAPI) => void;
-  };
-}
-```
-
-## PluginDefinition
-
-```typescript
-interface PluginDefinition {
-  name: string;
-  onInit?(api: EngineAPI): void;
-  onUpdate?(api: EngineAPI, dt: number): void;
-  onDestroy?(api: EngineAPI): void;
+  create: (api: EngineAPI, ...args: Args) => EntityId;
 }
 ```
 
 ## UIDefinition
 
 ```typescript
-interface UIDefinition<S = unknown> {
+interface UIDefinition<Services extends Record<string, unknown> = Record<string, unknown>> {
   name: string;
-  render(api: EngineAPI<S>, entityId: number): void;
+  onMount?(api: EngineAPI<Services>, entityId: EntityId): void;
+  render(api: EngineAPI<Services>, entityId: EntityId): void;
+  onUnmount?(api: EngineAPI<Services>, entityId: EntityId): void;
 }
 ```
 
+## Plugin Entry
+
+```typescript
+type PluginEntry = TsPlugin | (() => TsPlugin);
+```
+
+## Notes
+
+- `EngineAPI` does **not** expose `entityExists`, `emit`, or `on`.
+- Scene loading uses `api.scene?.load('SceneName')` (string name), not a scene object.
+- For exact contracts, see exported types from `@gwen/engine-core`.
+
 ## Next Steps
 
-- [Helpers](/api/helpers) - Helper functions
-- [Engine API](/api/engine-api) - Runtime API
-
+- [Helpers](/api/helpers)
+- [Engine API](/api/engine-api)
