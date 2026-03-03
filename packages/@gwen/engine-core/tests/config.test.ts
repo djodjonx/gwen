@@ -2,9 +2,14 @@
  * Configuration System Tests
  */
 
-import { describe, it, expect } from 'vitest';
-import type { EngineConfig } from '../src/types';
+import { describe, it, expect, vi } from 'vitest';
+import type { EngineConfig, GwenWasmPlugin } from '../src/types';
 import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
+
+/** Minimal GwenWasmPlugin stub for config tests — no real WASM logic needed. */
+function mockWasmPlugin(id: string, name: string): GwenWasmPlugin {
+  return { id, name, sharedMemoryBytes: 0, onInit: vi.fn() } as unknown as GwenWasmPlugin;
+}
 
 describe('Configuration', () => {
   describe('defaultConfig', () => {
@@ -69,8 +74,17 @@ describe('Configuration', () => {
     });
 
     it('should merge plugin arrays', () => {
-      const defaults = { ...defaultConfig, wasmPlugins: [{ id: 'physics', name: 'Physics' }] };
-      const user = { wasmPlugins: [{ id: 'ai', name: 'AIEngine' }] };
+      const defaults = {
+        ...defaultConfig,
+        wasmPlugins: [
+          { id: 'physics', name: 'Physics', sharedMemoryBytes: 0, onInit: vi.fn() },
+        ] as GwenWasmPlugin[],
+      };
+      const user = {
+        wasmPlugins: [
+          { id: 'ai', name: 'AIEngine', sharedMemoryBytes: 0, onInit: vi.fn() },
+        ] as GwenWasmPlugin[],
+      };
       const merged = mergeConfigs(defaults, user);
 
       expect(merged.wasmPlugins?.length).toBe(2);
@@ -96,8 +110,8 @@ describe('Configuration', () => {
     });
 
     it('should add WASM plugins', () => {
-      const wasmPlugin1 = { id: 'physics', name: 'Physics2D' };
-      const wasmPlugin2 = { id: 'ai', name: 'AIEngine' };
+      const wasmPlugin1 = mockWasmPlugin('physics', 'Physics2D');
+      const wasmPlugin2 = mockWasmPlugin('ai', 'AIEngine');
 
       const config = new ConfigBuilder()
         .addWasmPlugin(wasmPlugin1)
@@ -121,7 +135,7 @@ describe('Configuration', () => {
     });
 
     it('should separate WASM and TS plugins', () => {
-      const wasmPlugin = { id: 'physics', name: 'Physics' };
+      const wasmPlugin = mockWasmPlugin('physics', 'Physics');
       const tsPlugin = { name: 'input' };
 
       const config = new ConfigBuilder().addWasmPlugin(wasmPlugin).addTsPlugin(tsPlugin).build();
@@ -152,7 +166,7 @@ describe('Configuration', () => {
       const config = new ConfigBuilder()
         .setMaxEntities(5000)
         .setTargetFPS(60)
-        .addWasmPlugin({ id: 'physics', name: 'Physics' })
+        .addWasmPlugin(mockWasmPlugin('physics', 'Physics'))
         .addTsPlugin({ name: 'input' })
         .enableDebug()
         .build();
@@ -192,10 +206,12 @@ describe('Configuration', () => {
 
     it('should merge defineConfig with defaults', () => {
       const config = defineConfig({
-        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
+        wasmPlugins: [
+          { id: 'physics', name: 'Physics', sharedMemoryBytes: 0, onInit: vi.fn() },
+        ] as GwenWasmPlugin[],
       });
 
-      const merged = mergeConfigs(defaultConfig, config);
+      const merged = mergeConfigs(defaultConfig, config as unknown as Partial<EngineConfig>);
 
       expect(merged.wasmPlugins?.length).toBe(1);
       expect(merged.tsPlugins?.length).toBe(0);

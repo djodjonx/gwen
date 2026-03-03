@@ -119,17 +119,14 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   // ── Service factory ──────────────────────────────────────────────────────
 
   private _createAPI(): Physics2DAPI {
-    // Capture reference — `this.wasmPlugin` may be reassigned on hot-reload
-    const self = this;
-
     return {
-      addRigidBody(entityIndex, type, x, y) {
-        if (!self.wasmPlugin) throw new Error('[Physics2D] not initialized');
-        return self.wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
+      addRigidBody: (entityIndex, type, x, y) => {
+        if (!this.wasmPlugin) throw new Error('[Physics2D] not initialized');
+        return this.wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
       },
 
-      addBoxCollider(bodyHandle, hw, hh, opts = {}) {
-        self.wasmPlugin?.add_box_collider(
+      addBoxCollider: (bodyHandle, hw, hh, opts = {}) => {
+        this.wasmPlugin?.add_box_collider(
           bodyHandle,
           hw,
           hh,
@@ -138,8 +135,8 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         );
       },
 
-      addBallCollider(bodyHandle, radius, opts = {}) {
-        self.wasmPlugin?.add_ball_collider(
+      addBallCollider: (bodyHandle, radius, opts = {}) => {
+        this.wasmPlugin?.add_ball_collider(
           bodyHandle,
           radius,
           opts.restitution ?? 0,
@@ -147,21 +144,21 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         );
       },
 
-      removeBody(entityIndex) {
-        self.wasmPlugin?.remove_rigid_body(entityIndex);
+      removeBody: (entityIndex) => {
+        this.wasmPlugin?.remove_rigid_body(entityIndex);
       },
 
-      applyImpulse(entityIndex, x, y) {
-        self.wasmPlugin?.apply_impulse(entityIndex, x, y);
+      applyImpulse: (entityIndex, x, y) => {
+        this.wasmPlugin?.apply_impulse(entityIndex, x, y);
       },
 
-      getCollisionEvents(): CollisionEvent[] {
-        if (!self.wasmPlugin) return [];
-        return parseCollisionEvents(self.wasmPlugin.get_collision_events());
+      getCollisionEvents: (): CollisionEvent[] => {
+        if (!this.wasmPlugin) return [];
+        return parseCollisionEvents(this.wasmPlugin.get_collision_events());
       },
 
-      getPosition(entityIndex) {
-        const result = self.wasmPlugin?.get_position(entityIndex);
+      getPosition: (entityIndex) => {
+        const result = this.wasmPlugin?.get_position(entityIndex);
         if (!result || result.length < 3) return null;
         return { x: result[0], y: result[1], rotation: result[2] };
       },

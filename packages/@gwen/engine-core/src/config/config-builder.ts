@@ -5,7 +5,7 @@
  * Useful when configuration is determined at runtime or in advanced scenarios.
  */
 
-import type { EngineConfig, WasmPlugin, TsPlugin } from '../types';
+import type { EngineConfig, GwenWasmPlugin, TsPlugin } from '../types';
 import { defaultConfig, mergeConfigs } from './config';
 
 /**
@@ -69,7 +69,7 @@ export class ConfigBuilder {
    * Add WASM plugin (Rust-compiled, performance-critical)
    * Examples: Physics2D, NetworkingEngine, CustomAI
    */
-  public addWasmPlugin(plugin: WasmPlugin): this {
+  public addWasmPlugin(plugin: GwenWasmPlugin): this {
     if (!this.config.wasmPlugins) {
       this.config.wasmPlugins = [];
     }

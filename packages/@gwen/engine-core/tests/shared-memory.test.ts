@@ -292,7 +292,7 @@ describe('SharedMemoryManager — sentinel guards', () => {
     const { bridge, rawBuffer, basePtr } = makeMockBridge();
     const mgr = SharedMemoryManager.create(bridge, 1000);
 
-    const r1 = mgr.allocateRegion('physics2d', 64);
+    const _r1 = mgr.allocateRegion('physics2d', 64);
     const r2 = mgr.allocateRegion('ai', 64);
     mgr._writeSentinels(bridge);
 

@@ -81,6 +81,9 @@ function createMockWasmEngine(): WasmEngine {
     frame_count: vi.fn(() => BigInt(0)),
     delta_time: vi.fn(() => 0.016),
     total_time: vi.fn(() => 0),
+    alloc_shared_buffer: vi.fn(() => 4096),
+    sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{"entities":0}'),
   };
 }

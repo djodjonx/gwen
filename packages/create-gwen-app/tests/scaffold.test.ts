@@ -124,13 +124,13 @@ describe('create-gwen-app scaffold', () => {
     expect(fs.existsSync(path.join(dest, 'src', 'scenes', 'MainScene.ts'))).toBe(true);
   });
 
-  it('MainScene implements TsPlugin interface', async () => {
+  it('MainScene uses defineScene from @gwen/engine-core', async () => {
     const dest = await scaffold('my-game', tmpDir);
     const scene = fs.readFileSync(path.join(dest, 'src', 'scenes', 'MainScene.ts'), 'utf-8');
-    expect(scene).toContain('TsPlugin');
-    expect(scene).toContain('onInit');
-    expect(scene).toContain('onUpdate');
-    expect(scene).toContain('onRender');
+    expect(scene).toContain('defineScene');
+    expect(scene).toContain('@gwen/engine-core');
+    expect(scene).toContain('onEnter');
+    expect(scene).toContain('onExit');
   });
 
   it('generates src/components/index.ts with defineComponent', async () => {
