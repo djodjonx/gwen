@@ -99,8 +99,8 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  *   targetFPS: 60,
  * });
  *
- * // In a system / plugin
- * onInit(api: EngineAPI<GwenServices>) {
+ * // In a system / plugin — fully typed after gwen prepare, no annotation needed
+ * onInit(api) {
  *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
  *   const au = api.services.get('audio');    // → AudioManager  ✅
  * }

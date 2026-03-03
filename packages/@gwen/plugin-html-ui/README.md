@@ -46,7 +46,7 @@ import { defineUI } from '@gwen/engine-core';
 import { Score } from '../components';
 import scoreHtml from './score.html?raw';
 
-export const ScoreUI = defineUI<GwenServices>({
+export const ScoreUI = defineUI({
   name: 'ScoreUI',
 
   onMount(api, entityId) {

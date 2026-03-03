@@ -15,7 +15,7 @@
  * // src/ui/ScoreUI.ts
  * import scoreHtml from './score.html?raw';
  *
- * export const ScoreUI = defineUI<GwenServices>({
+ * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
  *   onMount(api, entityId) {
  *     api.services.get('htmlUI').mount(entityId, scoreHtml);
@@ -161,7 +161,7 @@ interface DomContext {
  * // src/ui/ScoreUI.ts
  * import scoreTemplate from './score.html?raw';
  *
- * export const ScoreUI = defineUI<GwenServices>({
+ * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
  *   onMount(api, entityId) {
  *     api.services.get('htmlUI').mount(entityId, scoreTemplate);

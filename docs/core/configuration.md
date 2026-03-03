@@ -342,12 +342,10 @@ export const gwenConfig = defineConfig({
 ```
 
 ```typescript
-// systems/PlayerSystem.ts — GwenServices is global, no import needed
-import type { EngineAPI } from '@gwen/engine-core';
-
+// systems/PlayerSystem.ts — fully typed after gwen prepare, no annotation needed
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
-  onUpdate(api: EngineAPI<GwenServices>, dt: number) {
+  onUpdate(api, dt: number) {
     const keyboard = api.services.get('keyboard'); // → KeyboardInput ✅
     const audio    = api.services.get('audio');    // → AudioManager  ✅
     const renderer = api.services.get('renderer'); // → Canvas2DRenderer ✅

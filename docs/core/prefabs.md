@@ -306,26 +306,13 @@ export const TankPrefab = definePrefab({
 
 ## Typed Services in Prefabs
 
-The `create` function receives `api: EngineAPI`. If your prefab needs to call `api.services` (rare but possible), annotate it with `EngineAPI<GwenServices>`:
+The `create` function receives `api: EngineAPI`. After `gwen prepare`, services are **fully typed automatically** — no annotation needed:
 
 ```typescript
-// ❌ Without annotation — services are unknown
+// ✅ After gwen prepare — fully typed, no annotation needed
 export const SpawnWithSoundPrefab = definePrefab({
   name: 'SpawnWithSound',
   create: (api, x: number, y: number) => {
-    const audio = api.services.get('audio'); // unknown ⚠️
-    const id = api.createEntity();
-    api.addComponent(id, Position, { x, y });
-    return id;
-  }
-});
-
-// ✅ With EngineAPI<GwenServices> — GwenServices is global, no import needed
-import type { EngineAPI } from '@gwen/engine-core';
-
-export const SpawnWithSoundPrefab = definePrefab({
-  name: 'SpawnWithSound',
-  create: (api: EngineAPI<GwenServices>, x: number, y: number) => {
     api.services.get('audio').play('spawn'); // → AudioPlugin ✅
     const id = api.createEntity();
     api.addComponent(id, Position, { x, y });
@@ -334,7 +321,7 @@ export const SpawnWithSoundPrefab = definePrefab({
 });
 ```
 
-> In practice, most prefabs only call `api.createEntity()` and `api.addComponent()` — both are always typed regardless of `<Services>`. The generic is only needed if you call `api.services.get(...)`.
+> In practice, most prefabs only call `api.createEntity()` and `api.addComponent()` which are always typed. Services are automatically typed after `gwen prepare`.
 
 ## Best Practices
 

@@ -38,8 +38,8 @@ export type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig
  *
  * @example
  * ```typescript
- * onInit(api: EngineAPI<GwenServices>) {
- *   const debug = api.services.get('debug');
+ * onInit(api) {
+ *   const debug = api.services.get('debug'); // ✅ typed automatically after gwen prepare
  *   const metrics = debug.getMetrics();
  *   console.log(`FPS: ${metrics.currentFps.toFixed(1)}`);
  *   console.log(`Average FPS: ${metrics.averageFps.toFixed(1)}`);

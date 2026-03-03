@@ -98,15 +98,13 @@ export const gwenConfig = defineConfig({
 });
 ```
 
-Then use the typed API with no imports:
+Then use the typed API — **no annotation needed** after `gwen prepare`:
 
 ```typescript
-import type { EngineAPI } from '@gwen/engine-core';
-
 export const MySystem = defineSystem({
   name: 'MySystem',
-  onUpdate(api: EngineAPI<GwenServices>, dt: number) {
-    const service = api.services.get('myService'); // ✅ Typed — no manual declaration
+  onUpdate(api, dt: number) {
+    const service = api.services.get('myService'); // ✅ Typed automatically
     console.log(service.value);
   }
 });

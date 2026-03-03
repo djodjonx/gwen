@@ -5,12 +5,15 @@
  * The framework dispatches onMount / render / onUnmount — that's it.
  * Developers choose their renderer via api.services in these hooks.
  *
+ * After `gwen prepare`, `api.services.get()` is fully typed automatically —
+ * no generic annotation needed.
+ *
  * @example Canvas2D
  * ```ts
- * export const ScoreUI = defineUI<GwenServices>({
+ * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
  *   render(api, entityId) {
- *     const r = api.services.get('renderer');
+ *     const r = api.services.get('renderer'); // ✅ typed automatically
  *     r.ctx.fillText('SCORE: 0', r.logicalWidth / 2, 24);
  *   },
  * });
@@ -18,7 +21,7 @@
  *
  * @example HTML via HtmlUIPlugin
  * ```ts
- * export const ScoreUI = defineUI<GwenServices>({
+ * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
  *   onMount(api, entityId) {
  *     api.services.get('htmlUI').mount(entityId, '<div id="score">0</div>');
@@ -89,15 +92,15 @@ export type UIBody<Services extends GwenDefaultServices = GwenDefaultServices> =
  *
  * **Forme 1 — objet direct** (simple, sans état local) :
  * ```ts
- * export const BulletUI = defineUI<GwenServices>({
+ * export const BulletUI = defineUI({
  *   name: 'BulletUI',
- *   render(api, id) { ... },
+ *   render(api, id) { ... }, // api.services typé automatiquement après gwen prepare
  * });
  * ```
  *
  * **Forme 2 — factory** (avec état local en closure, sans variables globales) :
  * ```ts
- * export const EnemyUI = defineUI<GwenServices>('EnemyUI', () => {
+ * export const EnemyUI = defineUI('EnemyUI', () => {
  *   const phaseMap = new Map<EntityId, number>(); // ← closure locale, pas globale
  *   return {
  *     onMount(_api, id)   { phaseMap.set(id, Math.random() * Math.PI * 2); },
