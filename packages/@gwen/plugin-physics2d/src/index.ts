@@ -68,6 +68,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   readonly config: Required<Physics2DConfig>;
   private _region: MemoryRegion | null = null;
   private _bridge: WasmBridge | null = null;
+  private _debugFrameCount = 0;
 
   constructor(config: Physics2DConfig = {}) {
     this.config = {
@@ -133,6 +134,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
    */
   onStep(deltaTime: number): void {
     this.wasmPlugin?.step(deltaTime);
+    this._debugFrameCount++;
   }
 
   /** Free the WASM instance. Called when the engine stops. */
@@ -152,7 +154,6 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   }
 
   private _createAPI(): Physics2DAPI {
-    let _frameCount = 0;
     return {
       addRigidBody: (entityIndex, type, x, y) => {
         if (!this.wasmPlugin) throw new Error('[Physics2D] not initialized');
@@ -201,10 +202,10 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         if (!this.wasmPlugin) return [];
         const raw = this.wasmPlugin.get_collision_events();
         const events = parseCollisionEvents(raw);
-        _frameCount++;
-        if (_frameCount <= 300 && _frameCount % 60 === 0) {
+        const f = this._debugFrameCount;
+        if (f <= 300 && f % 60 === 0 && f > 0) {
           const stats = this.wasmPlugin.stats();
-          console.log(`[Physics2D] frame=${_frameCount} stats=${stats} events_raw=${raw}`);
+          console.log(`[Physics2D] frame=${f} stats=${stats} events_raw=${raw}`);
         }
         if (events.length > 0) {
           console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
