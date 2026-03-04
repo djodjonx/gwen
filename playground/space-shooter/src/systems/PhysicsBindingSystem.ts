@@ -1,5 +1,4 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 import { Position, Collider, Tag } from '../components';
 
@@ -21,7 +20,7 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
       physics = api.services.get('physics');
     },
 
-    onUpdate(api: EngineAPI<GwenServices>) {
+    onUpdate(api) {
       if (!physics) return;
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);
