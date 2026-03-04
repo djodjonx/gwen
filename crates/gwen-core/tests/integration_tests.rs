@@ -32,9 +32,7 @@ mod tests {
     }
 
     fn as_bytes<T: Copy>(v: &T) -> &[u8] {
-        unsafe {
-            std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>())
-        }
+        unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
     }
 
     fn read_as<T: Copy>(bytes: &[u8]) -> T {
@@ -57,12 +55,16 @@ mod tests {
         // Spawn 3 entities with Position + Velocity
         let entities: Vec<_> = (0..3).map(|_| em.create_entity()).collect();
         for (i, &e) in entities.iter().enumerate() {
-            pos_handle.add(&mut storage, e.index(), Position { x: i as f32, y: 0.0 });
-            vel_handle.add(&mut storage, e.index(), Velocity { dx: 1.0, dy: 0.0 });
-            qs.update_entity_archetype(
+            pos_handle.add(
+                &mut storage,
                 e.index(),
-                vec![pos_handle.type_id(), vel_handle.type_id()],
+                Position {
+                    x: i as f32,
+                    y: 0.0,
+                },
             );
+            vel_handle.add(&mut storage, e.index(), Velocity { dx: 1.0, dy: 0.0 });
+            qs.update_entity_archetype(e.index(), vec![pos_handle.type_id(), vel_handle.type_id()]);
         }
 
         // Query entities with both components
@@ -194,7 +196,11 @@ mod tests {
         hp_handle.add(&mut storage, 0, Health { hp: 100.0 });
         qs.update_entity_archetype(
             0,
-            vec![pos_handle.type_id(), vel_handle.type_id(), hp_handle.type_id()],
+            vec![
+                pos_handle.type_id(),
+                vel_handle.type_id(),
+                hp_handle.type_id(),
+            ],
         );
 
         // Entity 1: Pos + Vel only
@@ -300,4 +306,3 @@ mod tests {
         assert_eq!(qs.query(q_hp).len(), 1);
     }
 }
-

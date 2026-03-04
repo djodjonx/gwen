@@ -8,11 +8,11 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
   const slotToCurrentId = new Map<number, number>(); // slot → current packed EntityId
 
   return {
-    onInit(api: EngineAPI<GwenServices>) {
+    onInit(api) {
       physics = api.services.get('physics') as Physics2DAPI;
     },
 
-    onUpdate(api: EngineAPI<GwenServices>) {
+    onUpdate(api) {
       if (!physics) return;
 
       const scoreList = api.query([Score.name]);

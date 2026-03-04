@@ -352,7 +352,7 @@ describe('writeEventToChannel — edge cases', () => {
 describe('resetEventChannels — edge cases', () => {
   it('reset multiple ring channels en même temps', () => {
     const bus = new PluginDataBus();
-    const ch1 = bus.allocate('physics2d', EVENTS_CHANNEL, 100);
+    const _ch1 = bus.allocate('physics2d', EVENTS_CHANNEL, 100);
     const ch2: EventChannel = {
       name: 'ai-events',
       direction: 'write',
@@ -361,7 +361,7 @@ describe('resetEventChannels — edge cases', () => {
     };
     const ch2Alloc = bus.allocate('ai-plugin', ch2, 100);
 
-    const view1 = new DataView(ch1.buffer);
+    const view1 = new DataView(_ch1.buffer);
     const view2 = new DataView(ch2Alloc.buffer);
 
     view1.setUint32(0, 10, true);
@@ -407,9 +407,9 @@ describe('resetEventChannels — edge cases', () => {
 describe('PluginDataBus.checkSentinels — edge cases', () => {
   it('détecte corruption au sentinel de channel 2 sur 3', () => {
     const bus = new PluginDataBus();
-    const ch1 = bus.allocate('plugin-a', TRANSFORM_CHANNEL, 100);
+    bus.allocate('plugin-a', TRANSFORM_CHANNEL, 100);
     const ch2 = bus.allocate('plugin-b', EVENTS_CHANNEL, 100);
-    const ch3 = bus.allocate('plugin-c', TRANSFORM_CHANNEL, 50);
+    bus.allocate('plugin-c', TRANSFORM_CHANNEL, 50);
 
     bus.writeSentinels();
 

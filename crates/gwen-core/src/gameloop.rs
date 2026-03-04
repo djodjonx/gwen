@@ -275,4 +275,3 @@ mod tests {
         assert_eq!(loop_obj.timing().target_fps(), 60);
     }
 }
-

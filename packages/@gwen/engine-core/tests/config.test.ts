@@ -42,7 +42,9 @@ describe('Configuration', () => {
 
     it('should support wasm plugins', () => {
       const config = defineConfig({
-        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
+        wasmPlugins: [
+          { id: 'physics', name: 'Physics', sharedMemoryBytes: 0, onInit: async () => {} },
+        ],
       });
 
       expect(config.wasmPlugins?.length).toBe(1);
@@ -192,7 +194,9 @@ describe('Configuration', () => {
     it('should work with defineConfig', () => {
       const config = defineConfig({
         maxEntities: 10000,
-        wasmPlugins: [{ id: 'physics', name: 'Physics' }],
+        wasmPlugins: [
+          { id: 'physics', name: 'Physics', sharedMemoryBytes: 0, onInit: async () => {} },
+        ],
         tsPlugins: [{ name: 'input' }],
       });
 

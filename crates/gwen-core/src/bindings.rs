@@ -218,7 +218,9 @@ impl Engine {
     /// Returns u32::MAX if the index is out of bounds.
     /// Used by the TS bridge to reconstruct packed EntityIds from query results.
     pub fn get_entity_generation(&self, index: u32) -> u32 {
-        self.entity_manager.get_generation(index).unwrap_or(u32::MAX)
+        self.entity_manager
+            .get_generation(index)
+            .unwrap_or(u32::MAX)
     }
 
     /// Query entities that have ALL the listed component types.
@@ -326,12 +328,12 @@ impl Engine {
                 if let Some(raw) = self.component_storage.get_transform_raw(idx as u32) {
                     // raw is a packed [x: f32, y: f32, rot: f32, sx: f32, sy: f32]
                     let floats = raw.as_ptr() as *const f32;
-                    base.write(*floats);           // x
+                    base.write(*floats); // x
                     base.add(1).write(*floats.add(1)); // y
                     base.add(2).write(*floats.add(2)); // rot
                     base.add(3).write(*floats.add(3)); // sx
                     base.add(4).write(*floats.add(4)); // sy
-                    // flags: mark slot as active
+                                                       // flags: mark slot as active
                     let flags_ptr = (ptr + offset + 20) as *mut u32;
                     *flags_ptr |= PHYS_FLAG;
                 } else {
@@ -364,19 +366,17 @@ impl Engine {
                 }
 
                 let base = (ptr + offset) as *const f32;
-                let x   = *base;
-                let y   = *base.add(1);
+                let x = *base;
+                let y = *base.add(1);
                 let rot = *base.add(2);
-                let sx  = *base.add(3);
-                let sy  = *base.add(4);
+                let sx = *base.add(3);
+                let sy = *base.add(4);
 
                 // Write back into ComponentStorage as raw f32 bytes
                 let packed: [f32; 5] = [x, y, rot, sx, sy];
-                let bytes = std::slice::from_raw_parts(
-                    packed.as_ptr() as *const u8,
-                    20,
-                );
-                self.component_storage.upsert_transform_raw(idx as u32, bytes);
+                let bytes = std::slice::from_raw_parts(packed.as_ptr() as *const u8, 20);
+                self.component_storage
+                    .upsert_transform_raw(idx as u32, bytes);
             }
         }
     }

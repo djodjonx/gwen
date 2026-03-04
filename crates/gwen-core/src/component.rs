@@ -2,8 +2,8 @@
 //!
 //! Stores and retrieves component data using Structure of Arrays (SoA) layout for cache efficiency.
 
-use std::collections::HashMap;
 use std::any::TypeId;
+use std::collections::HashMap;
 
 /// Unique identifier for a component type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -52,7 +52,8 @@ impl ComponentRegistry {
         self.next_id += 1;
 
         self.type_sizes.insert(id, std::mem::size_of::<T>());
-        self.type_names.insert(id, std::any::type_name::<T>().to_string());
+        self.type_names
+            .insert(id, std::any::type_name::<T>().to_string());
         self.rust_type_ids.insert(rust_type_id, id);
 
         id
@@ -166,7 +167,9 @@ impl ComponentColumn {
             data.len(),
             self.element_size,
             "Data size mismatch for component type {:?}: expected {}, got {}",
-            self.type_id, self.element_size, data.len()
+            self.type_id,
+            self.element_size,
+            data.len()
         );
 
         let slot = self.entity_ids.len();
@@ -230,23 +233,21 @@ impl ComponentColumn {
             for (i, &eid) in self.entity_ids.iter().enumerate() {
                 self.index_map.insert(eid, i);
             }
+        } else if idx == last_slot {
+            self.entity_ids.pop();
+            let start = idx * self.element_size;
+            self.data.truncate(start);
         } else {
-            if idx == last_slot {
-                self.entity_ids.pop();
-                let start = idx * self.element_size;
-                self.data.truncate(start);
-            } else {
-                let last_entity = self.entity_ids[last_slot];
-                self.entity_ids.swap_remove(idx);
+            let last_entity = self.entity_ids[last_slot];
+            self.entity_ids.swap_remove(idx);
 
-                let src = last_slot * self.element_size;
-                let dst = idx * self.element_size;
-                for i in 0..self.element_size {
-                    self.data.swap(dst + i, src + i);
-                }
-                self.data.truncate(last_slot * self.element_size);
-                self.index_map.insert(last_entity, idx);
+            let src = last_slot * self.element_size;
+            let dst = idx * self.element_size;
+            for i in 0..self.element_size {
+                self.data.swap(dst + i, src + i);
             }
+            self.data.truncate(last_slot * self.element_size);
+            self.index_map.insert(last_entity, idx);
         }
 
         true
@@ -303,7 +304,8 @@ impl ComponentStorage {
     /// Unlike `add_component()`, this never panics on size mismatch and
     /// overwrites existing data. Used by `bindings.rs` for all JS→WASM calls.
     pub fn upsert_js(&mut self, entity_id: u32, type_id: ComponentTypeId, data: &[u8]) {
-        let column = self.columns
+        let column = self
+            .columns
             .entry(type_id)
             .or_insert_with(|| ComponentColumn::new(type_id, 0));
         column.upsert_raw(entity_id, data);
@@ -318,7 +320,8 @@ impl ComponentStorage {
         // Try Rust registry first, fall back to data.len() for raw JS types
         let element_size = self.registry.size(type_id).unwrap_or(data.len());
 
-        let column = self.columns
+        let column = self
+            .columns
             .entry(type_id)
             .or_insert_with(|| ComponentColumn::new(type_id, element_size));
 
@@ -333,7 +336,11 @@ impl ComponentStorage {
     }
 
     /// Get mutable component data from entity
-    pub fn get_component_mut(&mut self, entity_id: u32, type_id: ComponentTypeId) -> Option<&mut [u8]> {
+    pub fn get_component_mut(
+        &mut self,
+        entity_id: u32,
+        type_id: ComponentTypeId,
+    ) -> Option<&mut [u8]> {
         self.columns
             .get_mut(&type_id)
             .and_then(|col| col.get_mut(entity_id))
@@ -433,7 +440,11 @@ impl<T: 'static> ComponentHandle<T> {
     }
 
     /// Get mutable component from entity
-    pub fn get_mut<'a>(&self, storage: &'a mut ComponentStorage, entity_id: u32) -> Option<&'a mut T> {
+    pub fn get_mut<'a>(
+        &self,
+        storage: &'a mut ComponentStorage,
+        entity_id: u32,
+    ) -> Option<&'a mut T> {
         storage
             .get_component_mut(entity_id, self.type_id)
             .map(|bytes| unsafe { &mut *(bytes.as_mut_ptr() as *mut T) })
@@ -449,4 +460,3 @@ impl<T: 'static> ComponentHandle<T> {
         storage.has_component(entity_id, self.type_id)
     }
 }
-

@@ -210,7 +210,7 @@ impl TransformSystem {
     /// Add transform for entity
     pub fn add_transform(&mut self, entity: EntityId, transform: Transform) {
         self.transforms.insert(entity, transform);
-        if !self.transforms[&entity].parent().is_some() {
+        if self.transforms[&entity].parent().is_none() {
             self.root_entities.push(entity);
         }
         self.rebuild_update_order();

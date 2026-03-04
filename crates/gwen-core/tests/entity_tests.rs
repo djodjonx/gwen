@@ -111,7 +111,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert_eq!(em.count_entities(), 10000);
-        assert!(elapsed.as_millis() < 100, "10K allocations took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 100,
+            "10K allocations took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -127,7 +131,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert_eq!(em.count_entities(), 0);
-        assert!(elapsed.as_millis() < 50, "1K deallocations took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "1K deallocations took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -174,4 +182,3 @@ mod tests {
         assert!(!em.delete_entity(e)); // Second delete should fail
     }
 }
-

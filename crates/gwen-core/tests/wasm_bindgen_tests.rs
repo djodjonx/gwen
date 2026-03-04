@@ -264,4 +264,3 @@ fn wasm_stats_is_valid_json_string() {
     assert!(stats.contains("frame"));
     assert!(stats.contains("elapsed"));
 }
-

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use gwen_core::component::{ComponentStorage, ComponentHandle};
+    use gwen_core::component::{ComponentHandle, ComponentStorage};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     struct Position {
@@ -151,12 +151,19 @@ mod tests {
 
         let start = std::time::Instant::now();
         for i in 0..1000 {
-            let pos = Position { x: i as f32, y: i as f32 };
+            let pos = Position {
+                x: i as f32,
+                y: i as f32,
+            };
             assert!(pos_handle.add(&mut storage, i, pos));
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 50, "Adding 1K components took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "Adding 1K components took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -165,7 +172,10 @@ mod tests {
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         for i in 0..1000 {
-            let pos = Position { x: i as f32, y: i as f32 };
+            let pos = Position {
+                x: i as f32,
+                y: i as f32,
+            };
             pos_handle.add(&mut storage, i, pos);
         }
 
@@ -175,7 +185,11 @@ mod tests {
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 50, "Getting 1K components took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "Getting 1K components took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -184,7 +198,10 @@ mod tests {
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
 
         for i in 0..1000 {
-            let pos = Position { x: i as f32, y: i as f32 };
+            let pos = Position {
+                x: i as f32,
+                y: i as f32,
+            };
             pos_handle.add(&mut storage, i, pos);
         }
 
@@ -194,7 +211,11 @@ mod tests {
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 50, "Removing 1K components took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "Removing 1K components took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -235,7 +256,14 @@ mod tests {
 
         // Add 100
         for i in 0..100 {
-            pos_handle.add(&mut storage, i, Position { x: i as f32, y: i as f32 });
+            pos_handle.add(
+                &mut storage,
+                i,
+                Position {
+                    x: i as f32,
+                    y: i as f32,
+                },
+            );
         }
 
         // Remove 50
@@ -245,7 +273,14 @@ mod tests {
 
         // Add 50 more
         for i in 100..150 {
-            pos_handle.add(&mut storage, i, Position { x: i as f32, y: i as f32 });
+            pos_handle.add(
+                &mut storage,
+                i,
+                Position {
+                    x: i as f32,
+                    y: i as f32,
+                },
+            );
         }
 
         // Verify remaining: 50-99, 100-149
@@ -258,4 +293,3 @@ mod tests {
         }
     }
 }
-

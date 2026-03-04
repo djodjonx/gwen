@@ -144,7 +144,8 @@ impl QuerySystem {
         // Collect the old archetype (if any) before mutating the map
         let old_archetype = self.entity_archetypes.get(&entity_id).cloned();
 
-        self.entity_archetypes.insert(entity_id, new_archetype.clone());
+        self.entity_archetypes
+            .insert(entity_id, new_archetype.clone());
 
         // Partial cache invalidation – only evict queries that intersect
         // with the old or new archetype of the changed entity.
@@ -211,4 +212,3 @@ impl Default for QuerySystem {
         Self::new()
     }
 }
-

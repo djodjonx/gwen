@@ -125,16 +125,14 @@ describe('prepare', () => {
     // Simuler un plugin dans node_modules avec pluginMeta
     const fakePluginDir = path.join(tmp, 'node_modules', '@gwen', 'plugin-fake');
     fs.mkdirSync(fakePluginDir, { recursive: true });
-    // package.json du plugin fake
+    // package.json du plugin fake avec champ gwen
     fs.writeFileSync(
       path.join(fakePluginDir, 'package.json'),
-      JSON.stringify({ name: '@gwen/plugin-fake', main: 'index.js' }),
-      'utf-8',
-    );
-    // index.js exportant pluginMeta
-    fs.writeFileSync(
-      path.join(fakePluginDir, 'index.js'),
-      `exports.pluginMeta = { typeReferences: ['@gwen/plugin-fake/vite-env'] };`,
+      JSON.stringify({
+        name: '@gwen/plugin-fake',
+        main: 'index.js',
+        gwen: { typeReferences: ['@gwen/plugin-fake/vite-env'] },
+      }),
       'utf-8',
     );
     // gwen.config.ts important ce plugin
@@ -189,13 +187,16 @@ export default defineConfig({ plugins: [new NoTypePlugin()] });
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(
         path.join(dir, 'package.json'),
-        JSON.stringify({ name: `@gwen/${name}`, main: 'index.js' }),
+        JSON.stringify({
+          name: `@gwen/${name}`,
+          main: 'index.js',
+          gwen: { typeReferences: ['@gwen/shared/vite-env'] },
+        }),
         'utf-8',
       );
       fs.writeFileSync(
         path.join(dir, 'index.js'),
-        `exports.pluginMeta = { typeReferences: ['@gwen/shared/vite-env'] };
-exports.${name === 'plugin-a' ? 'APlugin' : 'BPlugin'} = class {};`,
+        `exports.${name === 'plugin-a' ? 'APlugin' : 'BPlugin'} = class {};`,
         'utf-8',
       );
     }

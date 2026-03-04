@@ -30,9 +30,7 @@ impl LinearAllocator {
             return None; // Out of memory
         }
 
-        let ptr = unsafe {
-            self.buffer.as_mut_ptr().add(aligned_offset)
-        };
+        let ptr = unsafe { self.buffer.as_mut_ptr().add(aligned_offset) };
         self.offset = end;
         Some(ptr)
     }
@@ -156,4 +154,3 @@ mod tests {
         assert_eq!(align_offset(16, 16), 16);
     }
 }
-

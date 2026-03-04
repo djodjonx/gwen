@@ -44,10 +44,7 @@ impl EventBus {
             }
         });
 
-        self.handlers
-            .entry(type_id)
-            .or_insert_with(Vec::new)
-            .push(wrapped);
+        self.handlers.entry(type_id).or_default().push(wrapped);
     }
 
     /// Emit an event (queues for processing)

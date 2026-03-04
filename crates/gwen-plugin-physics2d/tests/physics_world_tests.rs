@@ -173,7 +173,6 @@ fn test_collision_events_empty_initially() {
     assert!(w.collision_events.is_empty());
 }
 
-
 // ─── Colliders ────────────────────────────────────────────────────────────────
 
 #[test]

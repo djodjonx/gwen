@@ -127,7 +127,9 @@ describe('defineConfig() — inférence des services', () => {
   it('wasmPlugins ne contribuent pas aux services TS (non typés)', () => {
     const config = defineConfig({
       tsPlugins: [new InputPlugin()],
-      wasmPlugins: [{ id: 'physics', name: 'Physics2D' }],
+      wasmPlugins: [
+        { id: 'physics', name: 'Physics2D', sharedMemoryBytes: 0, onInit: async () => {} },
+      ],
     });
     type Services = GwenConfigServices<typeof config>;
     // keyboard doit exister (InputPlugin)

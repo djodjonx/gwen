@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use gwen_core::allocator::{LinearAllocator, Arena};
+    use gwen_core::allocator::{Arena, LinearAllocator};
 
     #[test]
     fn test_allocate_single() {
@@ -193,7 +193,11 @@ mod tests {
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 50, "10K allocations took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 50,
+            "10K allocations took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -207,7 +211,11 @@ mod tests {
         }
         let elapsed = start.elapsed();
 
-        assert!(elapsed.as_millis() < 100, "1K reset cycles took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 100,
+            "1K reset cycles took {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[test]
@@ -252,4 +260,3 @@ mod tests {
         assert!(ptr3.is_some());
     }
 }
-
