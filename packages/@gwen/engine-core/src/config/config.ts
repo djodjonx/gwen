@@ -7,8 +7,6 @@ import { PluginDataBus } from '../wasm/plugin-data-bus';
 import { getWasmBridge } from '../engine/wasm-bridge';
 export { ConfigBuilder } from './config-builder';
 
-// ...existing code...
-
 /**
  * Default engine configuration - Pure logic, no rendering concerns
  * Matches Nuxt-like config pattern with wasm/ts plugin separation
@@ -274,12 +272,20 @@ export async function createEngine(
     // region offsets are deterministic and services are registered before any
     // subsequent plugin's onInit() might try to access them.
     for (const plugin of pluginModules) {
-      const region = sharedMemory.allocateRegion(plugin.id, plugin.sharedMemoryBytes);
+      // Bus-first plugins set sharedMemoryBytes = 0: no legacy SAB region needed.
+      const region =
+        plugin.sharedMemoryBytes > 0
+          ? sharedMemory.allocateRegion(plugin.id, plugin.sharedMemoryBytes)
+          : null;
+
       await plugin.onInit(bridge, region, api, pluginDataBus);
       engine._registerWasmPlugin(plugin);
 
       if (raw.debug) {
-        console.log(`[GWEN] WASM plugin '${plugin.name}' (id='${plugin.id}') initialized`);
+        const memoryMode = region ? `SAB=${region.byteLength}B` : 'SAB=disabled (DataBus only)';
+        console.log(
+          `[GWEN] WASM plugin '${plugin.name}' (id='${plugin.id}') initialized — ${memoryMode}`,
+        );
       }
     }
 

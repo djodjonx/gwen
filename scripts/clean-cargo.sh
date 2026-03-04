@@ -1,19 +1,24 @@
 #!/bin/bash
-# clean-cargo.sh — Clean rebuild all Rust crates without cache
+# clean-cargo.sh — Build/check/test Rust crates with controllable cache invalidation
 #
 # Usage:
-#   ./scripts/clean-cargo.sh              # Clean + check all crates
-#   ./scripts/clean-cargo.sh build        # Clean + build all crates (release)
-#   ./scripts/clean-cargo.sh build-debug  # Clean + build all crates (debug)
-#   ./scripts/clean-cargo.sh watch        # Watch mode (cargo watch)
-#   ./scripts/clean-cargo.sh test         # Clean + test all crates
+#   ./scripts/clean-cargo.sh [command] [target] [mode]
 #
-# Features:
-# - Auto-discovers all crates in ./crates/**
-# - Removes all build artifacts (target/, *.wasm, *.d.ts)
-# - Rebuilds cleanly without cache pollution
-# - Parallelizes across available CPU cores
-# - Reports errors clearly
+# Commands:
+#   check       (default)
+#   build       (release)
+#   build-debug
+#   test
+#   clean
+#   watch
+#
+# Targets:
+#   wasm32-unknown-unknown (default)
+#   native                 (host target; no --target flag passed)
+#
+# Modes:
+#   smart      (default)   incremental-friendly, no global cargo clean
+#   aggressive             force fresh compile with cargo clean before action
 
 set -euo pipefail
 
@@ -27,7 +32,6 @@ NC='\033[0m' # No Color
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CRATES_DIR="$PROJECT_ROOT/crates"
-TARGET_DIR="$PROJECT_ROOT/target"
 
 # Functions
 log_info() {
@@ -46,12 +50,10 @@ log_error() {
   echo -e "${RED}✗${NC} $*"
 }
 
-# Find all Cargo.toml files in crates/
 find_crates() {
   find "$CRATES_DIR" -maxdepth 2 -name "Cargo.toml" -type f | sort
 }
 
-# Count CPUs for parallel builds
 get_cpu_count() {
   if command -v nproc &>/dev/null; then
     nproc
@@ -62,75 +64,106 @@ get_cpu_count() {
   fi
 }
 
-# Extract crate name and path from Cargo.toml
-get_crate_info() {
+# Read package name from Cargo.toml [package] section.
+# Falls back to folder name if parsing fails.
+crate_name_from_manifest() {
   local manifest="$1"
-  local dir=$(dirname "$manifest")
-  local name=$(grep '^name = ' "$manifest" | sed 's/name = "\(.*\)"/\1/' | head -1)
-  echo "$name:$dir"
+  local fallback
+  fallback="$(basename "$(dirname "$manifest")")"
+
+  local name
+  name="$(awk '
+    /^\[package\]$/ { in_pkg=1; next }
+    /^\[/ { if (in_pkg) exit }
+    in_pkg && /^name\s*=\s*"/ {
+      gsub(/^name\s*=\s*"/, "", $0)
+      gsub(/"\s*$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$manifest")"
+
+  if [ -n "${name:-}" ]; then
+    echo "$name"
+  else
+    echo "$fallback"
+  fi
 }
 
-# Clean a single crate
-clean_crate() {
+# Build cargo args for target handling.
+# If target is "native", return empty args (host build).
+cargo_target_args() {
+  local target="$1"
+  if [ "$target" = "native" ]; then
+    echo ""
+  else
+    echo "--target $target"
+  fi
+}
+
+# Clean generated artifacts for one crate (without touching Cargo.lock).
+clean_crate_artifacts() {
   local manifest="$1"
-  local dir=$(dirname "$manifest")
-  local name=$(basename "$dir")
+  local dir
+  dir="$(dirname "$manifest")"
 
-  if [ -d "$dir/target" ]; then
-    log_info "Cleaning $name/target/..."
-    rm -rf "$dir/target"
-  fi
-
-  # Remove generated WASM artifacts
-  if [ -d "$dir/pkg" ]; then
-    rm -rf "$dir/pkg"
-  fi
-
-  # Remove wasm-pack artifacts
+  [ -d "$dir/pkg" ] && rm -rf "$dir/pkg"
   find "$dir" -maxdepth 1 -name "*.wasm" -delete
   find "$dir" -maxdepth 1 -name "*_bg.js" -delete
   find "$dir" -maxdepth 1 -name "*.d.ts" -delete
-
-  # Remove Cargo.lock if present (forces fresh dependency resolution)
-  if [ -f "$dir/Cargo.lock" ]; then
-    rm "$dir/Cargo.lock"
-  fi
 }
 
-# Build a single crate
 build_crate() {
   local manifest="$1"
   local target="$2"
   local profile="$3"
-  local dir=$(dirname "$manifest")
-  local name=$(basename "$dir")
-  local start_time=$(date +%s%N)
+  local name
+  name="$(crate_name_from_manifest "$manifest")"
+  local target_args
+  target_args="$(cargo_target_args "$target")"
+  local start_time
+  start_time="$(date +%s%N)"
 
   log_info "Building $name (target: $target, profile: $profile)..."
 
   if [ "$profile" = "debug" ]; then
-    cargo build -p "$name" --target "$target" 2>&1 || {
-      log_error "Build failed for $name"
-      return 1
-    }
+    if [ -n "$target_args" ]; then
+      cargo build -p "$name" $target_args 2>&1 || {
+        log_error "Build failed for $name"
+        return 1
+      }
+    else
+      cargo build -p "$name" 2>&1 || {
+        log_error "Build failed for $name"
+        return 1
+      }
+    fi
   else
-    cargo build -p "$name" --target "$target" --release 2>&1 || {
-      log_error "Build failed for $name"
-      return 1
-    }
+    if [ -n "$target_args" ]; then
+      cargo build -p "$name" $target_args --release 2>&1 || {
+        log_error "Build failed for $name"
+        return 1
+      }
+    else
+      cargo build -p "$name" --release 2>&1 || {
+        log_error "Build failed for $name"
+        return 1
+      }
+    fi
   fi
 
-  local end_time=$(date +%s%N)
-  local duration_ms=$(( (end_time - start_time) / 1000000 ))
+  local end_time
+  end_time="$(date +%s%N)"
+  local duration_ms=$(((end_time - start_time) / 1000000))
   log_success "Built $name (${duration_ms}ms)"
 }
 
-# Test a single crate
 test_crate() {
   local manifest="$1"
-  local dir=$(dirname "$manifest")
-  local name=$(basename "$dir")
-  local start_time=$(date +%s%N)
+  local name
+  name="$(crate_name_from_manifest "$manifest")"
+  local start_time
+  start_time="$(date +%s%N)"
 
   log_info "Testing $name..."
   cargo test -p "$name" 2>&1 || {
@@ -138,40 +171,45 @@ test_crate() {
     return 1
   }
 
-  local end_time=$(date +%s%N)
-  local duration_ms=$(( (end_time - start_time) / 1000000 ))
+  local end_time
+  end_time="$(date +%s%N)"
+  local duration_ms=$(((end_time - start_time) / 1000000))
   log_success "Tests passed for $name (${duration_ms}ms)"
 }
 
-# Check a single crate
 check_crate() {
   local manifest="$1"
   local target="$2"
-  local dir=$(dirname "$manifest")
-  local name=$(basename "$dir")
-  local start_time=$(date +%s%N)
+  local name
+  name="$(crate_name_from_manifest "$manifest")"
+  local target_args
+  target_args="$(cargo_target_args "$target")"
+  local start_time
+  start_time="$(date +%s%N)"
 
   log_info "Checking $name (target: $target)..."
-  cargo check -p "$name" --target "$target" 2>&1 || {
-    log_error "Check failed for $name"
-    return 1
-  }
+  if [ -n "$target_args" ]; then
+    cargo check -p "$name" $target_args 2>&1 || {
+      log_error "Check failed for $name"
+      return 1
+    }
+  else
+    cargo check -p "$name" 2>&1 || {
+      log_error "Check failed for $name"
+      return 1
+    }
+  fi
 
-  local end_time=$(date +%s%N)
-  local duration_ms=$(( (end_time - start_time) / 1000000 ))
+  local end_time
+  end_time="$(date +%s%N)"
+  local duration_ms=$(((end_time - start_time) / 1000000))
   log_success "Checked $name (${duration_ms}ms)"
 }
 
-# Main workflow
 main() {
   local command="${1:-check}"
   local target="${2:-wasm32-unknown-unknown}"
-
-  # Global cargo clean (removes all build artifacts across all crates)
-  if [ "$command" != "watch" ]; then
-    log_info "Running global cargo clean..."
-    cargo clean 2>&1 | grep -v "^$" || true
-  fi
+  local mode="${3:-smart}"
 
   # Find all crates
   local crates=()
@@ -186,100 +224,109 @@ main() {
 
   log_info "Found ${#crates[@]} crate(s)"
   for manifest in "${crates[@]}"; do
-    dir=$(dirname "$manifest")
-    name=$(basename "$dir")
+    local dir name
+    dir="$(dirname "$manifest")"
+    name="$(crate_name_from_manifest "$manifest")"
     echo "  - $name ($dir)"
   done
   echo
 
-  local cpu_count=$(get_cpu_count)
-  log_info "Using $cpu_count CPU core(s) for parallel builds"
+  local cpu_count
+  cpu_count="$(get_cpu_count)"
+  log_info "Using $cpu_count CPU core(s)"
+  log_info "Mode: $mode"
   echo
+
+  # Aggressive mode: full workspace clean before action
+  if [ "$mode" = "aggressive" ] && [ "$command" != "watch" ]; then
+    log_info "Aggressive mode: running workspace cargo clean..."
+    cargo clean
+  fi
 
   case "$command" in
     check)
-      log_info "Starting CLEAN CHECK workflow..."
+      log_info "Starting CHECK workflow..."
       for manifest in "${crates[@]}"; do
-        clean_crate "$manifest"
+        clean_crate_artifacts "$manifest"
         check_crate "$manifest" "$target" || exit 1
       done
       log_success "All crates checked successfully!"
       ;;
 
     build)
-      log_info "Starting CLEAN BUILD workflow (release)..."
+      log_info "Starting BUILD workflow (release)..."
       for manifest in "${crates[@]}"; do
-        clean_crate "$manifest"
+        clean_crate_artifacts "$manifest"
         build_crate "$manifest" "$target" "release" || exit 1
       done
       log_success "All crates built successfully!"
       ;;
 
     build-debug)
-      log_info "Starting CLEAN BUILD workflow (debug)..."
+      log_info "Starting BUILD workflow (debug)..."
       for manifest in "${crates[@]}"; do
-        clean_crate "$manifest"
+        clean_crate_artifacts "$manifest"
         build_crate "$manifest" "$target" "debug" || exit 1
       done
       log_success "All crates built successfully (debug)!"
       ;;
 
     test)
-      log_info "Starting CLEAN TEST workflow..."
+      log_info "Starting TEST workflow..."
       for manifest in "${crates[@]}"; do
-        clean_crate "$manifest"
+        clean_crate_artifacts "$manifest"
         test_crate "$manifest" || exit 1
       done
       log_success "All crates tested successfully!"
       ;;
 
     clean)
-      log_info "Cleaning all crates and target/..."
+      log_info "Cleaning workspace artifacts..."
+      cargo clean
       for manifest in "${crates[@]}"; do
-        clean_crate "$manifest"
+        clean_crate_artifacts "$manifest"
       done
-      if [ -d "$TARGET_DIR" ]; then
-        log_info "Cleaning global target/..."
-        rm -rf "$TARGET_DIR"
-      fi
       log_success "All cleaned!"
       ;;
 
     watch)
-      log_info "Starting cargo watch (release mode)..."
-      cargo watch \
-        --exec "build --release --target $target" \
-        --ignore "*.d.ts" \
-        --ignore "*.wasm" \
-        2>&1 || exit 1
+      local target_args
+      target_args="$(cargo_target_args "$target")"
+      log_info "Starting cargo watch (target: $target)..."
+      if [ -n "$target_args" ]; then
+        cargo watch --exec "build --release $target_args" --ignore "*.d.ts" --ignore "*.wasm"
+      else
+        cargo watch --exec "build --release" --ignore "*.d.ts" --ignore "*.wasm"
+      fi
       ;;
 
     *)
-      echo "Usage: $0 {check|build|build-debug|test|clean|watch} [target]"
+      echo "Usage: $0 {check|build|build-debug|test|clean|watch} [target] [mode]"
       echo
       echo "Commands:"
-      echo "  check       — Clean + cargo check all crates (default)"
-      echo "  build       — Clean + cargo build --release all crates"
-      echo "  build-debug — Clean + cargo build (debug) all crates"
-      echo "  test        — Clean + cargo test all crates"
-      echo "  clean       — Clean all crate targets + global target/"
-      echo "  watch       — cargo watch in release mode"
+      echo "  check       — cargo check all crates (default)"
+      echo "  build       — cargo build --release all crates"
+      echo "  build-debug — cargo build (debug) all crates"
+      echo "  test        — cargo test all crates"
+      echo "  clean       — cargo clean + artifacts cleanup"
+      echo "  watch       — cargo watch"
       echo
-      echo "Options:"
-      echo "  target      — WASM target (default: wasm32-unknown-unknown)"
-      echo "              — Can also be 'native' for native builds"
+      echo "Target:"
+      echo "  wasm32-unknown-unknown (default)"
+      echo "  native"
+      echo
+      echo "Mode:"
+      echo "  smart      (default, no global cargo clean)"
+      echo "  aggressive (runs cargo clean before check/build/test)"
       echo
       echo "Examples:"
       echo "  ./scripts/clean-cargo.sh check"
-      echo "  ./scripts/clean-cargo.sh build wasm32-unknown-unknown"
-      echo "  ./scripts/clean-cargo.sh build-debug native"
-      echo "  ./scripts/clean-cargo.sh test"
-      echo "  ./scripts/clean-cargo.sh clean"
-      echo "  ./scripts/clean-cargo.sh watch"
+      echo "  ./scripts/clean-cargo.sh build wasm32-unknown-unknown smart"
+      echo "  ./scripts/clean-cargo.sh build native aggressive"
+      echo "  ./scripts/clean-cargo.sh test wasm32-unknown-unknown aggressive"
       exit 1
       ;;
   esac
 }
 
 main "$@"
-

@@ -1,7 +1,7 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_plugin_physics2d::components::{BodyType, PhysicsMaterial};
-use gwen_plugin_physics2d::world::PhysicsWorld;
+use gwen_physics2d::components::{BodyType, PhysicsMaterial};
+use gwen_physics2d::world::PhysicsWorld;
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -173,27 +173,6 @@ fn test_collision_events_empty_initially() {
     assert!(w.collision_events.is_empty());
 }
 
-#[test]
-fn test_collision_events_json_format_empty() {
-    let w = world_with_gravity();
-    let json = w.collision_events_json();
-    assert_eq!(json, "[]");
-}
-
-#[test]
-fn test_collision_events_json_format_nonempty() {
-    use gwen_plugin_physics2d::world::PhysicsCollisionEvent;
-    let mut w = world_with_gravity();
-    w.collision_events.push(PhysicsCollisionEvent {
-        entity_a: 1,
-        entity_b: 2,
-        started: true,
-    });
-    let json = w.collision_events_json();
-    assert!(json.contains(r#""a":1"#), "json={json}");
-    assert!(json.contains(r#""b":2"#), "json={json}");
-    assert!(json.contains(r#""started":true"#), "json={json}");
-}
 
 // ─── Colliders ────────────────────────────────────────────────────────────────
 
