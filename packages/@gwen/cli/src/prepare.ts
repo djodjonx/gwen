@@ -151,10 +151,7 @@ function collectPluginTypeReferences(
 
   for (const plugin of parsed.plugins) {
     try {
-      const pkgMain = resolvePackageMain(projectDir, plugin.packageName);
-      if (!pkgMain) continue;
-
-      const typeRefs = extractTypeRefsFromSource(pkgMain);
+      const typeRefs = readPluginGwenMeta(projectDir, plugin.packageName);
       for (const ref of typeRefs) {
         refs.add(ref);
         log(`[gwen prepare] 📦 ${plugin.packageName} → typeRef: ${ref}`);
@@ -168,68 +165,39 @@ function collectPluginTypeReferences(
 }
 
 /**
- * Résout le chemin absolu du point d'entrée d'un package npm
- * depuis le projectDir (cherche dans node_modules, suit les symlinks workspace).
+ * Lit les métadonnées GWEN d'un plugin depuis son package.json.
+ *
+ * Convention : le plugin déclare un champ "gwen" dans son package.json :
+ * ```json
+ * {
+ *   "gwen": {
+ *     "typeReferences": ["@gwen/plugin-html-ui/vite-env"]
+ *   }
+ * }
+ * ```
+ *
+ * Cette approche est 100% statique, fonctionne avec n'importe quel bundler,
+ * et est fiable aussi bien en monorepo qu'en npm publié (seul dist/ disponible).
+ *
+ * Inspiré du champ "nuxt" de Nuxt modules et "exports" de Vite.
  */
-function resolvePackageMain(projectDir: string, packageName: string): string | null {
+function readPluginGwenMeta(projectDir: string, packageName: string): string[] {
   let dir = projectDir;
   for (let i = 0; i < 5; i++) {
-    const pkgJson = path.join(dir, 'node_modules', packageName, 'package.json');
-    if (fs.existsSync(pkgJson)) {
+    const pkgJsonPath = path.join(dir, 'node_modules', packageName, 'package.json');
+    if (fs.existsSync(pkgJsonPath)) {
       try {
-        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
-        const main = pkg.main ?? pkg.module ?? 'src/index.ts';
-        // Résoudre le symlink pour atteindre le vrai répertoire du package
-        const pkgDir = fs.realpathSync(path.dirname(pkgJson));
-        return path.join(pkgDir, main);
+        const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')) as {
+          gwen?: { typeReferences?: string[] };
+        };
+        return pkg.gwen?.typeReferences ?? [];
       } catch {
-        return null;
+        return [];
       }
     }
     dir = path.dirname(dir);
   }
-  return null;
-}
-
-/**
- * Extrait statiquement les typeReferences depuis le source TypeScript d'un plugin.
- * Pas d'exécution — lecture regex du contenu du fichier source.
- *
- * Cherche le pattern :
- *   export const pluginMeta: GwenPluginMeta = { typeReferences: ['...'] }
- */
-function extractTypeRefsFromSource(filePath: string): string[] {
-  try {
-    // Résoudre les extensions possibles
-    const candidates = [filePath, filePath.replace(/\.js$/, '.ts')];
-    let source = '';
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        source = fs.readFileSync(c, 'utf-8');
-        break;
-      }
-    }
-    if (!source) return [];
-
-    // Extraire le bloc pluginMeta
-    const metaMatch = source.match(/pluginMeta[^=]*=\s*\{([^}]+)\}/s);
-    if (!metaMatch) return [];
-
-    // Extraire typeReferences: ['...', '...']
-    const refsMatch = metaMatch[1].match(/typeReferences\s*:\s*\[([^\]]+)\]/s);
-    if (!refsMatch) return [];
-
-    // Parser les strings entre quotes
-    const refs: string[] = [];
-    const strRe = /['"`]([^'"`]+)['"`]/g;
-    let m: RegExpExecArray | null;
-    while ((m = strRe.exec(refsMatch[1])) !== null) {
-      refs.push(m[1]);
-    }
-    return refs;
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 // ── Génération du index.html virtuel ──────────────────────────────────────────
@@ -269,7 +237,7 @@ function generateIndexHtml(
 
 function generateTsconfig(_projectDir: string): object {
   return {
-    // Ce fichier est généré automatiquement par `gwen prepare`.
+    // Ce fichier est généré automatiquement par \`gwen prepare\`.
     // NE PAS MODIFIER — vos modifications seront écrasées.
     // Modifiez gwen.config.ts à la place.
     compilerOptions: {

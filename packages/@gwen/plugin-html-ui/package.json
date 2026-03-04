@@ -8,13 +8,18 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "gwen": {
+    "typeReferences": ["@gwen/plugin-html-ui/vite-env"]
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "development": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./vite-env": "./src/vite-env.d.ts"
+    "./vite-env": {
+      "types": "./dist/vite-env.d.ts"
+    }
   },
   "scripts": {
     "dev": "vite",
