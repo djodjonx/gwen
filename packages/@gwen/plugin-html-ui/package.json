@@ -8,9 +8,6 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "gwen": {
-    "typeReferences": ["@gwen/plugin-html-ui/vite-env"]
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -39,5 +36,10 @@
   },
   "peerDependencies": {
     "@gwen/engine-core": "workspace:*"
+  },
+  "gwen": {
+    "typeReferences": [
+      "@gwen/plugin-html-ui/vite-env"
+    ]
   }
 }

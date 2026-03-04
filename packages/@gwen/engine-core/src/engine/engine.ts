@@ -39,6 +39,7 @@ import {
   type ComponentFieldValue,
   createShims,
 } from './engine-api';
+import { createGwenHooks, type GwenHookable } from '../hooks';
 
 export class Engine {
   private config: EngineConfig;
@@ -51,7 +52,10 @@ export class Engine {
 
   // Plugin system
   private pluginManager: PluginManager;
-  private api: EngineAPIImpl;
+  private api: EngineAPIImpl<GwenDefaultServices, GwenDefaultHooks>;
+
+  // Hooks system — unified event & lifecycle management
+  public readonly hooks: GwenHookable<GwenDefaultHooks> = createGwenHooks<GwenDefaultHooks>();
 
   // WASM Bridge — mandatory
   private wasmBridge: WasmBridge;
@@ -80,9 +84,6 @@ export class Engine {
   private scratchBuffer = new ArrayBuffer(1024);
   private scratchDataView = new DataView(this.scratchBuffer);
 
-  // Event system
-  private eventListeners = new Map<string, Set<(data?: unknown) => void>>();
-
   constructor(userConfig?: Partial<EngineConfig>) {
     this.config = mergeConfigs(defaultConfig, userConfig || {});
     this.validateConfig();
@@ -97,14 +98,15 @@ export class Engine {
       componentShim as unknown as ComponentRegistry,
       queryShim as unknown as QueryEngine,
       new ServiceLocator(),
+      this.hooks,
     ) as EngineAPIImpl;
 
     this.pluginManager = new PluginManager();
 
     // Inject PluginRegistrar directly into services for dynamic late-registration
     this.api.services.register('PluginRegistrar', {
-      register: (plugin: TsPlugin) => this.pluginManager.register(plugin, this.api),
-      unregister: (name: string) => this.pluginManager.unregister(name),
+      register: (plugin: TsPlugin) => this.pluginManager.register(plugin, this.api, this.hooks),
+      unregister: (name: string) => this.pluginManager.unregister(name, this.hooks),
       get: (name: string) => this.pluginManager.get(name),
     } as import('../types').IPluginRegistrar);
 
@@ -115,6 +117,13 @@ export class Engine {
       } else {
         console.warn('[GWEN] WASM core not yet initialized — call initWasm() before start()');
       }
+    }
+
+    // Call engine:init hook (synchronous)
+    try {
+      this.hooks.callHook('engine:init');
+    } catch (err) {
+      console.error('[GWEN] Error in engine:init hook:', err);
     }
   }
 
@@ -277,7 +286,7 @@ export class Engine {
    * @returns this for chaining
    */
   public registerSystem(plugin: TsPlugin): this {
-    this.pluginManager.register(plugin, this.api);
+    this.pluginManager.register(plugin, this.api, this.hooks);
     if (this.config.debug) {
       console.log(`[GWEN] Plugin '${plugin.name}' registered`);
     }
@@ -311,7 +320,7 @@ export class Engine {
    * @returns true if unregistered, false if not found
    */
   public removeSystem(name: string): boolean {
-    return this.pluginManager.unregister(name);
+    return this.pluginManager.unregister(name, this.hooks);
   }
 
   /**
@@ -347,16 +356,28 @@ export class Engine {
 
   // ============= Entity Management =============
 
-  public createEntity(): EntityId {
+  public async createEntity(): Promise<EntityId> {
     const wid = this.wasmBridge.createEntity();
     const id = packId(wid);
-    this.emit('entityCreated', { id });
+
+    // Call hook — plugins can transform the ID
+    try {
+      await this.hooks.callHook('entity:create', id);
+    } catch (err) {
+      console.error('[GWEN] Error in entity:create hook:', err);
+    }
+
     return id;
   }
 
   public destroyEntity(id: EntityId): boolean {
     const { index, generation } = unpackId(id);
     if (!this.wasmBridge.isAlive(index, generation)) return false;
+
+    // Call hook — plugins can cancel destruction by returning false
+    // For now, hooks are informational only (cancellation can be added later if needed)
+    this.hooks.callHook('entity:destroy', id);
+
     // Nettoyer tous les composants
     for (const [, typeId] of this.componentTypeIds) {
       this.wasmBridge.removeComponent(index, generation, typeId);
@@ -364,7 +385,14 @@ export class Engine {
     const result = this.wasmBridge.deleteEntity(index, generation);
     // Remove from Rust query cache — otherwise destroyed entity still appears in queries
     this.wasmBridge.removeEntityFromQuery(index);
-    this.emit('entityDestroyed', { id });
+
+    // Call hook after destruction (synchronous)
+    try {
+      this.hooks.callHook('entity:destroyed', id);
+    } catch (err) {
+      console.error('[GWEN] Error in entity:destroyed hook:', err);
+    }
+
     return result;
   }
 
@@ -388,7 +416,14 @@ export class Engine {
     data: S extends ComponentSchema ? { [K in keyof S]: unknown } : unknown,
   ): void {
     this._addComponentInternal(id, type, data);
-    this.emit('componentAdded', { id, type });
+    const typeName = typeof type === 'string' ? type : type.name;
+
+    // Call hook (synchronous)
+    try {
+      this.hooks.callHook('component:add', id, typeName, data);
+    } catch (err) {
+      console.error('[GWEN] Error in component:add hook:', err);
+    }
   }
 
   public removeComponent(
@@ -398,11 +433,21 @@ export class Engine {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentTypeIds.get(typeName);
     if (typeId === undefined) return false;
+
+    // Call hook before removal
+    this.hooks.callHook('component:remove', id, typeName);
+
     const { index, generation } = unpackId(id);
     const result = this.wasmBridge.removeComponent(index, generation, typeId);
     if (result) {
       this.wasmBridge.updateEntityArchetype(index, this._getEntityTypeIds(id));
-      this.emit('componentRemoved', { id, type });
+
+      // Call hook after removal (synchronous)
+      try {
+        this.hooks.callHook('component:removed', id, typeName);
+      } catch (err) {
+        console.error('[GWEN] Error in component:removed hook:', err);
+      }
     }
     return result;
   }
@@ -450,27 +495,58 @@ export class Engine {
     return results;
   }
 
-  // ============= Event System =============
+  // ============= Event System (Legacy — Bridge to Hooks) =============
 
+  /**
+   * @deprecated Use engine.hooks.hook() instead
+   * Legacy event listener registration — bridges to the hooks system.
+   *
+   * @example
+   * ```typescript
+   * // ❌ Old way (deprecated)
+   * engine.on('entityCreated', (data) => { ... });
+   *
+   * // ✅ New way
+   * engine.hooks.hook('entity:create', (id) => { ... });
+   * ```
+   */
   public on(eventType: string, listener: (data?: unknown) => void): void {
-    if (!this.eventListeners.has(eventType)) this.eventListeners.set(eventType, new Set());
-    this.eventListeners.get(eventType)!.add(listener);
+    if (this.config.debug) {
+      console.warn(
+        `[GWEN] engine.on('${eventType}') is deprecated. Use engine.hooks.hook() instead.`,
+      );
+    }
+    // Bridge to hooks system using [key: string] allowlist in GwenHooks
+    (this.hooks.hook as (name: string, handler: (data?: unknown) => void) => void)(
+      eventType,
+      listener,
+    );
   }
 
+  /**
+   * @deprecated Use engine.hooks.removeHook() instead
+   */
   public off(eventType: string, listener: (data?: unknown) => void): void {
-    this.eventListeners.get(eventType)?.delete(listener);
+    if (this.config.debug) {
+      console.warn(
+        `[GWEN] engine.off('${eventType}') is deprecated. Use engine.hooks.removeHook() instead.`,
+      );
+    }
+    // Bridge to hooks system using [key: string] allowlist in GwenHooks
+    (this.hooks.removeHook as (name: string, handler: (data?: unknown) => void) => void)(
+      eventType,
+      listener,
+    );
   }
 
-  public emit(eventType: string, data?: unknown): void {
-    const listeners = this.eventListeners.get(eventType);
-    if (listeners) {
-      for (const listener of listeners) {
-        try {
-          listener(data);
-        } catch (error) {
-          console.error(`[GWEN] Error in '${eventType}' listener:`, error);
-        }
-      }
+  /**
+   * @deprecated Hooks are called automatically now
+   * @internal
+   */
+  public emit(eventType: string, _data?: unknown): void {
+    // No-op — hooks are called directly now
+    if (this.config.debug) {
+      console.warn(`[GWEN] engine.emit('${eventType}') is deprecated and has no effect.`);
     }
   }
 
@@ -522,19 +598,19 @@ export class Engine {
 
   // ============= Lifecycle =============
 
-  public start(): void {
-    this._start();
+  public start(): Promise<void> {
+    return this._start();
   }
 
-  public stop(): void {
-    this._stop();
+  public stop(): Promise<void> {
+    return this._stop();
   }
 
-  public tick(now: number): void {
-    this._tick(now);
+  public tick(now: number): Promise<void> {
+    return this._tick(now);
   }
 
-  public _start(): void {
+  public async _start(): Promise<void> {
     if (this.isRunning) return;
 
     if (!this.wasmBridge.isActive()) {
@@ -546,24 +622,36 @@ export class Engine {
 
     this.isRunning = true;
     this.lastFrameTime = performance.now();
-    this.emit('start');
 
-    const loop = (now: number) => {
-      this._tick(now);
+    // Call hook
+    try {
+      await this.hooks.callHook('engine:start');
+    } catch (err) {
+      console.error('[GWEN] Error in engine:start hook:', err);
+    }
+
+    const loop = async (now: number) => {
+      await this._tick(now);
       if (this.isRunning) this.rafHandle = requestAnimationFrame(loop);
     };
     this.rafHandle = requestAnimationFrame(loop);
   }
 
-  public _stop(): void {
+  public async _stop(): Promise<void> {
     if (this.isRunning) cancelAnimationFrame(this.rafHandle);
     this.isRunning = false;
-    this.pluginManager.destroyAll();
+    this.pluginManager.destroyAll(this.hooks);
     this.pluginManager.destroyWasmPlugins();
-    this.emit('stop');
+
+    // Call hook
+    try {
+      await this.hooks.callHook('engine:stop');
+    } catch (err) {
+      console.error('[GWEN] Error in engine:stop hook:', err);
+    }
   }
 
-  public _tick(now: number): void {
+  public async _tick(now: number): Promise<void> {
     this._deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.1);
     this.lastFrameTime = now;
     this._frameCount++;
@@ -574,8 +662,15 @@ export class Engine {
 
     this.api._updateState(this._deltaTime, this._frameCount);
 
+    // Call engine:tick hook
+    try {
+      await this.hooks.callHook('engine:tick', this._deltaTime);
+    } catch (err) {
+      console.error('[GWEN] Error in engine:tick hook:', err);
+    }
+
     // Step 1 — TsPlugins: capture inputs, intentions
-    this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime);
+    await this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime, this.hooks);
 
     // Step 2 — Sync ECS Transforms → shared buffer (so WASM plugins can read)
     if (this.sharedMemoryPtr !== 0) {
@@ -608,12 +703,10 @@ export class Engine {
     this.wasmBridge.tick(this._deltaTime * 1000);
 
     // Step 7 — TsPlugins: game logic on updated values
-    this.pluginManager.dispatchUpdate(this.api, this._deltaTime);
+    await this.pluginManager.dispatchUpdate(this.api, this._deltaTime, this.hooks);
 
     // Step 8 — TsPlugins: rendering
-    this.pluginManager.dispatchRender(this.api);
-
-    this.emit('update', { deltaTime: this._deltaTime, frameCount: this._frameCount });
+    await this.pluginManager.dispatchRender(this.api, this.hooks);
   }
 
   public _getPluginManager(): PluginManager {

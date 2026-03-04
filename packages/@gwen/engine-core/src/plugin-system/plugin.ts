@@ -62,7 +62,14 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
 /**
  * Extracts the `provides` type from a GwenPlugin.
  */
-export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, unknown>;
+export type PluginProvides<T> =
+  T extends GwenPlugin<string, infer P, any> ? P : Record<string, unknown>;
+
+/**
+ * Extracts the `providesHooks` type from a GwenPlugin.
+ */
+export type PluginProvidesHooks<T> =
+  T extends GwenPlugin<string, any, infer H> ? H : Record<string, never>;
 
 /**
  * Extracts the `provides` type from a GwenWasmPlugin.
@@ -76,6 +83,14 @@ export type MergeProvides<Plugins extends readonly GwenPlugin[]> = UnionToInters
   PluginProvides<Plugins[number]>
 > &
   Record<string, unknown>;
+
+/**
+ * Merges `providesHooks` from all TsPlugins in a list.
+ */
+export type MergeHooks<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
+  PluginProvidesHooks<Plugins[number]>
+> &
+  Record<string, any>;
 
 /**
  * Merges `provides` from all WasmPlugins in a list.
@@ -93,6 +108,12 @@ export type MergeAllProvides<
   WasmPlugins extends readonly GwenWasmPlugin[],
 > = MergeProvides<TsPlugins> & MergeWasmProvides<WasmPlugins>;
 
+/**
+ * Merges `providesHooks` from all TsPlugins and system hooks.
+ */
+export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = import('../hooks').GwenHooks &
+  MergeHooks<TsPlugins>;
+
 // ── GwenPlugin interface ──────────────────────────────────────────────────────
 
 /**
@@ -100,10 +121,27 @@ export type MergeAllProvides<
  *
  * `N` = literal plugin name (e.g., `'InputPlugin'`)
  * `P` = service map exposed by this plugin (e.g., `{ keyboard: KeyboardInput }`)
+ * `H` = custom hooks exposed by this plugin (e.g., `{ 'input:keyPress': (...) => void }`)
+ *
+ * @example
+ * ```typescript
+ * export interface InputPluginHooks {
+ *   'input:keyDown': (key: string) => void;
+ *   'input:keyUp': (key: string) => void;
+ * }
+ *
+ * export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices, InputPluginHooks> {
+ *   readonly name = 'InputPlugin' as const;
+ *   readonly provides = { keyboard: {} as KeyboardInput };
+ *   readonly providesHooks = {} as InputPluginHooks;
+ *   // ...
+ * }
+ * ```
  */
 export interface GwenPlugin<
   N extends string = string,
   out P extends Record<string, unknown> = Record<string, unknown>,
+  out H extends Record<string, any> = Record<string, never>,
 > extends TsPlugin {
   readonly name: N;
   /**
@@ -112,6 +150,14 @@ export interface GwenPlugin<
    * Used only for TypeScript type inference.
    */
   readonly provides?: P;
+  /**
+   * Declares custom hooks that this plugin exposes for other plugins.
+   * Values are phantom types (`{} as HookInterface`) — never read at runtime.
+   * Used only for TypeScript type inference.
+   *
+   * Extracted by `gwen prepare` and merged into `GwenDefaultHooks` in `.gwen/gwen.d.ts`.
+   */
+  readonly providesHooks?: H;
 }
 
 // ── GwenPluginMeta ────────────────────────────────────────────────────────────

@@ -297,10 +297,11 @@ function generateDts(projectDir: string, configPath: string, typeRefs: string[] 
  * Cela rend tous les define* (defineSystem, defineUI, defineScene, definePrefab)
  * automatiquement typés — aucune annotation explicite requise.
  */
-${refBlock}import type { GwenConfigServices, EngineAPI } from '@gwen/engine-core';
+${refBlock}import type { GwenConfigServices, GwenConfigHooks, EngineAPI } from '@gwen/engine-core';
 ${configImport}
 
 type _GwenServices = GwenConfigServices<typeof _cfg>;
+type _GwenHooks = GwenConfigHooks<typeof _cfg>;
 
 declare global {
   /**
@@ -326,13 +327,24 @@ declare global {
   interface GwenDefaultServices extends _GwenServices {}
 
   /**
-   * Alias de commodité — équivalent à EngineAPI<GwenDefaultServices>.
+   * Enrichit GwenDefaultHooks avec les hooks des plugins déclarés.
+   * Les plugins peuvent déclarer des hooks custom qui seront typés automatiquement.
+   *
+   * @example
+   * api.hooks.hook('physics:collision', (event) => { // ✅ typé depuis Physics2DPlugin
+   *   console.log(event.entityA, event.entityB);
+   * });
+   */
+  interface GwenDefaultHooks extends _GwenHooks {}
+
+  /**
+   * Alias de commodité — équivalent à EngineAPI<GwenDefaultServices, GwenDefaultHooks>.
    * Utile pour annoter explicitement (plugins, bibliothèques tierces).
    *
    * @example
    * onInit(api: GwenAPI) { ... }
    */
-  type GwenAPI = EngineAPI<GwenDefaultServices>;
+  type GwenAPI = EngineAPI<GwenDefaultServices, GwenDefaultHooks>;
 
   /**
    * @deprecated Utiliser GwenAPI ou laisser TypeScript inférer automatiquement.

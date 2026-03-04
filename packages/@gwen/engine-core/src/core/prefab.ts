@@ -103,10 +103,15 @@ export class PrefabManager {
   private registry = new Map<string, PrefabDefinition<any>>();
 
   // Internal reference to the API, set by EngineAPIImpl during construction
-  private _api!: EngineAPI;
+  private _api!: EngineAPI<any, any>;
 
-  /** @internal */
-  _setAPI(api: EngineAPI): void {
+  /**
+   * @internal
+   * Set the API reference. Accepts any EngineAPI with generics M and H.
+   */
+  _setAPI<M extends Record<string, unknown>, H extends Record<string, any>>(
+    api: EngineAPI<M, H>,
+  ): void {
     this._api = api;
   }
 

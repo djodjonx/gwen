@@ -35,7 +35,7 @@ describe('SceneManager + Local Plugins', () => {
   });
   afterEach(() => _resetWasmBridge());
 
-  it('should register and unregister scene local plugins on transition', () => {
+  it('should register and unregister scene local plugins on transition', async () => {
     const engine = new Engine({ targetFPS: 60, maxEntities: 1000 });
     const scenes = new SceneManager();
     engine.registerSystem(scenes);
@@ -65,12 +65,12 @@ describe('SceneManager + Local Plugins', () => {
     expect(engine.hasSystem('GameSystem')).toBe(false);
 
     // Enter Game scene
-    scenes.loadSceneImmediate('Game', engine.getAPI());
+    await scenes.loadSceneImmediate('Game', engine.getAPI());
     expect(engine.hasSystem('GameSystem')).toBe(true);
     expect(activePlugin.onInit).toHaveBeenCalled();
 
     // Leave Game scene -> Menu
-    scenes.loadSceneImmediate('Menu', engine.getAPI());
+    await scenes.loadSceneImmediate('Menu', engine.getAPI());
     expect(engine.hasSystem('GameSystem')).toBe(false);
     expect(activePlugin.onDestroy).toHaveBeenCalled();
   });

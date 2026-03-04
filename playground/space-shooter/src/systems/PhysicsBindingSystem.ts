@@ -15,11 +15,12 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
   const registeredBySlot = new Map<number, number>(); // slot → packed EntityId
 
   return {
-    onInit(api) {
+    onInit(api: EngineAPI<GwenServices>) {
       physics = api.services.get('physics');
+      registeredBySlot.clear(); // Clear au cas où
     },
 
-    onBeforeUpdate(api, _dt) {
+    onUpdate(api: EngineAPI<GwenServices>) {
       if (!physics) return;
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);

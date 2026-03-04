@@ -22,5 +22,10 @@ export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
         api.prefabs.instantiate('Enemy', x, -30 - Math.random() * 40);
       }
     },
+
+    onDestroy() {
+      // Réinitialiser l'état pour la prochaine fois
+      spawnTimer = 0;
+    },
   };
 });

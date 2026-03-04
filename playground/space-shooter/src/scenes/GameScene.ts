@@ -15,15 +15,19 @@ import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
 export const GameScene = defineScene('Game', () => ({
+  // ✅ Reload automatique quand on revient dans la scene (comme Unity)
+  reloadOnReenter: true,
+
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
+  // ✅ Plus besoin de factories manuelles ! Les systèmes seront recréés automatiquement
   systems: [
     MovementSystem,
     PlayerSystem,
     AiSystem,
     SpawnerSystem,
-    PhysicsBindingSystem, // register entities in Rapier — before CollisionSystem
-    CollisionSystem(), // read Rapier events
+    PhysicsBindingSystem,
+    CollisionSystem,
   ],
 
   onEnter(api: EngineAPI<GwenServices>) {

@@ -75,6 +75,19 @@ declare global {
   interface GwenDefaultServices {
     [key: string]: unknown;
   }
+
+  /**
+   * Global hooks registry — enriched by `gwen prepare` with hooks from declared plugins.
+   * The index signature satisfies `Record<string, any>` so it works as a generic default.
+   *
+   * At runtime, all system hooks + plugin-provided hooks are available.
+   *
+   * @see GwenHooks for system hooks
+   * @see GwenConfigHooks for extracting hooks from config
+   */
+  interface GwenDefaultHooks {
+    [key: string]: (...args: any[]) => any;
+  }
 }
 
 // ============= Service Locator =============
@@ -136,9 +149,20 @@ export interface IPluginRegistrar {
 export interface SceneNavigator {
   /**
    * Load a scene at the next frame (safe to call from onUpdate).
-   * @param name Scene name
+   *
+   * @param name - Scene name to load
+   * @param data - Optional data passed to reload evaluator via ReloadContext
+   *
+   * @example
+   * ```typescript
+   * // Simple load
+   * api.scene.load('MainMenu');
+   *
+   * // With context data
+   * api.scene.load('Game', { reason: 'gameOver', score: 1000 });
+   * ```
    */
-  load(name: string): void;
+  load(name: string, data?: Record<string, unknown>): void;
 
   /** Name of the currently active scene, null if none. */
   readonly current: string | null;
@@ -149,23 +173,32 @@ export interface SceneNavigator {
 /**
  * The API surface exposed to all TsPlugins during lifecycle callbacks.
  *
- * The generic parameter `M` represents the service map available from plugins declared in `defineConfig()`.
- * It defaults to `GwenDefaultServices` — a global interface enriched by `gwen prepare` with the
- * project's actual services. This means **no explicit generic annotation is needed** after running
- * `gwen prepare`:
+ * **Generics:**
+ * - `M` = service map from plugins (defaults to `GwenDefaultServices`)
+ * - `H` = hooks map from plugins (defaults to `GwenDefaultHooks`)
+ *
+ * Both are enriched by `gwen prepare`, so **no explicit annotation is needed** after running it.
  *
  * @example
  * ```typescript
  * // ✅ No annotation needed — api is fully typed after gwen prepare
  * onUpdate(api, dt) {
  *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
+ *   api.hooks.hook('entity:create', (id) => {
+ *     console.log('Entity created:', id);
+ *   });
+ *   // Plugin hooks — fully typed after gwen prepare
+ *   api.hooks.hook('physics:collision', (event) => {});
  * }
  *
  * // ✅ Explicit annotation still works (for clarity or library authors)
- * onUpdate(api: EngineAPI<GwenDefaultServices>, dt: number) { ... }
+ * onUpdate(api: EngineAPI<GwenDefaultServices, GwenDefaultHooks>, dt: number) { ... }
  * ```
  */
-export interface EngineAPI<M extends GwenDefaultServices = GwenDefaultServices> {
+export interface EngineAPI<
+  M extends GwenDefaultServices = GwenDefaultServices,
+  H extends GwenDefaultHooks = GwenDefaultHooks,
+> {
   /** Query entities by required component types */
   query(
     componentTypes: Array<
@@ -196,9 +229,7 @@ export interface EngineAPI<M extends GwenDefaultServices = GwenDefaultServices> 
   >(
     id: EntityId,
     type: D,
-  ): import('./schema').InferComponent<D> | undefined;
-
-  /** Check if an entity has a component */
+  ): import('./schema').InferComponent<D> | undefined /** Check if an entity has a component */;
   hasComponent(
     id: EntityId,
     type: ComponentType | import('./schema').ComponentDefinition<any>,
@@ -228,6 +259,26 @@ export interface EngineAPI<M extends GwenDefaultServices = GwenDefaultServices> 
    * ```
    */
   readonly scene: SceneNavigator | null;
+
+  /**
+   * Hooks system — register handlers for engine and plugin lifecycle events.
+   *
+   * Fully typed with `H` from declared plugins. Includes:
+   * - System hooks (engine, plugin, entity, component, scene)
+   * - Plugin-provided hooks (from `ProvidesHooks` markers)
+   *
+   * @example
+   * ```ts
+   * onInit(api) {
+   *   // System hooks — fully typed
+   *   api.hooks.hook('entity:create', (id) => {});
+   *
+   *   // Plugin hooks — also fully typed after gwen prepare
+   *   api.hooks.hook('physics:collision', (event) => {});
+   * }
+   * ```
+   */
+  readonly hooks: import('./hooks').GwenHookable<H>;
 
   /** Current delta time in seconds */
   readonly deltaTime: number;

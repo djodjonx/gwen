@@ -4,20 +4,27 @@
 export * from './types';
 export * from './schema';
 
+// Hooks system
+export { createGwenHooks } from './hooks';
+export type { GwenHooks, GwenHookable } from './hooks';
+
 // Config — defineConfig() generic + TypedEngineConfig
 export { defaultConfig, mergeConfigs, defineConfig, createEngine } from './config/config';
 export { ConfigBuilder } from './config/config-builder';
-export type { TypedEngineConfig, GwenConfigServices } from './config/config';
+export type { TypedEngineConfig, GwenConfigServices, GwenConfigHooks } from './config/config';
 
 // Typed plugin system — GwenPlugin interface
 export type {
   GwenPlugin,
   GwenPluginMeta,
   PluginProvides,
+  PluginProvidesHooks,
   WasmPluginProvides,
   MergeProvides,
+  MergeHooks,
   MergeWasmProvides,
   MergeAllProvides,
+  MergeAllHooks,
   UnionToIntersection,
 } from './plugin-system/plugin';
 
@@ -42,6 +49,7 @@ export { PluginManager } from './plugin-system/plugin-manager';
 // Scene system
 export { SceneManager, defineScene } from './api/scene';
 export type { Scene, SceneBody } from './api/scene';
+export type { ReloadContext, ReloadEvaluator } from './api/scene-context';
 
 // UI system
 export { UIManager, defineUI, UIComponent } from './api/ui';

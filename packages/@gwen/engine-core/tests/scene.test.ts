@@ -35,48 +35,48 @@ describe('SceneManager', () => {
   });
 
   describe('register()', () => {
-    it('should register a scene', () => {
+    it('should register a scene', async () => {
       sm.register(makeScene('Menu'));
       expect(sm.hasScene('Menu')).toBe(true);
     });
 
-    it('should support chaining', () => {
+    it('should support chaining', async () => {
       const result = sm.register(makeScene('A')).register(makeScene('B'));
       expect(result).toBe(sm);
       expect(sm.hasScene('A')).toBe(true);
       expect(sm.hasScene('B')).toBe(true);
     });
 
-    it('should start with no active scene', () => {
+    it('should start with no active scene', async () => {
       expect(sm.getCurrentSceneName()).toBeNull();
       expect(sm.getCurrentScene()).toBeNull();
     });
   });
 
   describe('loadSceneImmediate()', () => {
-    it('should call onEnter on load', () => {
+    it('should call onEnter on load', async () => {
       const menu = makeScene('Menu');
       sm.register(menu);
-      sm.loadSceneImmediate('Menu', api);
+      await sm.loadSceneImmediate('Menu', api);
 
       expect(menu.onEnter).toHaveBeenCalledWith(api);
       expect(sm.getCurrentSceneName()).toBe('Menu');
     });
 
-    it('should call onExit then onEnter when transitioning', () => {
+    it('should call onExit then onEnter when transitioning', async () => {
       const menu = makeScene('Menu');
       const game = makeScene('Game');
       sm.register(menu).register(game);
 
-      sm.loadSceneImmediate('Menu', api);
-      sm.loadSceneImmediate('Game', api);
+      await sm.loadSceneImmediate('Menu', api);
+      await sm.loadSceneImmediate('Game', api);
 
       expect(menu.onExit).toHaveBeenCalled();
       expect(game.onEnter).toHaveBeenCalled();
       expect(sm.getCurrentSceneName()).toBe('Game');
     });
 
-    it('should purge all entities between scenes', () => {
+    it('should purge all entities between scenes', async () => {
       const menu = makeScene('Menu', {
         onEnter: (api) => {
           api.createEntity();
@@ -87,21 +87,23 @@ describe('SceneManager', () => {
       const game = makeScene('Game');
 
       sm.register(menu).register(game);
-      sm.loadSceneImmediate('Menu', api);
+      await sm.loadSceneImmediate('Menu', api);
       expect(api.query([])).toHaveLength(2);
 
-      sm.loadSceneImmediate('Game', api);
+      await sm.loadSceneImmediate('Game', api);
       // Entities should be gone after transition
       expect(api.query([])).toHaveLength(0);
     });
 
-    it('should throw for unknown scene', () => {
-      expect(() => sm.loadSceneImmediate('Unknown', api)).toThrow("Unknown scene 'Unknown'");
+    it('should throw for unknown scene', async () => {
+      await expect(sm.loadSceneImmediate('Unknown', api)).rejects.toThrow(
+        "Unknown scene 'Unknown'",
+      );
     });
   });
 
   describe('loadScene() — deferred transition', () => {
-    it('should apply transition at start of next frame', () => {
+    it('should apply transition at start of next frame', async () => {
       const menu = makeScene('Menu');
       sm.register(menu);
 
@@ -113,31 +115,31 @@ describe('SceneManager', () => {
       expect(menu.onEnter).toHaveBeenCalled();
     });
 
-    it('should throw for unknown scene name', () => {
+    it('should throw for unknown scene name', async () => {
       expect(() => sm.loadScene('Ghost')).toThrow("Unknown scene 'Ghost'");
     });
   });
 
   describe('onUpdate()', () => {
-    it('should delegate onUpdate to current scene', () => {
+    it('should delegate onUpdate to current scene', async () => {
       const game = makeScene('Game');
       sm.register(game);
-      sm.loadSceneImmediate('Game', api);
+      await sm.loadSceneImmediate('Game', api);
 
       sm.onUpdate(api, 0.016);
       expect(game.onUpdate).toHaveBeenCalledWith(api, 0.016);
     });
 
-    it('should not throw if no active scene', () => {
+    it('should not throw if no active scene', async () => {
       expect(() => sm.onUpdate(api, 0.016)).not.toThrow();
     });
   });
 
   describe('onDestroy()', () => {
-    it('should call onExit on active scene', () => {
+    it('should call onExit on active scene', async () => {
       const menu = makeScene('Menu');
       sm.register(menu);
-      sm.loadSceneImmediate('Menu', api);
+      await sm.loadSceneImmediate('Menu', api);
       sm.onDestroy();
 
       expect(menu.onExit).toHaveBeenCalled();
@@ -146,14 +148,14 @@ describe('SceneManager', () => {
   });
 
   describe('Full lifecycle', () => {
-    it('should follow: onEnter → onUpdate → onExit → (new) onEnter', () => {
+    it('should follow: onEnter → onUpdate → onExit → (new) onEnter', async () => {
       const menu = makeScene('Menu');
       const game = makeScene('Game');
       sm.register(menu).register(game);
 
-      sm.loadSceneImmediate('Menu', api);
+      await sm.loadSceneImmediate('Menu', api);
       sm.onUpdate(api, 0.016); // Menu:update
-      sm.loadSceneImmediate('Game', api); // Menu:exit, Game:enter
+      await sm.loadSceneImmediate('Game', api); // Menu:exit, Game:enter
       sm.onUpdate(api, 0.016); // Game:update
 
       expect(menu.calls).toEqual(['Menu:enter', 'Menu:update', 'Menu:exit']);
@@ -162,7 +164,7 @@ describe('SceneManager', () => {
   });
 
   describe('Scene has name', () => {
-    it('should have name "SceneManager"', () => {
+    it('should have name "SceneManager"', async () => {
       expect(sm.name).toBe('SceneManager');
     });
   });
@@ -177,7 +179,7 @@ describe('defineScene', () => {
 
   // ── Forme 1 — objet direct ────────────────────────────────────────────────
 
-  it('forme 1 — retourne la scène telle quelle', () => {
+  it('forme 1 — retourne la scène telle quelle', async () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
@@ -187,7 +189,7 @@ describe('defineScene', () => {
     expect(typeof scene.onEnter).toBe('function');
   });
 
-  it('forme 1 — enregistrable directement dans SceneManager', () => {
+  it('forme 1 — enregistrable directement dans SceneManager', async () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
@@ -200,7 +202,7 @@ describe('defineScene', () => {
     expect(sm.hasScene('Pause')).toBe(true);
   });
 
-  it('forme 1 — ui[] et systems sont optionnels', () => {
+  it('forme 1 — ui[] et systems sont optionnels', async () => {
     const scene = defineScene({
       name: 'Minimal',
       onEnter: vi.fn(),
@@ -212,7 +214,7 @@ describe('defineScene', () => {
 
   // ── Forme 2 — factory ─────────────────────────────────────────────────────
 
-  it('forme 2 — retourne une fonction callable', () => {
+  it('forme 2 — retourne une fonction callable', async () => {
     const GameScene = defineScene('Game', (_dep: string) => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -220,7 +222,7 @@ describe('defineScene', () => {
     expect(typeof GameScene).toBe('function');
   });
 
-  it('forme 2 — appel produit une Scene avec le bon name', () => {
+  it('forme 2 — appel produit une Scene avec le bon name', async () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -229,7 +231,7 @@ describe('defineScene', () => {
     expect(scene.name).toBe('Game');
   });
 
-  it('forme 2 — les dépendances sont capturées en closure', () => {
+  it('forme 2 — les dépendances sont capturées en closure', async () => {
     const enterFn = vi.fn();
     const GameScene = defineScene('Game', (dep: { value: number }) => ({
       onEnter: () => enterFn(dep.value),
@@ -240,7 +242,7 @@ describe('defineScene', () => {
     expect(enterFn).toHaveBeenCalledWith(42);
   });
 
-  it('forme 2 — chaque appel produit une instance indépendante', () => {
+  it('forme 2 — chaque appel produit une instance indépendante', async () => {
     const GameScene = defineScene('Game', (_id: number) => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -251,7 +253,7 @@ describe('defineScene', () => {
     expect(a.name).toBe(b.name); // même name
   });
 
-  it('forme 2 — systems transmis correctement', () => {
+  it('forme 2 — systems transmis correctement', async () => {
     const mockSystem = { name: 'MockSystem', onUpdate: vi.fn() };
     const GameScene = defineScene('Game', () => ({
       systems: [mockSystem],
@@ -262,7 +264,7 @@ describe('defineScene', () => {
     expect(scene.systems).toContain(mockSystem);
   });
 
-  it('forme 2 — enregistrable dans SceneManager après appel', () => {
+  it('forme 2 — enregistrable dans SceneManager après appel', async () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -274,7 +276,7 @@ describe('defineScene', () => {
     expect(sm.hasScene('Game')).toBe(true);
   });
 
-  it('forme 2 — état en closure est isolé par instance', () => {
+  it('forme 2 — état en closure est isolé par instance', async () => {
     const GameScene = defineScene('Game', () => {
       let count = 0;
       return {

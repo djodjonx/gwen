@@ -34,12 +34,17 @@ export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>
 }
 
 /**
- * Typed result of defineConfig() — exposes the inferred ServiceMap from plugins.
+ * Typed result of defineConfig() — exposes the inferred ServiceMap and HooksMap from plugins.
  *
  * `Services` is the intersection of `provides` from all declared plugins.
+ * `Hooks` is the intersection of `providesHooks` from all declared plugins.
  */
-export interface TypedEngineConfig<Services extends Record<string, unknown>> {
+export interface TypedEngineConfig<
+  Services extends Record<string, unknown>,
+  Hooks extends Record<string, any> = Record<string, never>,
+> {
   readonly _services: Services; // phantom type — never read at runtime
+  readonly _hooks: Hooks; // phantom type — never read at runtime
   readonly maxEntities?: number;
   readonly targetFPS?: number;
   readonly debug?: boolean;
@@ -85,11 +90,11 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
 }
 
 /**
- * Définit la configuration d'un projet GWEN avec inférence complète des services.
+ * Définit la configuration d'un projet GWEN avec inférence complète des services et hooks.
  *
- * Les services exposés par chaque plugin sont automatiquement fusionnés dans
- * `TypedEngineConfig<Services>`, ce qui permet à `api.services.get()` d'être
- * fortement typé partout dans le projet.
+ * Les services et hooks exposés par chaque plugin sont automatiquement fusionnés dans
+ * `TypedEngineConfig<Services, Hooks>`, ce qui permet à `api.services.get()` et `api.hooks.hook()`
+ * d'être fortement typés partout dans le projet.
  *
  * ```typescript
  * // gwen.config.ts
@@ -104,11 +109,13 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * onInit(api) {
  *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
  *   const au = api.services.get('audio');    // → AudioManager  ✅
+ *   api.hooks.hook('input:keyDown', (key) => {}); // ✅ Type-safe
+ *   api.hooks.hook('physics:collision', (event) => {}); // ✅ Type-safe
  * }
  * ```
  *
  * @param config Project configuration. `tsPlugins` accepts any plugin
- *   implementing `GwenPlugin` (with `provides`) or `TsPlugin` (untyped).
+ *   implementing `GwenPlugin` (with `provides` and `providesHooks`) or `TsPlugin` (untyped).
  */
 export function defineConfig<
   const TsPlugins extends readonly GwenPlugin[],
@@ -127,8 +134,14 @@ export function defineConfig<
     title?: string;
     background?: string;
   };
-}): TypedEngineConfig<MergeAllProvides<TsPlugins, WasmPlugins>> {
-  return config as unknown as TypedEngineConfig<MergeAllProvides<TsPlugins, WasmPlugins>>;
+}): TypedEngineConfig<
+  MergeAllProvides<TsPlugins, WasmPlugins>,
+  import('../plugin-system/plugin').MergeAllHooks<TsPlugins>
+> {
+  return config as unknown as TypedEngineConfig<
+    MergeAllProvides<TsPlugins, WasmPlugins>,
+    import('../plugin-system/plugin').MergeAllHooks<TsPlugins>
+  >;
 }
 
 /**
@@ -348,4 +361,16 @@ function resolveMainScene(scenes: SceneManager): string | null {
  * ```
  */
 export type GwenConfigServices<C> =
-  C extends TypedEngineConfig<infer S> ? S : Record<string, unknown>;
+  C extends TypedEngineConfig<infer S, any> ? S : Record<string, unknown>;
+
+/**
+ * Extrait le type `Hooks` d'une `TypedEngineConfig`.
+ *
+ * ```typescript
+ * const config = defineConfig({ plugins: [new InputPlugin(), new Physics2DPlugin()] });
+ * export type GwenHooks = GwenConfigHooks<typeof config>;
+ * // → GwenHooks & InputPluginHooks & Physics2DHooks
+ * ```
+ */
+export type GwenConfigHooks<C> =
+  C extends TypedEngineConfig<any, infer H> ? H : import('../hooks').GwenHooks;

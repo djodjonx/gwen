@@ -64,23 +64,75 @@ export interface EngineState {
 /**
  * Concrete implementation of EngineAPI.
  * Wraps the internal ECS and exposes a clean surface to plugins.
+ *
+ * Provides:
+ * - Entity creation/destruction/querying
+ * - Component management
+ * - Service locator for cross-plugin communication
+ * - Hooks system for extending engine behavior
+ * - Scene management
+ * - Prefab support
+ *
+ * @typeParam M - Service map type (inferred from declared plugins)
+ * @typeParam H - Hooks map type (inferred from declared plugins)
  */
 export class EngineAPIImpl<
   M extends Record<string, unknown> = GwenDefaultServices,
-> implements EngineAPI<M> {
+  H extends Record<string, any> = GwenDefaultHooks,
+> implements EngineAPI<M, H> {
   readonly services: TypedServiceLocator<M>;
   readonly prefabs: PrefabManager;
 
+  /**
+   * Hooks system for engine lifecycle, plugins, entities, components, and scenes.
+   *
+   * Use this to:
+   * - Register handlers for engine events
+   * - Create custom hooks for plugin extensibility
+   * - Coordinate between plugins
+   *
+   * Typed with `H` from declared plugins via `gwen prepare`.
+   *
+   * @example
+   * ```typescript
+   * // Register a handler
+   * api.hooks.hook('entity:create', (id) => {
+   *   console.log('Entity created:', id);
+   * });
+   *
+   * // Call custom hooks (plugin-provided)
+   * await api.hooks.callHook('my:event' as any, data);
+   * ```
+   *
+   * @see {@link GwenHooks} for all available hooks
+   * @see docs/api/hooks.md for complete documentation
+   */
+  readonly hooks: import('hookable').Hookable<H>;
+
+  /**
+   * Initialize the Engine API.
+   *
+   * @param entityManager - ECS entity manager instance
+   * @param components - ECS component registry instance
+   * @param queryEngine - ECS query engine instance
+   * @param services - Service locator instance
+   * @param state - Engine state (deltaTime, frameCount)
+   * @param hooks - Hooks system instance
+   *
+   * @internal Called by createEngineAPI factory
+   */
   constructor(
     private entityManager: EntityManager,
     private components: ComponentRegistry,
     private queryEngine: QueryEngine,
     services: TypedServiceLocator<M>,
     private state: EngineState,
+    hooks: import('hookable').Hookable<H>,
   ) {
     this.services = services;
     this.prefabs = new PrefabManager();
     this.prefabs._setAPI(this);
+    this.hooks = hooks;
   }
 
   get deltaTime(): number {
@@ -168,14 +220,21 @@ export class EngineAPIImpl<
 
 /**
  * Factory — creates a fully wired EngineAPI for a given ECS context.
+ *
+ * @typeParam M - Service map type
+ * @typeParam H - Hooks map type
  */
-export function createEngineAPI<M extends Record<string, unknown> = Record<string, unknown>>(
+export function createEngineAPI<
+  M extends Record<string, unknown> = Record<string, unknown>,
+  H extends Record<string, any> = GwenDefaultHooks,
+>(
   entityManager: EntityManager,
   components: ComponentRegistry,
   queryEngine: QueryEngine,
   services?: TypedServiceLocator<M>,
-): EngineAPIImpl<M> {
+  hooks?: import('hookable').Hookable<H>,
+): EngineAPIImpl<M, H> {
   const locator = services ?? new ServiceLocator<M>();
   const state: EngineState = { deltaTime: 0, frameCount: 0 };
-  return new EngineAPIImpl<M>(entityManager, components, queryEngine, locator, state);
+  return new EngineAPIImpl<M, H>(entityManager, components, queryEngine, locator, state, hooks!);
 }

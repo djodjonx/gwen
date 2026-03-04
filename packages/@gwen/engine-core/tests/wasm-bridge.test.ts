@@ -267,20 +267,20 @@ describe('Engine — WASM bridge integration', () => {
     engine.stop();
   });
 
-  it('start() throw si WASM non initialisé', () => {
+  it('start() throw si WASM non initialisé', async () => {
     _resetWasmBridge();
     const engine = new Engine({ maxEntities: 100 });
-    expect(() => engine.start()).toThrow('WASM');
+    await expect(engine.start()).rejects.toThrow('WASM');
     engine.stop();
   });
 
-  it('bridge tick est appelé à chaque tick engine (via mock tick)', () => {
+  it('bridge tick est appelé à chaque tick engine (via mock tick)', async () => {
     const mock = createMockEngine();
     _resetWasmBridge();
     _injectMockWasmEngine(mock);
     const engine = new Engine({ maxEntities: 100 });
     // On simule un tick interne
-    (engine as any).tick(performance.now());
+    await (engine as any)._tick(performance.now());
     expect(mock.tick).toHaveBeenCalled();
     engine.stop();
   });

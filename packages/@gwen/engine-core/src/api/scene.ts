@@ -22,12 +22,71 @@
 
 import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from '../types';
 import { UIManager, type UIDefinition } from './ui';
+import type { ReloadContext, ReloadEvaluator } from './scene-context';
 
 // ============= Scene Interface =============
 
 export interface Scene {
   /** Unique name identifying this scene. */
   readonly name: string;
+
+  /**
+   * Controls whether the scene reloads when re-entered.
+   *
+   * **Behavior:**
+   * - `true` (default): Full reload when re-entering (like Unity/Godot)
+   *   - Systems destroyed and recreated
+   *   - Entities purged
+   *   - onExit → onEnter called
+   *   - Fresh state guaranteed
+   *
+   * - `false`: Keep existing state (like Phaser pause/resume)
+   *   - Systems keep their closure state
+   *   - Entities remain
+   *   - onEnter NOT called again
+   *
+   * - `function`: Dynamic evaluation based on context
+   *   - Receives EngineAPI and ReloadContext
+   *   - Return true to reload, false to keep state
+   *
+   * **When is this checked?**
+   * Only when `scene.load('SceneName')` is called while already in 'SceneName'.
+   * Normal transitions between different scenes always reload.
+   *
+   * @default true
+   *
+   * @example
+   * ```typescript
+   * // Always reload (like Unity) - DEFAULT behavior
+   * reloadOnReenter: true
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Never reload (like pause menu)
+   * reloadOnReenter: false
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Conditional - reload only on game over
+   * reloadOnReenter: (api, ctx) => {
+   *   return ctx.data?.reason === 'gameOver';
+   * }
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Conditional - reload after 3+ deaths
+   * reloadOnReenter: (api, ctx) => {
+   *   return ctx.enterCount > 3;
+   * }
+   * ```
+   *
+   * @see ReloadContext for available context properties
+   * @see ReloadEvaluator for function signature
+   */
+  reloadOnReenter?: boolean | ReloadEvaluator;
 
   /**
    * Systems that run while this scene is active.
@@ -175,6 +234,10 @@ export class SceneManager implements TsPlugin, SceneNavigator {
 
   // Pending transition — applied at start of next frame to avoid mid-frame changes
   private pendingScene: string | null = null;
+  private pendingSceneData: Record<string, unknown> | undefined = undefined;
+
+  // Tracking for reload evaluation
+  private sceneEnterCounts = new Map<string, number>();
 
   // ── SceneNavigator ─────────────────────────────────────────────────────
 
@@ -184,8 +247,8 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   }
 
   /** Alias de loadScene() — safe depuis onUpdate(). */
-  load(name: string): void {
-    this.loadScene(name);
+  load(name: string, data?: Record<string, unknown>): void {
+    this.loadScene(name, data);
   }
 
   // ── TsPlugin lifecycle ─────────────────────────────────────────────────
@@ -196,11 +259,14 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     api.services.register('SceneManager', this as SceneNavigator);
   }
 
-  onBeforeUpdate(api: EngineAPI, _dt: number): void {
+  async onBeforeUpdate(api: EngineAPI, _dt: number): Promise<void> {
     // Apply pending scene transition at the very start of the frame
-    if (this.pendingScene !== null) {
-      this.applyTransition(api, this.pendingScene);
+    if (this.pendingScene) {
+      const sceneName = this.pendingScene;
+      const sceneData = this.pendingSceneData;
       this.pendingScene = null;
+      this.pendingSceneData = undefined;
+      await this.applyTransition(api, sceneName, sceneData);
     }
   }
 
@@ -249,23 +315,35 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   /**
    * Schedule a scene transition for the start of the next frame.
    * Safe to call from onUpdate() or game logic.
+   *
+   * @param name - Scene name to load
+   * @param data - Optional data passed to reload evaluator
    */
-  loadScene(name: string): void {
+  loadScene(name: string, data?: Record<string, unknown>): void {
     if (!this.scenes.has(name)) {
       throw new Error(`[SceneManager] Unknown scene '${name}'. Call register() first.`);
     }
     this.pendingScene = name;
+    this.pendingSceneData = data;
   }
 
   /**
    * Immediately transition to a scene (use only outside the game loop).
    * For in-loop transitions, prefer loadScene().
+   *
+   * @param name - Scene name to load
+   * @param api - Engine API instance
+   * @param data - Optional data passed to reload evaluator
    */
-  loadSceneImmediate(name: string, api: EngineAPI): void {
+  async loadSceneImmediate(
+    name: string,
+    api: EngineAPI,
+    data?: Record<string, unknown>,
+  ): Promise<void> {
     if (!this.scenes.has(name)) {
       throw new Error(`[SceneManager] Unknown scene '${name}'. Call register() first.`);
     }
-    this.applyTransition(api, name);
+    await this.applyTransition(api, name, data);
   }
 
   /** Name of the currently active scene (null if none). */
@@ -280,15 +358,90 @@ export class SceneManager implements TsPlugin, SceneNavigator {
 
   // ── Private ────────────────────────────────────────────────────────────
 
-  private applyTransition(api: EngineAPI, name: string): void {
+  /**
+   * Evaluate if a scene should reload when re-entering.
+   *
+   * @param scene - Scene to evaluate
+   * @param context - Reload context
+   * @returns true if should reload, false otherwise
+   */
+  private shouldReload(scene: Scene, context: ReloadContext): boolean {
+    const reloadConfig = scene.reloadOnReenter;
+
+    // Default: true (like Unity/Godot - always reload)
+    if (reloadConfig === undefined) {
+      return true;
+    }
+
+    // Boolean config
+    if (typeof reloadConfig === 'boolean') {
+      return reloadConfig;
+    }
+
+    // Function evaluator
+    return reloadConfig(this.api!, context);
+  }
+
+  private async applyTransition(
+    api: EngineAPI,
+    name: string,
+    data?: Record<string, unknown>,
+  ): Promise<void> {
     const next = this.scenes.get(name)!;
+    const fromSceneName = this.currentScene?.name ?? null;
+    const isReenter = fromSceneName === name;
+
+    // Increment enter count
+    const enterCount = (this.sceneEnterCounts.get(name) || 0) + 1;
+    this.sceneEnterCounts.set(name, enterCount);
+
+    // Build reload context
+    const context: ReloadContext = {
+      fromScene: fromSceneName,
+      toScene: name,
+      isReenter,
+      enterCount,
+      data,
+    };
+
+    // Evaluate if we should reload
+    const shouldReload = isReenter && this.shouldReload(next, context);
+
+    // If re-entering and should NOT reload, do nothing
+    if (isReenter && !shouldReload) {
+      return;
+    }
+
+    // If reload is happening, emit hook
+    if (isReenter && shouldReload) {
+      try {
+        await (api.hooks.callHook as (name: string, ...args: any[]) => Promise<void>)(
+          'scene:willReload',
+          name,
+          context,
+        );
+      } catch (err) {
+        console.error(`[SceneManager] Error in scene:willReload hook for '${name}':`, err);
+      }
+    }
+
     const registrar = api.services.has('PluginRegistrar')
       ? (api.services.get('PluginRegistrar') as unknown as import('../types').IPluginRegistrar)
       : null;
 
     // 1. Exit current scene
     if (this.currentScene) {
+      const currentName = this.currentScene.name;
+
+      // Call scene:beforeUnload hook (synchronous)
+      try {
+        await api.hooks.callHook('scene:beforeUnload', currentName);
+      } catch (err) {
+        console.error(`[SceneManager] Error in scene:beforeUnload hook for '${currentName}':`, err);
+      }
+
       this.currentScene.onExit(api);
+
       if (registrar && this.currentScene.systems) {
         for (const p of this.currentScene.systems) {
           registrar.unregister(p.name);
@@ -299,13 +452,37 @@ export class SceneManager implements TsPlugin, SceneNavigator {
       this.sceneUIManager?.onDestroy();
       this.sceneUIManager = null;
       this.unmountLayout();
+
+      // Call scene:unload hook (synchronous)
+      try {
+        await api.hooks.callHook('scene:unload', currentName);
+      } catch (err) {
+        console.error(`[SceneManager] Error in scene:unload hook for '${currentName}':`, err);
+      }
     }
 
     // 2. Purge all entities
     this.purgeEntities(api);
 
+    // Call scene:unloaded hook if there was a previous scene (synchronous)
+    if (this.currentScene) {
+      const previousName = this.currentScene.name;
+      try {
+        await api.hooks.callHook('scene:unloaded', previousName);
+      } catch (err) {
+        console.error(`[SceneManager] Error in scene:unloaded hook for '${previousName}':`, err);
+      }
+    }
+
     // 3. Enter new scene
     this.currentScene = next;
+
+    // Call scene:beforeLoad hook (synchronous)
+    try {
+      await api.hooks.callHook('scene:beforeLoad', name);
+    } catch (err) {
+      console.error(`[SceneManager] Error in scene:beforeLoad hook for '${name}':`, err);
+    }
 
     // Resolve system entries: direct object or no-arg factory
     const resolvedSystems: TsPlugin[] = (next.systems ?? []).map((s) =>
@@ -332,7 +509,22 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     if (next.layout) {
       this.mountLayout(next.layout);
     }
+
+    // Call scene:load hook
+    try {
+      await api.hooks.callHook('scene:load', name);
+    } catch (err) {
+      console.error(`[SceneManager] Error in scene:load hook for '${name}':`, err);
+    }
+
     next.onEnter(api);
+
+    // Call scene:loaded hook
+    try {
+      await api.hooks.callHook('scene:loaded', name);
+    } catch (err) {
+      console.error(`[SceneManager] Error in scene:loaded hook for '${name}':`, err);
+    }
   }
 
   /**

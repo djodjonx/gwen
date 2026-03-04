@@ -135,47 +135,47 @@ describe('Engine', () => {
       expect(() => new Engine({ maxEntities: 50 })).toThrow('maxEntities');
     });
 
-    it('should throw if start() called without WASM initialized', () => {
+    it('should throw if start() called without WASM initialized', async () => {
       _resetWasmBridge(); // retire le mock
       const e = new Engine({ maxEntities: 100 });
-      expect(() => e.start()).toThrow('WASM');
+      await expect(e.start()).rejects.toThrow('WASM');
     });
   });
 
   // ============= Entity Management =============
 
   describe('Entity Management', () => {
-    it('should create entities with unique IDs', () => {
-      const e1 = engine.createEntity();
-      const e2 = engine.createEntity();
-      const e3 = engine.createEntity();
+    it('should create entities with unique IDs', async () => {
+      const e1 = await engine.createEntity();
+      const e2 = await engine.createEntity();
+      const e3 = await engine.createEntity();
       expect(e1).not.toBe(e2);
       expect(e2).not.toBe(e3);
       expect(e1).not.toBe(e3);
     });
 
-    it('should track entity existence correctly', () => {
-      const e = engine.createEntity();
+    it('should track entity existence correctly', async () => {
+      const e = await engine.createEntity();
       expect(engine.entityExists(e)).toBe(true);
     });
 
-    it('should destroy entity and update existence', () => {
-      const e = engine.createEntity();
+    it('should destroy entity and update existence', async () => {
+      const e = await engine.createEntity();
       expect(engine.entityExists(e)).toBe(true);
       expect(engine.destroyEntity(e)).toBe(true);
       expect(engine.entityExists(e)).toBe(false);
     });
 
-    it('should return false destroying non-existent entity', () => {
-      const e = engine.createEntity();
+    it('should return false destroying non-existent entity', async () => {
+      const e = await engine.createEntity();
       engine.destroyEntity(e);
       expect(engine.destroyEntity(e)).toBe(false);
     });
 
-    it('should track entity count accurately', () => {
+    it('should track entity count accurately', async () => {
       expect(engine.getEntityCount()).toBe(0);
-      const e1 = engine.createEntity();
-      const e2 = engine.createEntity();
+      const e1 = await engine.createEntity();
+      const e2 = await engine.createEntity();
       expect(engine.getEntityCount()).toBe(2);
       engine.destroyEntity(e1);
       expect(engine.getEntityCount()).toBe(1);
@@ -183,7 +183,7 @@ describe('Engine', () => {
       expect(engine.getEntityCount()).toBe(0);
     });
 
-    it('should prevent create entity beyond capacity', () => {
+    it('should prevent create entity beyond capacity', async () => {
       _resetWasmBridge();
       const limitedMock = createMockWasmEngine();
       let count = 0;
@@ -193,8 +193,8 @@ describe('Engine', () => {
       });
       _injectMockWasmEngine(limitedMock);
       const small = new Engine({ maxEntities: 100 });
-      for (let i = 0; i < 100; i++) small.createEntity();
-      expect(() => small.createEntity()).toThrow('capacity exceeded');
+      for (let i = 0; i < 100; i++) await small.createEntity();
+      await expect(small.createEntity()).rejects.toThrow('capacity exceeded');
       small.stop();
     });
   });
@@ -204,8 +204,8 @@ describe('Engine', () => {
   describe('Component Management', () => {
     let entityId: number;
 
-    beforeEach(() => {
-      entityId = engine.createEntity();
+    beforeEach(async () => {
+      entityId = await engine.createEntity();
     });
 
     it('should add and retrieve a component', () => {
@@ -243,8 +243,8 @@ describe('Engine', () => {
       expect(engine.getEntityCount()).toBe(0);
     });
 
-    it('should isolate components between entities', () => {
-      const e2 = engine.createEntity();
+    it('should isolate components between entities', async () => {
+      const e2 = await engine.createEntity();
       engine.addComponent(entityId, Position, { x: 10, y: 10 });
       engine.addComponent(e2, Position, { x: 99, y: 99 });
       expect(engine.getComponent(entityId, Position)).toEqual({ x: 10, y: 10 });
@@ -255,10 +255,10 @@ describe('Engine', () => {
   // ============= Query System =============
 
   describe('Query System', () => {
-    it('should query entities with matching component', () => {
-      const e1 = engine.createEntity();
-      const e2 = engine.createEntity();
-      const e3 = engine.createEntity();
+    it('should query entities with matching component', async () => {
+      const e1 = await engine.createEntity();
+      const e2 = await engine.createEntity();
+      const e3 = await engine.createEntity();
 
       engine.addComponent(e1, Position, { x: 0, y: 0 });
       engine.addComponent(e2, Position, { x: 0, y: 0 });
@@ -270,9 +270,9 @@ describe('Engine', () => {
       expect(withPos).not.toContain(e3);
     });
 
-    it('should require ALL components for multi-component query', () => {
-      const e1 = engine.createEntity();
-      const e2 = engine.createEntity();
+    it('should require ALL components for multi-component query', async () => {
+      const e1 = await engine.createEntity();
+      const e2 = await engine.createEntity();
 
       engine.addComponent(e1, Position, { x: 0, y: 0 });
       engine.addComponent(e1, Velocity, { vx: 1, vy: 0 });
@@ -283,14 +283,14 @@ describe('Engine', () => {
       expect(results).not.toContain(e2);
     });
 
-    it('should return empty array when no matches', () => {
-      engine.createEntity();
+    it('should return empty array when no matches', async () => {
+      await engine.createEntity();
       const results = engine.query([Position.name]);
       expect(results).toHaveLength(0);
     });
 
-    it('should update query results after component change', () => {
-      const e = engine.createEntity();
+    it('should update query results after component change', async () => {
+      const e = await engine.createEntity();
       expect(engine.query([Position.name])).not.toContain(e);
       engine.addComponent(e, Position, { x: 0, y: 0 });
       expect(engine.query([Position.name])).toContain(e);
@@ -304,7 +304,7 @@ describe('Engine', () => {
   describe('Event System', () => {
     it('should fire stop event', () => {
       let called = false;
-      engine.on('stop', () => {
+      engine.hooks.hook('engine:stop', () => {
         called = true;
       });
       engine.stop();
@@ -314,15 +314,15 @@ describe('Engine', () => {
     it('should remove listener with off()', () => {
       let callCount = 0;
       const listener = () => callCount++;
-      engine.on('stop', listener);
-      engine.off('stop', listener);
+      engine.hooks.hook('engine:stop', listener);
+      engine.hooks.removeHook('engine:stop', listener);
       engine.stop();
       expect(callCount).toBe(0);
     });
 
     it('should fire entityCreated event', () => {
       let created = false;
-      engine.on('entityCreated', () => {
+      engine.hooks.hook('entity:create', () => {
         created = true;
       });
       engine.createEntity();
