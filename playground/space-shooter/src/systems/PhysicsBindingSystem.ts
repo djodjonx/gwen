@@ -11,6 +11,17 @@ import { Position, Collider, Tag } from '../components';
 const PIXELS_PER_METER = 50;
 
 /**
+ * GWEN EntityId is a packed number: (generation << 20) | index.
+ * Rapier only needs the stable slot index (lower 20 bits) as entity_index.
+ * Using the full packed ID would cause indices > 10_000 to exceed the
+ * max_entities guard in the WASM plugin, silently dropping the entity.
+ */
+const INDEX_MASK = 0xfffff; // lower 20 bits
+function entityIndex(id: number): number {
+  return id & INDEX_MASK;
+}
+
+/**
  * PhysicsBindingSystem
  *
  * Registers newly spawned entities into the Rapier2D simulation as
@@ -39,10 +50,11 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
         const col = api.getComponent(id, Collider);
         if (!pos || !col) continue;
 
+        const idx = entityIndex(id); // extract pure slot index from packed EntityId
+
         if (!registered.has(id)) {
-          // First time: register body + collider
           const handle = physics.addRigidBody(
-            id,
+            idx,
             'kinematic',
             pos.x / PIXELS_PER_METER,
             pos.y / PIXELS_PER_METER,
@@ -53,15 +65,14 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
           });
           registered.add(id);
         } else {
-          // Every frame: push current TS position into Rapier
-          physics.setKinematicPosition(id, pos.x / PIXELS_PER_METER, pos.y / PIXELS_PER_METER);
+          physics.setKinematicPosition(idx, pos.x / PIXELS_PER_METER, pos.y / PIXELS_PER_METER);
         }
       }
 
       // Clean up destroyed entities
       for (const id of registered) {
         if (!entities.includes(id)) {
-          physics.removeBody(id);
+          physics.removeBody(entityIndex(id));
           registered.delete(id);
         }
       }

@@ -91,6 +91,12 @@ export class EntityManager {
     return this.liveCount;
   }
 
+  /** Get the current generation for a slot index. Returns 0 if out of bounds. */
+  getGeneration(slotIndex: number): number {
+    if (slotIndex >= this.maxEntities) return 0;
+    return this.generations[slotIndex];
+  }
+
   /** Iterate over all alive entity IDs. */
   *[Symbol.iterator](): Iterator<EntityId> {
     for (let i = 0; i < this.maxEntities; i++) {

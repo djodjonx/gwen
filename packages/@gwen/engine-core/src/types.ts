@@ -234,6 +234,21 @@ export interface EngineAPI<M extends GwenDefaultServices = GwenDefaultServices> 
 
   /** Current frame count */
   readonly frameCount: number;
+
+  /**
+   * Get the current generation for an entity slot index.
+   * Use this to reconstruct a packed EntityId from a raw slot index,
+   * e.g. when Rapier/WASM physics returns entity indices.
+   *
+   * @example
+   * ```ts
+   * // Rapier returns raw slot index — reconstruct packed EntityId
+   * const gen = api.getEntityGeneration(slotIndex);
+   * const packedId = (gen << 20) | (slotIndex & 0xfffff);
+   * const tag = api.getComponent(packedId, Tag);
+   * ```
+   */
+  getEntityGeneration(slotIndex: number): number;
 }
 
 // ============= TsPlugin =============

@@ -38,6 +38,7 @@ interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'>
   create(): EntityId;
   destroy(id: EntityId): boolean;
   isAlive(id: EntityId): boolean;
+  getGeneration(slotIndex: number): number;
   [Symbol.iterator](): Iterator<EntityId>;
 }
 
@@ -85,6 +86,9 @@ export function createShims(engine: Engine): {
     isAlive: (id: EntityId) => {
       const { index, generation } = unpackId(id);
       return wasmBridge.isAlive(index, generation);
+    },
+    getGeneration: (slotIndex: number) => {
+      return wasmBridge.getEntityGeneration(slotIndex);
     },
     count: () => wasmBridge.countEntities(),
     maxEntities: config.maxEntities,

@@ -22,9 +22,19 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         .query([Tag.name])
         .find((id) => api.getComponent(id, Tag)?.type === 'player');
 
-      // Rapier collision events — no distance loops, no O(n²)
-      for (const { entityA, entityB, started } of physics.getCollisionEvents()) {
+      // Rapier returns raw slot indices — reconstruct packed EntityIds
+      // so api.getComponent / destroyEntity work correctly.
+      function packedId(slotIndex: number): number {
+        return api.getEntityGeneration
+          ? (api.getEntityGeneration(slotIndex) << 20) | (slotIndex & 0xfffff)
+          : slotIndex; // fallback: assume generation=0
+      }
+
+      for (const { entityA: idxA, entityB: idxB, started } of physics.getCollisionEvents()) {
         if (!started) continue;
+
+        const entityA = packedId(idxA);
+        const entityB = packedId(idxB);
 
         const tagA = api.getComponent(entityA, Tag)?.type;
         const tagB = api.getComponent(entityB, Tag)?.type;

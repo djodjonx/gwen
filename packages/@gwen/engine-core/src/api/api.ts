@@ -153,6 +153,10 @@ export class EngineAPIImpl<
     return this.queryEngine.query(componentTypes, this.entityManager, this.components);
   }
 
+  getEntityGeneration(slotIndex: number): number {
+    return this.entityManager.getGeneration(slotIndex);
+  }
+
   // ── State update (called by Engine each frame) ─────────────────────────
 
   /** @internal */
