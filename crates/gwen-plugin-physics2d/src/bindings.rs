@@ -58,6 +58,9 @@ impl Physics2DPlugin {
         y: f32,
         body_type: u8,
     ) -> u32 {
+        if entity_index >= self.max_entities {
+            return u32::MAX; // sentinel — invalid handle
+        }
         self.world.add_rigid_body(entity_index, x, y, BodyType::from_u8(body_type))
     }
 
@@ -121,7 +124,7 @@ impl Physics2DPlugin {
     pub fn step(&mut self, delta: f32) {
         self.world.step(delta);
         // Write updated positions back to the shared buffer
-        self.world.write_positions_to_buffer(self.shared_ptr);
+        self.world.write_positions_to_buffer(self.shared_ptr, self.max_entities);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────

@@ -245,8 +245,12 @@ impl PhysicsWorld {
 
     // ── SAB synchronisation ───────────────────────────────────────────────
 
-    pub fn write_positions_to_buffer(&self, ptr: usize) {
+    pub fn write_positions_to_buffer(&self, ptr: usize, max_entities: u32) {
         for (&entity_index, &handle) in &self.entity_to_body {
+            // Guard: never write outside the allocated buffer
+            if entity_index >= max_entities {
+                continue;
+            }
             if let Some(body) = self.rigid_body_set.get(handle) {
                 let pos = body.translation();
                 let rot = body.rotation().angle();
