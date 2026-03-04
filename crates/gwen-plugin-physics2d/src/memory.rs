@@ -1,8 +1,9 @@
 //! Shared memory layout helpers.
 //!
-//! The SAB (shared-array buffer) allocated by `SharedMemoryManager` in TS
-//! follows a fixed SoA layout.  This module encapsulates all pointer
-//! arithmetic so the rest of the crate never does raw ptr math.
+//! Reads and writes go through a `js_sys::Uint8Array` view over gwen-core's
+//! linear memory. This is the only safe way to share data between two
+//! separate WASM modules — raw `usize` pointers are only valid within the
+//! module that allocated them.
 //!
 //! Layout (stride = 32 bytes per entity slot):
 //! ```text
@@ -14,10 +15,8 @@
 //!   offset + 20 : flags    (u32, 4 B)  bit 0 = physics-active
 //!   offset + 24 : reserved (8  B)
 //! ```
-//!
-//! `ptr` is the value returned by `gwen_core::alloc_shared_buffer` — an
-//! address inside `gwen-core`'s WASM linear memory, accessible from both
-//! WASM modules through the JS-managed shared pointer.
+
+use js_sys::Uint8Array;
 
 /// Stride in bytes between two consecutive entity slots.
 pub const STRIDE: usize = 32;
@@ -25,54 +24,69 @@ pub const STRIDE: usize = 32;
 /// Bit-flag: this entity slot is managed by the physics plugin.
 pub const FLAG_PHYSICS_ACTIVE: u32 = 0b01;
 
-/// Read (pos_x, pos_y, rotation) for `entity_index` from the shared buffer.
-///
-/// # Safety
-/// `ptr` must point to an allocation of at least `(entity_index + 1) * STRIDE` bytes.
-#[inline]
-pub unsafe fn read_position_rotation(ptr: usize, entity_index: u32) -> (f32, f32, f32) {
-    let base = (ptr + entity_index as usize * STRIDE) as *const f32;
-    (*base, *base.add(1), *base.add(2))
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+fn read_f32(buf: &Uint8Array, byte_offset: usize) -> f32 {
+    let b0 = buf.get_index(byte_offset as u32) as u32;
+    let b1 = buf.get_index((byte_offset + 1) as u32) as u32;
+    let b2 = buf.get_index((byte_offset + 2) as u32) as u32;
+    let b3 = buf.get_index((byte_offset + 3) as u32) as u32;
+    f32::from_bits(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
 }
 
-/// Write (pos_x, pos_y, rotation) for `entity_index` into the shared buffer.
-///
-/// # Safety
-/// Same contract as `read_position_rotation`.
-#[inline]
-pub unsafe fn write_position_rotation(ptr: usize, entity_index: u32, x: f32, y: f32, rot: f32) {
-    let base = (ptr + entity_index as usize * STRIDE) as *mut f32;
-    base.write(x);
-    base.add(1).write(y);
-    base.add(2).write(rot);
+fn write_f32(buf: &Uint8Array, byte_offset: usize, value: f32) {
+    let bits = value.to_bits();
+    buf.set_index(byte_offset as u32,       (bits & 0xFF) as u8);
+    buf.set_index((byte_offset + 1) as u32, ((bits >> 8)  & 0xFF) as u8);
+    buf.set_index((byte_offset + 2) as u32, ((bits >> 16) & 0xFF) as u8);
+    buf.set_index((byte_offset + 3) as u32, ((bits >> 24) & 0xFF) as u8);
 }
 
-/// Read the flags word for `entity_index`.
-///
-/// # Safety
-/// Same contract as `read_position_rotation`.
-#[inline]
-pub unsafe fn read_flags(ptr: usize, entity_index: u32) -> u32 {
-    *((ptr + entity_index as usize * STRIDE + 20) as *const u32)
+fn read_u32(buf: &Uint8Array, byte_offset: usize) -> u32 {
+    let b0 = buf.get_index(byte_offset as u32) as u32;
+    let b1 = buf.get_index((byte_offset + 1) as u32) as u32;
+    let b2 = buf.get_index((byte_offset + 2) as u32) as u32;
+    let b3 = buf.get_index((byte_offset + 3) as u32) as u32;
+    b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
 }
 
-/// Set the physics-active flag for `entity_index`.
-///
-/// # Safety
-/// Same contract as `read_position_rotation`.
-#[inline]
-pub unsafe fn set_physics_active(ptr: usize, entity_index: u32) {
-    let flags_ptr = (ptr + entity_index as usize * STRIDE + 20) as *mut u32;
-    *flags_ptr |= FLAG_PHYSICS_ACTIVE;
+fn write_u32(buf: &Uint8Array, byte_offset: usize, value: u32) {
+    buf.set_index(byte_offset as u32,       (value & 0xFF) as u8);
+    buf.set_index((byte_offset + 1) as u32, ((value >> 8)  & 0xFF) as u8);
+    buf.set_index((byte_offset + 2) as u32, ((value >> 16) & 0xFF) as u8);
+    buf.set_index((byte_offset + 3) as u32, ((value >> 24) & 0xFF) as u8);
 }
 
-/// Clear the physics-active flag for `entity_index`.
-///
-/// # Safety
-/// Same contract as `read_position_rotation`.
-#[inline]
-pub unsafe fn clear_physics_active(ptr: usize, entity_index: u32) {
-    let flags_ptr = (ptr + entity_index as usize * STRIDE + 20) as *mut u32;
-    *flags_ptr &= !FLAG_PHYSICS_ACTIVE;
+// ── Public API ────────────────────────────────────────────────────────────────
+
+pub fn read_position_rotation(buf: &Uint8Array, entity_index: u32) -> (f32, f32, f32) {
+    let base = entity_index as usize * STRIDE;
+    (
+        read_f32(buf, base),
+        read_f32(buf, base + 4),
+        read_f32(buf, base + 8),
+    )
 }
 
+pub fn write_position_rotation(buf: &Uint8Array, entity_index: u32, x: f32, y: f32, rot: f32) {
+    let base = entity_index as usize * STRIDE;
+    write_f32(buf, base,     x);
+    write_f32(buf, base + 4, y);
+    write_f32(buf, base + 8, rot);
+}
+
+pub fn read_flags(buf: &Uint8Array, entity_index: u32) -> u32 {
+    read_u32(buf, entity_index as usize * STRIDE + 20)
+}
+
+pub fn set_physics_active(buf: &Uint8Array, entity_index: u32) {
+    let offset = entity_index as usize * STRIDE + 20;
+    let flags = read_u32(buf, offset);
+    write_u32(buf, offset, flags | FLAG_PHYSICS_ACTIVE);
+}
+
+pub fn clear_physics_active(buf: &Uint8Array, entity_index: u32) {
+    let offset = entity_index as usize * STRIDE + 20;
+    let flags = read_u32(buf, offset);
+    write_u32(buf, offset, flags & !FLAG_PHYSICS_ACTIVE);
+}

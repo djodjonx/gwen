@@ -5,6 +5,7 @@
 //! `RigidBodyHandle`s.
 
 use std::collections::HashMap;
+use js_sys::Uint8Array;
 use rapier2d::prelude::*;
 use crate::components::{BodyType, PhysicsMaterial};
 
@@ -123,7 +124,9 @@ impl PhysicsWorld {
         y: f32,
         body_type: BodyType,
     ) -> u32 {
-        self.remove_rigid_body(entity_index);
+        // Remove any existing body without touching the shared buffer
+        // (caller will re-register the new body immediately after)
+        self.remove_body_internal(entity_index);
 
         let mut rb = match body_type {
             BodyType::Fixed     => RigidBodyBuilder::fixed(),
@@ -185,7 +188,8 @@ impl PhysicsWorld {
         }
     }
 
-    pub fn remove_rigid_body(&mut self, entity_index: u32) {
+    /// Remove body from Rapier sets only — does NOT touch the shared buffer.
+    fn remove_body_internal(&mut self, entity_index: u32) {
         if let Some(handle) = self.entity_to_body.remove(&entity_index) {
             self.body_to_entity.remove(&handle);
             self.rigid_body_set.remove(
@@ -197,6 +201,12 @@ impl PhysicsWorld {
                 true,
             );
         }
+    }
+
+    /// Remove body and clear the physics-active flag in the shared buffer.
+    pub fn remove_rigid_body(&mut self, entity_index: u32, buf: &Uint8Array) {
+        crate::memory::clear_physics_active(buf, entity_index);
+        self.remove_body_internal(entity_index);
     }
 
     // ── Simulation ────────────────────────────────────────────────────────
@@ -245,19 +255,16 @@ impl PhysicsWorld {
 
     // ── SAB synchronisation ───────────────────────────────────────────────
 
-    pub fn write_positions_to_buffer(&self, ptr: usize, max_entities: u32) {
+    pub fn write_positions_to_buffer(&self, buf: &Uint8Array, max_entities: u32) {
         for (&entity_index, &handle) in &self.entity_to_body {
-            // Guard: never write outside the allocated buffer
             if entity_index >= max_entities {
                 continue;
             }
             if let Some(body) = self.rigid_body_set.get(handle) {
                 let pos = body.translation();
                 let rot = body.rotation().angle();
-                unsafe {
-                    crate::memory::write_position_rotation(ptr, entity_index, pos.x, pos.y, rot);
-                    crate::memory::set_physics_active(ptr, entity_index);
-                }
+                crate::memory::write_position_rotation(buf, entity_index, pos.x, pos.y, rot);
+                crate::memory::set_physics_active(buf, entity_index);
             }
         }
     }

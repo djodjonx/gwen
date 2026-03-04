@@ -4,6 +4,7 @@
 //! All heavy computation happens in `PhysicsWorld` — this file is only
 //! the thin FFI boundary.
 
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::components::{BodyType, PhysicsMaterial};
@@ -12,16 +13,23 @@ use crate::world::PhysicsWorld;
 /// 2D physics plugin exposed to JavaScript via wasm-bindgen.
 ///
 /// # Lifecycle (called by TypeScript `Physics2DPlugin`)
-/// 1. `new(grav_x, grav_y, shared_ptr, max_entities)` — construction
+/// 1. `new(grav_x, grav_y, shared_buf, max_entities)` — construction
 /// 2. Each frame: `step(delta)`
 /// 3. On entity creation: `add_rigid_body(...)`, `add_box_collider(...)` / `add_ball_collider(...)`
 /// 4. On entity destruction: `remove_rigid_body(entity_index)`
 /// 5. After `step()`: `get_collision_events()` → JSON string parsed by TS
+///
+/// ## Shared memory
+/// `shared_buf` is a `Uint8Array` view over the slice of gwen-core's linear
+/// memory allocated by `SharedMemoryManager.allocateRegion()`.
+/// Because two WASM modules have separate linear memories, a raw `usize`
+/// pointer is meaningless across the boundary — only a JS-typed-array
+/// reference gives physics2d legitimate access to gwen-core's buffer.
 #[wasm_bindgen]
 pub struct Physics2DPlugin {
-    world:       PhysicsWorld,
-    /// Pointer into `gwen-core`'s WASM linear memory (the shared buffer).
-    shared_ptr:  usize,
+    world: PhysicsWorld,
+    /// JS Uint8Array view over gwen-core's shared buffer slice.
+    shared_buf: Uint8Array,
     max_entities: u32,
 }
 
@@ -29,15 +37,15 @@ pub struct Physics2DPlugin {
 impl Physics2DPlugin {
     /// Create the plugin.
     ///
-    /// * `gravity_x` / `gravity_y` — gravity vector (m/s²). Typical: `0` / `-9.81`.
-    /// * `shared_ptr` — pointer returned by `gwen_core::alloc_shared_buffer()`.
-    ///   TypeScript obtains this via `SharedMemoryManager.create()` and passes it here.
-    /// * `max_entities` — must match the value used in `alloc_shared_buffer`.
+    /// * `gravity_x` / `gravity_y` — gravity vector (m/s²).
+    /// * `shared_buf` — `Uint8Array` view returned by
+    ///   `SharedMemoryManager.allocateRegion().buffer` on the TS side.
+    /// * `max_entities` — number of entity slots in the shared buffer.
     #[wasm_bindgen(constructor)]
-    pub fn new(gravity_x: f32, gravity_y: f32, shared_ptr: usize, max_entities: u32) -> Self {
+    pub fn new(gravity_x: f32, gravity_y: f32, shared_buf: Uint8Array, max_entities: u32) -> Self {
         Physics2DPlugin {
             world: PhysicsWorld::new(gravity_x, gravity_y),
-            shared_ptr,
+            shared_buf,
             max_entities,
         }
     }
@@ -51,6 +59,12 @@ impl Physics2DPlugin {
     /// * `body_type`     — `0` = fixed, `1` = dynamic, `2` = kinematic.
     ///
     /// Returns an opaque `body_handle` to use when adding colliders.
+    /// Replace the shared buffer view after a gwen-core memory.grow() event.
+    /// The old ArrayBuffer is detached — pass the fresh Uint8Array here.
+    pub fn update_shared_buf(&mut self, new_buf: Uint8Array) {
+        self.shared_buf = new_buf;
+    }
+
     pub fn add_rigid_body(
         &mut self,
         entity_index: u32,
@@ -104,8 +118,7 @@ impl Physics2DPlugin {
 
     /// Remove the rigid body (and all its colliders) for an entity.
     pub fn remove_rigid_body(&mut self, entity_index: u32) {
-        unsafe { crate::memory::clear_physics_active(self.shared_ptr, entity_index); }
-        self.world.remove_rigid_body(entity_index);
+        self.world.remove_rigid_body(entity_index, &self.shared_buf);
     }
 
     /// Apply a linear impulse to an entity's rigid body.
@@ -124,7 +137,7 @@ impl Physics2DPlugin {
     pub fn step(&mut self, delta: f32) {
         self.world.step(delta);
         // Write updated positions back to the shared buffer
-        self.world.write_positions_to_buffer(self.shared_ptr, self.max_entities);
+        self.world.write_positions_to_buffer(&self.shared_buf, self.max_entities);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────

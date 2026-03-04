@@ -66,6 +66,8 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   // ── Internal state ───────────────────────────────────────────────────────
   private wasmPlugin: WasmPhysics2DPlugin | null = null;
   readonly config: Required<Physics2DConfig>;
+  private _region: MemoryRegion | null = null;
+  private _bridge: WasmBridge | null = null;
 
   constructor(config: Physics2DConfig = {}) {
     this.config = {
@@ -85,21 +87,44 @@ export class Physics2DPlugin implements GwenWasmPlugin {
    * Called once by `createEngine()` before `engine.start()`.
    */
   async onInit(bridge: WasmBridge, region: MemoryRegion, api: EngineAPI): Promise<void> {
+    this._bridge = bridge;
+    this._region = region;
+
     const wasm = await loadWasmPlugin<Physics2DWasmModule>({
       jsUrl: '/wasm/gwen_physics2d.js',
       wasmUrl: '/wasm/gwen_physics2d_bg.wasm',
       name: 'Physics2D',
     });
 
+    // Build a Uint8Array view over the gwen-core region.
+    // Two separate WASM modules cannot share memory via raw pointers —
+    // a JS TypedArray view is the only safe cross-module memory bridge.
+    const sharedBuf = this._buildView(bridge, region);
+
     this.wasmPlugin = new wasm.Physics2DPlugin(
       this.config.gravityX,
       this.config.gravity,
-      region.ptr,
+      sharedBuf,
       this.config.maxEntities,
     );
 
     // Register the service so TsPlugins can call api.services.get('physics')
     api.services.register('physics', this._createAPI());
+  }
+
+  /**
+   * Rebuild the shared buffer view when gwen-core's linear memory grows.
+   * A memory.grow() replaces the underlying ArrayBuffer — any existing
+   * TypedArray views become detached and must be recreated.
+   */
+  onMemoryGrow(newMemory: WebAssembly.Memory): void {
+    if (!this.wasmPlugin || !this._region) return;
+    const fresh = new Uint8Array(
+      newMemory.buffer,
+      this._region.byteOffset,
+      this._region.byteLength,
+    );
+    this.wasmPlugin.update_shared_buf(fresh);
   }
 
   /**
@@ -117,6 +142,14 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   }
 
   // ── Service factory ──────────────────────────────────────────────────────
+
+  // ── Internal helpers ─────────────────────────────────────────────────────
+
+  private _buildView(bridge: WasmBridge, region: MemoryRegion): Uint8Array {
+    const mem = bridge.getLinearMemory();
+    if (!mem) throw new Error('[Physics2D] gwen-core linear memory not available');
+    return new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
+  }
 
   private _createAPI(): Physics2DAPI {
     return {

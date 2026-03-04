@@ -152,7 +152,7 @@ export interface Physics2DWasmModule {
   Physics2DPlugin: new (
     gravityX: number,
     gravityY: number,
-    sharedPtr: number,
+    sharedBuf: Uint8Array,
     maxEntities: number,
   ) => WasmPhysics2DPlugin;
 
@@ -181,5 +181,6 @@ export interface WasmPhysics2DPlugin {
   get_collision_events(): string;
   get_position(entityIndex: number): number[];
   stats(): string;
+  update_shared_buf(newBuf: Uint8Array): void;
   free?(): void;
 }
