@@ -12,7 +12,7 @@ function entityIndex(id: number): number {
 
 export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
   let physics: Physics2DAPI | null = null;
-  const registered = new Set<number>(); // packed EntityIds currently in Rapier
+  const registeredBySlot = new Map<number, number>(); // slot → packed EntityId
 
   return {
     onInit(api) {
@@ -23,6 +23,7 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
       if (!physics) return;
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);
+      const currentSlots = new Set<number>();
 
       for (const id of entities) {
         const pos = api.getComponent(id, Position);
@@ -30,8 +31,12 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
         if (!pos || !col) continue;
 
         const idx = entityIndex(id);
+        currentSlots.add(idx);
 
-        if (!registered.has(id)) {
+        const wasRegistered = registeredBySlot.has(idx);
+
+        if (!wasRegistered) {
+          // New entity at this slot
           const handle = physics.addRigidBody(
             idx,
             'kinematic',
@@ -42,23 +47,41 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
             restitution: 0,
             friction: 0,
           });
-          registered.add(id);
+          registeredBySlot.set(idx, id);
         } else {
-          physics.setKinematicPosition(idx, pos.x / PIXELS_PER_METER, pos.y / PIXELS_PER_METER);
+          const oldId = registeredBySlot.get(idx)!;
+          if (oldId !== id) {
+            // Slot was recycled — remove old entity and add new one
+            physics.removeBody(idx);
+            const handle = physics.addRigidBody(
+              idx,
+              'kinematic',
+              pos.x / PIXELS_PER_METER,
+              pos.y / PIXELS_PER_METER,
+            );
+            physics.addBallCollider(handle, col.radius / PIXELS_PER_METER, {
+              restitution: 0,
+              friction: 0,
+            });
+            registeredBySlot.set(idx, id);
+          } else {
+            // Same entity — update position
+            physics.setKinematicPosition(idx, pos.x / PIXELS_PER_METER, pos.y / PIXELS_PER_METER);
+          }
         }
       }
 
-      // Clean up entities destroyed last frame (by MovementSystem.onUpdate or CollisionSystem)
-      for (const id of registered) {
-        if (!entities.includes(id)) {
-          physics.removeBody(entityIndex(id));
-          registered.delete(id);
+      // Clean up entities destroyed last frame
+      for (const [slotIdx] of registeredBySlot.entries()) {
+        if (!currentSlots.has(slotIdx)) {
+          physics.removeBody(slotIdx);
+          registeredBySlot.delete(slotIdx);
         }
       }
     },
 
     onDestroy() {
-      registered.clear();
+      registeredBySlot.clear();
       physics = null;
     },
   };

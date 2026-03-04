@@ -5,6 +5,7 @@ import { Tag, Score, Health } from '../components';
 
 export const CollisionSystem = defineSystem('CollisionSystem', () => {
   let physics: Physics2DAPI | null = null;
+  const slotToCurrentId = new Map<number, number>(); // slot → current packed EntityId
 
   return {
     onInit(api: EngineAPI<GwenServices>) {
@@ -22,11 +23,20 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         .query([Tag.name])
         .find((id) => api.getComponent(id, Tag)?.type === 'player');
 
-      // Rapier returns raw slot indices — reconstruct packed EntityIds.
-      // Safe because MovementSystem.onUpdate (not onBeforeUpdate) handles
-      // destroy, so no slot is recycled between onBeforeUpdate and here.
-      function packedId(slot: number): number {
-        return (api.getEntityGeneration(slot) << 20) | (slot & 0xfffff);
+      // Rebuild the slot-to-current-id map for accurate collision lookups
+      slotToCurrentId.clear();
+      const allEntities = api.query([Tag.name]);
+      for (const id of allEntities) {
+        const slot = id & 0xfffff;
+        slotToCurrentId.set(slot, id);
+      }
+
+      function getEntityFromSlot(slot: number): number | null {
+        const id = slotToCurrentId.get(slot);
+        if (!id) return null;
+        // Verify the entity still exists in ECS
+        const tag = api.getComponent(id, Tag);
+        return tag ? id : null;
       }
 
       function destroyWithPhysics(id: number): void {
@@ -40,9 +50,10 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
       for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
         if (!started) continue;
 
-        const entityA = packedId(slotA);
-        const entityB = packedId(slotB);
+        const entityA = getEntityFromSlot(slotA);
+        const entityB = getEntityFromSlot(slotB);
 
+        if (!entityA || !entityB) continue;
         if (destroyed.has(entityA) || destroyed.has(entityB)) continue;
 
         const tagA = api.getComponent(entityA, Tag)?.type;
@@ -84,6 +95,7 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
 
     onDestroy() {
       physics = null;
+      slotToCurrentId.clear();
     },
   };
 });

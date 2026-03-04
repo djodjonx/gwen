@@ -21,7 +21,7 @@ For every request, you **must not** start implementation immediately. You must f
 ## 3. Phase 2: Implementation & Reporting
 Once the plan is approved and executed, you must document your work for long-term project memory.
 
-* **Storage Path:** Save every report as a Markdown file in: `/docs/agent/reports/`
+* **Storage Path:** Save every report as a Markdown file in: `/specs/agent/reports/`
 * **File Naming:** `YYYY-MM-DD-subject-type.md` (e.g., `2024-05-20-auth-system-feature.md`)
 
 ### Implementation Report Template
@@ -55,6 +55,7 @@ If a bug is reported regarding a feature you previously implemented:
 3.  **Post-Mortem Report:** After the fix is verified, generate a Post-Mortem report in the reports folder.
 
 ### Post-Mortem Template
+ *Implementation Post-Mortem* in `/docs/agent/post-mortem/`.
 ---
 # Post-Mortem: [Bug Name/Feature Name]
 - **Date:** [YYYY-MM-DD]
