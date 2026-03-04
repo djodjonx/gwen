@@ -115,17 +115,55 @@ slot_offset + 24 : reserved (8  B)     — reserved for future use
 
 ### Rust helpers (`src/memory.rs`)
 
+> ⚠️ **Cross-module memory isolation — critical rule**
+>
+> Each WASM module has its own **completely isolated linear memory**. A `usize`
+> raw pointer valid inside `gwen-core.wasm` is **meaningless** in
+> `gwen_physics2d.wasm` — dereferencing it causes `RuntimeError: memory access
+> out of bounds` immediately.
+>
+> **The only valid way to share memory between two WASM modules in GWEN v1**
+> is a **`Uint8Array` JS view** over one module's memory, passed to the other:
+>
+> ```typescript
+> // TypeScript onInit — build a view over gwen-core's region
+> const mem = bridge.getLinearMemory()!;
+> const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
+> this.wasmPlugin = new wasm.MyPlugin(sharedBuf, maxEntities);
+> ```
+>
+> ```rust
+> // Rust — accept Uint8Array, read/write via js_sys helpers
+> use js_sys::Uint8Array;
+>
+> #[wasm_bindgen(constructor)]
+> pub fn new(shared_buf: Uint8Array, max_entities: u32) -> Self { … }
+>
+> fn read_f32(buf: &Uint8Array, offset: usize) -> f32 { … }
+> fn write_f32(buf: &Uint8Array, offset: usize, v: f32) { … }
+> ```
+>
+> Always implement `onMemoryGrow` to refresh the view after a `memory.grow()` event:
+>
+> ```typescript
+> onMemoryGrow(newMemory: WebAssembly.Memory): void {
+>   const fresh = new Uint8Array(newMemory.buffer, this._region.byteOffset, this._region.byteLength);
+>   this.wasmPlugin.update_shared_buf(fresh);
+> }
+> ```
+>
+> **Long term:** the WASM Component Model will solve this via WIT interfaces and
+> native memory sharing. See `specs/PLAN_WASM_COMPONENT_MODEL.md`. Horizon ~2027.
+
 ```rust
 use crate::memory::{read_position_rotation, write_position_rotation, set_physics_active};
 
-// Read current position from the SAB
-let (x, y, rot) = unsafe { read_position_rotation(shared_ptr, entity_index) };
+// Read current position from the SAB via Uint8Array
+let (x, y, rot) = read_position_rotation(&shared_buf, entity_index);
 
 // Write updated position back after simulation
-unsafe {
-    write_position_rotation(shared_ptr, entity_index, new_x, new_y, new_rot);
-    set_physics_active(shared_ptr, entity_index);
-}
+write_position_rotation(&shared_buf, entity_index, new_x, new_y, new_rot);
+set_physics_active(&shared_buf, entity_index);
 ```
 
 ### TypeScript constants
