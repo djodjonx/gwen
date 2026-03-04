@@ -102,9 +102,12 @@ pub struct PhysicsWorld {
     ccd_solver:          CCDSolver,
     query_pipeline:      QueryPipeline,
 
-    pub entity_to_body: HashMap<u32, RigidBodyHandle>,
-    pub body_to_entity: HashMap<RigidBodyHandle, u32>,
-    pub collision_events: Vec<PhysicsCollisionEvent>,
+    pub entity_to_body:    HashMap<u32, RigidBodyHandle>,
+    pub body_to_entity:    HashMap<RigidBodyHandle, u32>,
+    /// Direct lookup: raw slot index (as returned by add_rigid_body) → full handle.
+    /// Avoids O(n) scan and generation aliasing in find_handle.
+    handle_by_raw:         HashMap<u32, RigidBodyHandle>,
+    pub collision_events:  Vec<PhysicsCollisionEvent>,
 }
 
 impl PhysicsWorld {
@@ -124,6 +127,7 @@ impl PhysicsWorld {
             query_pipeline:      QueryPipeline::new(),
             entity_to_body:      HashMap::new(),
             body_to_entity:      HashMap::new(),
+            handle_by_raw:       HashMap::new(),
             collision_events:    Vec::new(),
         }
     }
@@ -159,11 +163,13 @@ impl PhysicsWorld {
         rb.wake_up(true);
 
         let handle = self.rigid_body_set.insert(rb);
+        let raw = handle.0.into_raw_parts().0 as u32;
+
         self.entity_to_body.insert(entity_index, handle);
         self.body_to_entity.insert(handle, entity_index);
+        self.handle_by_raw.insert(raw, handle);
 
-        // Return the raw slot index as an opaque handle for collider attachment
-        handle.0.into_raw_parts().0 as u32
+        raw
     }
 
     pub fn add_box_collider(
@@ -180,6 +186,12 @@ impl PhysicsWorld {
                 .friction(material.friction)
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
+                .active_collision_types(
+                    ActiveCollisionTypes::DYNAMIC_KINEMATIC
+                    | ActiveCollisionTypes::KINEMATIC_KINEMATIC
+                    | ActiveCollisionTypes::KINEMATIC_FIXED
+                    | ActiveCollisionTypes::DYNAMIC_DYNAMIC
+                )
                 .build();
             self.collider_set.insert_with_parent(collider, handle, &mut self.rigid_body_set);
         }
@@ -198,6 +210,12 @@ impl PhysicsWorld {
                 .friction(material.friction)
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
+                .active_collision_types(
+                    ActiveCollisionTypes::DYNAMIC_KINEMATIC
+                    | ActiveCollisionTypes::KINEMATIC_KINEMATIC
+                    | ActiveCollisionTypes::KINEMATIC_FIXED
+                    | ActiveCollisionTypes::DYNAMIC_DYNAMIC
+                )
                 .build();
             self.collider_set.insert_with_parent(collider, handle, &mut self.rigid_body_set);
         }
@@ -207,6 +225,8 @@ impl PhysicsWorld {
     fn remove_body_internal(&mut self, entity_index: u32) {
         if let Some(handle) = self.entity_to_body.remove(&entity_index) {
             self.body_to_entity.remove(&handle);
+            let raw = handle.0.into_raw_parts().0 as u32;
+            self.handle_by_raw.remove(&raw);
             self.rigid_body_set.remove(
                 handle,
                 &mut self.island_manager,
@@ -344,9 +364,8 @@ impl PhysicsWorld {
     // ── Internal helpers ──────────────────────────────────────────────────
 
     /// Find a RigidBodyHandle from its raw slot index (as returned by `add_rigid_body`).
+    /// O(1) — direct map lookup, no generation aliasing.
     fn find_handle(&self, raw: u32) -> Option<RigidBodyHandle> {
-        self.body_to_entity.keys()
-            .find(|h| h.0.into_raw_parts().0 as u32 == raw)
-            .copied()
+        self.handle_by_raw.get(&raw).copied()
     }
 }

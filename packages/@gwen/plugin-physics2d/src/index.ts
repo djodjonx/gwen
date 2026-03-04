@@ -152,13 +152,19 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   }
 
   private _createAPI(): Physics2DAPI {
+    let _frameCount = 0;
     return {
       addRigidBody: (entityIndex, type, x, y) => {
         if (!this.wasmPlugin) throw new Error('[Physics2D] not initialized');
-        return this.wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
+        const handle = this.wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
+        console.log(
+          `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
+        );
+        return handle;
       },
 
       addBoxCollider: (bodyHandle, hw, hh, opts = {}) => {
+        console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
         this.wasmPlugin?.add_box_collider(
           bodyHandle,
           hw,
@@ -169,6 +175,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
       },
 
       addBallCollider: (bodyHandle, radius, opts = {}) => {
+        console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
         this.wasmPlugin?.add_ball_collider(
           bodyHandle,
           radius,
@@ -178,6 +185,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
       },
 
       removeBody: (entityIndex) => {
+        console.log(`[Physics2D] removeBody entity=${entityIndex}`);
         this.wasmPlugin?.remove_rigid_body(entityIndex);
       },
 
@@ -191,7 +199,17 @@ export class Physics2DPlugin implements GwenWasmPlugin {
 
       getCollisionEvents: (): CollisionEvent[] => {
         if (!this.wasmPlugin) return [];
-        return parseCollisionEvents(this.wasmPlugin.get_collision_events());
+        const raw = this.wasmPlugin.get_collision_events();
+        const events = parseCollisionEvents(raw);
+        _frameCount++;
+        if (_frameCount <= 300 && _frameCount % 60 === 0) {
+          const stats = this.wasmPlugin.stats();
+          console.log(`[Physics2D] frame=${_frameCount} stats=${stats} events_raw=${raw}`);
+        }
+        if (events.length > 0) {
+          console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
+        }
+        return events;
       },
 
       getPosition: (entityIndex) => {
