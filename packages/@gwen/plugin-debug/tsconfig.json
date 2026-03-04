@@ -18,7 +18,6 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@gwen/engine-core": ["../engine-core/src/index.ts"],
       "vitest": ["./node_modules/vitest/dist/index.d.ts"]
     }
   },

@@ -16,10 +16,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@gwen/engine-core": ["../engine-core/src/index.ts"]
-    }
+    "baseUrl": "."
   },
   "include": ["src", "tests"]
 }
