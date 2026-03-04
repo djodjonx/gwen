@@ -2,8 +2,7 @@
  * Engine configuration and runtime stats.
  */
 
-import type { GwenWasmPlugin } from './plugin-wasm';
-import type { TsPlugin } from './plugin-ts';
+import type { GwenPlugin } from './plugin';
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -15,9 +14,11 @@ import type { TsPlugin } from './plugin-ts';
  * export default defineConfig({
  *   maxEntities: 10_000,
  *   targetFPS: 60,
- *   debug: false,
- *   tsPlugins:   [new InputPlugin(), new AudioPlugin()],
- *   wasmPlugins: [Physics2D({ gravity: -9.81 })],
+ *   plugins: [
+ *     physics2D({ gravity: -9.81 }),
+ *     new InputPlugin(),
+ *     new AudioPlugin(),
+ *   ],
  * });
  * ```
  */
@@ -30,10 +31,39 @@ export interface EngineConfig {
   debug?: boolean;
   /** Collect performance statistics each frame. @default true */
   enableStats?: boolean;
-  /** WASM plugins (Rust-compiled — physics, AI, networking…). */
-  wasmPlugins?: GwenWasmPlugin[];
-  /** TypeScript plugins (input, audio, rendering…). */
-  tsPlugins?: TsPlugin[];
+
+  /**
+   * All plugins — TS-only and WASM plugins mixed in declaration order.
+   *
+   * WASM plugins (those with a `wasm` sub-object) are automatically detected
+   * and routed through the async WASM initialisation pipeline by `createEngine()`.
+   *
+   * @example
+   * ```ts
+   * plugins: [
+   *   physics2D({ gravity: -9.81 }), // WASM — has `wasm` sub-object
+   *   new InputPlugin(),              // TS-only
+   *   new AudioPlugin(),
+   * ]
+   * ```
+   */
+  plugins?: GwenPlugin[];
+
+  /**
+   * @deprecated Use `plugins` instead.
+   *
+   * WASM plugins previously required a separate array. Migrate by moving all
+   * entries into the unified `plugins` array — detection is automatic.
+   */
+  wasmPlugins?: GwenPlugin[];
+
+  /**
+   * @deprecated Use `plugins` instead.
+   *
+   * TS plugins previously required a separate array. Migrate by moving all
+   * entries into the unified `plugins` array.
+   */
+  tsPlugins?: GwenPlugin[];
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────

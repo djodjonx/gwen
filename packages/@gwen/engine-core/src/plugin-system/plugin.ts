@@ -1,57 +1,37 @@
 /**
- * GWEN Plugin System — typed plugin interface
+ * @file GWEN Plugin System — typed plugin interface and utility types.
  *
- * Plugins are TypeScript classes that implement `GwenPlugin<N, P>` interface.
+ * Provides the strongly-typed `GwenPlugin` class-decorator pattern and the
+ * type-level helpers used by `defineConfig()` to infer the merged service map
+ * and hooks map from a `plugins` array.
  *
- * `N` = literal plugin name (e.g., `'InputPlugin'`)
- * `P` = service map exposed by this plugin (e.g., `{ keyboard: KeyboardInput }`)
- *
- * **Example:**
+ * @example
  * ```typescript
  * export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices> {
  *   readonly name = 'InputPlugin' as const;
- *   readonly provides = {
- *     keyboard: {} as KeyboardInput,
- *     mouse: {} as MouseInput,
- *     gamepad: {} as GamepadInput,
- *   };
- *
- *   onInit(api: EngineAPI) {
- *     // Initialize services
- *     api.services.register('keyboard', new KeyboardInput());
- *     api.services.register('mouse', new MouseInput());
- *     api.services.register('gamepad', new GamepadInput());
- *   }
- *
- *   onBeforeUpdate(api: EngineAPI, dt: number) {
- *     // Update input state
- *   }
- *
- *   onDestroy() {
- *     // Cleanup
- *   }
+ *   readonly provides = { keyboard: {} as KeyboardInput };
+ *   onInit(api: EngineAPI) { api.services.register('keyboard', new KeyboardInput()); }
  * }
- * ```
  *
- * **Registration in config:**
- * ```typescript
  * export default defineConfig({
- *   engine: { maxEntities: 5000 },
- *   plugins: [
- *     new InputPlugin(),
- *     new AudioPlugin({ masterVolume: 0.8 }),
- *     new Canvas2DRenderer({ width: 800, height: 600 })
- *   ]
+ *   plugins: [new InputPlugin(), new AudioPlugin()],
  * });
  * ```
  */
 
-import type { TsPlugin, GwenWasmPlugin } from '../types';
+import type { GwenPlugin, GwenPluginWasmContext } from '../types/plugin';
 
-// ── Utility types ────────────────────────────────────────────────────────────
+// ── Re-export the unified interface so consumers only need one import ─────────
+
+export type { GwenPlugin, GwenPluginWasmContext };
+export { isWasmPlugin } from './plugin-utils';
+
+// ── Utility types ─────────────────────────────────────────────────────────────
 
 /**
- * Converts a union into an intersection: A | B | C → A & B & C
+ * Converts a union into an intersection: `A | B | C → A & B & C`.
+ *
+ * Used internally to merge service maps from multiple plugins.
  */
 export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
   x: infer I,
@@ -60,32 +40,83 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
   : never;
 
 /**
- * Extracts the `provides` type from a GwenPlugin.
+ * Extracts the `provides` type from any `GwenPlugin`.
+ *
+ * Works for both TS-only plugins and WASM plugins because both shapes
+ * carry the same `provides?` field on `GwenPlugin<N, P, H>`.
+ *
+ * @example
+ * ```ts
+ * type P = PluginProvides<InputPlugin>; // → { keyboard: KeyboardInput; ... }
+ * ```
  */
 export type PluginProvides<T> =
   T extends GwenPlugin<string, infer P, any> ? P : Record<string, unknown>;
 
 /**
- * Extracts the `providesHooks` type from a GwenPlugin.
+ * Extracts the `providesHooks` type from a `GwenPlugin`.
+ *
+ * @example
+ * ```ts
+ * type H = PluginProvidesHooks<Physics2DPlugin>; // → { 'physics:collision': ... }
+ * ```
  */
 export type PluginProvidesHooks<T> =
   T extends GwenPlugin<string, any, infer H> ? H : Record<string, never>;
 
-/**
- * Extracts the `provides` type from a GwenWasmPlugin.
- */
-export type WasmPluginProvides<T> = T extends GwenWasmPlugin<infer P> ? P : Record<string, unknown>;
+// ── Primary helpers (new — unified) ──────────────────────────────────────────
 
 /**
- * Merges `provides` from all TsPlugins in a list.
+ * Merges the `provides` types from **all** plugins in a mixed array
+ * (TS-only and WASM plugins alike).
+ *
+ * This is the primary helper used by `defineConfig()`.
+ * Because both plugin families share the same `provides?` field on
+ * `GwenPlugin`, no special-casing is needed.
+ *
+ * @example
+ * ```ts
+ * type Services = MergePluginsProvides<[InputPlugin, Physics2DPlugin]>;
+ * // → { keyboard: KeyboardInput; physics: Physics2DAPI }
+ * ```
  */
-export type MergeProvides<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
+export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
 > &
   Record<string, unknown>;
 
 /**
- * Merges `providesHooks` from all TsPlugins in a list.
+ * Merges the `providesHooks` types from all plugins in a mixed array,
+ * and intersects with the built-in `GwenHooks`.
+ *
+ * WASM plugins that do not declare `providesHooks` contribute
+ * `Record<string, never>` — a neutral element for intersection.
+ *
+ * @example
+ * ```ts
+ * type Hooks = MergePluginsHooks<[InputPlugin, Physics2DPlugin]>;
+ * // → GwenHooks & { 'input:keyDown': ... } & { 'physics:collision': ... }
+ * ```
+ */
+export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
+  import('../hooks').GwenHooks &
+    UnionToIntersection<PluginProvidesHooks<Plugins[number]>> &
+    Record<string, any>;
+
+// ── Legacy helpers (deprecated) ───────────────────────────────────────────────
+
+/**
+ * @deprecated Use `MergePluginsProvides` instead.
+ *
+ * Merges `provides` from a list of TS-only plugins.
+ * No longer necessary — `MergePluginsProvides` handles both families.
+ */
+export type MergeProvides<Plugins extends readonly GwenPlugin[]> = MergePluginsProvides<Plugins>;
+
+/**
+ * @deprecated Use `MergePluginsHooks` instead.
+ *
+ * Merges `providesHooks` from a list of TS-only plugins.
  */
 export type MergeHooks<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
   PluginProvidesHooks<Plugins[number]>
@@ -93,82 +124,51 @@ export type MergeHooks<Plugins extends readonly GwenPlugin[]> = UnionToIntersect
   Record<string, any>;
 
 /**
- * Merges `provides` from all WasmPlugins in a list.
+ * @deprecated Use `MergePluginsProvides` instead.
+ *
+ * Extracts `provides` from a legacy WASM plugin shape.
  */
-export type MergeWasmProvides<Plugins extends readonly GwenWasmPlugin[]> = UnionToIntersection<
-  WasmPluginProvides<Plugins[number]>
-> &
-  Record<string, unknown>;
+export type WasmPluginProvides<T> = T extends { wasm?: GwenPluginWasmContext } & GwenPlugin<
+  string,
+  infer P
+>
+  ? P
+  : Record<string, unknown>;
 
 /**
- * Merges `provides` from both TsPlugins and WasmPlugins.
+ * @deprecated Use `MergePluginsProvides` instead.
+ *
+ * Merges `provides` from a list of legacy WASM plugins.
+ */
+export type MergeWasmProvides<Plugins extends readonly GwenPlugin[]> =
+  MergePluginsProvides<Plugins>;
+
+/**
+ * @deprecated Use `MergePluginsProvides<Plugins>` with a single unified array.
+ *
+ * Previously required two separate arrays for TS and WASM plugins.
+ * Now both live in one `plugins` array and use `MergePluginsProvides`.
  */
 export type MergeAllProvides<
   TsPlugins extends readonly GwenPlugin[],
-  WasmPlugins extends readonly GwenWasmPlugin[],
-> = MergeProvides<TsPlugins> & MergeWasmProvides<WasmPlugins>;
+  WasmPlugins extends readonly GwenPlugin[],
+> = MergePluginsProvides<[...TsPlugins, ...WasmPlugins]>;
 
 /**
- * Merges `providesHooks` from all TsPlugins and system hooks.
+ * @deprecated Use `MergePluginsHooks` instead.
  */
-export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = import('../hooks').GwenHooks &
-  MergeHooks<TsPlugins>;
+export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = MergePluginsHooks<TsPlugins>;
 
-// ── GwenPlugin interface ──────────────────────────────────────────────────────
-
-/**
- * Typed GWEN plugin.
- *
- * `N` = literal plugin name (e.g., `'InputPlugin'`)
- * `P` = service map exposed by this plugin (e.g., `{ keyboard: KeyboardInput }`)
- * `H` = custom hooks exposed by this plugin (e.g., `{ 'input:keyPress': (...) => void }`)
- *
- * @example
- * ```typescript
- * export interface InputPluginHooks {
- *   'input:keyDown': (key: string) => void;
- *   'input:keyUp': (key: string) => void;
- * }
- *
- * export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices, InputPluginHooks> {
- *   readonly name = 'InputPlugin' as const;
- *   readonly provides = { keyboard: {} as KeyboardInput };
- *   readonly providesHooks = {} as InputPluginHooks;
- *   // ...
- * }
- * ```
- */
-export interface GwenPlugin<
-  N extends string = string,
-  out P extends Record<string, unknown> = Record<string, unknown>,
-  out H extends Record<string, any> = Record<string, never>,
-> extends TsPlugin {
-  readonly name: N;
-  /**
-   * Declares services that this plugin injects into `api.services`.
-   * Values are phantom types (`{} as ServiceType`) — never read at runtime.
-   * Used only for TypeScript type inference.
-   */
-  readonly provides?: P;
-  /**
-   * Declares custom hooks that this plugin exposes for other plugins.
-   * Values are phantom types (`{} as HookInterface`) — never read at runtime.
-   * Used only for TypeScript type inference.
-   *
-   * Extracted by `gwen prepare` and merged into `GwenDefaultHooks` in `.gwen/gwen.d.ts`.
-   */
-  readonly providesHooks?: H;
-}
-
-// ── GwenPluginMeta ────────────────────────────────────────────────────────────
+// ── GwenPlugin re-exported for convenience ────────────────────────────────────
+// (Consumers may import GwenPlugin directly from here or from '@gwen/engine-core')
 
 /**
- * Static metadata declared by a GWEN plugin.
+ * Static metadata declared alongside a plugin package.
  * Consumed by `gwen prepare` to enrich `.gwen/gwen.d.ts`.
  *
  * @example
  * ```ts
- * // In @gwen/plugin-html-ui/src/index.ts
+ * // @gwen/plugin-html-ui/src/index.ts
  * export const pluginMeta: GwenPluginMeta = {
  *   typeReferences: ['@gwen/plugin-html-ui/vite-env'],
  * };
@@ -176,10 +176,10 @@ export interface GwenPlugin<
  */
 export interface GwenPluginMeta {
   /**
-   * Type reference paths to inject into `.gwen/gwen.d.ts` as
+   * Type reference paths injected into `.gwen/gwen.d.ts` as
    * `/// <reference types="..." />` directives.
    *
-   * Only active when the plugin is declared in `gwen.config.ts`.
+   * Active only when the plugin is declared in `gwen.config.ts`.
    */
   typeReferences?: string[];
 }

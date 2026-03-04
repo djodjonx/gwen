@@ -1,0 +1,46 @@
+{
+  "name": "@gwen/kit",
+  "version": "0.1.0",
+  "description": "GWEN plugin authoring kit — helpers for creating TS and WASM plugins",
+  "keywords": [
+    "game-engine",
+    "gwen",
+    "kit",
+    "plugin",
+    "wasm"
+  ],
+  "license": "MPL-2.0",
+  "author": "Jonathan Moutier <jonathan.moutier.dev@gmail.com>",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "watch": "vite build --watch"
+  },
+  "dependencies": {
+    "@gwen/engine-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^1.0.0"
+  },
+  "gwen": {
+    "type": "kit"
+  }
+}
