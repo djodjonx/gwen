@@ -28,7 +28,7 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
       physics = api.services.get('physics');
     },
 
-    onUpdate(api) {
+    onBeforeUpdate(api, _dt) {
       if (!physics) return;
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);

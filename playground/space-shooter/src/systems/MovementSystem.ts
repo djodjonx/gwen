@@ -4,7 +4,7 @@ import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem({
   name: 'MovementSystem' as const,
-  onUpdate(api: EngineAPI<GwenServices>, dt: number) {
+  onBeforeUpdate(api: EngineAPI<GwenServices>, dt: number) {
     const movables = api.query([Position.name, Velocity.name]);
     for (const id of movables) {
       const pos = api.getComponent(id, Position);
