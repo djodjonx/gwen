@@ -22,27 +22,19 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         .query([Tag.name])
         .find((id) => api.getComponent(id, Tag)?.type === 'player');
 
-      // Use the snapshot built by PhysicsBindingSystem at registration time.
-      // This is reliable even if a slot was recycled between onBeforeUpdate
-      // and onUpdate (which would make api.getEntityGeneration() return the
-      // wrong generation for a slot whose entity was just destroyed).
-      const slotToPackedId: Map<number, number> =
-        ((physics as unknown as Record<string, unknown>)['_slotToPackedId'] as Map<
-          number,
-          number
-        >) ?? new Map();
-
-      function packedId(slotIndex: number): number | undefined {
-        return slotToPackedId.get(slotIndex);
+      // Rapier returns raw slot indices — reconstruct packed EntityIds.
+      // Safe because MovementSystem.onUpdate (not onBeforeUpdate) handles
+      // destroy, so no slot is recycled between onBeforeUpdate and here.
+      function packedId(slot: number): number {
+        return (api.getEntityGeneration(slot) << 20) | (slot & 0xfffff);
       }
 
       function destroyWithPhysics(id: number): void {
-        const slot = id & 0xfffff;
-        physics!.removeBody(slot);
-        slotToPackedId.delete(slot); // keep snapshot in sync
+        physics!.removeBody(id & 0xfffff);
         api.destroyEntity(id);
       }
 
+      // Guard against duplicate events for the same entity in one batch.
       const destroyed = new Set<number>();
 
       for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
@@ -51,13 +43,8 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         const entityA = packedId(slotA);
         const entityB = packedId(slotB);
 
-        // If either slot is not in the snapshot it was never registered or
-        // was already cleaned up — skip silently.
-        if (entityA === undefined || entityB === undefined) continue;
-
         if (destroyed.has(entityA) || destroyed.has(entityB)) continue;
 
-        // Validate both entities are still alive
         const tagA = api.getComponent(entityA, Tag)?.type;
         const tagB = api.getComponent(entityB, Tag)?.type;
         if (!tagA || !tagB) continue;
@@ -66,12 +53,10 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         if ((tagA === 'bullet' && tagB === 'enemy') || (tagA === 'enemy' && tagB === 'bullet')) {
           const bulletId = tagA === 'bullet' ? entityA : entityB;
           const enemyId = tagA === 'enemy' ? entityA : entityB;
-
           destroyed.add(bulletId);
           destroyed.add(enemyId);
           destroyWithPhysics(bulletId);
           destroyWithPhysics(enemyId);
-
           const cur = api.getComponent(scoreId, Score);
           if (cur) api.addComponent(scoreId, Score, { ...cur, value: cur.value + 100 });
           continue;
@@ -80,7 +65,6 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         // Enemy bullet hits player
         if (playerId === undefined) continue;
         if (entityA !== playerId && entityB !== playerId) continue;
-
         const bulletId = entityA === playerId ? entityB : entityA;
         if (api.getComponent(bulletId, Tag)?.type !== 'enemy-bullet') continue;
 
@@ -94,9 +78,7 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
           if (lives <= 0) api.scene?.load('MainMenu');
         }
         const health = api.getComponent(playerId, Health);
-        if (health) {
-          api.addComponent(playerId, Health, { hp: Math.max(0, health.hp - 1) });
-        }
+        if (health) api.addComponent(playerId, Health, { hp: Math.max(0, health.hp - 1) });
       }
     },
 
