@@ -18,7 +18,7 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
 
   return {
     onInit(api) {
-      physics = api.services.get('Physics2D');
+      physics = api.services.get('physics');
     },
 
     onUpdate(api: EngineAPI<GwenServices>) {

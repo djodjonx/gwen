@@ -99,7 +99,9 @@ export class Physics2DPlugin implements GwenWasmPlugin {
     );
 
     // Register the service so TsPlugins can call api.services.get('physics')
-    api.services.register('physics', this._createAPI());
+    if (!api.services.has('physics')) {
+      api.services.register('physics', this._createAPI());
+    }
   }
 
   /**
