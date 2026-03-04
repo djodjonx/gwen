@@ -156,15 +156,30 @@ slot_offset + 24 : reserved (8  B)     — reserved for future use
 > native memory sharing. See `specs/PLAN_WASM_COMPONENT_MODEL.md`. Horizon ~2027.
 
 ```rust
-use crate::memory::{read_position_rotation, write_position_rotation, set_physics_active};
+use crate::memory::{write_position_rotation_local, flush_to_js, clear_physics_active};
 
-// Read current position from the SAB via Uint8Array
-let (x, y, rot) = read_position_rotation(&shared_buf, entity_index);
+// ── Hot path (called every frame in write_positions_to_buffer) ────────────────
+// Build a local Rust buffer — zero FFI cost
+let mut local = vec![0u8; max_entities as usize * STRIDE];
 
-// Write updated position back after simulation
-write_position_rotation(&shared_buf, entity_index, new_x, new_y, new_rot);
-set_physics_active(&shared_buf, entity_index);
+for each active entity:
+    write_position_rotation_local(&mut local, entity_index, x, y, rot);
+
+// Single FFI call — flush entire buffer to JS at once
+flush_to_js(&shared_buf, &local);
+
+// ── Cold path (per-event, not per-frame) ──────────────────────────────────────
+// Called only in remove_rigid_body
+clear_physics_active(&shared_buf, entity_index);
 ```
+
+> **Why a local buffer?**
+> Each `buf.set_index()` / `buf.get_index()` call on a `js_sys::Uint8Array`
+> is a wasm→JS FFI crossing. The naive approach (write f32 = 4 calls,
+> write position+rotation+flags = **20 calls per entity**) costs ~0.2 ms/frame
+> at 10k entities. A local `Vec<u8>` filled with pure Rust ops + one
+> `copy_from()` flush reduces this to **1 FFI call per frame** — ~20× faster
+> on the sync path.
 
 ### TypeScript constants
 
@@ -257,12 +272,12 @@ export class MyPlugin implements GwenWasmPlugin {
   onMemoryGrow(newMemory: WebAssembly.Memory) {
     // Called automatically when gwen-core grows its linear memory.
     // Recreate the view on the fresh ArrayBuffer.
-    this.view = new Float32Array(newMemory.buffer, this.region!.ptr, this.slotCount * 8);
+    this.view = new Float32Array(newMemory.buffer, this.region!.byteOffset, this.slotCount * 8);
   }
 
   private refreshView(bridge: WasmBridge, region: MemoryRegion) {
     const mem = bridge.getLinearMemory();
-    if (mem) this.view = new Float32Array(mem.buffer, region.ptr, this.slotCount * 8);
+    if (mem) this.view = new Float32Array(mem.buffer, region.byteOffset, this.slotCount * 8);
   }
 }
 ```
@@ -316,7 +331,9 @@ export class MyPlugin implements GwenWasmPlugin {
    */
   async onInit(bridge, region, api) {
     const wasm = this._wasmModule!;
-    this.wasmPlugin = new wasm.MyPlugin(region.ptr, this.maxEntities);
+    const mem = bridge.getLinearMemory()!;
+    const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
+    this.wasmPlugin = new wasm.MyPlugin(sharedBuf, this.maxEntities);
     api.services.register('myService', this._createAPI());
   }
 }
@@ -362,36 +379,43 @@ pub use bindings::MyPlugin;
 
 **`src/bindings.rs`** — wasm-bindgen interface
 ```rust
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 use crate::world::MyWorld;
+use crate::memory::{write_position_rotation_local, flush_to_js, STRIDE};
 
 #[wasm_bindgen]
 pub struct MyPlugin {
     world:        MyWorld,
-    shared_ptr:   usize,
+    shared_buf:   Uint8Array,  // JS view over gwen-core's region — NOT a raw ptr
     max_entities: u32,
 }
 
 #[wasm_bindgen]
 impl MyPlugin {
     #[wasm_bindgen(constructor)]
-    pub fn new(shared_ptr: usize, max_entities: u32) -> Self {
-        MyPlugin { world: MyWorld::new(), shared_ptr, max_entities }
+    pub fn new(shared_buf: Uint8Array, max_entities: u32) -> Self {
+        MyPlugin { world: MyWorld::new(), shared_buf, max_entities }
+    }
+
+    /// Refresh the shared buffer view after a gwen-core memory.grow() event.
+    pub fn update_shared_buf(&mut self, new_buf: Uint8Array) {
+        self.shared_buf = new_buf;
     }
 
     /// Called every frame by the TS layer via onStep(delta).
+    /// Writes all updated positions in a single FFI call.
     pub fn step(&mut self, delta: f32) {
+        self.world.step(delta);
+
+        // Build local buffer (pure Rust, zero FFI) then flush in one call
+        let byte_len = self.max_entities as usize * STRIDE;
+        let mut local = vec![0u8; byte_len];
         for entity_index in 0..self.max_entities {
-            let (x, y, rot) = unsafe {
-                crate::memory::read_position_rotation(self.shared_ptr, entity_index)
-            };
-            // … compute new_x, new_y, new_rot …
-            unsafe {
-                crate::memory::write_position_rotation(
-                    self.shared_ptr, entity_index, new_x, new_y, new_rot,
-                );
-            }
+            let (new_x, new_y, new_rot) = self.world.compute(entity_index);
+            write_position_rotation_local(&mut local, entity_index, new_x, new_y, new_rot);
         }
+        flush_to_js(&self.shared_buf, &local); // 1 FFI call total
     }
 }
 ```
@@ -448,10 +472,24 @@ export class MyPlugin implements GwenWasmPlugin {
 
   // Phase 2 — sequential init
   async onInit(bridge: WasmBridge, region: MemoryRegion, api: EngineAPI): Promise<void> {
+    this._region = region;
     const wasm = this._wasmModule
       ?? await loadWasmPlugin<WasmMyModule>({ /* fallback if _prefetch not called */ });
-    this.wasmPlugin = new wasm.MyPlugin(region.ptr, this.config.maxEntities ?? 10_000);
+
+    // Build a Uint8Array view over gwen-core's region — the only valid
+    // way to share memory between two separate WASM modules.
+    const mem = bridge.getLinearMemory()!;
+    const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
+
+    this.wasmPlugin = new wasm.MyPlugin(sharedBuf, this.config.maxEntities ?? 10_000);
     api.services.register('myService', this._createAPI());
+  }
+
+  // Refresh the view when gwen-core's linear memory grows (memory.grow() event)
+  onMemoryGrow(newMemory: WebAssembly.Memory): void {
+    if (!this.wasmPlugin || !this._region) return;
+    const fresh = new Uint8Array(newMemory.buffer, this._region.byteOffset, this._region.byteLength);
+    this.wasmPlugin.update_shared_buf(fresh);
   }
 
   onStep(deltaTime: number): void { this.wasmPlugin?.step(deltaTime); }

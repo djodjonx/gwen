@@ -255,7 +255,18 @@ impl PhysicsWorld {
 
     // ── SAB synchronisation ───────────────────────────────────────────────
 
+    /// Write all updated positions to the JS shared buffer.
+    ///
+    /// ## Performance
+    /// Builds a Rust-owned local buffer, fills it with pure Rust operations
+    /// (zero FFI), then flushes the entire slice to JS in a single
+    /// `Uint8Array.copy_from()` call. This reduces wasm→JS crossings from
+    /// O(entities × 20) to O(1) per frame.
     pub fn write_positions_to_buffer(&self, buf: &Uint8Array, max_entities: u32) {
+        // Allocate a zeroed local buffer — same size as the JS region
+        let byte_len = max_entities as usize * crate::memory::STRIDE;
+        let mut local = vec![0u8; byte_len];
+
         for (&entity_index, &handle) in &self.entity_to_body {
             if entity_index >= max_entities {
                 continue;
@@ -263,10 +274,18 @@ impl PhysicsWorld {
             if let Some(body) = self.rigid_body_set.get(handle) {
                 let pos = body.translation();
                 let rot = body.rotation().angle();
-                crate::memory::write_position_rotation(buf, entity_index, pos.x, pos.y, rot);
-                crate::memory::set_physics_active(buf, entity_index);
+                crate::memory::write_position_rotation_local(
+                    &mut local,
+                    entity_index,
+                    pos.x,
+                    pos.y,
+                    rot,
+                );
             }
         }
+
+        // Single FFI call — flush entire buffer to JS
+        crate::memory::flush_to_js(buf, &local);
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────

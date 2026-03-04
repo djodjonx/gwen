@@ -1,9 +1,14 @@
 //! Shared memory layout helpers.
 //!
-//! Reads and writes go through a `js_sys::Uint8Array` view over gwen-core's
-//! linear memory. This is the only safe way to share data between two
-//! separate WASM modules — raw `usize` pointers are only valid within the
-//! module that allocated them.
+//! ## Performance strategy
+//!
+//! Writes go through a **local Rust buffer** that is flushed to the JS
+//! `Uint8Array` in a **single `copy_from` call** per frame. This reduces
+//! the number of wasm→JS FFI crossings from O(entities × 20) to O(1),
+//! eliminating the dominant overhead of the cross-module memory bridge.
+//!
+//! Reads (flags) still use `get_index` — they occur only during
+//! `add_rigid_body` / `remove_rigid_body`, not on the hot frame path.
 //!
 //! Layout (stride = 32 bytes per entity slot):
 //! ```text
@@ -24,25 +29,47 @@ pub const STRIDE: usize = 32;
 /// Bit-flag: this entity slot is managed by the physics plugin.
 pub const FLAG_PHYSICS_ACTIVE: u32 = 0b01;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Hot-path write (bulk, single FFI call) ────────────────────────────────────
 
-fn read_f32(buf: &Uint8Array, byte_offset: usize) -> f32 {
-    let b0 = buf.get_index(byte_offset as u32) as u32;
-    let b1 = buf.get_index((byte_offset + 1) as u32) as u32;
-    let b2 = buf.get_index((byte_offset + 2) as u32) as u32;
-    let b3 = buf.get_index((byte_offset + 3) as u32) as u32;
-    f32::from_bits(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+/// Write `(pos_x, pos_y, rotation)` and set FLAG_PHYSICS_ACTIVE for
+/// `entity_index` into `local_buf` (a Rust-owned `Vec<u8>`).
+///
+/// Call [`flush_to_js`] once after all entities have been written.
+#[inline]
+pub fn write_position_rotation_local(
+    local_buf: &mut [u8],
+    entity_index: u32,
+    x: f32,
+    y: f32,
+    rot: f32,
+) {
+    let base = entity_index as usize * STRIDE;
+    local_buf[base..base + 4].copy_from_slice(&x.to_le_bytes());
+    local_buf[base + 4..base + 8].copy_from_slice(&y.to_le_bytes());
+    local_buf[base + 8..base + 12].copy_from_slice(&rot.to_le_bytes());
+    // Set FLAG_PHYSICS_ACTIVE (bit 0) in the flags u32 at offset +20
+    local_buf[base + 20] |= FLAG_PHYSICS_ACTIVE as u8;
 }
 
-fn write_f32(buf: &Uint8Array, byte_offset: usize, value: f32) {
-    let bits = value.to_bits();
-    buf.set_index(byte_offset as u32,       (bits & 0xFF) as u8);
-    buf.set_index((byte_offset + 1) as u32, ((bits >> 8)  & 0xFF) as u8);
-    buf.set_index((byte_offset + 2) as u32, ((bits >> 16) & 0xFF) as u8);
-    buf.set_index((byte_offset + 3) as u32, ((bits >> 24) & 0xFF) as u8);
+/// Flush the entire local buffer to the JS `Uint8Array` in one FFI call.
+#[inline]
+pub fn flush_to_js(buf: &Uint8Array, local_buf: &[u8]) {
+    buf.copy_from(local_buf);
 }
 
-fn read_u32(buf: &Uint8Array, byte_offset: usize) -> u32 {
+// ── Cold-path helpers (per-event, not per-frame) ──────────────────────────────
+
+/// Clear the physics-active flag for `entity_index` in the JS buffer.
+/// Used only in `remove_rigid_body` — not on the hot frame path.
+pub fn clear_physics_active(buf: &Uint8Array, entity_index: u32) {
+    let offset = entity_index as usize * STRIDE + 20;
+    let flags = read_u32_js(buf, offset);
+    write_u32_js(buf, offset, flags & !FLAG_PHYSICS_ACTIVE);
+}
+
+// ── Internal JS read/write helpers (cold path only) ──────────────────────────
+
+fn read_u32_js(buf: &Uint8Array, byte_offset: usize) -> u32 {
     let b0 = buf.get_index(byte_offset as u32) as u32;
     let b1 = buf.get_index((byte_offset + 1) as u32) as u32;
     let b2 = buf.get_index((byte_offset + 2) as u32) as u32;
@@ -50,43 +77,10 @@ fn read_u32(buf: &Uint8Array, byte_offset: usize) -> u32 {
     b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
 }
 
-fn write_u32(buf: &Uint8Array, byte_offset: usize, value: u32) {
+fn write_u32_js(buf: &Uint8Array, byte_offset: usize, value: u32) {
     buf.set_index(byte_offset as u32,       (value & 0xFF) as u8);
     buf.set_index((byte_offset + 1) as u32, ((value >> 8)  & 0xFF) as u8);
     buf.set_index((byte_offset + 2) as u32, ((value >> 16) & 0xFF) as u8);
     buf.set_index((byte_offset + 3) as u32, ((value >> 24) & 0xFF) as u8);
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-pub fn read_position_rotation(buf: &Uint8Array, entity_index: u32) -> (f32, f32, f32) {
-    let base = entity_index as usize * STRIDE;
-    (
-        read_f32(buf, base),
-        read_f32(buf, base + 4),
-        read_f32(buf, base + 8),
-    )
-}
-
-pub fn write_position_rotation(buf: &Uint8Array, entity_index: u32, x: f32, y: f32, rot: f32) {
-    let base = entity_index as usize * STRIDE;
-    write_f32(buf, base,     x);
-    write_f32(buf, base + 4, y);
-    write_f32(buf, base + 8, rot);
-}
-
-pub fn read_flags(buf: &Uint8Array, entity_index: u32) -> u32 {
-    read_u32(buf, entity_index as usize * STRIDE + 20)
-}
-
-pub fn set_physics_active(buf: &Uint8Array, entity_index: u32) {
-    let offset = entity_index as usize * STRIDE + 20;
-    let flags = read_u32(buf, offset);
-    write_u32(buf, offset, flags | FLAG_PHYSICS_ACTIVE);
-}
-
-pub fn clear_physics_active(buf: &Uint8Array, entity_index: u32) {
-    let offset = entity_index as usize * STRIDE + 20;
-    let flags = read_u32(buf, offset);
-    write_u32(buf, offset, flags & !FLAG_PHYSICS_ACTIVE);
-}
