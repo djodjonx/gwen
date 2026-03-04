@@ -269,18 +269,6 @@ export async function createEngine(
       await plugin.onInit(bridge, region, api);
       engine._registerWasmPlugin(plugin);
 
-      // Register any services declared in plugin.provides that were not
-      // already registered inside onInit() (fallback for simple plugins)
-      if (plugin.provides) {
-        for (const [key, value] of Object.entries(plugin.provides)) {
-          try {
-            api.services.register(key, value as object);
-          } catch {
-            // Service was already registered inside onInit() — that is correct
-          }
-        }
-      }
-
       if (raw.debug) {
         console.log(`[GWEN] WASM plugin '${plugin.name}' (id='${plugin.id}') initialized`);
       }
