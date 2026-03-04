@@ -323,7 +323,7 @@ export interface WasmPlugin {
  * }
  * ```
  */
-export interface GwenWasmPlugin {
+export interface GwenWasmPlugin<P extends Record<string, unknown> = Record<string, unknown>> {
   /** Unique identifier used for memory region allocation (e.g. `'physics2d'`). */
   readonly id: string;
   /** Human-readable name for logs and debug overlay. */
@@ -342,7 +342,7 @@ export interface GwenWasmPlugin {
    * Services this plugin exposes in `api.services`.
    * The key becomes the service name, e.g. `{ physics: ... }` → `api.services.get('physics')`.
    */
-  readonly provides?: Record<string, unknown>;
+  readonly provides?: P;
 
   /**
    * Async initialization — loads the `.wasm`, mounts shared memory, registers services.

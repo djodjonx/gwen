@@ -14,7 +14,10 @@ export type {
   GwenPlugin,
   GwenPluginMeta,
   PluginProvides,
+  WasmPluginProvides,
   MergeProvides,
+  MergeWasmProvides,
+  MergeAllProvides,
   UnionToIntersection,
 } from './plugin-system/plugin';
 

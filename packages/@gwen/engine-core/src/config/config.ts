@@ -1,5 +1,5 @@
 import type { EngineConfig, WasmPlugin, TsPlugin, GwenWasmPlugin } from '../types';
-import type { GwenPlugin, MergeProvides } from '../plugin-system/plugin';
+import type { GwenPlugin, MergeAllProvides } from '../plugin-system/plugin';
 import { Engine } from '../engine/engine';
 import { SceneManager } from '../api/scene';
 import { SharedMemoryManager } from '../wasm/shared-memory';
@@ -111,32 +111,25 @@ export interface TypedEngineConfig<Services extends Record<string, unknown>> {
  * @param config Project configuration. `tsPlugins` accepts any plugin
  *   implementing `GwenPlugin` (with `provides`) or `TsPlugin` (untyped).
  */
-export function defineConfig<const Plugins extends readonly GwenPlugin[]>(config: {
-  /** Nuxt-like shorthand: engine: { maxEntities, targetFPS, debug } */
+export function defineConfig<
+  const TsPlugins extends readonly GwenPlugin[],
+  const WasmPlugins extends readonly GwenWasmPlugin[],
+>(config: {
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
-  tsPlugins?: [...Plugins];
-  wasmPlugins?: WasmPlugin[];
+  tsPlugins?: [...TsPlugins];
+  wasmPlugins?: [...WasmPlugins];
   maxEntities?: number;
   targetFPS?: number;
   debug?: boolean;
   enableStats?: boolean;
-  /**
-   * Scene to load at startup.
-   * If unspecified, searches for 'Main', 'MainMenu' or 'Boot', then first scene.
-   */
   mainScene?: string;
-  /**
-   * Scene loading mode.
-   * - `'auto'` (default): scan src/scenes/*.ts during `gwen prepare`.
-   * - `false`: disabled, manage manually in main.ts.
-   */
   scenes?: 'auto' | false;
   html?: {
     title?: string;
     background?: string;
   };
-}): TypedEngineConfig<MergeProvides<Plugins>> {
-  return config as unknown as TypedEngineConfig<MergeProvides<Plugins>>;
+}): TypedEngineConfig<MergeAllProvides<TsPlugins, WasmPlugins>> {
+  return config as unknown as TypedEngineConfig<MergeAllProvides<TsPlugins, WasmPlugins>>;
 }
 
 /**

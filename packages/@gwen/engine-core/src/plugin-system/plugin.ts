@@ -46,7 +46,7 @@
  * ```
  */
 
-import type { TsPlugin } from '../types';
+import type { TsPlugin, GwenWasmPlugin } from '../types';
 
 // ── Utility types ────────────────────────────────────────────────────────────
 
@@ -65,12 +65,33 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
 export type PluginProvides<T> = T extends GwenPlugin<string, infer P> ? P : Record<string, unknown>;
 
 /**
- * Merges `provides` from all plugins in a list.
+ * Extracts the `provides` type from a GwenWasmPlugin.
+ */
+export type WasmPluginProvides<T> = T extends GwenWasmPlugin<infer P> ? P : Record<string, unknown>;
+
+/**
+ * Merges `provides` from all TsPlugins in a list.
  */
 export type MergeProvides<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
   PluginProvides<Plugins[number]>
 > &
   Record<string, unknown>;
+
+/**
+ * Merges `provides` from all WasmPlugins in a list.
+ */
+export type MergeWasmProvides<Plugins extends readonly GwenWasmPlugin[]> = UnionToIntersection<
+  WasmPluginProvides<Plugins[number]>
+> &
+  Record<string, unknown>;
+
+/**
+ * Merges `provides` from both TsPlugins and WasmPlugins.
+ */
+export type MergeAllProvides<
+  TsPlugins extends readonly GwenPlugin[],
+  WasmPlugins extends readonly GwenWasmPlugin[],
+> = MergeProvides<TsPlugins> & MergeWasmProvides<WasmPlugins>;
 
 // ── GwenPlugin interface ──────────────────────────────────────────────────────
 
