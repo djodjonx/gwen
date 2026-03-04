@@ -122,6 +122,13 @@ export interface Physics2DAPI {
   removeBody(entityIndex: number): void;
 
   /**
+   * Directly set the position of a kinematic body.
+   * Call every frame from TS to drive kinematic bodies — this is more
+   * accurate than relying on the SAB sync (which is in pixels).
+   */
+  setKinematicPosition(entityIndex: number, x: number, y: number): void;
+
+  /**
    * Apply an instantaneous linear impulse to a body.
    * Has no effect on `fixed` bodies.
    */
@@ -176,6 +183,7 @@ export interface WasmPhysics2DPlugin {
     friction: number,
   ): void;
   remove_rigid_body(entityIndex: number): void;
+  set_kinematic_position(entityIndex: number, x: number, y: number): void;
   apply_impulse(entityIndex: number, x: number, y: number): void;
   step(delta: number): void;
   get_collision_events(): string;

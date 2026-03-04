@@ -181,6 +181,10 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         this.wasmPlugin?.remove_rigid_body(entityIndex);
       },
 
+      setKinematicPosition: (entityIndex, x, y) => {
+        this.wasmPlugin?.set_kinematic_position(entityIndex, x, y);
+      },
+
       applyImpulse: (entityIndex, x, y) => {
         this.wasmPlugin?.apply_impulse(entityIndex, x, y);
       },

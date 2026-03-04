@@ -304,6 +304,20 @@ impl PhysicsWorld {
         }
     }
 
+    /// Directly set the next kinematic position for an entity (in metres).
+    /// More reliable than SAB sync — use this from TS every frame.
+    pub fn set_kinematic_position(&mut self, entity_index: u32, x: f32, y: f32) {
+        if let Some(&handle) = self.entity_to_body.get(&entity_index) {
+            if let Some(body) = self.rigid_body_set.get_mut(handle) {
+                if body.is_kinematic() {
+                    body.set_next_kinematic_position(
+                        Isometry::new(vector![x, y], 0.0)
+                    );
+                }
+            }
+        }
+    }
+
     // ── SAB synchronisation ───────────────────────────────────────────────
 
     /// Write all updated positions to the JS shared buffer.

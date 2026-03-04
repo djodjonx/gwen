@@ -121,6 +121,13 @@ impl Physics2DPlugin {
         self.world.remove_rigid_body(entity_index, &self.shared_buf);
     }
 
+    /// Directly set the next kinematic position for an entity.
+    /// Call every frame from TS to drive kinematic bodies at the correct
+    /// physics scale (metres, not pixels).
+    pub fn set_kinematic_position(&mut self, entity_index: u32, x: f32, y: f32) {
+        self.world.set_kinematic_position(entity_index, x, y);
+    }
+
     /// Apply a linear impulse to an entity's rigid body.
     /// Has no effect on fixed or non-existent bodies.
     pub fn apply_impulse(&mut self, entity_index: u32, x: f32, y: f32) {
@@ -135,11 +142,7 @@ impl Physics2DPlugin {
     /// dynamic and kinematic bodies. `gwen_core::sync_transforms_from_buffer`
     /// can then pull them back into the ECS.
     pub fn step(&mut self, delta: f32) {
-        // Sync kinematic positions from the shared buffer into Rapier FIRST,
-        // so collision detection runs at the correct current positions.
-        self.world.sync_kinematic_positions_from_buffer(&self.shared_buf, self.max_entities);
         self.world.step(delta);
-        // Write updated positions back (dynamic bodies only — kinematic are driven by TS)
         self.world.write_positions_to_buffer(&self.shared_buf, self.max_entities);
     }
 
