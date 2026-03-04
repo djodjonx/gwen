@@ -3,6 +3,7 @@ import type { GwenPlugin, MergeAllProvides } from '../plugin-system/plugin';
 import { Engine } from '../engine/engine';
 import { SceneManager } from '../api/scene';
 import { SharedMemoryManager } from '../wasm/shared-memory';
+import { PluginDataBus } from '../wasm/plugin-data-bus';
 import { getWasmBridge } from '../engine/wasm-bridge';
 export { ConfigBuilder } from './config-builder';
 
@@ -225,6 +226,21 @@ export async function createEngine(
     const sharedMemory = SharedMemoryManager.create(bridge, maxEntities);
     engine._setSharedMemoryPtr(sharedMemory.getTransformRegion().ptr, maxEntities, sharedMemory);
 
+    // ── Plugin Data Bus ────────────────────────────────────────────────────
+    // Allocate JS-native ArrayBuffers for each channel declared by WASM plugins.
+    // These buffers are independent of gwen-core's linear memory — a memory.grow()
+    // event in gwen-core has zero effect on them.
+    const pluginDataBus = new PluginDataBus();
+    for (const plugin of wasmPlugins) {
+      if (plugin.channels) {
+        for (const channel of plugin.channels) {
+          pluginDataBus.allocate(plugin.id, channel, maxEntities);
+        }
+      }
+    }
+    pluginDataBus.writeSentinels();
+    engine._setPluginDataBus(pluginDataBus);
+
     // ── Phase 1: fetch all WASM binaries in parallel ──────────────────────
     // Network downloads can overlap — we only need their order to match
     // declaration order for the sequential memory allocation below.
@@ -259,7 +275,7 @@ export async function createEngine(
     // subsequent plugin's onInit() might try to access them.
     for (const plugin of pluginModules) {
       const region = sharedMemory.allocateRegion(plugin.id, plugin.sharedMemoryBytes);
-      await plugin.onInit(bridge, region, api);
+      await plugin.onInit(bridge, region, api, pluginDataBus);
       engine._registerWasmPlugin(plugin);
 
       if (raw.debug) {

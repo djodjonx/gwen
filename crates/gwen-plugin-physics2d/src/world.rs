@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use js_sys::Uint8Array;
 use rapier2d::prelude::*;
 use crate::components::{BodyType, PhysicsMaterial};
+use gwen_wasm_utils::ring::RingWriter;
+use gwen_wasm_utils::buffer::{write_u16, write_u32, write_u8, flush_local_to_js};
 
 // ─── Collision event ─────────────────────────────────────────────────────────
 
@@ -238,9 +240,9 @@ impl PhysicsWorld {
         }
     }
 
-    /// Remove body and clear the physics-active flag in the shared buffer.
-    pub fn remove_rigid_body(&mut self, entity_index: u32, buf: &Uint8Array) {
-        crate::memory::clear_physics_active(buf, entity_index);
+    /// Remove body and all its colliders from Rapier.
+    /// Does NOT touch any shared buffer — managed by the PluginDataBus lifecycle.
+    pub fn remove_rigid_body(&mut self, entity_index: u32) {
         self.remove_body_internal(entity_index);
     }
 
@@ -305,15 +307,14 @@ impl PhysicsWorld {
 
     // ── SAB synchronisation ───────────────────────────────────────────────
 
-    /// Write all updated positions to the JS shared buffer.
+    /// Write positions of **dynamic** bodies to the transform channel buffer.
+    ///
+    /// Kinematic bodies are driven by TS (`set_kinematic_position`) — we do
+    /// NOT write them back. This avoids an unnecessary round-trip.
     ///
     /// ## Performance
-    /// Builds a Rust-owned local buffer, fills it with pure Rust operations
-    /// (zero FFI), then flushes the entire slice to JS in a single
-    /// `Uint8Array.copy_from()` call. This reduces wasm→JS crossings from
-    /// O(entities × 20) to O(1) per frame.
-    pub fn write_positions_to_buffer(&self, buf: &Uint8Array, max_entities: u32) {
-        // Allocate a zeroed local buffer — same size as the JS region
+    /// Builds a local Rust buffer then flushes it in one `copy_from()` call.
+    pub fn write_dynamic_positions_to_buffer(&self, buf: &Uint8Array, max_entities: u32) {
         let byte_len = max_entities as usize * crate::memory::STRIDE;
         let mut local = vec![0u8; byte_len];
 
@@ -322,6 +323,9 @@ impl PhysicsWorld {
                 continue;
             }
             if let Some(body) = self.rigid_body_set.get(handle) {
+                if !body.is_dynamic() {
+                    continue; // skip kinematic and fixed bodies
+                }
                 let pos = body.translation();
                 let rot = body.rotation().angle();
                 crate::memory::write_position_rotation_local(
@@ -334,24 +338,52 @@ impl PhysicsWorld {
             }
         }
 
-        // Single FFI call — flush entire buffer to JS
-        crate::memory::flush_to_js(buf, &local);
+        flush_local_to_js(buf, &local);
+    }
+
+    /// Returns `true` if any dynamic body is registered.
+    /// Used by `step()` to skip the transform write when there are none.
+    pub fn has_dynamic_bodies(&self) -> bool {
+        self.entity_to_body.values().any(|&handle| {
+            self.rigid_body_set
+                .get(handle)
+                .map(|b| b.is_dynamic())
+                .unwrap_or(false)
+        })
+    }
+
+    /// Write collision events from the last `step()` into the ring-buffer `buf`.
+    ///
+    /// Format per event (11 bytes):
+    /// ```text
+    /// [type u16 = 0][slotA u32][slotB u32][flags u8 — bit 0: started]
+    /// ```
+    ///
+    /// The TypeScript engine resets both heads to 0 at the start of each frame
+    /// (before `step()`) — this function only appends.
+    pub fn write_events_to_buffer(&self, buf: &Uint8Array) {
+        if self.collision_events.is_empty() {
+            return;
+        }
+
+        let writer = RingWriter::new(buf, 11);
+        for ev in &self.collision_events {
+            if let Some(offset) = writer.next_write_offset() {
+                write_u16(buf, offset,      0u16);               // type = 0 (collision)
+                write_u32(buf, offset + 2,  ev.entity_a);
+                write_u32(buf, offset + 6,  ev.entity_b);
+                write_u8 (buf, offset + 10, if ev.started { 1 } else { 0 });
+                writer.advance();
+            } else {
+                #[cfg(debug_assertions)]
+                js_sys::eval("console.warn('[Physics2D] events ring buffer overflow')").ok();
+                break;
+            }
+        }
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────
 
-    pub fn collision_events_json(&self) -> String {
-        let mut s = String::from('[');
-        for (i, ev) in self.collision_events.iter().enumerate() {
-            if i > 0 { s.push(','); }
-            s.push_str(&format!(
-                r#"{{"a":{},"b":{},"started":{}}}"#,
-                ev.entity_a, ev.entity_b, ev.started
-            ));
-        }
-        s.push(']');
-        s
-    }
 
     pub fn stats_json(&self) -> String {
         format!(

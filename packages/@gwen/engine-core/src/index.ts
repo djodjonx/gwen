@@ -71,3 +71,12 @@ export {
 export type { MemoryRegion } from './wasm/shared-memory';
 export { loadWasmPlugin } from './wasm/wasm-plugin-loader';
 export type { WasmPluginLoadOptions } from './wasm/wasm-plugin-loader';
+
+// Plugin Data Bus — channel-based WASM ↔ TS communication
+export {
+  PluginDataBus,
+  readEventChannel,
+  writeEventToChannel,
+  getDataChannelView,
+} from './wasm/plugin-data-bus';
+export type { AllocatedChannel } from './wasm/plugin-data-bus';

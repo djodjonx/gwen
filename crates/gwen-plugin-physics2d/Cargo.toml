@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 wasm-bindgen = "0.2.87"
 js-sys       = "0.3.64"
+gwen-wasm-utils = { path = "../../crates/gwen-wasm-utils" }
 
 # Rapier2D — 2D physics engine with WASM support
 # f32 : single precision (smaller .wasm, faster on GPU-backed JS)

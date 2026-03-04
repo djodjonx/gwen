@@ -86,9 +86,51 @@ interface RawCollisionEvent {
   started: boolean;
 }
 
+/** @deprecated Use readCollisionEventsFromBuffer instead. */
 export function parseCollisionEvents(json: string): CollisionEvent[] {
   const raw: RawCollisionEvent[] = JSON.parse(json);
   return raw.map((e) => ({ slotA: e.a, slotB: e.b, started: e.started }));
+}
+
+// ─── Binary event reader ──────────────────────────────────────────────────────
+
+const EVENT_HEADER_BYTES = 8;
+const EVENT_STRIDE = 11;
+
+/**
+ * Read all pending collision events from a ring-buffer channel buffer.
+ *
+ * Format:
+ * - Header 8 bytes: [write_head u32 LE][read_head u32 LE]
+ * - Each event (11 bytes): [type u16][slotA u32][slotB u32][flags u8]
+ *   - flags bit 0: 1 = started, 0 = ended
+ *
+ * Advances `read_head` to `write_head` (marks the buffer as consumed).
+ */
+export function readCollisionEventsFromBuffer(buf: ArrayBuffer): CollisionEvent[] {
+  const view = new DataView(buf);
+  const writeHead = view.getUint32(0, true);
+  const readHead = view.getUint32(4, true);
+  const capacity = Math.floor((buf.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
+
+  if (writeHead === readHead) return [];
+
+  const events: CollisionEvent[] = [];
+  let idx = readHead;
+
+  while (idx !== writeHead) {
+    const offset = EVENT_HEADER_BYTES + idx * EVENT_STRIDE;
+    // type (u16) at offset+0 — ignored for collision events (always 0)
+    const slotA = view.getUint32(offset + 2, true);
+    const slotB = view.getUint32(offset + 6, true);
+    const flags = view.getUint8(offset + 10);
+    events.push({ slotA, slotB, started: (flags & 1) === 1 });
+    idx = (idx + 1) % capacity;
+  }
+
+  // Mark buffer as consumed — advance read_head to write_head
+  view.setUint32(4, writeHead, true);
+  return events;
 }
 
 // ─── Physics2D service API ────────────────────────────────────────────────────
@@ -176,7 +218,8 @@ export interface Physics2DWasmModule {
   Physics2DPlugin: new (
     gravityX: number,
     gravityY: number,
-    sharedBuf: Uint8Array,
+    transformBuf: Uint8Array,
+    eventsBuf: Uint8Array,
     maxEntities: number,
   ) => WasmPhysics2DPlugin;
 
@@ -203,9 +246,7 @@ export interface WasmPhysics2DPlugin {
   set_kinematic_position(entityIndex: number, x: number, y: number): void;
   apply_impulse(entityIndex: number, x: number, y: number): void;
   step(delta: number): void;
-  get_collision_events(): string;
   get_position(entityIndex: number): number[];
   stats(): string;
-  update_shared_buf(newBuf: Uint8Array): void;
   free?(): void;
 }

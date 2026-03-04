@@ -219,10 +219,19 @@ dependencies = [
 name = "gwen-plugin-physics2d"
 version = "0.1.0"
 dependencies = [
+ "gwen-wasm-utils",
  "js-sys",
  "rapier2d",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "gwen-wasm-utils"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

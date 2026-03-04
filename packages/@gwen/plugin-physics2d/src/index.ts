@@ -23,8 +23,15 @@
  * ```
  */
 
-import type { GwenWasmPlugin, WasmBridge, EngineAPI, MemoryRegion } from '@gwen/engine-core';
+import type {
+  GwenWasmPlugin,
+  WasmBridge,
+  EngineAPI,
+  MemoryRegion,
+  PluginChannel,
+} from '@gwen/engine-core';
 import { loadWasmPlugin } from '@gwen/engine-core';
+import type { PluginDataBus } from '@gwen/engine-core';
 
 import type {
   Physics2DConfig,
@@ -35,7 +42,7 @@ import type {
   ColliderOptions,
   RigidBodyType,
 } from './types';
-import { BODY_TYPE, parseCollisionEvents } from './types';
+import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
 
 // Re-export public types
 export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, RigidBodyType };
@@ -45,8 +52,9 @@ export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, Ri
 /**
  * GWEN plugin that provides 2D rigid-body physics via Rapier2D.
  *
- * Implements `GwenWasmPlugin` — loaded as a separate `.wasm` module and
- * communicating with `gwen-core` through a shared memory pointer.
+ * Uses the Plugin Data Bus for zero-SAB communication:
+ * - "transform" channel: TS → Rapier (kinematic body positions)
+ * - "events" channel: Rapier → TS (collision events, binary ring buffer)
  */
 export class Physics2DPlugin implements GwenWasmPlugin {
   // ── GwenWasmPlugin identity ──────────────────────────────────────────────
@@ -55,10 +63,30 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   readonly version = '0.1.0';
 
   /**
-   * Bytes requested in the shared buffer: one 32-byte slot per entity.
-   * Matches the layout defined in `memory.rs` (TRANSFORM_STRIDE = 32).
+   * No legacy SAB allocation — the Plugin Data Bus is used instead.
+   * Setting this to 0 tells SharedMemoryManager to skip allocation and
+   * passes `region = null` to onInit.
    */
-  readonly sharedMemoryBytes: number;
+  readonly sharedMemoryBytes = 0;
+
+  /**
+   * Channel declarations — PluginDataBus allocates one ArrayBuffer per channel
+   * before onInit() is called.
+   */
+  readonly channels: PluginChannel[] = [
+    {
+      name: 'transform',
+      direction: 'read',
+      strideBytes: 20, // pos_x, pos_y, rotation, scale_x, scale_y (5 × f32)
+      bufferType: 'f32',
+    },
+    {
+      name: 'events',
+      direction: 'write',
+      bufferType: 'ring',
+      capacityEvents: 256,
+    },
+  ];
 
   /** Service map declared for type inference in api.services. */
   readonly provides = { physics: {} as Physics2DAPI };
@@ -66,8 +94,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   // ── Internal state ───────────────────────────────────────────────────────
   private wasmPlugin: WasmPhysics2DPlugin | null = null;
   readonly config: Required<Physics2DConfig>;
-  private _region: MemoryRegion | null = null;
-  private _bridge: WasmBridge | null = null;
+  private _eventsBuf: ArrayBuffer | null = null;
   private _debugFrameCount = 0;
 
   constructor(config: Physics2DConfig = {}) {
@@ -76,7 +103,6 @@ export class Physics2DPlugin implements GwenWasmPlugin {
       gravityX: config.gravityX ?? 0,
       maxEntities: config.maxEntities ?? 10_000,
     };
-    this.sharedMemoryBytes = this.config.maxEntities * 32;
   }
 
   // ── GwenWasmPlugin lifecycle ─────────────────────────────────────────────
@@ -86,10 +112,25 @@ export class Physics2DPlugin implements GwenWasmPlugin {
    * register the `physics` service in `api.services`.
    *
    * Called once by `createEngine()` before `engine.start()`.
+   * `region` is always `null` because `sharedMemoryBytes === 0`.
    */
-  async onInit(bridge: WasmBridge, region: MemoryRegion, api: EngineAPI): Promise<void> {
-    this._bridge = bridge;
-    this._region = region;
+  async onInit(
+    _bridge: WasmBridge,
+    _region: MemoryRegion | null,
+    api: EngineAPI,
+    bus?: PluginDataBus,
+  ): Promise<void> {
+    // Retrieve pre-allocated channel buffers from the PluginDataBus.
+    // Fallback to a fresh ArrayBuffer if the bus is not available
+    // (e.g. in unit tests without a full engine).
+    const transformChannel = bus?.get(this.id, 'transform');
+    const eventsChannel = bus?.get(this.id, 'events');
+
+    const transformBuf: ArrayBuffer =
+      transformChannel?.buffer ?? new ArrayBuffer(this.config.maxEntities * 20);
+    const eventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
+
+    this._eventsBuf = eventsBuf;
 
     const wasm = await loadWasmPlugin<Physics2DWasmModule>({
       jsUrl: '/wasm/gwen_physics2d.js',
@@ -97,35 +138,19 @@ export class Physics2DPlugin implements GwenWasmPlugin {
       name: 'Physics2D',
     });
 
-    // Build a Uint8Array view over the gwen-core region.
-    // Two separate WASM modules cannot share memory via raw pointers —
-    // a JS TypedArray view is the only safe cross-module memory bridge.
-    const sharedBuf = this._buildView(bridge, region);
-
+    // Pass JS-native ArrayBuffers as Uint8Array views to the Rust constructor.
+    // These buffers are independent of gwen-core's linear memory — memory.grow()
+    // in gwen-core has zero effect on them.
     this.wasmPlugin = new wasm.Physics2DPlugin(
       this.config.gravityX,
       this.config.gravity,
-      sharedBuf,
+      new Uint8Array(transformBuf),
+      new Uint8Array(eventsBuf),
       this.config.maxEntities,
     );
 
     // Register the service so TsPlugins can call api.services.get('physics')
     api.services.register('physics', this._createAPI());
-  }
-
-  /**
-   * Rebuild the shared buffer view when gwen-core's linear memory grows.
-   * A memory.grow() replaces the underlying ArrayBuffer — any existing
-   * TypedArray views become detached and must be recreated.
-   */
-  onMemoryGrow(newMemory: WebAssembly.Memory): void {
-    if (!this.wasmPlugin || !this._region) return;
-    const fresh = new Uint8Array(
-      newMemory.buffer,
-      this._region.byteOffset,
-      this._region.byteLength,
-    );
-    this.wasmPlugin.update_shared_buf(fresh);
   }
 
   /**
@@ -141,17 +166,10 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   onDestroy(): void {
     this.wasmPlugin?.free?.();
     this.wasmPlugin = null;
+    this._eventsBuf = null;
   }
 
   // ── Service factory ──────────────────────────────────────────────────────
-
-  // ── Internal helpers ─────────────────────────────────────────────────────
-
-  private _buildView(bridge: WasmBridge, region: MemoryRegion): Uint8Array {
-    const mem = bridge.getLinearMemory();
-    if (!mem) throw new Error('[Physics2D] gwen-core linear memory not available');
-    return new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
-  }
 
   private _createAPI(): Physics2DAPI {
     return {
@@ -164,7 +182,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         return handle;
       },
 
-      addBoxCollider: (bodyHandle, hw, hh, opts = {}) => {
+      addBoxCollider: (bodyHandle, hw, hh, opts: ColliderOptions = {}) => {
         console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
         this.wasmPlugin?.add_box_collider(
           bodyHandle,
@@ -175,7 +193,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
         );
       },
 
-      addBallCollider: (bodyHandle, radius, opts = {}) => {
+      addBallCollider: (bodyHandle, radius, opts: ColliderOptions = {}) => {
         console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
         this.wasmPlugin?.add_ball_collider(
           bodyHandle,
@@ -199,13 +217,12 @@ export class Physics2DPlugin implements GwenWasmPlugin {
       },
 
       getCollisionEvents: (): CollisionEvent[] => {
-        if (!this.wasmPlugin) return [];
-        const raw = this.wasmPlugin.get_collision_events();
-        const events = parseCollisionEvents(raw);
+        if (!this.wasmPlugin || !this._eventsBuf) return [];
+        const events = readCollisionEventsFromBuffer(this._eventsBuf);
         const f = this._debugFrameCount;
         if (f <= 300 && f % 60 === 0 && f > 0) {
           const stats = this.wasmPlugin.stats();
-          console.log(`[Physics2D] frame=${f} stats=${stats} events_raw=${raw}`);
+          console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
         }
         if (events.length > 0) {
           console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);

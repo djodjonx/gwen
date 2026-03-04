@@ -24,6 +24,7 @@ import { PluginManager } from '../plugin-system/plugin-manager';
 import { defaultConfig, mergeConfigs } from '../config/config';
 import { getWasmBridge, type WasmBridge } from './wasm-bridge';
 import type { SharedMemoryManager } from '../wasm/shared-memory';
+import type { PluginDataBus } from '../wasm/plugin-data-bus';
 import {
   type ComponentDefinition,
   type ComponentSchema,
@@ -63,6 +64,9 @@ export class Engine {
    * Set by `_setSharedMemoryManager()` called from `createEngine()`.
    */
   private sharedMemoryManager: SharedMemoryManager | null = null;
+
+  /** Plugin Data Bus — JS-native buffers for channel-based WASM ↔ TS communication. */
+  private pluginDataBus: PluginDataBus | null = null;
 
   // Component type string → Rust numeric typeId mapping
   private componentTypeIds = new Map<ComponentType, number>();
@@ -578,6 +582,9 @@ export class Engine {
       this.wasmBridge.syncTransformsToBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
     }
 
+    // Step 2b — Reset event ring-buffers so Rust plugins write fresh events this frame
+    this.pluginDataBus?.resetEventChannels();
+
     // Step 3 — WASM plugins: physics, AI… (Rust simulation step)
     this.pluginManager.dispatchWasmStep(this._deltaTime);
 
@@ -587,6 +594,9 @@ export class Engine {
     // rather than silently corrupting the ECS state.
     if (this.config.debug && this.sharedMemoryManager !== null) {
       this.sharedMemoryManager.checkSentinels(this.wasmBridge);
+    }
+    if (this.config.debug && this.pluginDataBus !== null) {
+      this.pluginDataBus.checkSentinels();
     }
 
     // Step 5 — Sync shared buffer → ECS Transforms (WASM plugins wrote new positions)
@@ -638,6 +648,15 @@ export class Engine {
    */
   public _registerWasmPlugin(plugin: GwenWasmPlugin): void {
     this.pluginManager.registerWasmPlugin(plugin);
+  }
+
+  /**
+   * Set the Plugin Data Bus for channel-based WASM ↔ TS communication.
+   * Called by `createEngine()` after all channels have been allocated.
+   * @internal
+   */
+  public _setPluginDataBus(bus: PluginDataBus): void {
+    this.pluginDataBus = bus;
   }
 }
 

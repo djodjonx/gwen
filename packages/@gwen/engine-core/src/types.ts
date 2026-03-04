@@ -306,31 +306,89 @@ export interface WasmPlugin {
   config?: Record<string, unknown>;
 }
 
+// ============= Plugin Data Bus =============
+
+/**
+ * A data channel for bulk data exchange between a WASM plugin and the engine
+ * each frame. Declared statically so `PluginDataBus` can pre-allocate buffers.
+ */
+export interface DataChannel {
+  readonly name: string;
+  readonly direction: 'read' | 'write' | 'readwrite';
+  /** Bytes per entity slot (e.g. 20 for pos_x, pos_y, rot, scale_x, scale_y as f32). */
+  readonly strideBytes: number;
+  readonly bufferType: 'f32' | 'i32' | 'u8';
+}
+
+/**
+ * A ring-buffer channel for binary events written by a WASM plugin and
+ * consumed by the engine each frame.
+ *
+ * Buffer layout:
+ * - Header 8 bytes: [write_head u32][read_head u32]
+ * - Body: capacityEvents × 11 bytes
+ * - Each event: [type u16][slotA u32][slotB u32][flags u8]
+ */
+export interface EventChannel {
+  readonly name: string;
+  readonly direction: 'write';
+  readonly bufferType: 'ring';
+  readonly capacityEvents: number;
+}
+
+/** Union of all supported plugin channel types. */
+export type PluginChannel = DataChannel | EventChannel;
+
+/**
+ * A standard binary event read from a GWEN event channel.
+ * Format is shared across all plugins that use the ring-buffer protocol.
+ */
+export interface GwenEvent {
+  /** u16 — event type defined by the plugin (e.g. 0 = collision). */
+  type: number;
+  /** u32 — raw ECS slot index of the first entity. */
+  slotA: number;
+  /** u32 — raw ECS slot index of the second entity (0 if N/A). */
+  slotB: number;
+  /** u8 — plugin-defined flags (e.g. bit 0 = started). */
+  flags: number;
+}
+
+/** Byte size of the header in a ring-buffer event channel. */
+export const EVENT_HEADER_BYTES = 8;
+/** Byte size of a single event in the ring-buffer protocol. */
+export const EVENT_STRIDE = 11;
+
 /**
  * Active interface for all GWEN WASM plugins (physics, AI, networking…).
  *
  * Each WASM plugin is a separate `.wasm` module published in its npm package.
- * It communicates with `gwen-core` via a shared memory pointer allocated by
- * `SharedMemoryManager` and received in `onInit`.
+ * It communicates with `gwen-core` via the **Plugin Data Bus** — JS-native
+ * `ArrayBuffer`s allocated independently of gwen-core's linear memory.
  *
  * ## Lifecycle
- * 1. `SharedMemoryManager.create()` allocates the shared buffer.
- * 2. `allocateRegion(plugin.id, plugin.sharedMemoryBytes)` carves out a slice.
- * 3. `await plugin.onInit(bridge, region, api)` — loads the .wasm, mounts memory.
- * 4. Each frame: `plugin.onStep(delta)` — runs the Rust simulation.
- * 5. `plugin.onDestroy()` — frees WASM resources.
+ * 1. `PluginDataBus` allocates one `ArrayBuffer` per declared channel.
+ * 2. `await plugin.onInit(bridge, region, api, bus)` — loads the .wasm, receives bus.
+ * 3. Each frame: `plugin.onStep(delta)` — runs the Rust simulation.
+ * 4. `plugin.onDestroy()` — frees WASM resources.
  *
  * ## Example
  * ```typescript
  * export class Physics2DPlugin implements GwenWasmPlugin {
  *   readonly id = 'physics2d';
  *   readonly name = 'Physics2D';
- *   readonly sharedMemoryBytes = 10_000 * 32; // maxEntities × TRANSFORM_STRIDE
+ *   readonly sharedMemoryBytes = 0; // No legacy SAB
+ *   readonly channels: PluginChannel[] = [
+ *     { name: 'transform', direction: 'read', strideBytes: 20, bufferType: 'f32' },
+ *     { name: 'events', direction: 'write', bufferType: 'ring', capacityEvents: 256 },
+ *   ];
  *   readonly provides = { physics: {} as Physics2DAPI };
  *
- *   async onInit(bridge, region, api) {
+ *   async onInit(bridge, region, api, bus) {
+ *     const transformBuf = bus?.get(this.id, 'transform')?.buffer ?? new ArrayBuffer(maxEntities * 20);
+ *     const eventsBuf    = bus?.get(this.id, 'events')?.buffer    ?? new ArrayBuffer(8 + 256 * 11);
  *     const wasm = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js', ... });
- *     this.wasm = new wasm.Physics2DPlugin(gravity, region.ptr);
+ *     this.wasm = new wasm.Physics2DPlugin(gravity, new Uint8Array(transformBuf), new Uint8Array(eventsBuf), maxEntities);
  *     api.services.register('physics', this._createAPI());
  *   }
  *   onStep(delta) { this.wasm?.step(delta); }
@@ -347,11 +405,19 @@ export interface GwenWasmPlugin<P extends Record<string, unknown> = Record<strin
 
   /**
    * Bytes to allocate in the shared buffer for this plugin.
-   * Declared statically so `SharedMemoryManager` can pre-allocate before `onInit`.
+   * Set to `0` when using the Plugin Data Bus (recommended for new plugins).
+   * When `0`, `SharedMemoryManager` skips allocation and `region` will be `null`.
    *
-   * Typical formula: `maxEntities × TRANSFORM_STRIDE` (32 bytes/entity).
+   * @default 0
    */
   readonly sharedMemoryBytes: number;
+
+  /**
+   * Data and event channels declared by this plugin.
+   * `PluginDataBus` allocates one `ArrayBuffer` per channel before `onInit()`.
+   * Optional — plugins without channels (or using the legacy SAB) can omit this.
+   */
+  readonly channels?: PluginChannel[];
 
   /**
    * Services this plugin exposes in `api.services`.
@@ -364,13 +430,15 @@ export interface GwenWasmPlugin<P extends Record<string, unknown> = Record<strin
    * Called once by `createEngine()` before `engine.start()`.
    *
    * @param bridge  Active WasmBridge (gwen-core already initialized).
-   * @param region  Pre-allocated slice of the shared buffer for this plugin.
+   * @param region  Pre-allocated slice of the shared buffer, or `null` if `sharedMemoryBytes === 0`.
    * @param api     EngineAPI — use `api.services.register()` here only.
+   * @param bus     Plugin Data Bus — use `bus.get(this.id, 'channelName')` to access pre-allocated buffers.
    */
   onInit(
     bridge: import('./engine/wasm-bridge').WasmBridge,
-    region: import('./wasm/shared-memory').MemoryRegion,
+    region: import('./wasm/shared-memory').MemoryRegion | null,
     api: EngineAPI,
+    bus?: import('./wasm/plugin-data-bus').PluginDataBus,
   ): Promise<void>;
 
   /**
