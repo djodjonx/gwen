@@ -52,12 +52,29 @@ export interface ColliderOptions {
 /**
  * A contact event emitted by the physics simulation each frame.
  * Retrieved via `api.services.get('physics').getCollisionEvents()`.
+ *
+ * ## ⚠️ IMPORTANT — slotA/slotB are raw slot indices, NOT packed EntityIds
+ *
+ * Rapier stores and returns raw ECS slot indices (0–maxEntities), not the
+ * packed EntityId format used by the GWEN TypeScript ECS
+ * (`(generation << 20) | index`).
+ *
+ * To use these values with `api.getComponent()` or `api.destroyEntity()`,
+ * you MUST reconstruct the packed EntityId:
+ *
+ * ```typescript
+ * for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
+ *   const entityA = (api.getEntityGeneration(slotA) << 20) | slotA;
+ *   const entityB = (api.getEntityGeneration(slotB) << 20) | slotB;
+ *   const tagA = api.getComponent(entityA, Tag);
+ * }
+ * ```
  */
 export interface CollisionEvent {
-  /** `entity_index` of the first participant. */
-  entityA: number;
-  /** `entity_index` of the second participant. */
-  entityB: number;
+  /** Raw ECS slot index of the first participant. NOT a packed EntityId. */
+  slotA: number;
+  /** Raw ECS slot index of the second participant. NOT a packed EntityId. */
+  slotB: number;
   /** `true` = contact started this frame, `false` = contact ended. */
   started: boolean;
 }
@@ -71,7 +88,7 @@ interface RawCollisionEvent {
 
 export function parseCollisionEvents(json: string): CollisionEvent[] {
   const raw: RawCollisionEvent[] = JSON.parse(json);
-  return raw.map((e) => ({ entityA: e.a, entityB: e.b, started: e.started }));
+  return raw.map((e) => ({ slotA: e.a, slotB: e.b, started: e.started }));
 }
 
 // ─── Physics2D service API ────────────────────────────────────────────────────

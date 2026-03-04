@@ -30,11 +30,11 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
           : slotIndex; // fallback: assume generation=0
       }
 
-      for (const { entityA: idxA, entityB: idxB, started } of physics.getCollisionEvents()) {
+      for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
         if (!started) continue;
 
-        const entityA = packedId(idxA);
-        const entityB = packedId(idxB);
+        const entityA = packedId(slotA);
+        const entityB = packedId(slotB);
 
         const tagA = api.getComponent(entityA, Tag)?.type;
         const tagB = api.getComponent(entityB, Tag)?.type;

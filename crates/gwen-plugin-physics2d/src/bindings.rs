@@ -73,7 +73,14 @@ impl Physics2DPlugin {
         body_type: u8,
     ) -> u32 {
         if entity_index >= self.max_entities {
-            return u32::MAX; // sentinel — invalid handle
+            // Explicit warning — most common cause: passing a packed EntityId (gen<<20|index)
+            // instead of the raw slot index. Use (id & 0xFFFFF) on the TS side.
+            js_sys::eval(&format!(
+                "console.warn('[Physics2D] add_rigid_body: entity_index {} >= max_entities {} — \
+                 did you pass a packed EntityId? Use (id & 0xFFFFF) to get the slot index.')",
+                entity_index, self.max_entities
+            )).ok();
+            return u32::MAX;
         }
         self.world.add_rigid_body(entity_index, x, y, BodyType::from_u8(body_type))
     }
