@@ -32,11 +32,26 @@ function entityIndex(id: number): number {
  */
 export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
   let physics: Physics2DAPI | null = null;
+
+  // registered : packed EntityId → still alive in Rapier
   const registered = new Set<number>();
+
+  // slotToPackedId : raw slot index → packed EntityId registered in Rapier.
+  // This is the source of truth for CollisionSystem to reconstruct packed IDs.
+  // It is kept in sync here and exported via the physics service snapshot.
+  // Key insight: we must snapshot the generation AT REGISTRATION TIME,
+  // not read it at event-processing time (generation may have changed by then
+  // if MovementSystem destroyed & recycled the slot in the same frame).
+  const slotToPackedId = new Map<number, number>();
 
   return {
     onInit(api) {
       physics = api.services.get('physics');
+      // Expose the slot→packedId map on the physics service so CollisionSystem
+      // can access it without coupling to PhysicsBindingSystem directly.
+      if (physics) {
+        (physics as unknown as Record<string, unknown>)['_slotToPackedId'] = slotToPackedId;
+      }
     },
 
     onBeforeUpdate(api, _dt) {
@@ -44,13 +59,12 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);
 
-      // Register new entities + update kinematic positions every frame
       for (const id of entities) {
         const pos = api.getComponent(id, Position);
         const col = api.getComponent(id, Collider);
         if (!pos || !col) continue;
 
-        const idx = entityIndex(id); // extract pure slot index from packed EntityId
+        const idx = entityIndex(id);
 
         if (!registered.has(id)) {
           const handle = physics.addRigidBody(
@@ -64,26 +78,27 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
             friction: 0,
           });
           registered.add(id);
+          // Snapshot: slot index → packed EntityId at registration time
+          slotToPackedId.set(idx, id);
         } else {
           physics.setKinematicPosition(idx, pos.x / PIXELS_PER_METER, pos.y / PIXELS_PER_METER);
         }
       }
 
-      // Clean up destroyed entities.
-      // Note: CollisionSystem may have already called physics.removeBody(idx)
-      // in the same frame via destroyWithPhysics(). Calling removeBody again
-      // on an unknown slot is a no-op in Rapier (entity_to_body.remove returns None),
-      // so this is safe — but we still must clean up the registered set.
+      // Clean up destroyed entities
       for (const id of registered) {
         if (!entities.includes(id)) {
-          physics.removeBody(entityIndex(id));
+          const idx = entityIndex(id);
+          physics.removeBody(idx);
           registered.delete(id);
+          slotToPackedId.delete(idx);
         }
       }
     },
 
     onDestroy() {
       registered.clear();
+      slotToPackedId.clear();
       physics = null;
     },
   };

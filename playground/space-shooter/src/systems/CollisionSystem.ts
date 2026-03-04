@@ -22,35 +22,39 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         .query([Tag.name])
         .find((id) => api.getComponent(id, Tag)?.type === 'player');
 
-      // Reconstruct packed EntityId from a raw Rapier slot index.
-      // MUST be called BEFORE any destroyEntity() — destroyEntity increments
-      // the generation immediately, making packedId return a stale/wrong ID.
-      function packedId(slotIndex: number): number {
-        return (api.getEntityGeneration(slotIndex) << 20) | (slotIndex & 0xfffff);
+      // Use the snapshot built by PhysicsBindingSystem at registration time.
+      // This is reliable even if a slot was recycled between onBeforeUpdate
+      // and onUpdate (which would make api.getEntityGeneration() return the
+      // wrong generation for a slot whose entity was just destroyed).
+      const slotToPackedId: Map<number, number> =
+        ((physics as unknown as Record<string, unknown>)['_slotToPackedId'] as Map<
+          number,
+          number
+        >) ?? new Map();
+
+      function packedId(slotIndex: number): number | undefined {
+        return slotToPackedId.get(slotIndex);
       }
 
-      // Helper: destroy entity in both ECS and Rapier immediately.
-      // Without the physics.removeBody call here, Rapier keeps the body alive
-      // for one more frame and can fire duplicate collision events.
       function destroyWithPhysics(id: number): void {
         const slot = id & 0xfffff;
         physics!.removeBody(slot);
+        slotToPackedId.delete(slot); // keep snapshot in sync
         api.destroyEntity(id);
       }
 
-      // Guard against processing the same entity twice in one event batch.
-      // Rapier can emit duplicate started=true events for fast-moving bodies.
       const destroyed = new Set<number>();
 
       for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
         if (!started) continue;
 
-        // Capture packed IDs FIRST — before any destroyEntity call that would
-        // increment the generation and make subsequent packedId() calls wrong.
         const entityA = packedId(slotA);
         const entityB = packedId(slotB);
 
-        // Skip if either entity was already destroyed in this batch
+        // If either slot is not in the snapshot it was never registered or
+        // was already cleaned up — skip silently.
+        if (entityA === undefined || entityB === undefined) continue;
+
         if (destroyed.has(entityA) || destroyed.has(entityB)) continue;
 
         // Validate both entities are still alive
