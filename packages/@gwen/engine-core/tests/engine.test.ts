@@ -1,12 +1,13 @@
 /**
- * Engine Integration Tests
+ * Engine integration tests.
  *
- * Tous les tests utilisent un mock du WasmEngine injecté via _injectMockWasmEngine().
- * Il n'existe plus de fallback TS — le WASM est obligatoire.
+ * All tests use a mock WasmEngine injected via _injectMockWasmEngine().
+ * There is no TS-only fallback — WASM is mandatory.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Engine, getEngine, useEngine, resetEngine } from '../src/engine/engine';
+import { Engine } from '../src/engine/engine';
+import { getEngine, useEngine, resetEngine } from '../src/engine/engine-globals';
 import { _injectMockWasmEngine, _resetWasmBridge } from '../src/engine/wasm-bridge';
 import type { WasmEngine, WasmEntityId } from '../src/engine/wasm-bridge';
 import { Types, defineComponent } from '../src/schema';
@@ -17,7 +18,7 @@ const Health = defineComponent('health', () => ({ schema: { hp: Types.f32 } }));
 
 // ── Mock WasmEngine ───────────────────────────────────────────────────────────
 
-/** Crée un WasmEngine mock complet avec état interne minimal. */
+/** Creates a complete WasmEngine mock with minimal internal state. */
 function createMockWasmEngine(): WasmEngine {
   let nextIndex = 0;
   const entities = new Map<number, number>(); // index → generation

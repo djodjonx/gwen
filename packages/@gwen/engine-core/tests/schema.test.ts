@@ -3,9 +3,9 @@ import { defineComponent, Types } from '../src/schema';
 import type { InferComponent } from '../src/schema';
 
 describe('DSL Components (schema.ts)', () => {
-  // ── Forme 1 — objet direct ────────────────────────────────────────────────
+  // ── Form 1 — direct object ────────────────────────────────────────────────
 
-  it('forme 1 — définit un composant correctement', () => {
+  it('form 1 — defines a component correctly', () => {
     const Health = defineComponent({
       name: 'Health',
       schema: {
@@ -29,9 +29,9 @@ describe('DSL Components (schema.ts)', () => {
     expect(h.current).toBe(100);
   });
 
-  // ── Forme 2 — factory ─────────────────────────────────────────────────────
+  // ── Form 2 — factory ─────────────────────────────────────────────────────
 
-  it('forme 2 — factory : name extrait correctement', () => {
+  it('form 2 — factory: name extracted correctly', () => {
     const Position = defineComponent('position', () => ({
       schema: { x: Types.f32, y: Types.f32 },
     }));
@@ -40,7 +40,7 @@ describe('DSL Components (schema.ts)', () => {
     expect(Position.schema.y).toBe(Types.f32);
   });
 
-  it('forme 2 — factory : appelée une seule fois', () => {
+  it('form 2 — factory: called exactly once', () => {
     let calls = 0;
     const def = defineComponent('test', () => {
       calls++;
@@ -50,7 +50,7 @@ describe('DSL Components (schema.ts)', () => {
     expect(def.name).toBe('test');
   });
 
-  it('forme 2 — factory : InferComponent fonctionne', () => {
+  it('form 2 — factory: InferComponent works', () => {
     const Velocity = defineComponent('velocity', () => ({
       schema: { vx: Types.f32, vy: Types.f32 },
     }));

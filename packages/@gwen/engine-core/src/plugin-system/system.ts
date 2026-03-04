@@ -43,21 +43,32 @@ import type { TsPlugin } from '../types';
 // ── System interface ────────────────────────────────────────────────────────
 
 /**
- * A game system — pure logic without plugin services.
- * Lifecycle: onInit → onBeforeUpdate/onUpdate/onRender per frame → onDestroy.
+ * A named game system — pure logic with no service injection.
+ *
+ * Extends `TsPlugin` to participate in the engine game loop.
+ * Use `defineSystem()` to create systems; do not implement this interface directly.
+ *
+ * Lifecycle: `onInit` → `onBeforeUpdate` / `onUpdate` / `onRender` per frame → `onDestroy`.
  */
 export interface System extends TsPlugin {
   readonly name: string;
 }
 
 /**
- * System definition body (without `name` — for factory form).
+ * The body of a `System` definition — everything except `name`.
+ * Used internally by the factory overload of `defineSystem(name, factory)`.
  */
 export type SystemBody = Omit<System, 'name'>;
 
 /**
- * System factory returned by `defineSystem(name, factory)`.
- * Carries `systemName` for introspection.
+ * Callable factory returned by `defineSystem(name, factory)`.
+ *
+ * The attached `systemName` property allows introspection without calling the factory:
+ * ```ts
+ * SpawnerSystem.systemName; // 'SpawnerSystem'
+ * ```
+ *
+ * @typeParam Args Extra arguments forwarded to the inner factory.
  */
 export type SystemFactory<Args extends unknown[] = []> = ((...args: Args) => System) & {
   readonly systemName: string;

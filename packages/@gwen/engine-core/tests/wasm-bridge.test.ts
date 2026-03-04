@@ -53,9 +53,9 @@ function createMockEngine(): WasmEngine {
   };
 }
 
-// ── Sans WASM (non initialisé) ────────────────────────────────────────────────
+// ── Without WASM (not initialized) ───────────────────────────────────────────
 
-describe('WasmBridge — non initialisé', () => {
+describe('WasmBridge — not initialized', () => {
   beforeEach(() => _resetWasmBridge());
 
   it('isActive() returns false', () => {
@@ -99,9 +99,9 @@ describe('WasmBridge — non initialisé', () => {
   });
 });
 
-// ── Avec mock injecté ─────────────────────────────────────────────────────────
+// ── With injected mock ────────────────────────────────────────────────────────
 
-describe('WasmBridge — avec mock injecté', () => {
+describe('WasmBridge — with injected mock', () => {
   let bridge: WasmBridge;
   let mock: WasmEngine;
 
@@ -174,7 +174,7 @@ describe('WasmBridge — avec mock injecté', () => {
     (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(
       new Uint32Array([0, 1, 2]),
     );
-    // get_entity_generation retourne 0 pour tous → packed = (0 << 20) | index = index
+    // get_entity_generation returns 0 for all → packed = (0 << 20) | index = index
     const result = bridge.queryEntities([0]);
     expect(result).toEqual([0, 1, 2]); // generation=0 → packed === index
   });
@@ -231,14 +231,14 @@ describe('WasmBridge — avec mock injecté', () => {
 // ── Singleton ─────────────────────────────────────────────────────────────────
 
 describe('WasmBridge — singleton', () => {
-  it('getWasmBridge() toujours la même instance', () => {
+  it('getWasmBridge() always returns the same instance', () => {
     _resetWasmBridge();
     const a = getWasmBridge();
     const b = getWasmBridge();
     expect(a).toBe(b);
   });
 
-  it('_resetWasmBridge() remet isActive() à false', () => {
+  it('_resetWasmBridge() resets isActive() to false', () => {
     _injectMockWasmEngine(createMockEngine());
     expect(getWasmBridge().isActive()).toBe(true);
     _resetWasmBridge();
@@ -246,7 +246,7 @@ describe('WasmBridge — singleton', () => {
   });
 });
 
-// ── Intégration Engine ────────────────────────────────────────────────────────
+// ── Engine integration ────────────────────────────────────────────────────────
 
 describe('Engine — WASM bridge integration', () => {
   beforeEach(() => {
@@ -255,31 +255,31 @@ describe('Engine — WASM bridge integration', () => {
   });
   afterEach(() => _resetWasmBridge());
 
-  it('getWasmBridge() accessible depuis Engine', () => {
+  it('getWasmBridge() accessible from Engine', () => {
     const engine = new Engine({ maxEntities: 100 });
     expect(engine.getWasmBridge()).toBe(getWasmBridge());
     engine.stop();
   });
 
-  it('getStats() wasmActive: true avec mock', () => {
+  it('getStats() wasmActive: true with mock', () => {
     const engine = new Engine({ maxEntities: 100 });
     expect(engine.getStats().wasmActive).toBe(true);
     engine.stop();
   });
 
-  it('start() throw si WASM non initialisé', async () => {
+  it('start() throws if WASM is not initialized', async () => {
     _resetWasmBridge();
     const engine = new Engine({ maxEntities: 100 });
     await expect(engine.start()).rejects.toThrow('WASM');
     engine.stop();
   });
 
-  it('bridge tick est appelé à chaque tick engine (via mock tick)', async () => {
+  it('bridge tick is called on every engine tick (via mock tick)', async () => {
     const mock = createMockEngine();
     _resetWasmBridge();
     _injectMockWasmEngine(mock);
     const engine = new Engine({ maxEntities: 100 });
-    // On simule un tick interne
+    // Simulate one internal tick
     await (engine as any)._tick(performance.now());
     expect(mock.tick).toHaveBeenCalled();
     engine.stop();

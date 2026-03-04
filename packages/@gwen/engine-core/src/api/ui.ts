@@ -88,20 +88,20 @@ export type UIBody<Services extends GwenDefaultServices = GwenDefaultServices> =
 >;
 
 /**
- * Définit une UI GWEN — deux syntaxes supportées.
+ * Define a GWEN UI — two supported syntaxes.
  *
- * **Forme 1 — objet direct** (simple, sans état local) :
+ * **Form 1 — direct object** (no local state):
  * ```ts
  * export const BulletUI = defineUI({
  *   name: 'BulletUI',
- *   render(api, id) { ... }, // api.services typé automatiquement après gwen prepare
+ *   render(api, id) { ... }, // api.services typed automatically after gwen prepare
  * });
  * ```
  *
- * **Forme 2 — factory** (avec état local en closure, sans variables globales) :
+ * **Form 2 — factory** (local state in closure, no global variables):
  * ```ts
  * export const EnemyUI = defineUI('EnemyUI', () => {
- *   const phaseMap = new Map<EntityId, number>(); // ← closure locale, pas globale
+ *   const phaseMap = new Map<EntityId, number>(); // ← closure-local, not global
  *   return {
  *     onMount(_api, id)   { phaseMap.set(id, Math.random() * Math.PI * 2); },
  *     render(api, id)     { const phase = phaseMap.get(id) ?? 0; ... },
@@ -110,18 +110,18 @@ export type UIBody<Services extends GwenDefaultServices = GwenDefaultServices> =
  * });
  * ```
  *
- * TypeScript exige la factory si un string est passé :
+ * TypeScript enforces the factory when a string is passed:
  * ```ts
- * defineUI('X')           // ❌ TS2554 — Expected 2 arguments
- * defineUI({ render: fn }) // ❌ TS   — manque name
+ * defineUI('X')            // ❌ TS2554 — Expected 2 arguments
+ * defineUI({ render: fn }) // ❌ TS     — missing name
  * ```
  */
-// Surcharge 1 — objet direct
+// Overload 1 — direct object
 export function defineUI<Services extends GwenDefaultServices = GwenDefaultServices>(
   config: UIDefinition<Services>,
 ): UIDefinition<Services>;
 
-// Surcharge 2 — factory OBLIGATOIRE (pas optionnelle)
+// Overload 2 — factory (required, not optional)
 export function defineUI<Services extends GwenDefaultServices = GwenDefaultServices>(
   name: string,
   factory: () => UIBody<Services>,
@@ -141,18 +141,21 @@ export function defineUI<Services extends GwenDefaultServices = GwenDefaultServi
 // ── UIManager ─────────────────────────────────────────────────────────────────
 
 /**
- * Plugin qui dispatche le cycle de vie des UIDefinitions.
- * Ne connaît aucun renderer — dispatch pur.
+ * Plugin that dispatches UIDefinition lifecycle hooks.
+ * Renderer-agnostic — pure dispatch, no rendering knowledge.
+ *
+ * Registered as a TsPlugin so it runs automatically each frame via `onRender`.
+ * Mount order follows UIDefinition registration order (first-registered, first-rendered).
  */
 export class UIManager implements TsPlugin {
   readonly name = 'UIManager';
 
   private definitions = new Map<string, UIDefinition<any>>();
-  private definitionOrder = new Map<string, number>(); // uiName → index d'enregistrement
+  private definitionOrder = new Map<string, number>(); // uiName → registration index
   private mounted = new Map<EntityId, string>();
   private lastApi: EngineAPI | null = null;
 
-  /** Enregistre une UIDefinition. */
+  /** Register a UIDefinition. Overwrites an existing entry with the same name (with a warning). */
   register(def: UIDefinition<any>): this {
     if (this.definitions.has(def.name)) {
       console.warn(`[UIManager] '${def.name}' already registered — overwriting.`);
@@ -167,8 +170,8 @@ export class UIManager implements TsPlugin {
     const entities = api.query([UIComponent.name]);
     const alive = new Set<EntityId>();
 
-    // Trier les entités par ordre de registration de leur UIDefinition
-    // garantit : BackgroundUI avant BulletUI avant PlayerUI, etc.
+    // Sort entities by UIDefinition registration order so that rendering is
+    // deterministic: BackgroundUI before BulletUI before PlayerUI, etc.
     const sorted = [...entities].sort((a, b) => {
       const da = api.getComponent(a, UIComponent)?.uiName ?? '';
       const db = api.getComponent(b, UIComponent)?.uiName ?? '';
@@ -193,7 +196,7 @@ export class UIManager implements TsPlugin {
       def.render(api, id);
     }
 
-    // Unmount des entités mortes
+    // Unmount entities that are no longer alive or no longer have a UIComponent
     for (const [id, defName] of this.mounted) {
       if (!alive.has(id)) {
         const def = this.definitions.get(defName);

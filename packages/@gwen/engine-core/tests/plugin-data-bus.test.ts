@@ -138,12 +138,12 @@ describe('PluginDataBus', () => {
 // ─── readEventChannel ─────────────────────────────────────────────────────────
 
 describe('readEventChannel', () => {
-  it('buffer vide → []', () => {
+  it('empty buffer → []', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     expect(readEventChannel(buf)).toEqual([]);
   });
 
-  it('1 event → lu correctement', () => {
+  it('1 event → read correctly', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true); // write_head = 1
@@ -157,7 +157,7 @@ describe('readEventChannel', () => {
     expect(events[0]).toEqual({ type: 42, slotA: 5, slotB: 3, flags: 1 });
   });
 
-  it('avance read_head après lecture', () => {
+  it('advances read_head after reading', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true);
@@ -166,7 +166,7 @@ describe('readEventChannel', () => {
     expect(view.getUint32(4, true)).toBe(1);
   });
 
-  it('2e appel retourne [] (buffer consommé)', () => {
+  it('second call returns [] (buffer already consumed)', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true);
@@ -179,7 +179,7 @@ describe('readEventChannel', () => {
 // ─── writeEventToChannel ──────────────────────────────────────────────────────
 
 describe('writeEventToChannel', () => {
-  it('écrit un event et retourne true', () => {
+  it('writes an event and returns true', () => {
     const buf = new ArrayBuffer(8 + 4 * 11); // capacity = 4
     const view = new DataView(buf);
     view.setUint32(0, 0, true); // write_head = 0
@@ -188,17 +188,17 @@ describe('writeEventToChannel', () => {
     const ok = writeEventToChannel(buf, { type: 7, slotA: 10, slotB: 20, flags: 3 });
     expect(ok).toBe(true);
 
-    // Vérifier les données écrites
+    // Verify the written data
     const events = readEventChannel(buf);
     expect(events).toHaveLength(1);
     expect(events[0]).toEqual({ type: 7, slotA: 10, slotB: 20, flags: 3 });
   });
 
-  it('retourne false quand le ring est plein', () => {
-    const buf = new ArrayBuffer(8 + 2 * 11); // capacity = 2 — ring plein à 1 event
+  it('returns false when the ring is full', () => {
+    const buf = new ArrayBuffer(8 + 2 * 11); // capacity = 2 — ring full at 1 event
     const view = new DataView(buf);
     view.setUint32(0, 1, true); // write_head = 1
-    view.setUint32(4, 0, true); // read_head  = 0 → next = (1+1)%2 = 0 = read_head → plein
+    view.setUint32(4, 0, true); // read_head  = 0 → next = (1+1)%2 = 0 = read_head → full
 
     const ok = writeEventToChannel(buf, { type: 0, slotA: 1, slotB: 2, flags: 0 });
     expect(ok).toBe(false);
@@ -208,7 +208,7 @@ describe('writeEventToChannel', () => {
 // ─── getDataChannelView ───────────────────────────────────────────────────────
 
 describe('getDataChannelView', () => {
-  it('retourne un Float32Array sur le buffer', () => {
+  it('returns a Float32Array over the buffer', () => {
     const buf = new ArrayBuffer(20 * 4);
     const view = getDataChannelView(buf);
     expect(view).toBeInstanceOf(Float32Array);
@@ -219,12 +219,12 @@ describe('getDataChannelView', () => {
 // ─── Edge cases — readEventChannel ────────────────────────────────────────────
 
 describe('readEventChannel — edge cases', () => {
-  it('wrap-around: lire events après wrap-around du write_head', () => {
-    // Ring de capacity=2: events aux slots 0 et 1
+  it('wrap-around: read events after write_head wrap-around', () => {
+    // Ring of capacity=2: events at slots 0 and 1
     const buf = new ArrayBuffer(8 + 2 * 11 + 4); // capacity = 2
     const view = new DataView(buf);
 
-    // Écrire 2 events, wrap autour: write_head finit à 0 (wrappé)
+    // Write 2 events, wrap around: write_head ends at 0 (wrapped)
     // Slot 0: type=10, slotA=1, slotB=2, flags=1
     view.setUint16(8, 10, true);
     view.setUint32(8 + 2, 1, true);
@@ -237,31 +237,31 @@ describe('readEventChannel — edge cases', () => {
     view.setUint32(8 + 11 + 6, 4, true);
     view.setUint8(8 + 11 + 10, 0);
 
-    // Simuler: write_head a wrappé à 0 après écrire 2 events
-    view.setUint32(0, 0, true); // write_head = 0 (wrappé)
+    // Simulate: write_head has wrapped to 0 after writing 2 events
+    view.setUint32(0, 0, true); // write_head = 0 (wrapped)
     view.setUint32(4, 0, true); // read_head  = 0
 
-    // Rien à lire: write_head == read_head
+    // Nothing to read: write_head == read_head
     const events1 = readEventChannel(buf);
     expect(events1).toHaveLength(0);
 
-    // Ajouter un événement au slot 0 (write_head avance à 1)
+    // Add one event at slot 0 (write_head advances to 1)
     view.setUint32(0, 1, true); // write_head = 1
 
-    // Maintenant lire depuis slot 0 (read_head=0, write_head=1)
+    // Now read from slot 0 (read_head=0, write_head=1)
     const events2 = readEventChannel(buf);
     expect(events2).toHaveLength(1);
     expect(events2[0]).toEqual({ type: 10, slotA: 1, slotB: 2, flags: 1 });
 
-    // read_head avancé à 1 après lecture
+    // read_head advanced to 1 after reading
     expect(view.getUint32(4, true)).toBe(1);
   });
 
-  it('multiple events consecutifs', () => {
+  it('multiple consecutive events', () => {
     const buf = new ArrayBuffer(8 + 256 * 11 + 4);
     const view = new DataView(buf);
 
-    // Écrire 3 events
+    // Write 3 events
     for (let i = 0; i < 3; i++) {
       const offset = 8 + i * 11;
       view.setUint16(offset, 100 + i, true); // type
@@ -281,7 +281,7 @@ describe('readEventChannel — edge cases', () => {
   });
 
   it('read_head < write_head + wrap-around scenario', () => {
-    // Ring de capacity=4: write_head=1, read_head=3 (events aux slots 3 et 0)
+    // Ring of capacity=4: write_head=1, read_head=3 (events at slots 3 and 0)
     const buf = new ArrayBuffer(8 + 4 * 11 + 4); // capacity = 4
     const view = new DataView(buf);
 
@@ -310,47 +310,47 @@ describe('readEventChannel — edge cases', () => {
 // ─── Edge cases — writeEventToChannel ─────────────────────────────────────────
 
 describe('writeEventToChannel — edge cases', () => {
-  it("write multiple events jusqu'au ring plein", () => {
+  it('write multiple events until ring is full', () => {
     const buf = new ArrayBuffer(8 + 3 * 11 + 4); // capacity = 3
     const view = new DataView(buf);
 
-    // Ring vide: write_head=0, read_head=0
+    // Ring empty: write_head=0, read_head=0
     expect(writeEventToChannel(buf, { type: 1, slotA: 1, slotB: 1, flags: 0 })).toBe(true);
-    expect(view.getUint32(0, true)).toBe(1); // write_head avancé
+    expect(view.getUint32(0, true)).toBe(1); // write_head advanced
 
     expect(writeEventToChannel(buf, { type: 2, slotA: 2, slotB: 2, flags: 0 })).toBe(true);
     expect(view.getUint32(0, true)).toBe(2);
 
-    // Espace pour 1 de plus (next = (2+1)%3 = 0, read_head = 0 → plein)
+    // Room for 1 more (next = (2+1)%3 = 0, read_head = 0 → full)
     expect(writeEventToChannel(buf, { type: 3, slotA: 3, slotB: 3, flags: 0 })).toBe(false);
-    expect(view.getUint32(0, true)).toBe(2); // write_head inchangé
+    expect(view.getUint32(0, true)).toBe(2); // write_head unchanged
   });
 
-  it('write avec wrap-around du write_head', () => {
+  it('write with write_head wrap-around', () => {
     const buf = new ArrayBuffer(8 + 3 * 11 + 4); // capacity = 3
     const view = new DataView(buf);
 
-    // Simuler: write_head=2, read_head=0, capacity=3
-    // next = (2+1)%3 = 0, read_head=0 → plein (avant write)
+    // Simulate: write_head=2, read_head=0, capacity=3
+    // next = (2+1)%3 = 0, read_head=0 → full (before write)
     view.setUint32(0, 2, true); // write_head = 2
     view.setUint32(4, 0, true); // read_head  = 0
 
-    // Essayer d'écrire: should fail (plein)
+    // Try to write: should fail (full)
     expect(writeEventToChannel(buf, { type: 99, slotA: 99, slotB: 99, flags: 0 })).toBe(false);
 
-    // Avancer read_head pour libérer de la place
+    // Advance read_head to free space
     view.setUint32(4, 2, true); // read_head = 2
 
-    // Maintenant next = (2+1)%3 = 0, read_head = 2 → pas plein
+    // Now next = (2+1)%3 = 0, read_head = 2 → not full
     expect(writeEventToChannel(buf, { type: 77, slotA: 77, slotB: 77, flags: 0 })).toBe(true);
-    expect(view.getUint32(0, true)).toBe(0); // write_head wrappé à 0
+    expect(view.getUint32(0, true)).toBe(0); // write_head wrapped to 0
   });
 });
 
 // ─── Edge cases — resetEventChannels ──────────────────────────────────────────
 
 describe('resetEventChannels — edge cases', () => {
-  it('reset multiple ring channels en même temps', () => {
+  it('resets multiple ring channels simultaneously', () => {
     const bus = new PluginDataBus();
     const _ch1 = bus.allocate('physics2d', EVENTS_CHANNEL, 100);
     const ch2: EventChannel = {
@@ -377,7 +377,7 @@ describe('resetEventChannels — edge cases', () => {
     expect(view2.getUint32(4, true)).toBe(0);
   });
 
-  it('resetEventChannels avec mix de ring et data channels', () => {
+  it('resetEventChannels with a mix of ring and data channels', () => {
     const bus = new PluginDataBus();
     const ringCh = bus.allocate('physics2d', EVENTS_CHANNEL, 100);
     const dataCh = bus.allocate('physics2d', TRANSFORM_CHANNEL, 100);
@@ -405,7 +405,7 @@ describe('resetEventChannels — edge cases', () => {
 // ─── Edge cases — Sentinels ──────────────────────────────────────────────────
 
 describe('PluginDataBus.checkSentinels — edge cases', () => {
-  it('détecte corruption au sentinel de channel 2 sur 3', () => {
+  it('detects corruption at the sentinel of channel 2 out of 3', () => {
     const bus = new PluginDataBus();
     bus.allocate('plugin-a', TRANSFORM_CHANNEL, 100);
     const ch2 = bus.allocate('plugin-b', EVENTS_CHANNEL, 100);
@@ -413,14 +413,14 @@ describe('PluginDataBus.checkSentinels — edge cases', () => {
 
     bus.writeSentinels();
 
-    // Corrompre le sentinel du channel 2
+    // Corrupt the sentinel of channel 2
     const view2 = new DataView(ch2.buffer);
     view2.setUint32(ch2.buffer.byteLength - 4, 0xbeefdead, true);
 
     expect(() => bus.checkSentinels()).toThrow(/plugin-b.*events/i);
   });
 
-  it('error message inclut plugin ID et channel name', () => {
+  it('error message includes plugin ID and channel name', () => {
     const bus = new PluginDataBus();
     const ch = bus.allocate('my-special-plugin', EVENTS_CHANNEL, 100);
     bus.writeSentinels();
@@ -432,17 +432,17 @@ describe('PluginDataBus.checkSentinels — edge cases', () => {
     expect(() => bus.checkSentinels()).toThrow(/events/);
   });
 
-  it('checkSentinels OK après writeSentinels even si buffers modifiés avant', () => {
+  it('checkSentinels passes after writeSentinels even if buffers were modified before', () => {
     const bus = new PluginDataBus();
     const alloc = bus.allocate('physics2d', TRANSFORM_CHANNEL, 100);
 
-    // Modifier le buffer AVANT writeSentinels
+    // Modify the buffer BEFORE writeSentinels
     const view = new Float32Array(alloc.buffer);
     view.fill(3.14159);
 
     bus.writeSentinels();
 
-    // checkSentinels devrait passer (seul le sentinel importe)
+    // checkSentinels should pass (only the sentinel matters)
     expect(() => bus.checkSentinels()).not.toThrow();
   });
 });

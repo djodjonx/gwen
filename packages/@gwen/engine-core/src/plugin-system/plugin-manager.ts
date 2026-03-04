@@ -18,9 +18,9 @@ import type { TsPlugin, EngineAPI, GwenWasmPlugin } from '../types';
 import type { GwenHookable } from '../hooks';
 
 /**
- * Shorthand pour le type hookable enrichi par le CLI.
- * `GwenDefaultHooks` est un global interface étendu par `gwen prepare`
- * avec les hooks de chaque plugin déclaré dans gwen.config.ts.
+ * Convenience alias for the hooks instance enriched by the CLI.
+ * `GwenDefaultHooks` is a global interface extended by `gwen prepare`
+ * with the hooks declared by each plugin in `gwen.config.ts`.
  */
 type DefaultHookable = GwenHookable<GwenDefaultHooks>;
 
@@ -376,9 +376,9 @@ export class PluginManager {
   /**
    * Dispatch WASM step for all registered WASM plugins.
    *
-   * Runs each plugin's `onStep` method (Rust simulation).
+   * Runs each plugin's `onStep` method (Rust simulation tick).
    *
-   * @param deltaTime - Delta time in milliseconds (for WASM)
+   * @param deltaTime - Frame delta time in seconds
    *
    * @internal Called by Engine._tick()
    */

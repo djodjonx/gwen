@@ -59,27 +59,25 @@ export type PrefabBody<Args extends any[] = any[]> = Omit<PrefabDefinition<Args>
  *   };
  * });
  * ```
+ */
+
+/**
+ * Form 1 — pass a full `PrefabDefinition` object directly.
  *
- * @param nameOrConfig Either a string name or a full PrefabDefinition
- * @param factory Optional factory function (required for Form 2)
- * @returns The prefab definition
- *
- * @example
- * ```ts
- * export const BulletPrefab = definePrefab({
- *   name: 'Bullet',
- *   create: (api, x: number, y: number) => {
- *     const id = api.createEntity();
- *     api.addComponent(id, Position, { x, y });
- *     return id;
- *   }
- * });
- * ```
+ * @param config Full prefab definition including `name` and `create`.
+ * @returns The same definition, unchanged.
  */
 export function definePrefab<Args extends any[]>(
   config: PrefabDefinition<Args>,
 ): PrefabDefinition<Args>;
 
+/**
+ * Form 2 — factory with local closure state.
+ *
+ * @param name    Unique prefab name.
+ * @param factory Zero-arg factory that returns the prefab body (without `name`).
+ * @returns The resolved `PrefabDefinition`.
+ */
 export function definePrefab<Args extends any[]>(
   name: string,
   factory: () => PrefabBody<Args>,
@@ -106,8 +104,11 @@ export class PrefabManager {
   private _api!: EngineAPI<any, any>;
 
   /**
-   * @internal
-   * Set the API reference. Accepts any EngineAPI with generics M and H.
+   * Bind the `EngineAPI` instance to this manager so that `instantiate()` can
+   * pass it to the prefab's `create()` function.
+   *
+   * @param api Active engine API.
+   * @internal Called by `EngineAPIImpl` constructor.
    */
   _setAPI<M extends Record<string, unknown>, H extends Record<string, any>>(
     api: EngineAPI<M, H>,
@@ -115,7 +116,13 @@ export class PrefabManager {
     this._api = api;
   }
 
-  /** Register a Prefab definition */
+  /**
+   * Register a prefab definition.
+   * Overwrites any existing registration with the same name (with a warning).
+   *
+   * @param def The prefab to register.
+   * @returns `this` for chaining.
+   */
   register<Args extends any[]>(def: PrefabDefinition<Args>): this {
     if (this.registry.has(def.name)) {
       console.warn(`[GWEN:PrefabManager] Prefab '${def.name}' already registered — overwriting.`);
@@ -124,7 +131,16 @@ export class PrefabManager {
     return this;
   }
 
-  /** Instantiate a registered Prefab by name, passing optional arguments */
+  /**
+   * Instantiate a registered prefab by name.
+   * Calls the prefab's `create()` function with the current `EngineAPI` plus
+   * any additional arguments.
+   *
+   * @param name   Prefab name (as declared in `PrefabDefinition.name`).
+   * @param args   Additional arguments forwarded to `create()`.
+   * @returns The packed `EntityId` of the newly created entity.
+   * @throws {Error} If no prefab with the given name is registered.
+   */
   instantiate(name: string, ...args: unknown[]): EntityId {
     const def = this.registry.get(name);
     if (!def) {
@@ -133,12 +149,16 @@ export class PrefabManager {
     return def.create(this._api, ...args);
   }
 
-  /** Check if a prefab is registered */
+  /**
+   * Return `true` if a prefab with the given name is registered.
+   *
+   * @param name Prefab name.
+   */
   has(name: string): boolean {
     return this.registry.has(name);
   }
 
-  /** Remove all registered prefabs */
+  /** Remove all registered prefabs. Useful between scene transitions. */
   clear(): void {
     this.registry.clear();
   }

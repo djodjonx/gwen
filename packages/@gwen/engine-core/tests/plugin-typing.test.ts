@@ -1,12 +1,12 @@
 /**
- * Tests du système de typage des plugins GWEN.
+ * Plugin typing system tests.
  *
- * Ces tests vérifient :
- * 1. La structure runtime de GwenPlugin (provides, name)
- * 2. L'inférence TypeScript via defineConfig() — commentaires tsc
- * 3. La compatibilité rétro (TsPlugin sans provides)
+ * Verifies:
+ * 1. GwenPlugin runtime structure (provides, name)
+ * 2. TypeScript inference via defineConfig() — tsc comments
+ * 3. Backward compatibility (TsPlugin without provides)
  * 4. createPlugin() helper
- * 5. Les plugins officiels (InputPlugin, AudioPlugin, Canvas2DRenderer)
+ * 5. Official plugins (InputPlugin, AudioPlugin, Canvas2DRenderer)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,7 +19,7 @@ import {
 import { InputPlugin } from '../../plugin-input/src/index';
 import { AudioPlugin } from '../../plugin-audio/src/index';
 
-// ── Helpers de test ───────────────────────────────────────────────────────────
+// ── Test helpers ──────────────────────────────────────────────────────────────
 
 interface MockService {
   value: number;
@@ -31,7 +31,7 @@ interface OtherService {
 // ── GwenPlugin interface ──────────────────────────────────────────────────────
 
 describe('GwenPlugin interface', () => {
-  it('classe implémentant GwenPlugin compile et est correctement typée', () => {
+  it('class implementing GwenPlugin compiles and is correctly typed', () => {
     class MyPlugin implements GwenPlugin<'MyPlugin', { foo: MockService }> {
       readonly name = 'MyPlugin' as const;
       readonly provides = { foo: {} as MockService };
@@ -41,7 +41,7 @@ describe('GwenPlugin interface', () => {
     expect(p.provides).toEqual({ foo: {} });
   });
 
-  it('plugin sans provides est toujours un GwenPlugin valide', () => {
+  it('plugin without provides is still a valid GwenPlugin', () => {
     class MinimalPlugin implements GwenPlugin<'Minimal'> {
       readonly name = 'Minimal' as const;
     }
@@ -52,8 +52,8 @@ describe('GwenPlugin interface', () => {
 
 // ── MergeProvides<> type helper ───────────────────────────────────────────────
 
-describe('MergeProvides<> — fusion des services', () => {
-  it('fusionne les provides de plusieurs plugins (vérification runtime)', () => {
+describe('MergeProvides<> — service merging', () => {
+  it('merges provides from multiple plugins (runtime check)', () => {
     class P1 implements GwenPlugin<'P1', { svc1: MockService }> {
       readonly name = 'P1' as const;
       readonly provides = { svc1: {} as MockService };
@@ -66,9 +66,9 @@ describe('MergeProvides<> — fusion des services', () => {
     const p1 = new P1();
     const p2 = new P2();
 
-    // Vérification TypeScript (compile-time) — si ça compile, le type est correct
+    // TypeScript check (compile-time) — if it compiles, the type is correct
     type Merged = MergeProvides<[typeof p1, typeof p2]>;
-    // Merged doit être { svc1: MockService; svc2: OtherService }
+    // Merged must be { svc1: MockService; svc2: OtherService }
     const merged: Merged = {
       svc1: { value: 1 },
       svc2: { label: 'hello' },
@@ -77,22 +77,22 @@ describe('MergeProvides<> — fusion des services', () => {
     expect(merged.svc2.label).toBe('hello');
   });
 
-  it('plugin sans provides contribue Record<string, never> (neutre)', () => {
+  it('plugin without provides contributes Record<string, never> (neutral)', () => {
     class NoProvides implements GwenPlugin<'NoProvides'> {
       readonly name = 'NoProvides' as const;
     }
     const p = new NoProvides();
     type M = MergeProvides<[typeof p]>;
-    // M doit être assignable à Record<string, never> → ne pollue pas le map
+    // M must be assignable to Record<string, never> → does not pollute the map
     const _: M = {} as any;
-    expect(true).toBe(true); // compile = test réussi
+    expect(true).toBe(true); // compiles = test passed
   });
 });
 
-// ── defineConfig() — inférence ────────────────────────────────────────────────
+// ── defineConfig() — inference ────────────────────────────────────────────────
 
-describe('defineConfig() — inférence des services', () => {
-  it('retourne un objet avec les plugins passés', () => {
+describe('defineConfig() — service inference', () => {
+  it('returns an object with the passed plugins', () => {
     const config = defineConfig({
       tsPlugins: [new InputPlugin()],
       maxEntities: 1000,
@@ -100,31 +100,31 @@ describe('defineConfig() — inférence des services', () => {
     expect((config as any).maxEntities).toBe(1000);
   });
 
-  it('GwenConfigServices extrait le bon ServiceMap', () => {
+  it('GwenConfigServices extracts the correct ServiceMap', () => {
     const config = defineConfig({
       tsPlugins: [new InputPlugin(), new AudioPlugin()],
     });
 
-    // Vérification compile-time — si ça compile, l'inférence est correcte
+    // Compile-time check — if it compiles, inference is correct
     type Services = GwenConfigServices<typeof config>;
 
-    // keyboard, mouse, gamepad depuis InputPlugin
+    // keyboard, mouse, gamepad from InputPlugin
     const _kb: Services['keyboard'] = {} as any; // KeyboardInput
     const _ms: Services['mouse'] = {} as any; // MouseInput
     const _gp: Services['gamepad'] = {} as any; // GamepadInput
-    // audio depuis AudioPlugin
+    // audio from AudioPlugin
     const _au: Services['audio'] = {} as any; // AudioPlugin
 
-    expect(true).toBe(true); // compile = test réussi
+    expect(true).toBe(true); // compiles = test passed
   });
 
-  it('config sans plugins compile (Record<string, never>)', () => {
+  it('config without plugins compiles (Record<string, never>)', () => {
     const config = defineConfig({ maxEntities: 500 });
 
     expect((config as any).maxEntities).toBe(500);
   });
 
-  it('wasmPlugins ne contribuent pas aux services TS (non typés)', () => {
+  it('wasmPlugins do not contribute to TS services (untyped)', () => {
     const config = defineConfig({
       tsPlugins: [new InputPlugin()],
       wasmPlugins: [
@@ -132,13 +132,13 @@ describe('defineConfig() — inférence des services', () => {
       ],
     });
     type Services = GwenConfigServices<typeof config>;
-    // keyboard doit exister (InputPlugin)
+    // keyboard must exist (InputPlugin)
     const _kb: Services['keyboard'] = {} as any;
     expect(true).toBe(true);
   });
 });
 
-// ── Plugins officiels ─────────────────────────────────────────────────────────
+// ── Official plugins ──────────────────────────────────────────────────────────
 
 describe('InputPlugin — provides', () => {
   it('has correct name literal', () => {
@@ -146,7 +146,7 @@ describe('InputPlugin — provides', () => {
     expect(p.name).toBe('InputPlugin');
   });
 
-  it('provides contient keyboard, mouse, gamepad', () => {
+  it('provides contains keyboard, mouse, gamepad', () => {
     const p = new InputPlugin();
     expect(p.provides).toHaveProperty('keyboard');
     expect(p.provides).toHaveProperty('mouse');
@@ -166,26 +166,26 @@ describe('AudioPlugin — provides', () => {
     expect(p.name).toBe('AudioPlugin');
   });
 
-  it('provides contient audio', () => {
+  it('provides contains audio', () => {
     const p = new AudioPlugin();
     expect(p.provides).toHaveProperty('audio');
   });
 });
 
-// ── Rétro-compatibilité ───────────────────────────────────────────────────────
+// ── Backward compatibility ────────────────────────────────────────────────────
 
-describe('Rétro-compatibilité — TsPlugin sans provides', () => {
-  it('un objet TsPlugin minimal passe dans defineConfig plugins', () => {
+describe('Backward compatibility — TsPlugin without provides', () => {
+  it('a minimal TsPlugin object passes into defineConfig plugins', () => {
     const legacyPlugin: GwenPlugin = {
       name: 'LegacyPlugin',
       onInit: () => {},
     };
-    // Doit compiler sans erreur même sans provides
+    // Must compile without error even without provides
     const config = defineConfig({ tsPlugins: [legacyPlugin] });
     expect(config).toBeDefined();
   });
 
-  it('les services des plugins sans provides sont Record<string, never>', () => {
-    expect(true).toBe(true); // compile = OK
+  it('services from plugins without provides are Record<string, never>', () => {
+    expect(true).toBe(true); // compiles = OK
   });
 });

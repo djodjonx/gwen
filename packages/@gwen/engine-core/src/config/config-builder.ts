@@ -35,39 +35,58 @@ export class ConfigBuilder {
     tsPlugins: [],
   };
 
+  /**
+   * Set the maximum number of simultaneously alive entities.
+   * Minimum value accepted by the engine is `100`.
+   *
+   * @param count Maximum entity count.
+   */
   public setMaxEntities(count: number): this {
     this.config.maxEntities = count;
     return this;
   }
 
+  /**
+   * Set the target frames per second for the game loop.
+   * Accepted range: [1, 300].
+   *
+   * @param fps Target FPS.
+   */
   public setTargetFPS(fps: number): this {
     this.config.targetFPS = fps;
     return this;
   }
 
+  /** Enable verbose debug logging and sentinel integrity checks each frame. */
   public enableDebug(): this {
     this.config.debug = true;
     return this;
   }
 
+  /** Disable debug logging. */
   public disableDebug(): this {
     this.config.debug = false;
     return this;
   }
 
+  /** Enable per-frame performance statistics collection. */
   public enableStats(): this {
     this.config.enableStats = true;
     return this;
   }
 
+  /** Disable performance statistics collection. */
   public disableStats(): this {
     this.config.enableStats = false;
     return this;
   }
 
   /**
-   * Add WASM plugin (Rust-compiled, performance-critical)
-   * Examples: Physics2D, NetworkingEngine, CustomAI
+   * Add a WASM plugin (Rust-compiled, performance-critical).
+   *
+   * Examples: `Physics2D`, `NetworkingEngine`, custom AI simulation.
+   *
+   * @param plugin A `GwenWasmPlugin` implementation.
    */
   public addWasmPlugin(plugin: GwenWasmPlugin): this {
     if (!this.config.wasmPlugins) {
@@ -78,8 +97,11 @@ export class ConfigBuilder {
   }
 
   /**
-   * Add TypeScript plugin (bundled with game, web APIs)
-   * Examples: Input, Audio, AssetManager, UI
+   * Add a TypeScript plugin (bundled with the game, accesses web APIs).
+   *
+   * Examples: `InputPlugin`, `AudioPlugin`, `Canvas2DRenderer`.
+   *
+   * @param plugin A `TsPlugin` implementation.
    */
   public addTsPlugin(plugin: TsPlugin): this {
     if (!this.config.tsPlugins) {
@@ -90,7 +112,10 @@ export class ConfigBuilder {
   }
 
   /**
-   * Build final configuration
+   * Merge all builder options into a final `EngineConfig` object.
+   * Unset options fall back to `defaultConfig`.
+   *
+   * @returns A complete `EngineConfig` ready to pass to `new Engine()`.
    */
   public build(): EngineConfig {
     return mergeConfigs(defaultConfig, this.config);

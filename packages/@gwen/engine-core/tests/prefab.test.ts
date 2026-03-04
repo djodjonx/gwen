@@ -9,9 +9,9 @@ describe('Prefab System (prefab.ts)', () => {
     api = createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
   });
 
-  // ── Forme 1 — objet direct ────────────────────────────────────────────────
+  // ── Form 1 — direct object ────────────────────────────────────────────────
 
-  it('forme 1 — register and instantiate', () => {
+  it('form 1 — register and instantiate', () => {
     const BulletPrefab = definePrefab({
       name: 'Bullet',
       create: (api, x: number, y: number) => {
@@ -30,13 +30,13 @@ describe('Prefab System (prefab.ts)', () => {
     expect(pos?.y).toBe(20);
   });
 
-  it('forme 1 — throw on unknown prefab', () => {
+  it('form 1 — throw on unknown prefab', () => {
     expect(() => api.prefabs.instantiate('Unknown')).toThrow(/Unknown prefab/);
   });
 
-  // ── Forme 2 — factory ─────────────────────────────────────────────────────
+  // ── Form 2 — factory ─────────────────────────────────────────────────────
 
-  it('forme 2 — factory : name extrait correctement', () => {
+  it('form 2 — factory: name extracted correctly', () => {
     const def = definePrefab('Enemy', () => ({
       create: (api: any) => api.createEntity(),
     }));
@@ -44,10 +44,10 @@ describe('Prefab System (prefab.ts)', () => {
     expect(typeof def.create).toBe('function');
   });
 
-  it('forme 2 — factory : closure state locale', () => {
+  it('form 2 — factory: local closure state', () => {
     let callCount = 0;
     const def = definePrefab('Counter', () => {
-      callCount++; // factory appelée une seule fois
+      callCount++; // factory called exactly once
       return {
         create: (api: any) => api.createEntity(),
       };
@@ -56,7 +56,7 @@ describe('Prefab System (prefab.ts)', () => {
     expect(def.name).toBe('Counter');
   });
 
-  it('forme 2 — factory : register et instantiate fonctionnent', () => {
+  it('form 2 — factory: register and instantiate work', () => {
     const EnemyPrefab = definePrefab('FastEnemy', () => {
       const speed = 120;
       return {

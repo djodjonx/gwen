@@ -36,7 +36,8 @@ export type { System, SystemBody, SystemFactory } from './plugin-system/system';
 export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
 
 // Engine
-export { Engine, getEngine, useEngine, resetEngine } from './engine/engine';
+export { Engine } from './engine/engine';
+export { getEngine, useEngine, resetEngine } from './engine/engine-globals';
 export type { EntityId } from './engine/engine-api';
 
 // API & ServiceLocator

@@ -45,37 +45,118 @@ export interface GwenCoreWasm {
 }
 
 export interface WasmEngine {
-  // Entity
+  // ── Entity ──────────────────────────────────────────────────────────────
+
+  /** Create a new entity and return its index + generation handle. */
   create_entity(): WasmEntityId;
+  /**
+   * Destroy an entity slot by index and generation.
+   * @returns `false` if the (index, generation) pair is stale (already dead).
+   */
   delete_entity(index: number, generation: number): boolean;
+  /**
+   * Check whether an entity slot is still alive.
+   * @returns `false` if the generation does not match (slot was reused).
+   */
   is_alive(index: number, generation: number): boolean;
+  /** Return the number of currently alive entities. */
   count_entities(): number;
 
-  // Component
+  // ── Component ────────────────────────────────────────────────────────────
+
+  /**
+   * Register a new component type in the Rust ECS.
+   * @returns A unique `typeId` (u32) used in all subsequent component calls.
+   */
   register_component_type(): number;
+  /**
+   * Attach or overwrite a component on an entity.
+   * @param index      Raw entity slot index.
+   * @param generation Entity generation counter (stale-reference guard).
+   * @param typeId     Component type ID returned by `register_component_type`.
+   * @param data       Raw bytes — must match the layout registered for `typeId`.
+   * @returns `false` if the entity is dead.
+   */
   add_component(index: number, generation: number, typeId: number, data: Uint8Array): boolean;
+  /**
+   * Remove a component from an entity.
+   * @returns `false` if the entity is dead or did not have the component.
+   */
   remove_component(index: number, generation: number, typeId: number): boolean;
+  /**
+   * Check whether an entity has a specific component type.
+   * @returns `false` if the entity is dead or the component is absent.
+   */
   has_component(index: number, generation: number, typeId: number): boolean;
+  /**
+   * Read raw component bytes from the Rust ECS.
+   * @returns Empty `Uint8Array` if the entity is dead or component is absent.
+   */
   get_component_raw(index: number, generation: number, typeId: number): Uint8Array;
 
-  // Query
+  // ── Query ────────────────────────────────────────────────────────────────
+
+  /**
+   * Update the archetype bitmask for an entity slot.
+   * Must be called after every `add_component` / `remove_component` so that
+   * `query_entities` returns correct results.
+   */
   update_entity_archetype(index: number, typeIds: Uint32Array): void;
+  /**
+   * Remove an entity slot from all query indexes (called before deletion).
+   */
   remove_entity_from_query(index: number): void;
+  /**
+   * Return the raw slot indices of all entities that have ALL of the given
+   * component type IDs.
+   * @returns Raw slot indices — NOT packed EntityIds.
+   *          Callers must call `get_entity_generation` to reconstruct them.
+   */
   query_entities(typeIds: Uint32Array): Uint32Array;
+  /**
+   * Return the current generation counter for a slot index.
+   * Used to reconstruct a packed `EntityId` from a raw slot index.
+   * @returns `0xFFFFFFFF` if the slot has never been used.
+   */
   get_entity_generation(index: number): number;
 
-  // GameLoop
+  // ── Game loop ────────────────────────────────────────────────────────────
+
+  /**
+   * Advance the Rust simulation by one frame.
+   * @param deltaMs Frame delta time in **milliseconds** (Rust side convention).
+   */
   tick(deltaMs: number): void;
+  /** Return the total number of frames simulated since engine creation. */
   frame_count(): bigint;
+  /** Return the delta time of the last `tick()` call, in seconds. */
   delta_time(): number;
+  /** Return the total elapsed time since engine creation, in seconds. */
   total_time(): number;
 
-  // Shared Memory (WASM Plugin Bridge)
+  // ── Shared memory (WASM plugin bridge) ───────────────────────────────────
+
+  /**
+   * Allocate `byteLength` bytes in gwen-core's WASM linear memory.
+   * @returns A raw pointer (usize) into WASM linear memory.
+   */
   alloc_shared_buffer(byteLength: number): number;
+  /**
+   * Copy ECS transform data into the shared buffer so WASM plugins can read it.
+   * @param ptr    Pointer returned by `alloc_shared_buffer`.
+   * @param maxEntities  Number of entity slots to sync.
+   */
   sync_transforms_to_buffer(ptr: number, maxEntities: number): void;
+  /**
+   * Copy transform data from the shared buffer back into the ECS (after WASM plugins write).
+   * @param ptr    Pointer returned by `alloc_shared_buffer`.
+   * @param maxEntities  Number of entity slots to sync.
+   */
   sync_transforms_from_buffer(ptr: number, maxEntities: number): void;
 
-  // Stats
+  // ── Stats ────────────────────────────────────────────────────────────────
+
+  /** Return a JSON string with engine runtime metrics (entity count, frame, etc.). */
   stats(): string;
 }
 
@@ -187,13 +268,11 @@ export async function initWasm(
   return _initPromise;
 }
 
+// ── Internal types for DOM-based glue loading ─────────────────────────────────
+
 /**
- * Charge un module ES via un <script type="module"> injecté dans le DOM.
- * Contourne la restriction Vite sur import() des fichiers /public.
- */
-/**
- * Extended Window interface for GWEN WASM module loading.
- * Allows dynamic property access for WASM glue code caching.
+ * Extended `Window` interface that allows dynamic property access.
+ * Used to cache loaded WASM glue modules on the global object.
  */
 interface GwenWindow extends Window {
   [key: string]: unknown;
@@ -202,8 +281,8 @@ interface GwenWindow extends Window {
 declare const window: GwenWindow;
 
 /**
- * WASM Glue Module interface (from wasm-bindgen output).
- * Describes the shape of the loaded WASM JS glue file.
+ * Shape of a wasm-bindgen generated ES glue module.
+ * The exact exports depend on the wasm-bindgen version and init mode.
  */
 interface WasmGlueModule {
   default?: (init: { module_or_path?: Response | undefined }) => Promise<void>;
@@ -212,9 +291,19 @@ interface WasmGlueModule {
   [key: string]: unknown;
 }
 
+/**
+ * Load a WASM ES glue module via a `<script type="module">` injected into the DOM.
+ * Works around Vite's restriction on dynamic `import()` for files served from `/public`.
+ *
+ * The loaded module is cached on `window` under a deterministic key so repeated
+ * calls for the same URL are free (no extra network round-trips).
+ *
+ * @param jsUrl Absolute or root-relative URL to the wasm-bindgen JS glue file.
+ * @throws {Error} If called outside a browser environment (no `document`).
+ */
 async function loadWasmGlue(jsUrl: string): Promise<WasmGlueModule> {
   if (typeof document === 'undefined') {
-    throw new Error('[GWEN] initWasm() requiert un environnement navigateur (pas de DOM détecté).');
+    throw new Error('[GWEN] initWasm() requires a browser environment (no DOM detected).');
   }
 
   return new Promise<WasmGlueModule>((resolve, reject) => {
@@ -257,40 +346,100 @@ async function loadWasmGlue(jsUrl: string): Promise<WasmGlueModule> {
 
 // ── Public Bridge ─────────────────────────────────────────────────────────────
 
-/**
- * WASM bridge interface. All methods throw an error if
- * `initWasm()` was not called first.
- */
 export interface WasmBridge {
   /** True if Rust/WASM core is initialized and ready. */
   isActive(): boolean;
 
-  /** Direct access to Rust WasmEngine. Throws if not initialized. */
+  /** Direct access to the Rust WasmEngine instance. Throws if not initialized. */
   engine(): WasmEngine;
 
-  // ── Entity ──
+  // ── Entity ──────────────────────────────────────────────────────────────
+
+  /** Create a new entity and return its packed handle (index + generation). */
   createEntity(): WasmEntityId;
+  /**
+   * Destroy an entity.
+   * @returns `false` if the (index, generation) pair is stale.
+   */
   deleteEntity(index: number, generation: number): boolean;
+  /**
+   * Check whether an entity slot is still alive.
+   * @returns `false` if the generation does not match.
+   */
   isAlive(index: number, generation: number): boolean;
+  /** Return the number of currently alive entities. */
   countEntities(): number;
 
-  // ── Component ──
+  // ── Component ────────────────────────────────────────────────────────────
+
+  /**
+   * Register a new component type in the Rust ECS.
+   * @returns A unique `typeId` (u32) used in all subsequent component calls.
+   */
   registerComponentType(): number;
+  /**
+   * Attach or overwrite a component on an entity.
+   * @param index      Raw entity slot index.
+   * @param generation Entity generation counter (stale-reference guard).
+   * @param typeId     Component type ID returned by `registerComponentType`.
+   * @param data       Raw bytes — layout must match what the Rust side expects for `typeId`.
+   * @returns `false` if the entity is dead.
+   */
   addComponent(index: number, generation: number, typeId: number, data: Uint8Array): boolean;
+  /**
+   * Remove a component from an entity.
+   * @returns `false` if the entity is dead or did not have the component.
+   */
   removeComponent(index: number, generation: number, typeId: number): boolean;
+  /**
+   * Check whether an entity has a specific component type.
+   * @returns `false` if the entity is dead or the component is absent.
+   */
   hasComponent(index: number, generation: number, typeId: number): boolean;
+  /**
+   * Read raw component bytes from the Rust ECS.
+   * @returns Empty `Uint8Array` if the entity is dead or component is absent.
+   */
   getComponentRaw(index: number, generation: number, typeId: number): Uint8Array;
 
-  // ── Query ──
+  // ── Query ────────────────────────────────────────────────────────────────
+
+  /**
+   * Update the archetype bitmask for an entity.
+   * Must be called after every `addComponent` / `removeComponent` so that
+   * `queryEntities` returns up-to-date results.
+   */
   updateEntityArchetype(index: number, typeIds: number[]): void;
+  /**
+   * Remove an entity from all query indexes.
+   * Must be called just before `deleteEntity`.
+   */
   removeEntityFromQuery(index: number): void;
+  /**
+   * Return the packed `EntityId`s of all entities that have ALL of the given
+   * component type IDs.
+   *
+   * Internally converts raw Rust slot indices to packed TypeScript EntityIds
+   * using `getEntityGeneration`.
+   */
   queryEntities(typeIds: number[]): number[];
+  /**
+   * Return the current generation counter for a raw slot index.
+   * Used to reconstruct a packed `EntityId` from a WASM-side slot index
+   * (e.g. `slotA` / `slotB` from physics collision events).
+   */
   getEntityGeneration(index: number): number;
 
-  // ── GameLoop ──
+  // ── Game loop ────────────────────────────────────────────────────────────
+
+  /**
+   * Advance the Rust simulation by one frame.
+   * @param deltaMs Frame delta time in **milliseconds** (Rust side convention).
+   */
   tick(deltaMs: number): void;
 
-  // ── Shared Memory (WASM Plugin Bridge) ──
+  // ── Shared memory (WASM plugin bridge) ───────────────────────────────────
+
   /**
    * Allocate `byteLength` bytes in gwen-core's WASM linear memory.
    * Returns a raw pointer (usize) passed to WASM plugins via `onInit(region)`.
@@ -339,10 +488,19 @@ export interface WasmBridge {
    */
   getLinearMemory(): WebAssembly.Memory | null;
 
-  // ── Stats ──
+  // ── Stats ────────────────────────────────────────────────────────────────
+
+  /** Return a JSON string with engine runtime metrics (entity count, frame, etc.). */
   stats(): string;
 }
 
+/**
+ * Guard that returns the active WasmEngine or throws a descriptive error.
+ * All bridge methods call this so the error message is consistent and actionable.
+ *
+ * @throws {Error} If `initWasm()` has not been called yet.
+ * @internal
+ */
 function requireWasm(): WasmEngine {
   if (!_wasmEngine) {
     throw new Error(
@@ -352,7 +510,19 @@ function requireWasm(): WasmEngine {
   return _wasmEngine;
 }
 
+/**
+ * Concrete implementation of `WasmBridge`.
+ *
+ * Every public method delegates to the `_wasmEngine` singleton via
+ * `requireWasm()`, which throws a clear error if WASM is not yet loaded.
+ * All type conversions (e.g. `number[] → Uint32Array`, packed EntityId
+ * reconstruction) happen here so callers never touch raw Rust types.
+ *
+ * @internal — Obtain the singleton via `getWasmBridge()`.
+ */
 class WasmBridgeImpl implements WasmBridge {
+  // ── Status ───────────────────────────────────────────────────────────────
+
   isActive(): boolean {
     return _wasmEngine !== null;
   }
@@ -360,6 +530,8 @@ class WasmBridgeImpl implements WasmBridge {
   engine(): WasmEngine {
     return requireWasm();
   }
+
+  // ── Entity ───────────────────────────────────────────────────────────────
 
   createEntity(): WasmEntityId {
     return requireWasm().create_entity();
@@ -376,6 +548,8 @@ class WasmBridgeImpl implements WasmBridge {
   countEntities(): number {
     return requireWasm().count_entities();
   }
+
+  // ── Component ────────────────────────────────────────────────────────────
 
   registerComponentType(): number {
     return requireWasm().register_component_type();
@@ -397,6 +571,8 @@ class WasmBridgeImpl implements WasmBridge {
     return requireWasm().get_component_raw(index, generation, typeId);
   }
 
+  // ── Query ────────────────────────────────────────────────────────────────
+
   updateEntityArchetype(index: number, typeIds: number[]): void {
     requireWasm().update_entity_archetype(index, new Uint32Array(typeIds));
   }
@@ -405,9 +581,12 @@ class WasmBridgeImpl implements WasmBridge {
     requireWasm().remove_entity_from_query(index);
   }
 
+  /**
+   * Convert raw Rust slot indices → packed TypeScript EntityIds.
+   * Packing formula: `(generation << 20) | (index & 0xFFFFF)`.
+   */
   queryEntities(typeIds: number[]): number[] {
     const indices = Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
-    // Reconstruct packed EntityIds: (generation << 20) | index
     return indices.map((idx) => {
       const gen = requireWasm().get_entity_generation(idx);
       return (gen << 20) | (idx & 0xfffff);
@@ -418,9 +597,13 @@ class WasmBridgeImpl implements WasmBridge {
     return requireWasm().get_entity_generation(index);
   }
 
+  // ── Game loop ────────────────────────────────────────────────────────────
+
   tick(deltaMs: number): void {
     requireWasm().tick(deltaMs);
   }
+
+  // ── Shared memory ────────────────────────────────────────────────────────
 
   allocSharedBuffer(byteLength: number): number {
     return requireWasm().alloc_shared_buffer(byteLength);
@@ -434,6 +617,8 @@ class WasmBridgeImpl implements WasmBridge {
     requireWasm().sync_transforms_from_buffer(ptr, maxEntities);
   }
 
+  // ── Linear memory ────────────────────────────────────────────────────────
+
   /**
    * Return the live `WebAssembly.Memory` exported by gwen_core.wasm.
    *
@@ -445,38 +630,59 @@ class WasmBridgeImpl implements WasmBridge {
    * in a test environment that injects a mock without a real memory export.
    */
   getLinearMemory(): WebAssembly.Memory | null {
-    // memory lives on the raw WASM instance exports (_wasmExports),
-    // not on the ES module glue (_wasmModule).
     return _wasmExports?.memory ?? null;
   }
+
+  // ── Stats ────────────────────────────────────────────────────────────────
 
   stats(): string {
     return requireWasm().stats();
   }
 }
 
-// Singleton
+// ── Singleton ────────────────────────────────────────────────────────────────
+
 const _bridge = new WasmBridgeImpl();
 
-/** Returns the WasmBridge singleton. */
+/**
+ * Return the `WasmBridge` singleton.
+ *
+ * The bridge is always available — it is created eagerly at module load time.
+ * Methods will throw if `initWasm()` has not been called yet.
+ *
+ * @example
+ * ```typescript
+ * await initWasm();
+ * const bridge = getWasmBridge();
+ * bridge.isActive(); // true
+ * ```
+ */
 export function getWasmBridge(): WasmBridge {
   return _bridge;
 }
 
 /**
- * Injects a mock WasmEngine directly — reserved for unit tests.
- * Allows testing the Engine without a real browser or WASM binary.
- * `getLinearMemory()` returns `null` in this mode — sentinel checks
- * and debug views are silently skipped, which is the correct behaviour
- * for a Node.js test environment.
+ * Inject a mock `WasmEngine` — **reserved for unit tests only**.
+ *
+ * Allows the `Engine` to be tested without a real browser or `.wasm` binary.
+ * `getLinearMemory()` returns `null` in this mode because `_wasmModule` is
+ * left `null` intentionally — sentinel checks and debug views are silently
+ * skipped, which is the correct behaviour in a Node.js test environment.
+ *
+ * @param mock - A `WasmEngine` mock (typically built with `vi.fn()`).
  */
 export function _injectMockWasmEngine(mock: WasmEngine): void {
   _wasmEngine = mock;
-  // _wasmModule intentionally left null so getLinearMemory() returns null
   _initPromise = Promise.resolve();
 }
 
-/** Complete reset — reserved for unit tests. */
+/**
+ * Fully reset the bridge state — **reserved for unit tests only**.
+ *
+ * Clears `_wasmEngine`, `_wasmModule`, `_wasmExports` and `_initPromise`
+ * so that the next `initWasm()` call starts from a clean slate.
+ * Call this in `afterEach` to prevent state leaking between tests.
+ */
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
   _wasmModule = null;

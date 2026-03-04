@@ -16,24 +16,41 @@ export type EntityId = number;
 
 // ── Packed EntityId helpers ────────────────────────────────────────────────────
 
-/** Pack WASM entity ID (index, generation) into a single 32-bit number: (generation << 20) | index */
+/**
+ * Pack a WASM entity handle into a single 32-bit integer:
+ * `(generation << 20) | (index & 0xFFFFF)`.
+ *
+ * This matches the Rust-side encoding so IDs can be compared across the boundary.
+ *
+ * @param wasmId Raw `{index, generation}` pair returned by `WasmBridge.createEntity()`.
+ * @returns Packed `EntityId`.
+ */
 export function packId(wasmId: { index: number; generation: number }): EntityId {
   return (wasmId.generation << 20) | (wasmId.index & 0xfffff);
 }
 
-/** Unpack EntityId back to (index, generation) pair */
+/**
+ * Unpack a packed `EntityId` back to its `{index, generation}` components.
+ * Inverse of `packId`.
+ *
+ * @param id Packed entity handle.
+ */
 export function unpackId(id: EntityId): { index: number; generation: number } {
   return { index: id & 0xfffff, generation: id >>> 20 };
 }
 
 // ── Internal types ─────────────────────────────────────────────────────────────
 
-/** Possible JavaScript value for a serialized component field */
+/** Possible JavaScript value for a serialized component field. */
 export type ComponentFieldValue = number | bigint | boolean | string;
 
 // ── WASM shim interfaces ──────────────────────────────────────────────────────
 
-/** Shim that satisfies the EntityManager interface expected by createEngineAPI */
+/**
+ * Shim that satisfies the `EntityManager` interface expected by `createEngineAPI`.
+ * Delegates all operations to the WASM bridge — no TypeScript array backing store.
+ * @internal
+ */
 interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'> {
   create(): EntityId;
   destroy(id: EntityId): boolean;
@@ -42,7 +59,11 @@ interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'>
   [Symbol.iterator](): Iterator<EntityId>;
 }
 
-/** Shim that satisfies the ComponentRegistry interface expected by createEngineAPI */
+/**
+ * Shim that satisfies the `ComponentRegistry` interface expected by `createEngineAPI`.
+ * Serializes component data and delegates storage to the WASM bridge.
+ * @internal
+ */
 interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'registeredTypes'> {
   add<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T): void;
   remove(id: EntityId, type: ComponentType): boolean;
@@ -50,7 +71,11 @@ interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'r
   has(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean;
 }
 
-/** Shim that satisfies the QueryEngine interface expected by createEngineAPI */
+/**
+ * Shim that satisfies the `QueryEngine` interface expected by `createEngineAPI`.
+ * Delegates to `WasmBridge.queryEntities` — invalidation is handled by WASM.
+ * @internal
+ */
 interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
   query(
     required: ComponentType[],

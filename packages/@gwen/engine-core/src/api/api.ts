@@ -14,9 +14,28 @@ import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } fr
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema';
 import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from '../core/ecs';
 import { PrefabManager } from '../core/prefab';
+import { createGwenHooks } from '../hooks';
 
-// ============= ServiceLocator =============
+// ── ServiceLocator ────────────────────────────────────────────────────────────
 
+/**
+ * Runtime service registry — concrete implementation of `TypedServiceLocator`.
+ *
+ * Plugins register their services in `onInit()` and other plugins resolve them
+ * by name. Parameterized by `M` (service map) so `get()` and `register()` are
+ * fully typed when `M` is inferred from `defineConfig()`.
+ *
+ * @typeParam M - Service map (defaults to `GwenDefaultServices`)
+ *
+ * @example
+ * ```ts
+ * // In a plugin's onInit:
+ * api.services.register('keyboard', new KeyboardInput());
+ *
+ * // In any other plugin:
+ * const kb = api.services.get('keyboard'); // typed as KeyboardInput ✅
+ * ```
+ */
 export class ServiceLocator<
   M extends Record<string, unknown> = GwenDefaultServices,
 > implements TypedServiceLocator<M> {
@@ -43,19 +62,25 @@ export class ServiceLocator<
     return this.registry.has(name);
   }
 
-  /** List all registered service names (debug / introspection). */
+  /** Return all registered service names — useful for debugging. */
   list(): string[] {
     return [...this.registry.keys()];
   }
 
-  /** Remove a service (useful for hot-reload scenarios). */
+  /**
+   * Remove a service by name.
+   * Useful for hot-reload scenarios where a service needs to be replaced.
+   *
+   * @returns `true` if the service existed and was removed.
+   */
   unregister(name: string): boolean {
     return this.registry.delete(name);
   }
 }
 
-// ============= EngineAPI Implementation =============
+// ── EngineAPI implementation ──────────────────────────────────────────────────
 
+/** Mutable frame state shared between the Engine and EngineAPIImpl. */
 export interface EngineState {
   deltaTime: number;
   frameCount: number;
@@ -151,10 +176,15 @@ export class EngineAPIImpl<
 
   // ── Entity operations ──────────────────────────────────────────────────
 
+  /** Create a new entity and return its packed EntityId. */
   createEntity(): EntityId {
     return this.entityManager.create();
   }
 
+  /**
+   * Destroy an entity and remove all its components.
+   * @returns `false` if the entity was already dead.
+   */
   destroyEntity(id: EntityId): boolean {
     if (!this.entityManager.isAlive(id)) return false;
     this.components.removeAll(id);
@@ -201,10 +231,19 @@ export class EngineAPIImpl<
 
   // ── Query ──────────────────────────────────────────────────────────────
 
+  /**
+   * Return all entities that have ALL of the given component types.
+   * Results are cached and invalidated on any component mutation.
+   */
   query(componentTypes: ComponentType[]): EntityId[] {
     return this.queryEngine.query(componentTypes, this.entityManager, this.components);
   }
 
+  /**
+   * Return the generation counter for a raw entity slot index.
+   * Use this to reconstruct a packed EntityId from a WASM-side raw slot index
+   * (e.g. `slotA` / `slotB` from physics collision events).
+   */
   getEntityGeneration(slotIndex: number): number {
     return this.entityManager.getGeneration(slotIndex);
   }
@@ -219,7 +258,17 @@ export class EngineAPIImpl<
 }
 
 /**
- * Factory — creates a fully wired EngineAPI for a given ECS context.
+ * Factory — creates a fully wired EngineAPIImpl for a given ECS context.
+ *
+ * When `services` is omitted, a fresh `ServiceLocator` is created.
+ * When `hooks` is omitted, a fresh `GwenHookable` instance is created —
+ * so `api.hooks` is always defined and safe to call.
+ *
+ * @param entityManager - ECS entity manager
+ * @param components    - ECS component registry
+ * @param queryEngine   - ECS query engine
+ * @param services      - Optional pre-wired service locator (defaults to empty)
+ * @param hooks         - Optional hooks instance (defaults to a new GwenHookable)
  *
  * @typeParam M - Service map type
  * @typeParam H - Hooks map type
@@ -236,5 +285,13 @@ export function createEngineAPI<
 ): EngineAPIImpl<M, H> {
   const locator = services ?? new ServiceLocator<M>();
   const state: EngineState = { deltaTime: 0, frameCount: 0 };
-  return new EngineAPIImpl<M, H>(entityManager, components, queryEngine, locator, state, hooks!);
+  const resolvedHooks = hooks ?? createGwenHooks<H>();
+  return new EngineAPIImpl<M, H>(
+    entityManager,
+    components,
+    queryEngine,
+    locator,
+    state,
+    resolvedHooks,
+  );
 }

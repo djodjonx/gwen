@@ -1,14 +1,14 @@
 /**
- * Benchmark : TS-only vs WASM core
+ * Benchmark: TS-only vs WASM core
  *
- * Compare les performances des opérations ECS entre l'implémentation
- * TypeScript pure et le core Rust/WASM (quand disponible).
+ * Compares ECS operation performance between the pure TypeScript implementation
+ * and the Rust/WASM core (when available).
  *
- * Exécution :
+ * Run:
  *   pnpm --filter @gwen/engine-core bench
  *
- * En l'absence de WASM (.wasm non chargé), seules les colonnes TS s'affichent.
- * Avec WASM actif (après initWasm()), les deux colonnes sont comparées.
+ * Without WASM (.wasm not loaded), only the TS columns are shown.
+ * With WASM active (after initWasm()), both columns are compared.
  */
 
 import { bench, describe } from 'vitest';
@@ -24,7 +24,7 @@ function makeTsEcs(maxEntities = 10_000) {
   return { em, cr, qe };
 }
 
-// ── Benchmark 1 : création d'entités ─────────────────────────────────────────
+// ── Benchmark 1: entity creation ─────────────────────────────────────────────
 
 describe('Entity creation — 1 000 entities', () => {
   bench('TS-only', () => {

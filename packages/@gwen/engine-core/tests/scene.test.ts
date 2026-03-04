@@ -110,7 +110,7 @@ describe('SceneManager', () => {
       sm.loadScene('Menu'); // schedule
       expect(sm.getCurrentSceneName()).toBeNull(); // not yet
 
-      sm.onBeforeUpdate(api, 0.016); // tick
+      await sm.onBeforeUpdate(api, 0.016); // tick
       expect(sm.getCurrentSceneName()).toBe('Menu');
       expect(menu.onEnter).toHaveBeenCalled();
     });
@@ -177,9 +177,9 @@ describe('defineScene', () => {
     return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
   }
 
-  // ── Forme 1 — objet direct ────────────────────────────────────────────────
+  // ── Form 1 — direct object ────────────────────────────────────────────────
 
-  it('forme 1 — retourne la scène telle quelle', async () => {
+  it('form 1 — returns the scene unchanged', async () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
@@ -189,7 +189,7 @@ describe('defineScene', () => {
     expect(typeof scene.onEnter).toBe('function');
   });
 
-  it('forme 1 — enregistrable directement dans SceneManager', async () => {
+  it('form 1 — registerable directly in SceneManager', async () => {
     const scene = defineScene({
       name: 'Pause',
       onEnter: vi.fn(),
@@ -202,7 +202,7 @@ describe('defineScene', () => {
     expect(sm.hasScene('Pause')).toBe(true);
   });
 
-  it('forme 1 — ui[] et systems sont optionnels', async () => {
+  it('form 1 — ui[] and systems are optional', async () => {
     const scene = defineScene({
       name: 'Minimal',
       onEnter: vi.fn(),
@@ -212,9 +212,9 @@ describe('defineScene', () => {
     expect(scene.systems).toBeUndefined();
   });
 
-  // ── Forme 2 — factory ─────────────────────────────────────────────────────
+  // ── Form 2 — factory ─────────────────────────────────────────────────────
 
-  it('forme 2 — retourne une fonction callable', async () => {
+  it('form 2 — returns a callable function', async () => {
     const GameScene = defineScene('Game', (_dep: string) => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -222,7 +222,7 @@ describe('defineScene', () => {
     expect(typeof GameScene).toBe('function');
   });
 
-  it('forme 2 — appel produit une Scene avec le bon name', async () => {
+  it('form 2 — call produces a Scene with the correct name', async () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -231,7 +231,7 @@ describe('defineScene', () => {
     expect(scene.name).toBe('Game');
   });
 
-  it('forme 2 — les dépendances sont capturées en closure', async () => {
+  it('form 2 — dependencies are captured in closure', async () => {
     const enterFn = vi.fn();
     const GameScene = defineScene('Game', (dep: { value: number }) => ({
       onEnter: () => enterFn(dep.value),
@@ -242,18 +242,18 @@ describe('defineScene', () => {
     expect(enterFn).toHaveBeenCalledWith(42);
   });
 
-  it('forme 2 — chaque appel produit une instance indépendante', async () => {
+  it('form 2 — each call produces an independent instance', async () => {
     const GameScene = defineScene('Game', (_id: number) => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
     }));
     const a = GameScene(1);
     const b = GameScene(2);
-    expect(a).not.toBe(b); // instances distinctes
-    expect(a.name).toBe(b.name); // même name
+    expect(a).not.toBe(b); // distinct instances
+    expect(a.name).toBe(b.name); // same name
   });
 
-  it('forme 2 — systems transmis correctement', async () => {
+  it('form 2 — systems passed through correctly', async () => {
     const mockSystem = { name: 'MockSystem', onUpdate: vi.fn() };
     const GameScene = defineScene('Game', () => ({
       systems: [mockSystem],
@@ -264,7 +264,7 @@ describe('defineScene', () => {
     expect(scene.systems).toContain(mockSystem);
   });
 
-  it('forme 2 — enregistrable dans SceneManager après appel', async () => {
+  it('form 2 — registerable in SceneManager after call', async () => {
     const GameScene = defineScene('Game', () => ({
       onEnter: vi.fn(),
       onExit: vi.fn(),
@@ -272,11 +272,11 @@ describe('defineScene', () => {
     const sm = new SceneManager();
     const api = makeAPI();
     sm.onInit(api);
-    sm.register(GameScene()); // ← appel de la factory puis register
+    sm.register(GameScene()); // ← call the factory then register
     expect(sm.hasScene('Game')).toBe(true);
   });
 
-  it('forme 2 — état en closure est isolé par instance', async () => {
+  it('form 2 — closure state is isolated per instance', async () => {
     const GameScene = defineScene('Game', () => {
       let count = 0;
       return {
@@ -292,6 +292,6 @@ describe('defineScene', () => {
     a.onEnter(null);
     a.onEnter(null);
     expect(a.getCount()).toBe(2);
-    expect(b.getCount()).toBe(0); // isolation garantie
+    expect(b.getCount()).toBe(0); // isolation guaranteed
   });
 });

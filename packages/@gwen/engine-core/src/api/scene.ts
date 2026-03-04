@@ -156,7 +156,7 @@ export interface Scene {
 
 // ── SceneBody ─────────────────────────────────────────────────────────────────
 
-/** Corps d'une Scene sans le `name` — utilisé par defineScene. */
+/** A `Scene` body without the `name` field — used by the factory form of `defineScene`. */
 export type SceneBody = Omit<Scene, 'name'>;
 
 /**
@@ -241,12 +241,12 @@ export class SceneManager implements TsPlugin, SceneNavigator {
 
   // ── SceneNavigator ─────────────────────────────────────────────────────
 
-  /** Nom de la scène active (null si aucune). */
+  /** Name of the currently active scene, or `null` if none. */
   get current(): string | null {
     return this.currentScene?.name ?? null;
   }
 
-  /** Alias de loadScene() — safe depuis onUpdate(). */
+  /** Alias for `loadScene()` — safe to call from `onUpdate()`. */
   load(name: string, data?: Record<string, unknown>): void {
     this.loadScene(name, data);
   }
@@ -255,7 +255,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
 
   onInit(api: EngineAPI): void {
     this.api = api;
-    // Auto-register comme SceneNavigator
+    // Self-register as SceneNavigator so api.scene is available to all plugins
     api.services.register('SceneManager', this as SceneNavigator);
   }
 
@@ -539,8 +539,8 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   }
 
   /**
-   * Monte le layout HTML de la scène dans #gwen-ui.
-   * Crée le conteneur s'il n'existe pas.
+   * Mount a scene's HTML layout into the `#gwen-ui` container.
+   * Creates the container if it does not exist yet.
    */
   private mountLayout(html: string): void {
     if (typeof document === 'undefined') return;
@@ -555,7 +555,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     ui.style.display = '';
   }
 
-  /** Vide le conteneur #gwen-ui. */
+  /** Clear the `#gwen-ui` container (called when a scene exits). */
   private unmountLayout(): void {
     if (typeof document === 'undefined') return;
     const ui = document.getElementById('gwen-ui');

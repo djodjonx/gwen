@@ -48,11 +48,12 @@ export type { GwenHooks } from './types';
 /**
  * Type alias for a GWEN hooks instance.
  *
- * Generic over `H` (sans contrainte `extends GwenHooks`) pour permettre
- * à `GwenDefaultHooks` (qui a `[key: string]: unknown`) d'être utilisé.
- * Defaults to `GwenHooks` (system hooks only) for tests and internal usage.
+ * Intentionally unconstrained (`H extends Record<string, any>` rather than
+ * `extends GwenHooks`) so that `GwenDefaultHooks` — which carries an open
+ * index signature `[key: string]: any` — can be used as `H` without error.
  *
- * At runtime in a project, the CLI generates:
+ * Defaults to `GwenHooks` (system hooks only) for tests and internal usage.
+ * In a project, `gwen prepare` generates:
  * ```typescript
  * interface GwenDefaultHooks extends _GwenHooks {} // enriched with plugin hooks
  * ```

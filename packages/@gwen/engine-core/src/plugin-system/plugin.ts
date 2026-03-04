@@ -176,10 +176,10 @@ export interface GwenPlugin<
  */
 export interface GwenPluginMeta {
   /**
-   * Liste de références de types à injecter dans `.gwen/gwen.d.ts`
-   * sous forme de `/// <reference types="..." />`.
+   * Type reference paths to inject into `.gwen/gwen.d.ts` as
+   * `/// <reference types="..." />` directives.
    *
-   * Activés uniquement si le plugin est déclaré dans `gwen.config.ts`.
+   * Only active when the plugin is declared in `gwen.config.ts`.
    */
   typeReferences?: string[];
 }
