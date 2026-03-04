@@ -17,8 +17,8 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
   const registered = new Set<number>();
 
   return {
-    onInit(api: EngineAPI<GwenServices>) {
-      physics = api.services.get('physics') as Physics2DAPI;
+    onInit(api) {
+      physics = api.services.get('Physics2D');
     },
 
     onUpdate(api: EngineAPI<GwenServices>) {

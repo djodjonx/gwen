@@ -65,7 +65,7 @@ export class Physics2DPlugin implements GwenWasmPlugin {
 
   // ── Internal state ───────────────────────────────────────────────────────
   private wasmPlugin: WasmPhysics2DPlugin | null = null;
-  private readonly config: Required<Physics2DConfig>;
+  readonly config: Required<Physics2DConfig>;
 
   constructor(config: Physics2DConfig = {}) {
     this.config = {
