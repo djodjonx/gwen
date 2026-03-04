@@ -392,7 +392,56 @@ Your plugin's `onStep()` is called at step 3. This means:
 - Never call `api.services.get()` inside `onStep()` — use `onInit()` to cache
   the reference.
 
+### ⚠️ Rule: Systems that feed physics MUST use `onBeforeUpdate`
+
+`setKinematicPosition`, `applyImpulse`, and `addRigidBody` all **schedule** changes
+for the next `step()` call. If `step()` has already run in the current frame
+(step 3), those calls have no effect until the **next** frame.
+
+This means any system that drives kinematic body positions must run at step 1
+(`onBeforeUpdate`), not step 7 (`onUpdate`).
+
+```
+❌ Wrong — positions arrive after step(), missed for current frame
+   onUpdate  → MovementSystem → pos += vel * dt
+   onUpdate  → PhysicsBindingSystem → setKinematicPosition(pos)
+   [already ran] Rapier.step() → worked with last frame's positions
+
+✅ Correct — positions arrive before step()
+   onBeforeUpdate → MovementSystem → pos += vel * dt
+   onBeforeUpdate → PhysicsBindingSystem → setKinematicPosition(pos)
+   Rapier.step()  → detects collisions at current frame positions ✅
+   onUpdate       → CollisionSystem → reads events ✅
+```
+
+**Classification of systems by slot:**
+
+| Hook | When | Use for |
+|---|---|---|
+| `onBeforeUpdate` | Before physics step | Movement, input, kinematic position updates, anything that **feeds** Rapier |
+| `onStep` (Rust) | Physics step | Simulation, pathfinding WASM |
+| `onUpdate` | After physics step | Collision response, reactive scripting, camera follow |
+| `onRender` | Rendering | Canvas, WebGL, UI |
+
+**`CollisionSystem` must stay in `onUpdate`** — it reads events produced by
+`step()`. Moving it to `onBeforeUpdate` would read events from the previous frame.
+
 ### Rule: Resolve services in `onInit()`, use them in `onStep()`/`onUpdate()`
+
+```typescript
+private physicsAPI!: Physics2DAPI;
+
+onInit(api: EngineAPI) {
+  // One-time resolution — O(1) hash map lookup
+  this.physicsAPI = api.services.get('physics') as Physics2DAPI;
+}
+
+onUpdate(api: EngineAPI) {
+  // Use the cached reference — zero lookup cost
+  this.physicsAPI.applyImpulse(entityIndex, 0, 500);
+}
+```
+
 
 ```typescript
 private physicsAPI!: Physics2DAPI;

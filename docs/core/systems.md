@@ -92,6 +92,40 @@ export const MySystem = defineSystem({
 });
 ```
 
+### Which hook to use
+
+The engine runs hooks in this order each frame:
+
+```
+onBeforeUpdate  →  [WASM step: Rapier, AI…]  →  onUpdate  →  onRender
+```
+
+| Hook | Use for |
+|---|---|
+| `onBeforeUpdate` | Input, movement, **kinematic position updates** (`setKinematicPosition`), anything that must be ready **before** the physics step |
+| `onUpdate` | Collision response, game logic that reacts to physics results, camera |
+| `onRender` | Drawing, HUD |
+
+> ⚠️ **Physics feeding rule**: any system that calls `setKinematicPosition`,
+> `applyImpulse`, or `addRigidBody` **must** use `onBeforeUpdate`. These calls
+> schedule changes for the next `step()` — if `step()` has already run in the
+> current frame, those changes are silently ignored until the next frame,
+> making collision detection impossible for fast-moving objects.
+>
+> ```typescript
+> // ✅ Correct
+> export const MovementSystem = defineSystem({
+>   name: 'MovementSystem',
+>   onBeforeUpdate(api, dt) { /* moves entities */ }
+> });
+> export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => ({
+>   onBeforeUpdate(api, _dt) { /* calls setKinematicPosition */ }
+> }));
+> export const CollisionSystem = defineSystem('CollisionSystem', () => ({
+>   onUpdate(api, _dt) { /* reads getCollisionEvents() */ }
+> }));
+> ```
+
 ## Two Forms: Direct Object vs Factory
 
 ### Form 1: Direct Object (no local state)
