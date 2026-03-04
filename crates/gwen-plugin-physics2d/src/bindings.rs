@@ -135,8 +135,11 @@ impl Physics2DPlugin {
     /// dynamic and kinematic bodies. `gwen_core::sync_transforms_from_buffer`
     /// can then pull them back into the ECS.
     pub fn step(&mut self, delta: f32) {
+        // Sync kinematic positions from the shared buffer into Rapier FIRST,
+        // so collision detection runs at the correct current positions.
+        self.world.sync_kinematic_positions_from_buffer(&self.shared_buf, self.max_entities);
         self.world.step(delta);
-        // Write updated positions back to the shared buffer
+        // Write updated positions back (dynamic bodies only — kinematic are driven by TS)
         self.world.write_positions_to_buffer(&self.shared_buf, self.max_entities);
     }
 
