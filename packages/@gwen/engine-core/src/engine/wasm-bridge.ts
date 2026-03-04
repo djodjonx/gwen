@@ -83,6 +83,7 @@ export interface WasmEngine {
 
 let _wasmEngine: WasmEngine | null = null;
 let _wasmModule: GwenCoreWasm | null = null;
+let _wasmExports: { memory?: WebAssembly.Memory } | null = null; // raw WASM instance exports
 let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
 
@@ -154,11 +155,15 @@ export async function initWasm(
 
     const wasmInput = resolvedWasmUrl ? await fetch(resolvedWasmUrl) : undefined;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const glueAny = glue as any;
+
     if (typeof glue.default === 'function') {
-      await glue.default({ module_or_path: wasmInput });
+      // glue.default() returns the raw WASM instance exports (including memory)
+      _wasmExports = await glueAny.default({ module_or_path: wasmInput });
     } else if (typeof glue.initSync === 'function') {
       const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
-      glue.initSync({ module: buf });
+      _wasmExports = glueAny.initSync({ module: buf });
     } else {
       throw new Error('[GWEN] WASM glue has no init() function — corrupted file?');
     }
@@ -172,10 +177,10 @@ export async function initWasm(
 
     console.log('[GWEN] WASM core loaded — Rust ECS active');
   })().catch((err) => {
-    // Clean up to allow retry
     _initPromise = null;
     _wasmEngine = null;
     _wasmModule = null;
+    _wasmExports = null;
     throw err;
   });
 
@@ -440,7 +445,9 @@ class WasmBridgeImpl implements WasmBridge {
    * in a test environment that injects a mock without a real memory export.
    */
   getLinearMemory(): WebAssembly.Memory | null {
-    return _wasmModule?.memory ?? null;
+    // memory lives on the raw WASM instance exports (_wasmExports),
+    // not on the ES module glue (_wasmModule).
+    return _wasmExports?.memory ?? null;
   }
 
   stats(): string {
@@ -473,5 +480,6 @@ export function _injectMockWasmEngine(mock: WasmEngine): void {
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
   _wasmModule = null;
+  _wasmExports = null;
   _initPromise = null;
 }
