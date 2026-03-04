@@ -9,16 +9,6 @@ use js_sys::Uint8Array;
 use rapier2d::prelude::*;
 use crate::components::{BodyType, PhysicsMaterial};
 
-/// Read a little-endian f32 from a JS Uint8Array at `byte_offset`.
-#[inline]
-fn read_f32_local(buf: &Uint8Array, byte_offset: usize) -> f32 {
-    let b0 = buf.get_index(byte_offset as u32) as u32;
-    let b1 = buf.get_index((byte_offset + 1) as u32) as u32;
-    let b2 = buf.get_index((byte_offset + 2) as u32) as u32;
-    let b3 = buf.get_index((byte_offset + 3) as u32) as u32;
-    f32::from_bits(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
-}
-
 // ─── Collision event ─────────────────────────────────────────────────────────
 
 /// A contact event produced during `step()`.
@@ -236,31 +226,6 @@ impl PhysicsWorld {
 
     // ── Simulation ────────────────────────────────────────────────────────
 
-    /// Read kinematic body positions from the shared buffer and push them
-    /// into Rapier BEFORE `step()`. Without this, kinematic bodies never
-    /// move in the simulation — Rapier only detects collision at initial pos.
-    pub fn sync_kinematic_positions_from_buffer(&mut self, buf: &Uint8Array, max_entities: u32) {
-        for (&entity_index, &handle) in &self.entity_to_body {
-            if entity_index >= max_entities {
-                continue;
-            }
-            if let Some(body) = self.rigid_body_set.get_mut(handle) {
-                if !body.is_kinematic() {
-                    continue;
-                }
-                let base = entity_index as usize * crate::memory::STRIDE;
-                let x   = read_f32_local(buf, base);
-                let y   = read_f32_local(buf, base + 4);
-                let rot = read_f32_local(buf, base + 8);
-                body.set_next_kinematic_position(
-                    rapier2d::prelude::Isometry::new(
-                        rapier2d::prelude::vector![x, y],
-                        rot,
-                    )
-                );
-            }
-        }
-    }
 
     pub fn step(&mut self, delta: f32) {
         self.integration_params.dt = delta;
