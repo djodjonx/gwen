@@ -69,7 +69,11 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
         }
       }
 
-      // Clean up destroyed entities
+      // Clean up destroyed entities.
+      // Note: CollisionSystem may have already called physics.removeBody(idx)
+      // in the same frame via destroyWithPhysics(). Calling removeBody again
+      // on an unknown slot is a no-op in Rapier (entity_to_body.remove returns None),
+      // so this is safe — but we still must clean up the registered set.
       for (const id of registered) {
         if (!entities.includes(id)) {
           physics.removeBody(entityIndex(id));
