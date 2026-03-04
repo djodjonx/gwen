@@ -155,9 +155,10 @@ export function readCollisionEventsFromBuffer(buf: ArrayBuffer): CollisionEvent[
 export interface Physics2DAPI {
   /**
    * Register a rigid body for an entity.
-   * @param entityIndex  Raw `EntityId.index`.
+   * @param entityIndex  Raw `EntityId.index` (slot only — not packed).
    * @param type         Body simulation type.
-   * @param x / y        Initial world position in metres.
+   * @param x            Initial world position X in metres.
+   * @param y            Initial world position Y in metres.
    * @returns Opaque `bodyHandle` to pass to `addBoxCollider` / `addBallCollider`.
    */
   addRigidBody(entityIndex: number, type: RigidBodyType, x: number, y: number): number;
@@ -167,6 +168,7 @@ export interface Physics2DAPI {
    * @param bodyHandle  Return value of `addRigidBody`.
    * @param hw          Half-width in metres.
    * @param hh          Half-height in metres.
+   * @param opts        Optional restitution and friction overrides.
    */
   addBoxCollider(bodyHandle: number, hw: number, hh: number, opts?: ColliderOptions): void;
 
@@ -174,6 +176,7 @@ export interface Physics2DAPI {
    * Add a ball (circle) collider to a body.
    * @param bodyHandle  Return value of `addRigidBody`.
    * @param radius      Radius in metres.
+   * @param opts        Optional restitution and friction overrides.
    */
   addBallCollider(bodyHandle: number, radius: number, opts?: ColliderOptions): void;
 

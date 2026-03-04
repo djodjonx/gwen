@@ -23,4 +23,3 @@ pub mod memory;
 pub mod world;
 
 pub use bindings::Physics2DPlugin;
-

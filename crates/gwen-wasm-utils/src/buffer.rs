@@ -15,8 +15,8 @@ use js_sys::Uint8Array;
 /// Write a `u32` little-endian at `byte_offset` in a JS `Uint8Array`.
 #[inline]
 pub fn write_u32(buf: &Uint8Array, byte_offset: usize, value: u32) {
-    buf.set_index(byte_offset as u32,       (value & 0xFF) as u8);
-    buf.set_index((byte_offset + 1) as u32, ((value >>  8) & 0xFF) as u8);
+    buf.set_index(byte_offset as u32, (value & 0xFF) as u8);
+    buf.set_index((byte_offset + 1) as u32, ((value >> 8) & 0xFF) as u8);
     buf.set_index((byte_offset + 2) as u32, ((value >> 16) & 0xFF) as u8);
     buf.set_index((byte_offset + 3) as u32, ((value >> 24) & 0xFF) as u8);
 }
@@ -24,7 +24,7 @@ pub fn write_u32(buf: &Uint8Array, byte_offset: usize, value: u32) {
 /// Write a `u16` little-endian at `byte_offset` in a JS `Uint8Array`.
 #[inline]
 pub fn write_u16(buf: &Uint8Array, byte_offset: usize, value: u16) {
-    buf.set_index(byte_offset as u32,       (value & 0xFF) as u8);
+    buf.set_index(byte_offset as u32, (value & 0xFF) as u8);
     buf.set_index((byte_offset + 1) as u32, ((value >> 8) & 0xFF) as u8);
 }
 
@@ -39,17 +39,16 @@ pub fn write_u8(buf: &Uint8Array, byte_offset: usize, value: u8) {
 /// Read a `u32` little-endian from `byte_offset` in a JS `Uint8Array`.
 #[inline]
 pub fn read_u32(buf: &Uint8Array, byte_offset: usize) -> u32 {
-      buf.get_index(byte_offset as u32)         as u32
-    | (buf.get_index((byte_offset + 1) as u32) as u32) <<  8
-    | (buf.get_index((byte_offset + 2) as u32) as u32) << 16
-    | (buf.get_index((byte_offset + 3) as u32) as u32) << 24
+    buf.get_index(byte_offset as u32) as u32
+        | (buf.get_index((byte_offset + 1) as u32) as u32) << 8
+        | (buf.get_index((byte_offset + 2) as u32) as u32) << 16
+        | (buf.get_index((byte_offset + 3) as u32) as u32) << 24
 }
 
 /// Read a `u16` little-endian from `byte_offset` in a JS `Uint8Array`.
 #[inline]
 pub fn read_u16(buf: &Uint8Array, byte_offset: usize) -> u16 {
-      buf.get_index(byte_offset as u32)         as u16
-    | (buf.get_index((byte_offset + 1) as u32) as u16) << 8
+    buf.get_index(byte_offset as u32) as u16 | (buf.get_index((byte_offset + 1) as u32) as u16) << 8
 }
 
 // ── Bulk flush (hot path) ─────────────────────────────────────────────────────
@@ -62,4 +61,3 @@ pub fn read_u16(buf: &Uint8Array, byte_offset: usize) -> u16 {
 pub fn flush_local_to_js(buf: &Uint8Array, local: &[u8]) {
     buf.copy_from(local);
 }
-

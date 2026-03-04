@@ -72,22 +72,18 @@ impl Physics2DPlugin {
     /// * `body_type`     — `0` = fixed, `1` = dynamic, `2` = kinematic.
     ///
     /// Returns an opaque `body_handle` to use when adding colliders.
-    pub fn add_rigid_body(
-        &mut self,
-        entity_index: u32,
-        x: f32,
-        y: f32,
-        body_type: u8,
-    ) -> u32 {
+    pub fn add_rigid_body(&mut self, entity_index: u32, x: f32, y: f32, body_type: u8) -> u32 {
         if entity_index >= self.max_entities {
             js_sys::eval(&format!(
                 "console.warn('[Physics2D] add_rigid_body: entity_index {} >= max_entities {} — \
                  did you pass a packed EntityId? Use (id & 0xFFFFF) to get the slot index.')",
                 entity_index, self.max_entities
-            )).ok();
+            ))
+            .ok();
             return u32::MAX;
         }
-        self.world.add_rigid_body(entity_index, x, y, BodyType::from_u8(body_type))
+        self.world
+            .add_rigid_body(entity_index, x, y, BodyType::from_u8(body_type))
     }
 
     /// Add a box (cuboid) collider to an existing rigid body.
@@ -103,7 +99,10 @@ impl Physics2DPlugin {
             body_handle,
             hw,
             hh,
-            PhysicsMaterial { restitution, friction },
+            PhysicsMaterial {
+                restitution,
+                friction,
+            },
         );
     }
 
@@ -118,7 +117,10 @@ impl Physics2DPlugin {
         self.world.add_ball_collider(
             body_handle,
             radius,
-            PhysicsMaterial { restitution, friction },
+            PhysicsMaterial {
+                restitution,
+                friction,
+            },
         );
     }
 
@@ -155,7 +157,8 @@ impl Physics2DPlugin {
 
         // Write positions for dynamic bodies only (kinematic = TS drives them)
         if self.world.has_dynamic_bodies() {
-            self.world.write_dynamic_positions_to_buffer(&self.transform_buf, self.max_entities);
+            self.world
+                .write_dynamic_positions_to_buffer(&self.transform_buf, self.max_entities);
         }
     }
 

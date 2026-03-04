@@ -6,6 +6,5 @@
 //! - `debug`  — Sentinel canary helpers for buffer overrun detection.
 
 pub mod buffer;
-pub mod ring;
 pub mod debug;
-
+pub mod ring;

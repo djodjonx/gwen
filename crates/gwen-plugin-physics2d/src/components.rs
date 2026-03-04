@@ -11,9 +11,9 @@
 #[repr(u8)]
 pub enum BodyType {
     /// Immovable: never affected by forces or gravity (walls, floors).
-    Fixed    = 0,
+    Fixed = 0,
     /// Fully simulated: affected by gravity, forces, and collisions.
-    Dynamic  = 1,
+    Dynamic = 1,
     /// Manually driven: velocity is set by user code, ignores forces.
     Kinematic = 2,
 }
@@ -54,7 +54,9 @@ pub struct PhysicsMaterial {
 
 impl Default for PhysicsMaterial {
     fn default() -> Self {
-        PhysicsMaterial { restitution: 0.0, friction: 0.5 }
+        PhysicsMaterial {
+            restitution: 0.0,
+            friction: 0.5,
+        }
     }
 }
-

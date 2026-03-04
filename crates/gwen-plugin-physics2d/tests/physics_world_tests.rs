@@ -1,7 +1,7 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_plugin_physics2d::world::PhysicsWorld;
 use gwen_plugin_physics2d::components::{BodyType, PhysicsMaterial};
+use gwen_plugin_physics2d::world::PhysicsWorld;
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,10 @@ fn world_with_gravity() -> PhysicsWorld {
 }
 
 fn default_material() -> PhysicsMaterial {
-    PhysicsMaterial { restitution: 0.0, friction: 0.5 }
+    PhysicsMaterial {
+        restitution: 0.0,
+        friction: 0.5,
+    }
 }
 
 // ─── Body management ─────────────────────────────────────────────────────────
@@ -63,7 +66,7 @@ fn test_add_body_replaces_existing() {
     w.add_rigid_body(5, 0.0, 0.0, BodyType::Dynamic);
     let body_count_before = w.entity_to_body.len();
     w.add_rigid_body(5, 1.0, 1.0, BodyType::Fixed); // same entity_index
-    // Must not duplicate
+                                                    // Must not duplicate
     assert_eq!(w.entity_to_body.len(), body_count_before);
 }
 
@@ -107,8 +110,14 @@ fn test_zero_gravity_does_not_move_dynamic_body() {
         w.step(1.0 / 60.0);
     }
     let (x1, y1, _) = w.get_position(0).unwrap();
-    assert!((x1 - x0).abs() < 0.01, "x should not drift without gravity/forces");
-    assert!((y1 - y0).abs() < 0.01, "y should not drift without gravity/forces");
+    assert!(
+        (x1 - x0).abs() < 0.01,
+        "x should not drift without gravity/forces"
+    );
+    assert!(
+        (y1 - y0).abs() < 0.01,
+        "y should not drift without gravity/forces"
+    );
 }
 
 #[test]
@@ -139,7 +148,10 @@ fn test_apply_impulse_changes_velocity() {
         w.step(1.0 / 60.0);
     }
     let (x1, _, _) = w.get_position(0).unwrap();
-    assert!(x1 > 0.01, "impulse should move body in +x direction, got x={x1}");
+    assert!(
+        x1 > 0.01,
+        "impulse should move body in +x direction, got x={x1}"
+    );
 }
 
 #[test]
@@ -172,7 +184,11 @@ fn test_collision_events_json_format_empty() {
 fn test_collision_events_json_format_nonempty() {
     use gwen_plugin_physics2d::world::PhysicsCollisionEvent;
     let mut w = world_with_gravity();
-    w.collision_events.push(PhysicsCollisionEvent { entity_a: 1, entity_b: 2, started: true });
+    w.collision_events.push(PhysicsCollisionEvent {
+        entity_a: 1,
+        entity_b: 2,
+        started: true,
+    });
     let json = w.collision_events_json();
     assert!(json.contains(r#""a":1"#), "json={json}");
     assert!(json.contains(r#""b":2"#), "json={json}");
@@ -222,4 +238,3 @@ fn test_stats_json_valid() {
     assert!(json.contains("bodies"), "json={json}");
     assert!(json.contains("colliders"), "json={json}");
 }
-

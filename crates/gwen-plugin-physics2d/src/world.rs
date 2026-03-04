@@ -4,12 +4,12 @@
 //! bidirectional mapping between GWEN entity indices (u32) and Rapier
 //! `RigidBodyHandle`s.
 
-use std::collections::HashMap;
+use crate::components::{BodyType, PhysicsMaterial};
+use gwen_wasm_utils::buffer::{flush_local_to_js, write_u16, write_u32, write_u8};
+use gwen_wasm_utils::ring::RingWriter;
 use js_sys::Uint8Array;
 use rapier2d::prelude::*;
-use crate::components::{BodyType, PhysicsMaterial};
-use gwen_wasm_utils::ring::RingWriter;
-use gwen_wasm_utils::buffer::{write_u16, write_u32, write_u8, flush_local_to_js};
+use std::collections::HashMap;
 
 // ─── Collision event ─────────────────────────────────────────────────────────
 
@@ -32,7 +32,9 @@ struct EventCollector {
 
 impl EventCollector {
     fn new() -> Self {
-        EventCollector { collisions: std::cell::UnsafeCell::new(Vec::new()) }
+        EventCollector {
+            collisions: std::cell::UnsafeCell::new(Vec::new()),
+        }
     }
 
     fn take(self) -> Vec<PhysicsCollisionEvent> {
@@ -85,52 +87,53 @@ impl EventHandler for EventCollector {
         _colliders: &ColliderSet,
         _contact_pair: &ContactPair,
         _total_force_magnitude: f32,
-    ) {}
+    ) {
+    }
 }
 
 // ─── PhysicsWorld ─────────────────────────────────────────────────────────────
 
 pub struct PhysicsWorld {
-    pipeline:            PhysicsPipeline,
-    gravity:             Vector<f32>,
-    integration_params:  IntegrationParameters,
-    island_manager:      IslandManager,
-    broad_phase:         DefaultBroadPhase,
-    narrow_phase:        NarrowPhase,
-    rigid_body_set:      RigidBodySet,
-    collider_set:        ColliderSet,
-    impulse_joint_set:   ImpulseJointSet,
+    pipeline: PhysicsPipeline,
+    gravity: Vector<f32>,
+    integration_params: IntegrationParameters,
+    island_manager: IslandManager,
+    broad_phase: DefaultBroadPhase,
+    narrow_phase: NarrowPhase,
+    rigid_body_set: RigidBodySet,
+    collider_set: ColliderSet,
+    impulse_joint_set: ImpulseJointSet,
     multibody_joint_set: MultibodyJointSet,
-    ccd_solver:          CCDSolver,
-    query_pipeline:      QueryPipeline,
+    ccd_solver: CCDSolver,
+    query_pipeline: QueryPipeline,
 
-    pub entity_to_body:    HashMap<u32, RigidBodyHandle>,
-    pub body_to_entity:    HashMap<RigidBodyHandle, u32>,
+    pub entity_to_body: HashMap<u32, RigidBodyHandle>,
+    pub body_to_entity: HashMap<RigidBodyHandle, u32>,
     /// Direct lookup: raw slot index (as returned by add_rigid_body) → full handle.
     /// Avoids O(n) scan and generation aliasing in find_handle.
-    handle_by_raw:         HashMap<u32, RigidBodyHandle>,
-    pub collision_events:  Vec<PhysicsCollisionEvent>,
+    handle_by_raw: HashMap<u32, RigidBodyHandle>,
+    pub collision_events: Vec<PhysicsCollisionEvent>,
 }
 
 impl PhysicsWorld {
     pub fn new(gravity_x: f32, gravity_y: f32) -> Self {
         PhysicsWorld {
-            pipeline:            PhysicsPipeline::new(),
-            gravity:             vector![gravity_x, gravity_y],
-            integration_params:  IntegrationParameters::default(),
-            island_manager:      IslandManager::new(),
-            broad_phase:         DefaultBroadPhase::new(),
-            narrow_phase:        NarrowPhase::new(),
-            rigid_body_set:      RigidBodySet::new(),
-            collider_set:        ColliderSet::new(),
-            impulse_joint_set:   ImpulseJointSet::new(),
+            pipeline: PhysicsPipeline::new(),
+            gravity: vector![gravity_x, gravity_y],
+            integration_params: IntegrationParameters::default(),
+            island_manager: IslandManager::new(),
+            broad_phase: DefaultBroadPhase::new(),
+            narrow_phase: NarrowPhase::new(),
+            rigid_body_set: RigidBodySet::new(),
+            collider_set: ColliderSet::new(),
+            impulse_joint_set: ImpulseJointSet::new(),
             multibody_joint_set: MultibodyJointSet::new(),
-            ccd_solver:          CCDSolver::new(),
-            query_pipeline:      QueryPipeline::new(),
-            entity_to_body:      HashMap::new(),
-            body_to_entity:      HashMap::new(),
-            handle_by_raw:       HashMap::new(),
-            collision_events:    Vec::new(),
+            ccd_solver: CCDSolver::new(),
+            query_pipeline: QueryPipeline::new(),
+            entity_to_body: HashMap::new(),
+            body_to_entity: HashMap::new(),
+            handle_by_raw: HashMap::new(),
+            collision_events: Vec::new(),
         }
     }
 
@@ -148,8 +151,8 @@ impl PhysicsWorld {
         self.remove_body_internal(entity_index);
 
         let mut rb = match body_type {
-            BodyType::Fixed     => RigidBodyBuilder::fixed(),
-            BodyType::Dynamic   => {
+            BodyType::Fixed => RigidBodyBuilder::fixed(),
+            BodyType::Dynamic => {
                 // Give dynamic bodies a minimal mass so Rapier simulates them
                 // even when no collider is attached yet.
                 RigidBodyBuilder::dynamic()
@@ -165,7 +168,7 @@ impl PhysicsWorld {
         rb.wake_up(true);
 
         let handle = self.rigid_body_set.insert(rb);
-        let raw = handle.0.into_raw_parts().0 as u32;
+        let raw = handle.0.into_raw_parts().0;
 
         self.entity_to_body.insert(entity_index, handle);
         self.body_to_entity.insert(handle, entity_index);
@@ -182,7 +185,11 @@ impl PhysicsWorld {
         material: PhysicsMaterial,
     ) {
         if let Some(handle) = self.find_handle(body_handle_raw) {
-            let entity_index = self.body_to_entity.get(&handle).copied().unwrap_or(u32::MAX);
+            let entity_index = self
+                .body_to_entity
+                .get(&handle)
+                .copied()
+                .unwrap_or(u32::MAX);
             let collider = ColliderBuilder::cuboid(hw, hh)
                 .restitution(material.restitution)
                 .friction(material.friction)
@@ -190,12 +197,13 @@ impl PhysicsWorld {
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
-                    | ActiveCollisionTypes::KINEMATIC_KINEMATIC
-                    | ActiveCollisionTypes::KINEMATIC_FIXED
-                    | ActiveCollisionTypes::DYNAMIC_DYNAMIC
+                        | ActiveCollisionTypes::KINEMATIC_KINEMATIC
+                        | ActiveCollisionTypes::KINEMATIC_FIXED
+                        | ActiveCollisionTypes::DYNAMIC_DYNAMIC,
                 )
                 .build();
-            self.collider_set.insert_with_parent(collider, handle, &mut self.rigid_body_set);
+            self.collider_set
+                .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         }
     }
 
@@ -206,7 +214,11 @@ impl PhysicsWorld {
         material: PhysicsMaterial,
     ) {
         if let Some(handle) = self.find_handle(body_handle_raw) {
-            let entity_index = self.body_to_entity.get(&handle).copied().unwrap_or(u32::MAX);
+            let entity_index = self
+                .body_to_entity
+                .get(&handle)
+                .copied()
+                .unwrap_or(u32::MAX);
             let collider = ColliderBuilder::ball(radius)
                 .restitution(material.restitution)
                 .friction(material.friction)
@@ -214,12 +226,13 @@ impl PhysicsWorld {
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
-                    | ActiveCollisionTypes::KINEMATIC_KINEMATIC
-                    | ActiveCollisionTypes::KINEMATIC_FIXED
-                    | ActiveCollisionTypes::DYNAMIC_DYNAMIC
+                        | ActiveCollisionTypes::KINEMATIC_KINEMATIC
+                        | ActiveCollisionTypes::KINEMATIC_FIXED
+                        | ActiveCollisionTypes::DYNAMIC_DYNAMIC,
                 )
                 .build();
-            self.collider_set.insert_with_parent(collider, handle, &mut self.rigid_body_set);
+            self.collider_set
+                .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         }
     }
 
@@ -227,7 +240,7 @@ impl PhysicsWorld {
     fn remove_body_internal(&mut self, entity_index: u32) {
         if let Some(handle) = self.entity_to_body.remove(&entity_index) {
             self.body_to_entity.remove(&handle);
-            let raw = handle.0.into_raw_parts().0 as u32;
+            let raw = handle.0.into_raw_parts().0;
             self.handle_by_raw.remove(&raw);
             self.rigid_body_set.remove(
                 handle,
@@ -248,7 +261,6 @@ impl PhysicsWorld {
 
     // ── Simulation ────────────────────────────────────────────────────────
 
-
     pub fn step(&mut self, delta: f32) {
         self.integration_params.dt = delta;
 
@@ -266,8 +278,8 @@ impl PhysicsWorld {
             &mut self.multibody_joint_set,
             &mut self.ccd_solver,
             Some(&mut self.query_pipeline),
-            &(),          // PhysicsHooks — unused
-            &collector,   // EventHandler
+            &(),        // PhysicsHooks — unused
+            &collector, // EventHandler
         );
 
         self.collision_events = collector.take();
@@ -297,9 +309,7 @@ impl PhysicsWorld {
         if let Some(&handle) = self.entity_to_body.get(&entity_index) {
             if let Some(body) = self.rigid_body_set.get_mut(handle) {
                 if body.is_kinematic() {
-                    body.set_next_kinematic_position(
-                        Isometry::new(vector![x, y], 0.0)
-                    );
+                    body.set_next_kinematic_position(Isometry::new(vector![x, y], 0.0));
                 }
             }
         }
@@ -369,10 +379,10 @@ impl PhysicsWorld {
         let writer = RingWriter::new(buf, 11);
         for ev in &self.collision_events {
             if let Some(offset) = writer.next_write_offset() {
-                write_u16(buf, offset,      0u16);               // type = 0 (collision)
-                write_u32(buf, offset + 2,  ev.entity_a);
-                write_u32(buf, offset + 6,  ev.entity_b);
-                write_u8 (buf, offset + 10, if ev.started { 1 } else { 0 });
+                write_u16(buf, offset, 0u16); // type = 0 (collision)
+                write_u32(buf, offset + 2, ev.entity_a);
+                write_u32(buf, offset + 6, ev.entity_b);
+                write_u8(buf, offset + 10, if ev.started { 1 } else { 0 });
                 writer.advance();
             } else {
                 #[cfg(debug_assertions)]
@@ -383,7 +393,6 @@ impl PhysicsWorld {
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────
-
 
     pub fn stats_json(&self) -> String {
         format!(

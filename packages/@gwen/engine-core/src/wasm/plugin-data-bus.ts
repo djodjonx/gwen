@@ -181,7 +181,9 @@ export class PluginDataBus {
   /**
    * Verify that no sentinel has been overwritten.
    * Throws if a buffer overrun is detected.
-   * Call each frame in debug mode after `dispatchWasmStep`.
+   *
+   * Called by `Engine._tick()` via `this.pluginDataBus?.checkSentinels()` in debug mode.
+   * @public
    */
   checkSentinels(): void {
     if (!this._sentinelsWritten) return;
@@ -205,7 +207,10 @@ export class PluginDataBus {
 
   /**
    * Reset all ring-buffer event channels to empty (write_head = read_head = 0).
-   * Must be called at the start of each frame, before `dispatchWasmStep`.
+   *
+   * Called by `Engine._tick()` via `this.pluginDataBus?.resetEventChannels()` at
+   * the start of each frame, before `dispatchWasmStep`.
+   * @public
    */
   resetEventChannels(): void {
     for (const alloc of this._channels.values()) {

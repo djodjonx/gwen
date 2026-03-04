@@ -1,6 +1,6 @@
 ---
 title: WASM Plugins — Guide & API Reference
-description: How to build, register, and use Rust/WASM plugins in GWEN. Covers shared memory, lifecycle, TypeScript glue, and the physics2d reference implementation.
+description: How to build, register, and use Rust/WASM plugins in GWEN. Covers the Plugin Data Bus, lifecycle, TypeScript glue, and the physics2d reference implementation.
 ---
 
 # Guide: Creating a WASM Plugin for GWEN
@@ -11,7 +11,7 @@ description: How to build, register, and use Rust/WASM plugins in GWEN. Covers s
 > **Prerequisites:** Rust stable + `wasm-pack` installed, basic knowledge of GWEN
 >
 > **See also:** [WASM Plugin Best Practices](./wasm-plugin-best-practices.md) —
-> rules, pitfalls, and design decisions learned from building the first plugin.
+> rules, pitfalls, and design decisions.
 
 ---
 
@@ -19,17 +19,16 @@ description: How to build, register, and use Rust/WASM plugins in GWEN. Covers s
 
 1. [Prerequisites](#1-prerequisites)
 2. [Plugin architecture](#2-plugin-architecture)
-3. [Shared memory layout](#3-shared-memory-layout)
+3. [Plugin Data Bus — channel-based communication](#3-plugin-data-bus--channel-based-communication)
 4. [Sentinel guards — buffer overrun detection](#4-sentinel-guards--buffer-overrun-detection)
-5. [Memory growth and buffer-detach](#5-memory-growth-and-buffer-detach)
-6. [Parallel WASM fetch strategy](#6-parallel-wasm-fetch-strategy)
-7. [Creating the Rust crate](#7-creating-the-rust-crate)
-8. [Creating the TypeScript package](#8-creating-the-typescript-package)
-9. [Declaring the plugin in `gwen.config.ts`](#9-declaring-the-plugin-in-gwenconfigts)
-10. [COOP/COEP headers](#10-coopcoep-headers)
-11. [Testing](#11-testing)
-12. [Type reference](#12-type-reference)
-13. [Reference implementation: `@gwen/plugin-physics2d`](#13-reference-implementation-gwenplugin-physics2d)
+5. [Parallel WASM fetch strategy](#5-parallel-wasm-fetch-strategy)
+6. [Creating the Rust crate](#6-creating-the-rust-crate)
+7. [Creating the TypeScript package](#7-creating-the-typescript-package)
+8. [Declaring the plugin in `gwen.config.ts`](#8-declaring-the-plugin-in-gwenconfigts)
+9. [COOP/COEP headers](#9-coopcoep-headers)
+10. [Testing](#10-testing)
+11. [Type reference](#11-type-reference)
+12. [Reference implementation: `@gwen/plugin-physics2d`](#12-reference-implementation-gwenplugin-physics2d)
 
 ---
 
@@ -61,7 +60,7 @@ my-plugin/
       lib.rs
       bindings.rs      ← wasm-bindgen exports
       world.rs         ← simulation state & step logic
-      memory.rs        ← shared buffer read/write helpers
+      memory.rs        ← buffer layout helpers
     tests/
       my_plugin_tests.rs
 
@@ -79,272 +78,210 @@ my-plugin/
 ### Per-frame data flow
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                       Engine._tick()                         │
-│                                                              │
-│  1. dispatchBeforeUpdate()   — TsPlugins: capture inputs     │
-│  2. syncTransformsToBuffer() — ECS → SAB (gwen-core ptr)     │
-│  3. dispatchWasmStep()       — plugin.onStep(delta)          │
-│     └─ Rust reads SAB, computes, writes SAB                  │
-│  4. checkSentinels()  ← debug mode: detect buffer overruns   │
-│  5. syncTransformsFromBuffer() — SAB → ECS                   │
-│  6. wasmBridge.tick()        — Rust game-loop heartbeat      │
-│  7. dispatchUpdate()         — TsPlugins: game logic         │
-│  8. dispatchRender()         — TsPlugins: rendering          │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Engine._tick()                               │
+│                                                                      │
+│  1. dispatchBeforeUpdate()      TsPlugins: capture inputs            │
+│  2. syncTransformsToBuffer()    ECS → SAB (legacy gwen-core ptr)     │
+│  2b. resetEventChannels()       Bus: reset ring-buffer heads to 0    │
+│  3. dispatchWasmStep()          plugin.onStep(delta)                 │
+│     └─ Rust reads Bus channels, computes, writes Bus channels        │
+│  4. checkSentinels()   [debug]  SAB + Bus buffer overrun detection   │
+│  5. syncTransformsFromBuffer()  SAB → ECS (legacy)                  │
+│  6. wasmBridge.tick()           Rust game-loop heartbeat             │
+│  7. dispatchUpdate()            TsPlugins: game logic + read events  │
+│  8. dispatchRender()            TsPlugins: rendering                 │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Shared memory layout
+## 3. Plugin Data Bus — channel-based communication
 
-`SharedMemoryManager` allocates a contiguous buffer in `gwen-core`'s WASM
-linear memory. Every entity occupies exactly **32 bytes** (constant stride).
+### Why the Bus exists
 
-```
-slot_offset = entity_index * TRANSFORM_STRIDE  (TRANSFORM_STRIDE = 32)
+Two separate WASM modules cannot share raw pointers — each has its own isolated
+linear memory. The **Plugin Data Bus** provides the correct solution: JS-native
+`ArrayBuffer`s allocated by the engine, independent of any WASM module's memory.
 
-slot_offset +  0 : pos_x    (f32, 4 B) — world X position in metres
-slot_offset +  4 : pos_y    (f32, 4 B) — world Y position in metres
-slot_offset +  8 : rotation (f32, 4 B) — angle in radians
-slot_offset + 12 : scale_x  (f32, 4 B)
-slot_offset + 16 : scale_y  (f32, 4 B)
-slot_offset + 20 : flags    (u32, 4 B) — bit 0 = physics_active, bit 1 = dirty
-slot_offset + 24 : reserved (8  B)     — reserved for future use
-```
+Key properties:
+- **Immune to `memory.grow()`** — Bus buffers are plain JS `ArrayBuffer`s.
+  A `memory.grow()` in `gwen-core.wasm` never invalidates them.
+- **Zero `onMemoryGrow()` needed** — no view invalidation, no refresh logic.
+- **One bulk copy per channel per frame** — Rust calls `copy_from()` once.
+  At 500 entities this costs ~10–20 µs — negligible vs. the simulation.
+- **Typed sentinel guards** — each buffer gets a `0xDEADBEEF` canary in
+  debug mode, checked after every `dispatchWasmStep()`.
 
-### Rust helpers (`src/memory.rs`)
+### Declaring channels
 
-> ⚠️ **Cross-module memory isolation — critical rule**
->
-> Each WASM module has its own **completely isolated linear memory**. A `usize`
-> raw pointer valid inside `gwen-core.wasm` is **meaningless** in
-> `gwen_physics2d.wasm` — dereferencing it causes `RuntimeError: memory access
-> out of bounds` immediately.
->
-> **The only valid way to share memory between two WASM modules in GWEN v1**
-> is a **`Uint8Array` JS view** over one module's memory, passed to the other:
->
-> ```typescript
-> // TypeScript onInit — build a view over gwen-core's region
-> const mem = bridge.getLinearMemory()!;
-> const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
-> this.wasmPlugin = new wasm.MyPlugin(sharedBuf, maxEntities);
-> ```
->
-> ```rust
-> // Rust — accept Uint8Array, read/write via js_sys helpers
-> use js_sys::Uint8Array;
->
-> #[wasm_bindgen(constructor)]
-> pub fn new(shared_buf: Uint8Array, max_entities: u32) -> Self { … }
->
-> fn read_f32(buf: &Uint8Array, offset: usize) -> f32 { … }
-> fn write_f32(buf: &Uint8Array, offset: usize, v: f32) { … }
-> ```
->
-> Always implement `onMemoryGrow` to refresh the view after a `memory.grow()` event:
->
-> ```typescript
-> onMemoryGrow(newMemory: WebAssembly.Memory): void {
->   const fresh = new Uint8Array(newMemory.buffer, this._region.byteOffset, this._region.byteLength);
->   this.wasmPlugin.update_shared_buf(fresh);
-> }
-> ```
->
-> **Long term:** the WASM Component Model will solve this via WIT interfaces and
-> native memory sharing. See `specs/PLAN_WASM_COMPONENT_MODEL.md`. Horizon ~2027.
-
-```rust
-use crate::memory::{write_position_rotation_local, flush_to_js, clear_physics_active};
-
-// ── Hot path (called every frame in write_positions_to_buffer) ────────────────
-// Build a local Rust buffer — zero FFI cost
-let mut local = vec![0u8; max_entities as usize * STRIDE];
-
-for each active entity:
-    write_position_rotation_local(&mut local, entity_index, x, y, rot);
-
-// Single FFI call — flush entire buffer to JS at once
-flush_to_js(&shared_buf, &local);
-
-// ── Cold path (per-event, not per-frame) ──────────────────────────────────────
-// Called only in remove_rigid_body
-clear_physics_active(&shared_buf, entity_index);
-```
-
-> **Why a local buffer?**
-> Each `buf.set_index()` / `buf.get_index()` call on a `js_sys::Uint8Array`
-> is a wasm→JS FFI crossing. The naive approach (write f32 = 4 calls,
-> write position+rotation+flags = **20 calls per entity**) costs ~0.2 ms/frame
-> at 10k entities. A local `Vec<u8>` filled with pure Rust ops + one
-> `copy_from()` flush reduces this to **1 FFI call per frame** — ~20× faster
-> on the sync path.
-
-### TypeScript constants
+Declare your plugin's channels as a static array on the class:
 
 ```typescript
-import { TRANSFORM_STRIDE, FLAG_PHYSICS_ACTIVE, FLAGS_OFFSET, SENTINEL } from '@gwen/engine-core';
+import type { PluginChannel } from '@gwen/engine-core';
+
+readonly channels: PluginChannel[] = [
+  // Transform data from ECS → plugin (read direction)
+  {
+    name:        'transform',
+    direction:   'read',
+    strideBytes: 20,      // pos_x f32, pos_y f32, rot f32, scale_x f32, scale_y f32
+    bufferType:  'f32',
+  },
+  // Binary events from plugin → TS (ring buffer)
+  {
+    name:           'events',
+    direction:      'write',
+    bufferType:     'ring',
+    capacityEvents: 256,
+  },
+];
+```
+
+`PluginDataBus` allocates one `ArrayBuffer` per channel before `onInit()` is called.
+
+### Channel types
+
+| `bufferType` | View type       | Buffer size formula                              |
+|---|---|---|
+| `'f32'`      | `Float32Array`  | `maxEntities × strideBytes + 4` (sentinel)       |
+| `'i32'`      | `Int32Array`    | `maxEntities × strideBytes + 4`                  |
+| `'u8'`       | `Uint8Array`    | `maxEntities × strideBytes + 4`                  |
+| `'ring'`     | `Uint8Array`    | `8 + capacityEvents × 11 + 4` (header + body + sentinel) |
+
+### Ring-buffer event protocol
+
+Events written by Rust are read by TypeScript using the binary ring-buffer protocol:
+
+```
+Buffer layout:
+  Offset  0..4  : write_head (u32 LE) — next slot for Rust to write
+  Offset  4..8  : read_head  (u32 LE) — next slot for TS to read
+  Offset  8..N  : events, each 11 bytes:
+                    [type u16][slotA u32][slotB u32][flags u8]
+```
+
+The engine resets both heads to `0` at the start of each frame (step 2b),
+so Rust always writes fresh events and TypeScript always reads the current frame.
+
+### Receiving buffers in `onInit()`
+
+```typescript
+async onInit(
+  _bridge: WasmBridge,
+  _region: MemoryRegion | null,   // null when sharedMemoryBytes = 0
+  api: EngineAPI,
+  bus?: PluginDataBus,
+): Promise<void> {
+  // Retrieve pre-allocated buffers from the Bus
+  const transformBuf = bus?.get(this.id, 'transform')?.buffer
+    ?? new ArrayBuffer(this.config.maxEntities * 20);  // fallback for tests
+  const eventsBuf = bus?.get(this.id, 'events')?.buffer
+    ?? new ArrayBuffer(8 + 256 * 11);
+
+  const wasm = await loadWasmPlugin<MyWasmModule>({ jsUrl: '…', wasmUrl: '…', name: '…' });
+
+  // Pass as Uint8Array views — the only valid cross-module memory bridge
+  this.wasmPlugin = new wasm.MyPlugin(
+    new Uint8Array(transformBuf),
+    new Uint8Array(eventsBuf),
+    this.config.maxEntities,
+  );
+
+  api.services.register('myService', this._createAPI());
+}
+```
+
+### Reading events in TypeScript
+
+```typescript
+import { readEventChannel } from '@gwen/engine-core';
+
+getMyEvents() {
+  if (!this._eventsBuf) return [];
+  return readEventChannel(this._eventsBuf);
+  // Returns: Array<{ type: number; slotA: number; slotB: number; flags: number }>
+}
+```
+
+`readEventChannel` advances `read_head` to `write_head` after reading —
+calling it a second time within the same frame returns `[]`.
+
+### Setting `sharedMemoryBytes = 0`
+
+Plugins using the Bus should set `sharedMemoryBytes = 0`. This tells
+`SharedMemoryManager` to skip allocation and passes `region = null` to `onInit()`.
+
+```typescript
+readonly sharedMemoryBytes = 0;  // No legacy SAB — use the Bus
 ```
 
 ---
 
 ## 4. Sentinel guards — buffer overrun detection
 
-### Why it matters
+Both the legacy SAB and the Plugin Data Bus use `0xDEADBEEF` sentinel canaries
+written at the end of each allocated buffer.
 
-If a Rust plugin writes more bytes than its `MemoryRegion.byteLength` allows, it
-silently overwrites the adjacent region — corrupting another plugin's data with
-no immediate error. This is the classic "heap corruption" bug.
-
-### How GWEN detects it
-
-`SharedMemoryManager` writes a **4-byte sentinel** (`0xDEADBEEF`) immediately
-after each allocated region:
+`Engine._tick()` calls `checkSentinels()` **after** `dispatchWasmStep()` in
+debug mode. If any sentinel has been overwritten, an error is thrown immediately:
 
 ```
-| region A data (byteLength) | 0xDEADBEEF (4 B) | region B data … |
+[GWEN] PluginDataBus: sentinel overwrite detected in plugin 'my-plugin' channel 'events'
+Expected 0xDEADBEEF, got 0x00000000.
+The Rust plugin wrote past the end of its buffer.
 ```
 
-`Engine._tick()` calls `checkSentinels()` **after** `dispatchWasmStep()` and
-**before** `syncTransformsFromBuffer()` — the only frame slot where an overrun
-could have occurred. If any sentinel has been overwritten, an error is thrown
-immediately with the offending plugin name and the corrupted address.
-
-```
-[GWEN:SharedMemory] Sentinel overwrite detected for plugin 'physics2d'!
-Expected 0xDEADBEEF at address 327680, found 0xCAFEBABE.
-The plugin wrote past its MemoryRegion.byteLength boundary.
-```
-
-### Enabling sentinel checks
-
-Sentinel checks run **only when `debug: true`** in your engine config:
+Enable sentinel checks with `debug: true` in your engine config:
 
 ```typescript
 export default defineConfig({
-  engine: { debug: true },   // ← enables per-frame sentinel verification
-  wasmPlugins: [physics2D()],
+  engine: { debug: true },
+  wasmPlugins: [myPlugin()],
 });
 ```
 
-In production (`debug: false`) the check is skipped entirely — zero overhead.
+In production (`debug: false`) the check is skipped — zero overhead.
 
 ---
 
-## 5. Memory growth and buffer-detach
+## 5. Parallel WASM fetch strategy
 
-### The problem
-
-When Rust allocates enough memory to exhaust the current WASM linear memory,
-the runtime calls `memory.grow(n_pages)`. This **replaces the underlying
-`ArrayBuffer`**. Any `TypedArray` or `DataView` built on the old buffer
-becomes **detached** — reads return `0`, writes are silently discarded.
-
-**Rust-side: safe.** Rust computes addresses from pointer arithmetic and never
-holds a JS `ArrayBuffer` reference.
-
-**TypeScript-side: dangerous** if your plugin caches a typed array view.
-
-### The fix — always re-wrap `memory.buffer`
-
-```typescript
-// ❌ Wrong: buffer reference cached across frames
-this.view = new Float32Array(bridge.getLinearMemory()!.buffer, ptr, slotCount * 8);
-
-// ✅ Correct: re-wrap on every frame (or in onMemoryGrow)
-const view = new Float32Array(bridge.getLinearMemory()!.buffer, ptr, slotCount * 8);
-```
-
-### The `onMemoryGrow()` hook
-
-For plugins that genuinely need to cache a view (performance-critical debug
-overlay, for instance), implement the optional `onMemoryGrow()` hook:
-
-```typescript
-export class MyPlugin implements GwenWasmPlugin {
-  private view: Float32Array | null = null;
-
-  async onInit(bridge, region, api) {
-    this.refreshView(bridge, region);
-  }
-
-  onMemoryGrow(newMemory: WebAssembly.Memory) {
-    // Called automatically when gwen-core grows its linear memory.
-    // Recreate the view on the fresh ArrayBuffer.
-    this.view = new Float32Array(newMemory.buffer, this.region!.byteOffset, this.slotCount * 8);
-  }
-
-  private refreshView(bridge: WasmBridge, region: MemoryRegion) {
-    const mem = bridge.getLinearMemory();
-    if (mem) this.view = new Float32Array(mem.buffer, region.byteOffset, this.slotCount * 8);
-  }
-}
-```
-
-`bridge.getLinearMemory()` returns the live `WebAssembly.Memory` object —
-access `.buffer` fresh on each use, never cache the buffer itself.
-
----
-
-## 6. Parallel WASM fetch strategy
-
-### The two-phase init in `createEngine()`
-
-`createEngine()` separates plugin initialisation into two phases to minimise
-load time when multiple WASM plugins are declared:
+`createEngine()` separates plugin initialisation into two phases:
 
 ```
 Phase 1 — network (parallel)
   All plugins' _prefetch() calls run concurrently.
-  Each plugin fetches its .wasm binary independently.
   Total network time = max(individual fetch times), not their sum.
 
 Phase 2 — memory + services (sequential)
   onInit() is called one plugin at a time.
-  allocateRegion() mutates SharedMemoryManager.usedBytes — not concurrency-safe.
-  Service registration must be ordered to avoid dependency issues.
+  Bus allocation and service registration are ordered and deterministic.
 ```
 
-### Implementing `_prefetch()` in your plugin
+Implement `_prefetch()` to kick off the WASM binary download early:
 
 ```typescript
-export class MyPlugin implements GwenWasmPlugin {
-  // Cached during _prefetch, consumed in onInit
-  private _wasmModule: MyWasmModule | null = null;
+private _wasmModule: MyWasmModule | null = null;
 
-  /**
-   * Phase 1 — runs in parallel with other plugins' _prefetch().
-   * Fetch the .wasm binary and cache the initialized module.
-   */
-  async _prefetch(): Promise<void> {
-    this._wasmModule = await loadWasmPlugin<MyWasmModule>({
-      jsUrl:   '/wasm/gwen_my_plugin.js',
-      wasmUrl: '/wasm/gwen_my_plugin_bg.wasm',
-      name:    'MyPlugin',
-    });
-  }
+async _prefetch(): Promise<void> {
+  this._wasmModule = await loadWasmPlugin<MyWasmModule>({
+    jsUrl:   '/wasm/gwen_my_plugin.js',
+    wasmUrl: '/wasm/gwen_my_plugin_bg.wasm',
+    name:    this.name,
+  });
+}
 
-  /**
-   * Phase 2 — runs sequentially.
-   * _wasmModule is already loaded — no network round-trip here.
-   */
-  async onInit(bridge, region, api) {
-    const wasm = this._wasmModule!;
-    const mem = bridge.getLinearMemory()!;
-    const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
-    this.wasmPlugin = new wasm.MyPlugin(sharedBuf, this.maxEntities);
-    api.services.register('myService', this._createAPI());
-  }
+async onInit(_bridge, _region, api, bus) {
+  // Module already downloaded — no second round-trip
+  const wasm = this._wasmModule!;
+  // … retrieve bus buffers, construct Rust struct, register service
 }
 ```
 
-Plugins that do **not** implement `_prefetch()` simply fetch inside `onInit()`.
-Both patterns work — `_prefetch()` is a performance optimisation, not required.
-
 ---
 
-## 7. Creating the Rust crate
+## 6. Creating the Rust crate
 
 ### `Cargo.toml`
 
@@ -355,67 +292,79 @@ version.workspace = true
 edition.workspace = true
 
 [lib]
-crate-type = ["cdylib", "rlib"]   # cdylib for WASM, rlib for native tests
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = "0.2.87"
-js-sys       = "0.3.64"
-# Add your simulation library here
+wasm-bindgen    = "0.2.87"
+js-sys          = "0.3.64"
+gwen-wasm-utils = { path = "../../crates/gwen-wasm-utils" }
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false   # Avoid compatibility issues with wasm-opt and bulk-memory opcodes
+wasm-opt = false
 ```
 
-### Minimal Rust file structure
+### `src/bindings.rs`
 
-**`src/lib.rs`**
-```rust
-pub mod bindings;
-pub mod memory;   // copy from crates/gwen-plugin-physics2d/src/memory.rs
-pub mod world;
-
-pub use bindings::MyPlugin;
-```
-
-**`src/bindings.rs`** — wasm-bindgen interface
 ```rust
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
+use gwen_wasm_utils::ring::RingWriter;
+use gwen_wasm_utils::buffer::{write_u16, write_u32, write_u8};
 use crate::world::MyWorld;
-use crate::memory::{write_position_rotation_local, flush_to_js, STRIDE};
 
 #[wasm_bindgen]
 pub struct MyPlugin {
-    world:        MyWorld,
-    shared_buf:   Uint8Array,  // JS view over gwen-core's region — NOT a raw ptr
-    max_entities: u32,
+    world:         MyWorld,
+    transform_buf: Uint8Array,  // Canal "transform" — JS-native ArrayBuffer du Bus
+    events_buf:    Uint8Array,  // Canal "events"    — ring buffer JS-native du Bus
+    max_entities:  u32,
 }
 
 #[wasm_bindgen]
 impl MyPlugin {
     #[wasm_bindgen(constructor)]
-    pub fn new(shared_buf: Uint8Array, max_entities: u32) -> Self {
-        MyPlugin { world: MyWorld::new(), shared_buf, max_entities }
+    pub fn new(
+        transform_buf: Uint8Array,
+        events_buf:    Uint8Array,
+        max_entities:  u32,
+    ) -> Self {
+        MyPlugin { world: MyWorld::new(), transform_buf, events_buf, max_entities }
     }
 
-    /// Refresh the shared buffer view after a gwen-core memory.grow() event.
-    pub fn update_shared_buf(&mut self, new_buf: Uint8Array) {
-        self.shared_buf = new_buf;
-    }
-
-    /// Called every frame by the TS layer via onStep(delta).
-    /// Writes all updated positions in a single FFI call.
     pub fn step(&mut self, delta: f32) {
-        self.world.step(delta);
+        // 1. Read transforms from Bus (positions ECS → plugin)
+        self.world.read_transforms_from_buffer(&self.transform_buf, self.max_entities);
 
-        // Build local buffer (pure Rust, zero FFI) then flush in one call
-        let byte_len = self.max_entities as usize * STRIDE;
-        let mut local = vec![0u8; byte_len];
-        for entity_index in 0..self.max_entities {
-            let (new_x, new_y, new_rot) = self.world.compute(entity_index);
-            write_position_rotation_local(&mut local, entity_index, new_x, new_y, new_rot);
+        // 2. Simulate
+        self.world.simulate(delta);
+
+        // 3. Write events to ring buffer
+        self.world.write_events_to_buffer(&self.events_buf);
+    }
+}
+```
+
+### `src/world.rs` — writing events
+
+```rust
+use js_sys::Uint8Array;
+use gwen_wasm_utils::ring::RingWriter;
+use gwen_wasm_utils::buffer::{write_u16, write_u32, write_u8};
+
+pub fn write_events_to_buffer(&self, buf: &Uint8Array) {
+    let writer = RingWriter::new(buf, 11 /* stride: type u16 + slotA u32 + slotB u32 + flags u8 */);
+    for ev in &self.events {
+        if let Some(offset) = writer.next_write_offset() {
+            write_u16(buf, offset,      ev.event_type);
+            write_u32(buf, offset + 2,  ev.slot_a);
+            write_u32(buf, offset + 6,  ev.slot_b);
+            write_u8 (buf, offset + 10, ev.flags);
+            writer.advance();
+        } else {
+            #[cfg(debug_assertions)]
+            js_sys::eval("console.warn('[GWEN:MyPlugin] events ring buffer overflow')").ok();
+            break;
         }
-        flush_to_js(&self.shared_buf, &local); // 1 FFI call total
     }
 }
 ```
@@ -426,76 +375,91 @@ impl MyPlugin {
 wasm-pack build crates/gwen-plugin-my-plugin \
   --target web \
   --out-dir packages/@gwen/plugin-my-plugin/wasm \
-  --out-name gwen_my_plugin
-
-# Output in packages/@gwen/plugin-my-plugin/wasm/:
-#   gwen_my_plugin.js          ← wasm-bindgen JS glue
-#   gwen_my_plugin_bg.wasm     ← WASM binary
-#   gwen_my_plugin.d.ts        ← TypeScript types
+  --release
 ```
 
 ---
 
-## 8. Creating the TypeScript package
+## 7. Creating the TypeScript package
 
-### `src/index.ts` — minimal implementation
+### `src/index.ts` — implémentation complète
 
 ```typescript
-import type { GwenWasmPlugin, WasmBridge, EngineAPI, MemoryRegion } from '@gwen/engine-core';
-import { loadWasmPlugin } from '@gwen/engine-core';
-
-export interface MyPluginConfig {
-  maxEntities?: number;
-}
+import type {
+  GwenWasmPlugin, WasmBridge, EngineAPI, MemoryRegion,
+  PluginChannel,
+} from '@gwen/engine-core';
+import { loadWasmPlugin, readEventChannel } from '@gwen/engine-core';
+import type { PluginDataBus } from '@gwen/engine-core';
 
 export class MyPlugin implements GwenWasmPlugin {
-  readonly id = 'my-plugin';
-  readonly name = 'MyPlugin';
-  readonly sharedMemoryBytes: number;
+  readonly id      = 'my-plugin' as const;
+  readonly name    = 'MyPlugin'  as const;
+  readonly version = '0.1.0';
+
+  // No legacy SAB — use the Plugin Data Bus
+  readonly sharedMemoryBytes = 0;
+
+  readonly channels: PluginChannel[] = [
+    { name: 'transform', direction: 'read',  strideBytes: 20, bufferType: 'f32' },
+    { name: 'events',    direction: 'write', bufferType: 'ring', capacityEvents: 256 },
+  ];
+
   readonly provides = { myService: {} as MyServiceAPI };
 
-  private _wasmModule: WasmMyModule | null = null;   // cached by _prefetch
-  private wasmPlugin:  WasmMyPlugin | null = null;
+  private wasmPlugin: WasmMyPlugin | null = null;
+  private _eventsBuf: ArrayBuffer  | null = null;
 
-  constructor(private config: MyPluginConfig = {}) {
-    this.sharedMemoryBytes = (config.maxEntities ?? 10_000) * 32;
-  }
+  constructor(private config: MyPluginConfig = {}) {}
 
-  // Phase 1 — parallel network fetch
-  async _prefetch(): Promise<void> {
-    this._wasmModule = await loadWasmPlugin<WasmMyModule>({
+  async onInit(
+    _bridge: WasmBridge,
+    _region: MemoryRegion | null,
+    api: EngineAPI,
+    bus?: PluginDataBus,
+  ): Promise<void> {
+    const maxEntities = this.config.maxEntities ?? 10_000;
+
+    const transformBuf = bus?.get(this.id, 'transform')?.buffer
+      ?? new ArrayBuffer(maxEntities * 20);
+    const eventsBuf = bus?.get(this.id, 'events')?.buffer
+      ?? new ArrayBuffer(8 + 256 * 11);
+
+    this._eventsBuf = eventsBuf;
+
+    const wasm = await loadWasmPlugin<WasmMyModule>({
       jsUrl:   '/wasm/gwen_my_plugin.js',
       wasmUrl: '/wasm/gwen_my_plugin_bg.wasm',
       name:    this.name,
     });
-  }
 
-  // Phase 2 — sequential init
-  async onInit(bridge: WasmBridge, region: MemoryRegion, api: EngineAPI): Promise<void> {
-    this._region = region;
-    const wasm = this._wasmModule
-      ?? await loadWasmPlugin<WasmMyModule>({ /* fallback if _prefetch not called */ });
+    this.wasmPlugin = new wasm.MyPlugin(
+      new Uint8Array(transformBuf),
+      new Uint8Array(eventsBuf),
+      maxEntities,
+    );
 
-    // Build a Uint8Array view over gwen-core's region — the only valid
-    // way to share memory between two separate WASM modules.
-    const mem = bridge.getLinearMemory()!;
-    const sharedBuf = new Uint8Array(mem.buffer, region.byteOffset, region.byteLength);
-
-    this.wasmPlugin = new wasm.MyPlugin(sharedBuf, this.config.maxEntities ?? 10_000);
     api.services.register('myService', this._createAPI());
   }
 
-  // Refresh the view when gwen-core's linear memory grows (memory.grow() event)
-  onMemoryGrow(newMemory: WebAssembly.Memory): void {
-    if (!this.wasmPlugin || !this._region) return;
-    const fresh = new Uint8Array(newMemory.buffer, this._region.byteOffset, this._region.byteLength);
-    this.wasmPlugin.update_shared_buf(fresh);
-  }
+  // No onMemoryGrow() needed — Bus buffers are immune to memory.grow()
 
   onStep(deltaTime: number): void { this.wasmPlugin?.step(deltaTime); }
-  onDestroy(): void { this.wasmPlugin?.free?.(); this.wasmPlugin = null; }
 
-  private _createAPI(): MyServiceAPI { /* … */ }
+  onDestroy(): void {
+    this.wasmPlugin?.free?.();
+    this.wasmPlugin = null;
+    this._eventsBuf = null;
+  }
+
+  private _createAPI(): MyServiceAPI {
+    return {
+      getEvents: () => {
+        if (!this._eventsBuf) return [];
+        return readEventChannel(this._eventsBuf);
+      },
+    };
+  }
 }
 
 export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
@@ -503,7 +467,7 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 }
 ```
 
-### `package.json` — required `gwen` field
+### `package.json` — champ `gwen` requis
 
 ```json
 {
@@ -516,198 +480,199 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 }
 ```
 
-The `gwen.wasmFiles` array tells `@gwen/vite-plugin` which files to serve in
-dev mode and bundle into `dist/wasm/` for production.
-
 ---
 
-## 9. Declaring the plugin in `gwen.config.ts`
+## 8. Declaring the plugin in `gwen.config.ts`
 
 ```typescript
 import { defineConfig } from '@gwen/engine-core';
 import { myPlugin } from '@gwen/plugin-my-plugin';
 
 export default defineConfig({
-  engine: {
-    maxEntities: 10_000,
-    targetFPS:   60,
-    debug:       true,   // enables per-frame sentinel checks in development
-  },
-  wasmPlugins: [
-    myPlugin({ maxEntities: 10_000 }),
-  ],
-  tsPlugins: [],
+  engine: { maxEntities: 10_000, targetFPS: 60, debug: true },
+  wasmPlugins: [myPlugin({ maxEntities: 10_000 })],
 });
 ```
 
 ### Accessing the service in a TsPlugin
 
 ```typescript
-import type { MyServiceAPI } from '@gwen/plugin-my-plugin';
+onInit(api: EngineAPI) {
+  this.myService = api.services.get('myService') as MyServiceAPI;
+}
 
-export class MySystem implements TsPlugin {
-  name = 'MySystem';
-
-  // Resolve in onInit only — never in onUpdate (service lookup is O(1) but
-  // caching the reference is the idiomatic GWEN pattern)
-  private myService!: MyServiceAPI;
-
-  onInit(api: EngineAPI) {
-    this.myService = api.services.get('myService') as MyServiceAPI;
-  }
-
-  onUpdate(api: EngineAPI, delta: number) {
-    // Use this.myService — already resolved
+onUpdate(api: EngineAPI) {
+  for (const ev of this.myService.getEvents()) {
+    // ev: { type, slotA, slotB, flags }
+    // Reconstruct packed EntityId from raw slot index:
+    const gen = api.getEntityGeneration(ev.slotA);
+    const entityA = (gen << 20) | ev.slotA;
   }
 }
 ```
 
 ---
 
-## 10. COOP/COEP headers
+## 9. COOP/COEP headers
 
-`@gwen/vite-plugin` automatically sets the isolation headers in dev mode and
-in `vite preview`. For production deployments on custom servers:
+`@gwen/vite-plugin` sets the isolation headers automatically in dev mode.
+For production servers:
 
 ```nginx
-# nginx example
 add_header Cross-Origin-Opener-Policy  "same-origin";
 add_header Cross-Origin-Embedder-Policy "require-corp";
 ```
 
-> ⚠️ These headers prevent loading cross-origin images, fonts, and audio from
-> CDNs that do not return `Cross-Origin-Resource-Policy: cross-origin`.
-> All assets must be self-hosted or served from a CORP-compatible CDN.
-
 ---
 
-## 11. Testing
+## 10. Testing
 
 ### Rust tests (native, no browser required)
 
 ```bash
-# Fast native tests — runs in milliseconds, suitable for CI
 cargo test -p gwen-plugin-my-plugin
-
-# Browser tests (headless Chrome via wasm-pack)
-wasm-pack test crates/gwen-plugin-my-plugin --headless --chrome
+cargo check -p gwen-plugin-my-plugin --target wasm32-unknown-unknown
 ```
 
-### TypeScript tests (Vitest + WASM mock)
+### TypeScript tests (Vitest + mock WASM + mock Bus)
 
 ```typescript
-// tests/my_plugin.test.ts
-vi.mock('@gwen/engine-core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@gwen/engine-core')>();
-  return { ...original, loadWasmPlugin: vi.fn() };
-});
-
-import { loadWasmPlugin } from '@gwen/engine-core';
-import { MyPlugin } from '../src/index';
-
-it('onInit registers the service', async () => {
-  const mockWasm = {
-    MyPlugin: vi.fn().mockReturnValue({ step: vi.fn(), free: vi.fn() }),
+function makeMockBus(transformBuf?: ArrayBuffer, eventsBuf?: ArrayBuffer) {
+  const tb = transformBuf ?? new ArrayBuffer(10_000 * 20);
+  const eb = eventsBuf   ?? new ArrayBuffer(8 + 256 * 11);
+  return {
+    get: (pluginId: string, name: string) => {
+      if (name === 'transform') return { buffer: tb };
+      if (name === 'events')    return { buffer: eb };
+      return undefined;
+    },
+    _eventsBuf: eb,
   };
-  (loadWasmPlugin as Mock).mockResolvedValue(mockWasm);
+}
 
-  const plugin = new MyPlugin();
-  const api = makeMockAPI();  // { services: { register: vi.fn(), get: ... } }
-  await plugin.onInit(mockBridge, mockRegion, api);
+it('getEvents reads binary ring buffer', async () => {
+  const bus = makeMockBus();
+  // Write an event manually into the ring buffer
+  const view = new DataView(bus._eventsBuf);
+  view.setUint32(0, 1, true);          // write_head = 1
+  view.setUint32(8 + 2, 5, true);      // slotA = 5
+  view.setUint32(8 + 6, 3, true);      // slotB = 3
+  view.setUint8 (8 + 10, 1);           // flags = 1
 
-  expect(api.services.register).toHaveBeenCalledWith('myService', expect.any(Object));
+  await plugin.onInit(bridge, null, api, bus);
+  const events = myService.getEvents();
+  expect(events[0]).toEqual({ type: 0, slotA: 5, slotB: 3, flags: 1 });
 });
 ```
 
 ---
 
-## 12. Type reference
+## 11. Type reference
 
 ### `GwenWasmPlugin`
 
 ```typescript
 interface GwenWasmPlugin {
-  readonly id: string;               // Unique identifier ('physics2d', 'ai'…)
-  readonly name: string;             // Human-readable name ('Physics2D')
-  readonly version?: string;
-  readonly sharedMemoryBytes: number; // Bytes in SAB: maxEntities × TRANSFORM_STRIDE
+  readonly id:                string;
+  readonly name:              string;
+  readonly version?:          string;
+  readonly sharedMemoryBytes: number;          // Set to 0 for Bus-based plugins
+  readonly channels?:         PluginChannel[]; // Declare Bus channels here
+  readonly provides?:         Record<string, unknown>;
 
-  // Optional: services to register (for type-inference in api.services)
-  readonly provides?: Record<string, unknown>;
-
-  // Phase 1 — parallel network fetch (optional optimisation)
   _prefetch?(): Promise<void>;
 
-  // Phase 2 — sequential memory allocation + service registration
-  onInit(bridge: WasmBridge, region: MemoryRegion, api: EngineAPI): Promise<void>;
+  onInit(
+    bridge: WasmBridge,
+    region: MemoryRegion | null,   // null when sharedMemoryBytes = 0
+    api:    EngineAPI,
+    bus?:   PluginDataBus,
+  ): Promise<void>;
 
-  // Per-frame slot (between beforeUpdate and update)
   onStep?(deltaTime: number): void;
-
-  // Called when gwen-core's linear memory grows — recreate detached views here
-  onMemoryGrow?(newMemory: WebAssembly.Memory): void;
-
   onDestroy?(): void;
 }
 ```
 
-### `MemoryRegion`
+### `PluginChannel`
 
 ```typescript
-interface MemoryRegion {
-  readonly pluginId:   string;  // Owner plugin id
-  readonly ptr:        number;  // Raw pointer in gwen-core's WASM linear memory
-  readonly byteLength: number;  // Usable bytes (8-byte aligned)
-  readonly byteOffset: number;  // Offset from start of shared buffer
+// Data channel — bulk array of structs
+type DataChannel = {
+  name:        string;
+  direction:   'read' | 'write' | 'readwrite';
+  strideBytes: number;       // bytes per entity slot
+  bufferType:  'f32' | 'i32' | 'u8';
+};
+
+// Event channel — binary ring buffer
+type EventChannel = {
+  name:           string;
+  direction:      'write';
+  bufferType:     'ring';
+  capacityEvents: number;    // max simultaneous events per frame
+};
+
+type PluginChannel = DataChannel | EventChannel;
+```
+
+### `GwenEvent`
+
+```typescript
+interface GwenEvent {
+  type:  number;   // u16 — plugin-defined event type
+  slotA: number;   // u32 — raw ECS slot index of first entity
+  slotB: number;   // u32 — raw ECS slot index of second entity (0 if N/A)
+  flags: number;   // u8  — plugin-defined flags
 }
 ```
 
-### `SharedMemoryManager`
+### `PluginDataBus`
 
 ```typescript
-class SharedMemoryManager {
-  // Allocate the buffer in gwen-core's linear memory
-  static create(bridge: WasmBridge, maxEntities?: number): SharedMemoryManager;
+class PluginDataBus {
+  allocate(pluginId: string, channel: PluginChannel, maxEntities: number): AllocatedChannel;
+  get(pluginId: string, channelName: string): AllocatedChannel | undefined;
+  writeSentinels(): void;
+  checkSentinels(): void;
+  resetEventChannels(): void;
+}
 
-  // Carve out a named region + write sentinel guard
-  allocateRegion(pluginId: string, byteLength: number): MemoryRegion;
-
-  // Per-frame integrity check (throws if any sentinel overwritten)
-  checkSentinels(bridge: WasmBridge): void;
-
-  // Write sentinel canaries into the buffer (called by createEngine after all regions allocated)
-  _writeSentinels(bridge: WasmBridge): void;
-
-  getTransformRegion(): MemoryRegion;
-  get allocatedBytes(): number;
-  get capacityBytes(): number;
+interface AllocatedChannel {
+  readonly pluginId: string;
+  readonly channel:  PluginChannel;
+  readonly buffer:   ArrayBuffer;
+  readonly view:     Float32Array | Int32Array | Uint8Array;
 }
 ```
 
-### Key constants
+### Helpers
 
 ```typescript
-const TRANSFORM_STRIDE   = 32;          // Bytes per entity slot
-const FLAG_PHYSICS_ACTIVE = 0b01;       // Bit 0 of the flags field
-const FLAGS_OFFSET        = 20;         // Byte offset of flags in a slot
-const SENTINEL            = 0xDEADBEEF; // Buffer-overrun canary value
+// Read all pending events from a ring buffer (advances read_head)
+function readEventChannel(buffer: ArrayBuffer): GwenEvent[];
+
+// Write a single event into a ring buffer from TypeScript
+function writeEventToChannel(buffer: ArrayBuffer, event: GwenEvent): boolean;
+
+// Get a Float32Array view over a data channel buffer
+function getDataChannelView(buffer: ArrayBuffer): Float32Array;
 ```
 
 ---
 
-## 13. Reference implementation: `@gwen/plugin-physics2d`
+## 12. Reference implementation: `@gwen/plugin-physics2d`
 
 The official `@gwen/plugin-physics2d` plugin covers every pattern documented here:
 
 | Pattern | File |
-|---------|------|
-| Shared buffer layout (memory.rs) | `crates/gwen-plugin-physics2d/src/memory.rs` |
-| ECS ↔ simulation mapping | `crates/gwen-plugin-physics2d/src/world.rs` |
-| wasm-bindgen exports | `crates/gwen-plugin-physics2d/src/bindings.rs` |
-| GwenWasmPlugin (TS) | `packages/@gwen/plugin-physics2d/src/index.ts` |
-| Service types | `packages/@gwen/plugin-physics2d/src/types.ts` |
-| Rust tests (native) | `crates/gwen-plugin-physics2d/tests/physics_world_tests.rs` |
-| TS tests (mocked WASM) | `packages/@gwen/plugin-physics2d/tests/physics2d.test.ts` |
+|---|---|
+| Channel declaration | `packages/@gwen/plugin-physics2d/src/index.ts` |
+| Bus buffer retrieval in `onInit` | `packages/@gwen/plugin-physics2d/src/index.ts` |
+| Binary event reading (`readCollisionEventsFromBuffer`) | `packages/@gwen/plugin-physics2d/src/types.ts` |
+| Rust ring-buffer event writing | `crates/gwen-plugin-physics2d/src/world.rs` |
+| `gwen-wasm-utils` usage | `crates/gwen-plugin-physics2d/src/world.rs` |
+| TS tests with mock Bus | `packages/@gwen/plugin-physics2d/tests/physics2d.test.ts` |
 
 ```typescript
 // Complete usage example
@@ -730,9 +695,11 @@ onInit(api: EngineAPI) {
 }
 
 onUpdate(api: EngineAPI) {
-  for (const event of this.physics.getCollisionEvents()) {
-    console.log(`Collision: entity ${event.entityA} ↔ ${event.entityB}`);
+  for (const ev of this.physics.getCollisionEvents()) {
+    // ev.slotA / ev.slotB are raw slot indices — reconstruct packed EntityId:
+    const genA   = api.getEntityGeneration(ev.slotA);
+    const entityA = (genA << 20) | ev.slotA;
+    const tagA    = api.getComponent(entityA, Tag);
   }
 }
 ```
-

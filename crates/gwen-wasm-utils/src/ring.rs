@@ -15,8 +15,8 @@
 //! The ring wraps around when `write_head` reaches `capacity`.
 //! `next_write_offset` returns `None` when the ring is full.
 
-use js_sys::Uint8Array;
 use crate::buffer::{read_u32, write_u32};
+use js_sys::Uint8Array;
 
 /// Byte size of the ring-buffer header (write_head + read_head).
 pub const HEADER_BYTES: usize = 8;
@@ -27,9 +27,9 @@ pub const HEADER_BYTES: usize = 8;
 /// responsibility to reset both heads to 0 at the start of each frame
 /// (before calling the Rust `step()`).
 pub struct RingWriter<'a> {
-    buf:      &'a Uint8Array,
+    buf: &'a Uint8Array,
     capacity: usize,
-    stride:   usize,
+    stride: usize,
 }
 
 impl<'a> RingWriter<'a> {
@@ -39,7 +39,11 @@ impl<'a> RingWriter<'a> {
     /// `(buf.length() - HEADER_BYTES) / stride`
     pub fn new(buf: &'a Uint8Array, stride: usize) -> Self {
         let capacity = (buf.length() as usize).saturating_sub(HEADER_BYTES) / stride;
-        Self { buf, capacity, stride }
+        Self {
+            buf,
+            capacity,
+            stride,
+        }
     }
 
     /// Returns the byte offset at which to write the **next** event.
@@ -47,11 +51,15 @@ impl<'a> RingWriter<'a> {
     /// Returns `None` if the ring is full (overflow — the Rust plugin should
     /// emit a warning and skip the event).
     pub fn next_write_offset(&self) -> Option<usize> {
-        if self.capacity == 0 { return None; }
+        if self.capacity == 0 {
+            return None;
+        }
         let write_head = read_u32(self.buf, 0) as usize;
-        let read_head  = read_u32(self.buf, 4) as usize;
+        let read_head = read_u32(self.buf, 4) as usize;
         let next = (write_head + 1) % self.capacity;
-        if next == read_head { return None; } // ring full
+        if next == read_head {
+            return None;
+        } // ring full
         Some(HEADER_BYTES + write_head * self.stride)
     }
 
@@ -60,9 +68,10 @@ impl<'a> RingWriter<'a> {
     /// Must be called **once** after writing at the offset returned by
     /// [`next_write_offset`].
     pub fn advance(&self) {
-        if self.capacity == 0 { return; }
+        if self.capacity == 0 {
+            return;
+        }
         let write_head = read_u32(self.buf, 0) as usize;
         write_u32(self.buf, 0, ((write_head + 1) % self.capacity) as u32);
     }
 }
-
