@@ -10,33 +10,114 @@ import type { ComponentDefinition, ComponentSchema } from '../schema';
 import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
 import type { ComponentType } from '../types';
 import type { Engine } from './engine';
+import { createEntityId, unpackEntityId, type EntityId } from '../types/entity';
 
-// EntityId is now a packed number (index | generation<<20) aligned with Rust format
-export type EntityId = number;
+// ── EntityId Re-exports ────────────────────────────────────────────────────────
+// EntityId and helpers are defined in types/entity.ts (foundational layer)
+// We re-export them here for backward compatibility with code that imports from engine-api
 
-// ── Packed EntityId helpers ────────────────────────────────────────────────────
+export { createEntityId, unpackEntityId, type EntityId } from '../types/entity';
 
 /**
- * Pack a WASM entity handle into a single 32-bit integer:
- * `(generation << 20) | (index & 0xFFFFF)`.
+
+/**
+ * Check structural equality of two EntityIds.
  *
- * This matches the Rust-side encoding so IDs can be compared across the boundary.
+ * Uses === comparison on the underlying bigint primitives.
+ * This is safe because EntityIds are created via `createEntityId()` or
+ * internal WASM bridge calls, ensuring uniqueness.
  *
- * @param wasmId Raw `{index, generation}` pair returned by `WasmBridge.createEntity()`.
- * @returns Packed `EntityId`.
+ * @param a - First EntityId
+ * @param b - Second EntityId
+ * @returns `true` if both IDs represent the same entity slot + generation
+ *
+ * @example
+ * ```typescript
+ * if (entityIdEqual(id1, id2)) {
+ *   // Same entity
+ * }
+ * ```
  */
-export function packId(wasmId: { index: number; generation: number }): EntityId {
-  return (wasmId.generation << 20) | (wasmId.index & 0xfffff);
+export function entityIdEqual(a: EntityId, b: EntityId): boolean {
+  return a === b;
 }
 
 /**
- * Unpack a packed `EntityId` back to its `{index, generation}` components.
- * Inverse of `packId`.
+ * Serialize an EntityId to a stable string representation.
  *
- * @param id Packed entity handle.
+ * Format: `"${index}:${generation}"` (e.g., `"5:100"`)
+ *
+ * Useful for:
+ * - JSON serialization
+ * - Storage keys
+ * - Debug logging
+ * - Human-readable output
+ *
+ * @param id - The EntityId to serialize
+ * @returns String in format `"index:generation"`
+ *
+ * @example
+ * ```typescript
+ * const str = entityIdToString(id); // "5:100"
+ * ```
+ */
+export function entityIdToString(id: EntityId): string {
+  const { index, generation } = unpackEntityId(id);
+  return `${index}:${generation}`;
+}
+
+/**
+ * Deserialize an EntityId from a string representation.
+ *
+ * Inverse of `entityIdToString()`.
+ *
+ * @param str - String in format `"index:generation"` (e.g., `"5:100"`)
+ * @returns The reconstructed EntityId
+ *
+ * @throws Throws if format is invalid or numbers cannot be parsed
+ *
+ * @example
+ * ```typescript
+ * const id = entityIdFromString("5:100");
+ * ```
+ */
+export function entityIdFromString(str: string): EntityId {
+  const [indexStr, generationStr] = str.split(':');
+  const index = Number.parseInt(indexStr, 10);
+  const generation = Number.parseInt(generationStr, 10);
+
+  if (Number.isNaN(index) || Number.isNaN(generation)) {
+    throw new Error(
+      `Invalid EntityId string format: "${str}". Expected "index:generation" ` +
+        `where both are valid integers.`,
+    );
+  }
+
+  return createEntityId(index, generation);
+}
+
+/**
+ * Pack a WASM entity handle — DEPRECATED, use `createEntityId()` instead.
+ *
+ * @deprecated Use {@link createEntityId} — this is maintained for backward compatibility only.
+ *
+ * @param wasmId - Raw `{index, generation}` pair
+ * @returns EntityId
+ */
+export function packId(wasmId: { index: number; generation: number }): EntityId {
+  return createEntityId(wasmId.index, wasmId.generation);
+}
+
+/**
+ * Unpack a packed EntityId — DEPRECATED, use `unpackEntityId()` instead.
+ *
+ * @deprecated Use {@link unpackEntityId} — this is maintained for backward compatibility only.
+ *
+ * @param id - EntityId to unpack
+ * @returns Raw components
  */
 export function unpackId(id: EntityId): { index: number; generation: number } {
-  return { index: id & 0xfffff, generation: id >>> 20 };
+  return unpackEntityId(id);
 }
 
 // ── Internal types ─────────────────────────────────────────────────────────────
@@ -105,11 +186,11 @@ export function createShims(engine: Engine): {
       return packId(wid);
     },
     destroy: (id: EntityId) => {
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       return wasmBridge.deleteEntity(index, generation);
     },
     isAlive: (id: EntityId) => {
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       return wasmBridge.isAlive(index, generation);
     },
     getGeneration: (slotIndex: number) => {
@@ -129,7 +210,7 @@ export function createShims(engine: Engine): {
     remove: (id: EntityId, type: ComponentType) => {
       const typeId = engine._getComponentTypeId(type);
       if (typeId === undefined) return false;
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       const ok = wasmBridge.removeComponent(index, generation, typeId);
       if (ok) {
         wasmBridge.updateEntityArchetype(index, engine._getEntityTypeIds(id));
@@ -143,7 +224,7 @@ export function createShims(engine: Engine): {
       const typeName = typeof type === 'string' ? type : type.name;
       const typeId = engine._getComponentTypeId(typeName);
       if (typeId === undefined) return undefined;
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       const raw = wasmBridge.getComponentRaw(index, generation, typeId);
       if (raw.length === 0) return undefined;
       return engine._deserializeComponent(typeName, raw) as T;
@@ -152,11 +233,11 @@ export function createShims(engine: Engine): {
       const typeName = typeof type === 'string' ? type : type.name;
       const typeId = engine._getComponentTypeId(typeName);
       if (typeId === undefined) return false;
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       return wasmBridge.hasComponent(index, generation, typeId);
     },
     removeAll: (id: EntityId) => {
-      const { index, generation } = unpackId(id);
+      const { index, generation } = unpackEntityId(id);
       const componentTypeIds = engine._getComponentTypeIds();
       for (const [, typeId] of componentTypeIds) {
         wasmBridge.removeComponent(index, generation, typeId);

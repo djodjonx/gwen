@@ -1,18 +1,46 @@
 /**
  * Entity & component primitive types.
  *
- * Zero dependencies — these are the bedrock types that everything else imports.
+ * These are the foundational types with ZERO dependencies.
+ * All other modules depend on these.
  */
 
 // ── Entity ────────────────────────────────────────────────────────────────────
 
 /**
- * Packed entity identifier: `(generation << 20) | (index & 0xFFFFF)`.
+ * Opaque entity identifier — 64-bit BigInt with nominal branding.
  *
- * The generation counter detects use-after-free: when an entity slot is reused,
- * the generation increments and any cached EntityId becomes stale.
+ * Combines:
+ * - 32-bit generation counter (Rust u32) — supports unlimited entity recyclings
+ * - 32-bit index (Rust usize) — max 4.3 billion entities
+ *
+ * Packing: (generation << 32n) | index
+ *
+ * Branded type prevents accidental mixing with plain bigint values.
  */
-export type EntityId = number;
+export type EntityId = bigint & { readonly __brand: unique symbol };
+
+/**
+ * Pack a WASM entity handle into an EntityId.
+ * @param index - Entity slot index (0 to 2^32 - 1)
+ * @param generation - Generation counter (0 to 2^32 - 1)
+ * @returns A branded bigint EntityId
+ */
+export function createEntityId(index: number, generation: number): EntityId {
+  return ((BigInt(generation) << 32n) | BigInt(index)) as EntityId;
+}
+
+/**
+ * Unpack an EntityId back to its raw components.
+ * @param id - The EntityId to unpack
+ * @returns Object with index and generation
+ */
+export function unpackEntityId(id: EntityId): { index: number; generation: number } {
+  return {
+    index: Number(id & 0xffffffffn),
+    generation: Number(id >> 32n),
+  };
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

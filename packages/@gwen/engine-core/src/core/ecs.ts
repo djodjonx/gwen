@@ -6,29 +6,27 @@
  */
 
 import type { ComponentDefinition } from '../schema';
+import type { EntityId } from '../types/entity';
+import { createEntityId, unpackEntityId } from '../types/entity';
+
+// Re-export EntityId as part of the ECS module's public API
+export type { EntityId } from '../types/entity';
 
 // ============= Entity Manager =============
 
 /**
- * Packed entity ID: lower 20 bits = index, upper 12 bits = generation.
+ * Entity ID format: 64-bit BigInt with generation (32-bit) + index (32-bit).
  * Allows detecting stale references (use-after-free).
  */
-export type EntityId = number;
-
-const INDEX_BITS = 20;
-const INDEX_MASK = (1 << INDEX_BITS) - 1; // 0xFFFFF
-const GEN_SHIFT = INDEX_BITS;
-
-function makeId(index: number, generation: number): EntityId {
-  return (generation << GEN_SHIFT) | (index & INDEX_MASK);
-}
 
 function idIndex(id: EntityId): number {
-  return id & INDEX_MASK;
+  const { index } = unpackEntityId(id);
+  return index;
 }
 
 function idGeneration(id: EntityId): number {
-  return id >>> GEN_SHIFT;
+  const { generation } = unpackEntityId(id);
+  return generation;
 }
 
 export class EntityManager {
@@ -60,7 +58,7 @@ export class EntityManager {
     const gen = this.generations[index];
     this.alive[index] = 1;
     this.liveCount++;
-    return makeId(index, gen);
+    return createEntityId(index, gen);
   }
 
   /** Destroy an entity. Returns true if it was alive. */
@@ -101,7 +99,7 @@ export class EntityManager {
   *[Symbol.iterator](): Iterator<EntityId> {
     for (let i = 0; i < this.maxEntities; i++) {
       if (this.alive[i] === 1) {
-        yield makeId(i, this.generations[i]);
+        yield createEntityId(i, this.generations[i]);
       }
     }
   }

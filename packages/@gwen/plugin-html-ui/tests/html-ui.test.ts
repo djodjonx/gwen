@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { HtmlUIPlugin, type HtmlUI } from '../src/index';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
+import {
+  EntityManager,
+  ComponentRegistry,
+  QueryEngine,
+  createEngineAPI,
+  createEntityId,
+} from '@gwen/engine-core';
 
 function makeApi() {
   return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
@@ -46,7 +52,8 @@ describe('HtmlUIPlugin', () => {
 
   it('mount creates DOM for entity', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
 
     const container = document.getElementById('gwen-html-ui')!;
     const root = container.querySelector('[data-gwen-entity="1"]');
@@ -55,7 +62,8 @@ describe('HtmlUIPlugin', () => {
 
   it('mount injects <style> into <head>', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
 
     const styles = document.querySelectorAll('style[data-gwen-ui]');
     expect(styles.length).toBeGreaterThan(0);
@@ -64,8 +72,10 @@ describe('HtmlUIPlugin', () => {
 
   it('mount deduplicates identical <style> blocks', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.mount(2, TEMPLATE);
+    const id1 = createEntityId(1, 0);
+    const id2 = createEntityId(2, 0);
+    ui.mount(id1, TEMPLATE);
+    ui.mount(id2, TEMPLATE);
 
     const allStyles = document.querySelectorAll('style[data-gwen-ui]');
     const hashes = Array.from(allStyles).map((s) => s.getAttribute('data-gwen-ui'));
@@ -76,8 +86,9 @@ describe('HtmlUIPlugin', () => {
   it('mount warns and remounts if entity already mounted', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.mount(1, TEMPLATE);
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
+    ui.mount(id, TEMPLATE);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('already mounted'));
     warn.mockRestore();
   });
@@ -86,64 +97,72 @@ describe('HtmlUIPlugin', () => {
 
   it('el returns element by ID', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
 
-    const el = ui.el(1, 'score');
+    const el = ui.el(id, 'score');
     expect(el).not.toBeNull();
     expect(el!.id).toBe('score');
   });
 
   it('el returns undefined for unknown ID', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    expect(ui.el(1, 'nonexistent')).toBeUndefined();
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
+    expect(ui.el(id, 'nonexistent')).toBeUndefined();
   });
 
   it('text updates textContent', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.text(1, 'score', 'SCORE: 42');
-    expect(ui.el(1, 'score')!.textContent).toBe('SCORE: 42');
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
+    ui.text(id, 'score', 'SCORE: 42');
+    expect(ui.el(id, 'score')!.textContent).toBe('SCORE: 42');
   });
 
   it('style updates element style', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.style(1, 'score', 'color', 'red');
-    expect(ui.el(1, 'score')!.style.color).toBe('red');
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
+    ui.style(id, 'score', 'color', 'red');
+    expect(ui.el(id, 'score')!.style.color).toBe('red');
   });
 
   // ── unmount ──────────────────────────────────────────────────────────────
 
   it('unmount removes DOM for entity', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
 
     const container = document.getElementById('gwen-html-ui')!;
     expect(container.querySelector('[data-gwen-entity="1"]')).not.toBeNull();
 
-    ui.unmount(1);
+    ui.unmount(id);
     expect(container.querySelector('[data-gwen-entity="1"]')).toBeNull();
   });
 
   it('unmount is a no-op for unknown entity', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    expect(() => ui.unmount(999)).not.toThrow();
+    expect(() => ui.unmount(createEntityId(999, 0))).not.toThrow();
   });
 
   it('el returns undefined after unmount', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.unmount(1);
-    expect(ui.el(1, 'score')).toBeUndefined();
+    const id = createEntityId(1, 0);
+    ui.mount(id, TEMPLATE);
+    ui.unmount(id);
+    expect(ui.el(id, 'score')).toBeUndefined();
   });
 
   // ── onDestroy ────────────────────────────────────────────────────────────
 
   it('onDestroy cleans up container', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
-    ui.mount(1, TEMPLATE);
-    ui.mount(2, TEMPLATE);
+    const id1 = createEntityId(1, 0);
+    const id2 = createEntityId(2, 0);
+    ui.mount(id1, TEMPLATE);
+    ui.mount(id2, TEMPLATE);
 
     plugin.onDestroy();
 

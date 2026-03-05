@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { defineUI, UIManager, UIComponent } from '../src/api/ui';
 import { SceneManager } from '../src/api/scene';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
+import { createEntityId } from '../src/engine/engine-api';
 
 describe('UIManager', () => {
   let api: ReturnType<typeof createEngineAPI>;
@@ -54,8 +55,8 @@ describe('UIManager', () => {
           getCount: () => state.count, // exposed for assertion
         } as any;
       });
-      def.render(null as any, 0);
-      def.render(null as any, 0);
+      def.render(null as any, createEntityId(0, 0));
+      def.render(null as any, createEntityId(0, 0));
       expect((def as any).getCount()).toBe(2);
     });
 
@@ -210,7 +211,7 @@ describe('UIManager', () => {
 
   describe('multiple entities', () => {
     it('manages multiple entities with the same UI independently', () => {
-      const renders: number[] = [];
+      const renders: (number | bigint)[] = [];
       ui.register(
         defineUI({
           name: 'HUD',

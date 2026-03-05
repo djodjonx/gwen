@@ -12,7 +12,8 @@
 
 import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } from '../types';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema';
-import { EntityManager, ComponentRegistry, QueryEngine, type EntityId } from '../core/ecs';
+import type { EntityId } from '../types/entity';
+import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
 import { PrefabManager } from '../core/prefab';
 import { createGwenHooks } from '../hooks';
 

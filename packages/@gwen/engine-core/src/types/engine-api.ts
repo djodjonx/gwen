@@ -8,6 +8,9 @@
 
 import type { EntityId, ComponentType } from './entity';
 
+// Re-export EntityId as part of the types module public API
+export type { EntityId, ComponentType } from './entity';
+
 // ── Service locator ───────────────────────────────────────────────────────────
 
 /**

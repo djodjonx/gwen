@@ -10,6 +10,7 @@ import { Engine } from '../src/engine/engine';
 import { getEngine, useEngine, resetEngine } from '../src/engine/engine-globals';
 import { _injectMockWasmEngine, _resetWasmBridge } from '../src/engine/wasm-bridge';
 import type { WasmEngine, WasmEntityId } from '../src/engine/wasm-bridge';
+import type { EntityId } from '../src/engine/engine-api';
 import { Types, defineComponent } from '../src/schema';
 
 const Position = defineComponent('position', () => ({ schema: { x: Types.f32, y: Types.f32 } }));
@@ -203,7 +204,7 @@ describe('Engine', () => {
   // ============= Component Management =============
 
   describe('Component Management', () => {
-    let entityId: number;
+    let entityId: EntityId;
 
     beforeEach(async () => {
       entityId = await engine.createEntity();

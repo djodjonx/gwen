@@ -12,7 +12,7 @@
  * ```
  */
 
-// ── wasm-bindgen generated module types ───────────────────────────────────────
+import { createEntityId, type EntityId } from './engine-api';
 
 /**
  * Opaque entity handle from Rust (index + generation pair).
@@ -425,7 +425,7 @@ export interface WasmBridge {
    * Internally converts raw Rust slot indices to packed TypeScript EntityIds
    * using `getEntityGeneration`.
    */
-  queryEntities(typeIds: number[]): number[];
+  queryEntities(typeIds: number[]): EntityId[];
   /**
    * Return the current generation counter for a raw slot index.
    * Used to reconstruct a packed `EntityId` from a WASM-side slot index
@@ -614,14 +614,20 @@ class WasmBridgeImpl implements WasmBridge {
   }
 
   /**
-   * Convert raw Rust slot indices → packed TypeScript EntityIds.
-   * Packing formula: `(generation << 20) | (index & 0xFFFFF)`.
+   * Query entities matching the given component type IDs.
+   *
+   * Returns EntityIds (branded bigint) using 64-bit packing:
+   * - 32-bit generation counter (supports unlimited recyclings)
+   * - 32-bit index (supports up to 4 billion entities)
+   *
+   * @param typeIds - Component type IDs to match
+   * @returns Array of EntityIds for matching entities
    */
-  queryEntities(typeIds: number[]): number[] {
+  queryEntities(typeIds: number[]): EntityId[] {
     const indices = Array.from(requireWasm().query_entities(new Uint32Array(typeIds)));
     return indices.map((idx) => {
       const gen = requireWasm().get_entity_generation(idx);
-      return (gen << 20) | (idx & 0xfffff);
+      return createEntityId(idx, gen);
     });
   }
 

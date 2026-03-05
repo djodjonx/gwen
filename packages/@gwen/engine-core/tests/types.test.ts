@@ -4,12 +4,13 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import type { EngineConfig, EntityId, Color, Vector2D, EngineStats, TsPlugin } from '../src/types';
+import { createEntityId } from '../src/engine/engine-api';
 
 describe('Types', () => {
   describe('EntityId', () => {
-    it('should be a number', () => {
-      const id: EntityId = 12345;
-      expect(typeof id).toBe('number');
+    it('should be a bigint', () => {
+      const id: EntityId = createEntityId(0, 0);
+      expect(typeof id).toBe('bigint');
     });
   });
 

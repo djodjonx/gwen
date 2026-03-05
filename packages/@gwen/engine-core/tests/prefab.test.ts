@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { definePrefab } from '../src/core/prefab';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '../src/index';
+import type { EntityId } from '../src/engine/engine-api';
 
 describe('Prefab System (prefab.ts)', () => {
   let api: ReturnType<typeof createEngineAPI>;
@@ -14,7 +15,7 @@ describe('Prefab System (prefab.ts)', () => {
   it('form 1 — register and instantiate', () => {
     const BulletPrefab = definePrefab({
       name: 'Bullet',
-      create: (api, x: number, y: number) => {
+      create: (api, x: number, y: number): EntityId => {
         const id = api.createEntity();
         api.addComponent(id, 'Position', { x, y });
         return id;

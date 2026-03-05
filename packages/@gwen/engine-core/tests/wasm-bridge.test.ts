@@ -175,9 +175,9 @@ describe('WasmBridge — with injected mock', () => {
     (mock.query_entities as ReturnType<typeof vi.fn>).mockReturnValueOnce(
       new Uint32Array([0, 1, 2]),
     );
-    // get_entity_generation returns 0 for all → packed = (0 << 20) | index = index
+    // get_entity_generation returns 0 for all → entityId = (0n << 32n) | BigInt(index)
     const result = bridge.queryEntities([0]);
-    expect(result).toEqual([0, 1, 2]); // generation=0 → packed === index
+    expect(result).toEqual([0n, 1n, 2n]); // generation=0 → entityId === BigInt(index)
   });
 
   it('tick() delegates to mock', () => {

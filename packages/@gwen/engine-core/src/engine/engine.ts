@@ -31,8 +31,8 @@ import type { PluginDataBus } from '../wasm/plugin-data-bus';
 import { type ComponentDefinition, type ComponentSchema } from '../schema';
 import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
 import {
-  packId,
-  unpackId,
+  createEntityId,
+  unpackEntityId,
   type EntityId,
   type ComponentFieldValue,
   createShims,
@@ -159,7 +159,7 @@ export class Engine {
       typeof type === 'string' ? { name: type, schema: {} } : type;
     this.serializer.getOrComputeLayout(def);
     const bytes = this.serializer.serialize(typeName, data);
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     this.wasmBridge.addComponent(index, generation, typeId, bytes);
     this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
   }
@@ -256,10 +256,11 @@ export class Engine {
 
   /**
    * Create a new entity and fire the `entity:create` hook.
-   * @returns A packed `EntityId` handle.
+   * @returns A 64-bit `EntityId` handle (branded bigint).
    */
   public async createEntity(): Promise<EntityId> {
-    const id = packId(this.wasmBridge.createEntity());
+    const { index, generation } = this.wasmBridge.createEntity();
+    const id = createEntityId(index, generation);
     try {
       await this.hooks.callHook('entity:create', id);
     } catch (err) {
@@ -273,7 +274,7 @@ export class Engine {
    * @returns `false` if the entity is already dead.
    */
   public destroyEntity(id: EntityId): boolean {
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     if (!this.wasmBridge.isAlive(index, generation)) return false;
 
     this.hooks.callHook('entity:destroy', id);
@@ -297,7 +298,7 @@ export class Engine {
    * @returns `false` if the slot has been reused (generation mismatch).
    */
   public entityExists(id: EntityId): boolean {
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     return this.wasmBridge.isAlive(index, generation);
   }
 
@@ -343,7 +344,7 @@ export class Engine {
 
     this.hooks.callHook('component:remove', id, typeName);
 
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     const result = this.wasmBridge.removeComponent(index, generation, typeId);
     if (result) {
       this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
@@ -367,7 +368,7 @@ export class Engine {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentRegistry.get(typeName);
     if (typeId === undefined) return undefined;
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     const raw = this.wasmBridge.getComponentRaw(index, generation, typeId);
     if (raw.length === 0) return undefined;
     return this.serializer.deserialize(typeName, raw) as T;
@@ -381,7 +382,7 @@ export class Engine {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentRegistry.get(typeName);
     if (typeId === undefined) return false;
-    const { index, generation } = unpackId(id);
+    const { index, generation } = unpackEntityId(id);
     return this.wasmBridge.hasComponent(index, generation, typeId);
   }
 
