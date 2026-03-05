@@ -1,26 +1,22 @@
 import { defineSystem } from '@gwen/engine-core';
+import type { EngineAPI, EntityId } from '@gwen/engine-core';
+import { unpackEntityId } from '@gwen/engine-core';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 import { Position, Collider, Tag } from '../components';
 
 const PIXELS_PER_METER = 50;
 
-// GWEN EntityId = (generation << 20) | index — Rapier needs the raw slot index only.
-const INDEX_MASK = 0xfffff;
-function entityIndex(id: number): number {
-  return id & INDEX_MASK;
-}
-
 export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
   let physics: Physics2DAPI | null = null;
-  const registeredBySlot = new Map<number, number>(); // slot → packed EntityId
+  const registeredBySlot = new Map<number, EntityId>();
 
   return {
-    onInit(api: EngineAPI<GwenServices>) {
-      physics = api.services.get('physics');
-      registeredBySlot.clear(); // Clear au cas où
+    onInit(api) {
+      physics = api.services.get('physics') as Physics2DAPI;
+      registeredBySlot.clear();
     },
 
-    onUpdate(api: EngineAPI<GwenServices>) {
+    onBeforeUpdate(api) {
       if (!physics) return;
 
       const entities = api.query([Position.name, Collider.name, Tag.name]);
@@ -31,7 +27,7 @@ export const PhysicsBindingSystem = defineSystem('PhysicsBindingSystem', () => {
         const col = api.getComponent(id, Collider);
         if (!pos || !col) continue;
 
-        const idx = entityIndex(id);
+        const { index: idx } = unpackEntityId(id);
         currentSlots.add(idx);
 
         const wasRegistered = registeredBySlot.has(idx);

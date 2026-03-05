@@ -1,18 +1,19 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI, EntityId } from '@gwen/engine-core';
+import { unpackEntityId } from '@gwen/engine-core';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 import { Tag, Score, Health } from '../components';
 
 export const CollisionSystem = defineSystem('CollisionSystem', () => {
   let physics: Physics2DAPI | null = null;
-  const slotToCurrentId = new Map<number, number>(); // slot → current packed EntityId
+  const slotToCurrentId = new Map<number, EntityId>();
 
   return {
-    onInit(api) {
+    onInit(api: EngineAPI<GwenServices>) {
       physics = api.services.get('physics') as Physics2DAPI;
     },
 
-    onUpdate(api) {
+    onUpdate(api: EngineAPI<GwenServices>) {
       if (!physics) return;
 
       const scoreList = api.query([Score.name]);
@@ -27,11 +28,11 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
       slotToCurrentId.clear();
       const allEntities = api.query([Tag.name]);
       for (const id of allEntities) {
-        const slot = id & 0xfffff;
+        const { index: slot } = unpackEntityId(id);
         slotToCurrentId.set(slot, id);
       }
 
-      function getEntityFromSlot(slot: number): number | null {
+      function getEntityFromSlot(slot: number): EntityId | null {
         const id = slotToCurrentId.get(slot);
         if (!id) return null;
         // Verify the entity still exists in ECS
@@ -39,13 +40,14 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
         return tag ? id : null;
       }
 
-      function destroyWithPhysics(id: number): void {
-        physics!.removeBody(id & 0xfffff);
+      function destroyWithPhysics(id: EntityId): void {
+        const { index } = unpackEntityId(id);
+        physics!.removeBody(index);
         api.destroyEntity(id);
       }
 
       // Guard against duplicate events for the same entity in one batch.
-      const destroyed = new Set<number>();
+      const destroyed = new Set<EntityId>();
 
       for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
         if (!started) continue;
