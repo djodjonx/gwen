@@ -219,29 +219,28 @@ interface BasePluginDefinition<
    * ```
    */
   meta?: GwenPluginMeta;
-
-  /**
-   * Factory called **once per `new MyPlugin(options)` invocation**.
-   * All private plugin state must live in this closure — no class fields.
-   *
-   * @param options - Options passed by the caller (typed to `Options`).
-   * @returns      - The lifecycle implementation object.
-   */
-  setup(options: Options): TsPluginLifecycle;
 }
 
 /**
  * Definition shape for a **TS-only** plugin (no `wasm` key).
  */
-export interface TsPluginDefinition<
+export type TsPluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
   Options,
-> extends BasePluginDefinition<N, P, H, Options> {
+> = BasePluginDefinition<N, P, H, Options> & {
   wasm?: never;
-  setup(options: Options): TsPluginLifecycle;
-}
+  /**
+   * Factory called once per `new MyPlugin(options)` invocation.
+   *
+   * - No options: `setup()` — no parameter.
+   * - With options: `setup(options?: MyConfig)` or `setup(options: MyConfig = {})`.
+   *
+   * TypeScript infers `Options` directly from the parameter type.
+   */
+  setup(options?: Options): TsPluginLifecycle;
+};
 
 /**
  * WASM runtime metadata declared statically at the definition level.
@@ -287,17 +286,57 @@ export interface WasmPluginDefinition<
   /**
    * Factory returning both WASM and TS lifecycle callbacks.
    * Called once per `new MyPlugin(options)` invocation.
+   *
+   * - No options: `setup()` — no parameter.
+   * - With options: `setup(options?: MyConfig)` or `setup(options: MyConfig = {})`.
+   *
+   * TypeScript infers `Options` directly from the parameter type.
    */
-  setup(options: Options): WasmPluginLifecycle;
+  setup(options?: Options): WasmPluginLifecycle;
 }
 
 // ── Returned constructor type ─────────────────────────────────────────────────
+
+/**
+ * A concrete plugin instance produced by `definePlugin()`.
+ *
+ * Extends `GwenPlugin` with lifecycle methods guaranteed to be present
+ * (non-optional) on every instance, even if the `setup()` closure does not
+ * implement them — they safely no-op in that case.
+ *
+ * This gives plugin authors and test code a precise type:
+ * `plugin.onInit(api)` compiles without needing `plugin.onInit!(api)`.
+ */
+export type ConcretePlugin<
+  N extends string,
+  P extends Record<string, unknown>,
+  H extends Record<string, any>,
+> = GwenPlugin<N, P, H> & {
+  onInit(api: EngineAPI): void;
+  onBeforeUpdate(api: EngineAPI, deltaTime: number): void;
+  onUpdate(api: EngineAPI, deltaTime: number): void;
+  onRender(api: EngineAPI): void;
+  onDestroy(): void;
+};
 
 /**
  * The class constructor returned by `definePlugin()`.
  *
  * Instances are valid `GwenPlugin` objects accepted by `defineConfig({ plugins })`.
  * The generic `Options` is `void` when the plugin takes no options — `new MyPlugin()`.
+ *
+ * ## Typing an instance variable
+ *
+ * `definePlugin()` returns a **value** (a constructor), not a named type.
+ * Use `InstanceType<typeof MyPlugin>` or the `GwenPluginInstance<T>` helper:
+ *
+ * ```ts
+ * import type { GwenPluginInstance } from '@gwen/kit';
+ *
+ * let plugin: InstanceType<typeof AudioPlugin>;
+ * // or equivalently:
+ * let plugin: GwenPluginInstance<typeof AudioPlugin>;
+ * ```
  */
 export type PluginClass<
   N extends string,
@@ -305,8 +344,27 @@ export type PluginClass<
   H extends Record<string, any>,
   Options,
 > = Options extends void
-  ? { new (): GwenPlugin<N, P, H> }
-  : { new (options?: Options): GwenPlugin<N, P, H> };
+  ? { new (): ConcretePlugin<N, P, H> }
+  : { new (options?: Options): ConcretePlugin<N, P, H> };
+
+/**
+ * Convenience type alias for the **instance** type of a plugin class returned
+ * by `definePlugin()`.
+ *
+ * Because `definePlugin()` returns a constructor (a value, not a named type),
+ * you cannot use the plugin const directly as a type annotation. Use this
+ * helper instead of writing `InstanceType<typeof MyPlugin>` everywhere.
+ *
+ * @example
+ * ```ts
+ * import type { GwenPluginInstance } from '@gwen/kit';
+ *
+ * // In a test file or another plugin:
+ * let plugin: GwenPluginInstance<typeof AudioPlugin>;
+ * let ui: GwenPluginInstance<typeof HtmlUIPlugin>;
+ * ```
+ */
+export type GwenPluginInstance<T extends abstract new (...args: any[]) => any> = InstanceType<T>;
 
 // ── Overload 1 — TS-only plugin ───────────────────────────────────────────────
 
@@ -325,6 +383,15 @@ export type PluginClass<
  * ```ts
  * import { definePlugin } from '@gwen/kit';
  *
+ * // Plugin without options:
+ * export const HudPlugin = definePlugin({
+ *   name: 'HudPlugin',
+ *   setup() {
+ *     return { onInit(api) { ... } };
+ *   },
+ * });
+ *
+ * // Plugin with options:
  * export const ScorePlugin = definePlugin({
  *   name: 'ScorePlugin',
  *   provides: { score: {} as ScoreService },
@@ -341,15 +408,19 @@ export type PluginClass<
  *   },
  * });
  *
+ * // Typing an instance variable:
+ * import type { GwenPluginInstance } from '@gwen/kit';
+ * let plugin: GwenPluginInstance<typeof ScorePlugin>;
+ *
  * // gwen.config.ts
  * plugins: [new ScorePlugin({ initial: 0 })]
  * ```
  */
 export function definePlugin<
   N extends string,
+  Options,
   P extends Record<string, unknown> = Record<string, unknown>,
   H extends Record<string, any> = Record<string, any>,
-  Options = void,
 >(definition: TsPluginDefinition<N, P, H, Options>): PluginClass<N, P, H, Options>;
 
 // ── Overload 2 — WASM plugin ──────────────────────────────────────────────────
@@ -397,9 +468,9 @@ export function definePlugin<
  */
 export function definePlugin<
   N extends string,
+  Options,
   P extends Record<string, unknown> = Record<string, unknown>,
   H extends Record<string, any> = Record<string, any>,
-  Options = void,
 >(definition: WasmPluginDefinition<N, P, H, Options>): PluginClass<N, P, H, Options>;
 
 // ── Implementation ────────────────────────────────────────────────────────────
@@ -412,7 +483,7 @@ export function definePlugin<
 >(
   definition: TsPluginDefinition<N, P, H, Options> | WasmPluginDefinition<N, P, H, Options>,
 ): PluginClass<N, P, H, Options> {
-  const isWasm = definition.wasm !== undefined;
+  const isWasm = 'wasm' in definition && definition.wasm !== undefined;
 
   // Build the wasm context object once — shared across all instances
   const staticWasm: GwenPluginWasmContext | undefined = isWasm
@@ -440,7 +511,9 @@ export function definePlugin<
 
       // Call setup() with the resolved options
       const resolvedOptions = (options ?? undefined) as Options;
-      this._impl = definition.setup(resolvedOptions);
+      this._impl = (definition.setup as (o?: Options) => TsPluginLifecycle | WasmPluginLifecycle)(
+        resolvedOptions,
+      );
 
       // Build the per-instance wasm context (closes over _impl for callbacks)
       if (isWasm && staticWasm) {

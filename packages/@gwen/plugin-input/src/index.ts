@@ -1,23 +1,23 @@
 /**
- * InputPlugin — TsPlugin that manages all input devices
+ * InputPlugin — manages all input devices (keyboard, mouse, gamepad).
  *
- * Registers keyboard, mouse, and gamepad inputs as services.
- * Other plugins resolve them via api.services in their onInit().
+ * Registers keyboard, mouse, and gamepad as services in `api.services`.
  *
  * @example
  * ```typescript
  * import { InputPlugin } from '@gwen/plugin-input';
  *
- * engine.registerSystem(new InputPlugin());
+ * export default defineConfig({
+ *   plugins: [new InputPlugin()],
+ * });
  *
- * // In PlayerController.onInit():
- * const keyboard = api.services.get<KeyboardInput>('keyboard');
- * const mouse = api.services.get<MouseInput>('mouse');
+ * // In any plugin onInit():
+ * const keyboard = api.services.get('keyboard') as KeyboardInput;
  * ```
  */
 
-import type { EngineAPI } from '@gwen/engine-core';
-import type { GwenPlugin } from '@gwen/engine-core';
+import { definePlugin } from '@gwen/kit';
+import type { EngineAPI } from '@gwen/kit';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
@@ -29,7 +29,7 @@ export type { KeyState } from './keyboard';
 export type { MouseButton, MouseButtonState, MousePosition } from './mouse';
 export type { GamepadAxis } from './gamepad';
 
-/** Services exposés par InputPlugin dans api.services */
+/** Services provided by InputPlugin in api.services. */
 export interface InputPluginServices {
   keyboard: KeyboardInput;
   mouse: MouseInput;
@@ -46,55 +46,49 @@ export interface InputPluginConfig {
   gamepadDeadzone?: number;
 }
 
-export class InputPlugin implements GwenPlugin<'InputPlugin', InputPluginServices> {
-  readonly name = 'InputPlugin' as const;
-
-  /**
-   * Déclare les services que ce plugin injecte dans `api.services`.
-   * Utilisé par TypeScript pour l'inférence — jamais lu à runtime.
-   */
-  readonly provides = {
+export const InputPlugin = definePlugin({
+  name: 'InputPlugin',
+  provides: {
     keyboard: {} as KeyboardInput,
     mouse: {} as MouseInput,
     gamepad: {} as GamepadInput,
-  };
+  },
 
-  private keyboard!: KeyboardInput;
-  private mouse!: MouseInput;
-  private gamepad!: GamepadInput;
-  private target!: EventTarget;
-  private config: InputPluginConfig;
+  setup(config: InputPluginConfig = {}) {
+    let keyboard: KeyboardInput;
+    let mouse: MouseInput;
+    let gamepad: GamepadInput;
+    let target: EventTarget;
 
-  constructor(config: InputPluginConfig = {}) {
-    this.config = config;
-  }
+    return {
+      onInit(api: EngineAPI): void {
+        target =
+          config.eventTarget ??
+          (typeof window !== 'undefined' ? window : (globalThis as unknown as EventTarget));
 
-  onInit(api: EngineAPI): void {
-    this.target =
-      this.config.eventTarget ??
-      (typeof window !== 'undefined' ? window : (globalThis as unknown as EventTarget));
+        keyboard = new KeyboardInput();
+        mouse = new MouseInput();
+        gamepad = new GamepadInput(config.gamepadDeadzone ?? 0.15);
 
-    this.keyboard = new KeyboardInput();
-    this.mouse = new MouseInput();
-    this.gamepad = new GamepadInput(this.config.gamepadDeadzone ?? 0.15);
+        keyboard.attach(target);
+        mouse.attach(target, config.canvas);
 
-    this.keyboard.attach(this.target);
-    this.mouse.attach(this.target, this.config.canvas);
+        api.services.register('keyboard', keyboard);
+        api.services.register('mouse', mouse);
+        api.services.register('gamepad', gamepad);
+      },
 
-    api.services.register('keyboard', this.keyboard);
-    api.services.register('mouse', this.mouse);
-    api.services.register('gamepad', this.gamepad);
-  }
+      onBeforeUpdate(_api: EngineAPI, _dt: number): void {
+        keyboard.update();
+        mouse.update();
+      },
 
-  onBeforeUpdate(_api: EngineAPI, _dt: number): void {
-    this.keyboard.update();
-    this.mouse.update();
-  }
-
-  onDestroy(): void {
-    this.keyboard.detach(this.target);
-    this.mouse.detach(this.target);
-    this.keyboard.reset();
-    this.mouse.reset();
-  }
-}
+      onDestroy(): void {
+        keyboard.detach(target);
+        mouse.detach(target);
+        keyboard.reset();
+        mouse.reset();
+      },
+    };
+  },
+});

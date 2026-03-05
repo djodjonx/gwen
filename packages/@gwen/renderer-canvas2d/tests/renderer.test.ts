@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Canvas2DRenderer } from '../src/renderer';
 import { ShapeRenderer } from '../src/shapes';
-import type { SpriteComponent, TransformComponent } from '../src/renderer';
+import type { SpriteComponent, TransformComponent, RendererService } from '../src/renderer';
 import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
 import type { EngineAPI } from '@gwen/engine-core';
 
@@ -49,6 +49,10 @@ function makeAPI(): EngineAPI {
   return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
 }
 
+function getRendererService(api: EngineAPI): RendererService {
+  return api.services.get('renderer') as RendererService;
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe('Canvas2DRenderer', () => {
@@ -82,7 +86,7 @@ describe('Canvas2DRenderer', () => {
   });
 
   describe('onRender', () => {
-    let renderer: Canvas2DRenderer;
+    let renderer: InstanceType<typeof Canvas2DRenderer>;
     let ctx: ReturnType<typeof makeCtxMock>;
 
     beforeEach(() => {
@@ -170,7 +174,7 @@ describe('Canvas2DRenderer', () => {
   });
 
   describe('Camera', () => {
-    let renderer: Canvas2DRenderer;
+    let renderer: InstanceType<typeof Canvas2DRenderer>;
 
     beforeEach(() => {
       const { canvas } = makeCanvasMock();
@@ -179,24 +183,27 @@ describe('Canvas2DRenderer', () => {
     });
 
     it('should have default camera at origin', () => {
-      const cam = renderer.getCamera();
+      const cam = getRendererService(api).getCamera();
       expect(cam).toEqual({ x: 0, y: 0, zoom: 1 });
     });
 
     it('should update camera with setCamera()', () => {
-      renderer.setCamera({ x: 100, y: 50, zoom: 2 });
-      expect(renderer.getCamera()).toEqual({ x: 100, y: 50, zoom: 2 });
+      const svc = getRendererService(api);
+      svc.setCamera({ x: 100, y: 50, zoom: 2 });
+      expect(svc.getCamera()).toEqual({ x: 100, y: 50, zoom: 2 });
     });
 
     it('should snap to target with lerp=1', () => {
-      renderer.followTarget(300, 200, 1);
-      expect(renderer.getCamera()).toMatchObject({ x: 300, y: 200 });
+      const svc = getRendererService(api);
+      svc.followTarget(300, 200, 1);
+      expect(svc.getCamera()).toMatchObject({ x: 300, y: 200 });
     });
 
     it('should partially follow target with lerp < 1', () => {
-      renderer.setCamera({ x: 0, y: 0 });
-      renderer.followTarget(100, 100, 0.5);
-      expect(renderer.getCamera()).toMatchObject({ x: 50, y: 50 });
+      const svc = getRendererService(api);
+      svc.setCamera({ x: 0, y: 0 });
+      svc.followTarget(100, 100, 0.5);
+      expect(svc.getCamera()).toMatchObject({ x: 50, y: 50 });
     });
   });
 
@@ -205,7 +212,7 @@ describe('Canvas2DRenderer', () => {
       const { canvas } = makeCanvasMock();
       const renderer = new Canvas2DRenderer({ canvas, pixelRatio: 1 });
       renderer.onInit(api);
-      renderer.resize(1920, 1080);
+      getRendererService(api).resize(1920, 1080);
       expect(canvas.width).toBe(1920);
       expect(canvas.height).toBe(1080);
     });

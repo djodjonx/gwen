@@ -21,7 +21,7 @@
  * ```
  */
 
-import type { EngineConfig, TsPlugin, ComponentType, GwenWasmPlugin } from '../types';
+import type { EngineConfig, GwenPlugin, ComponentType } from '../types';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../api/api';
 import { PluginManager } from '../plugin-system/plugin-manager';
 import { defaultConfig, mergeConfigs } from '../config/config';
@@ -106,7 +106,7 @@ export class Engine {
 
     // PluginRegistrar injected into services for late dynamic registration
     this.api.services.register('PluginRegistrar', {
-      register: (plugin: TsPlugin) => this.pluginManager.register(plugin, this.api, this.hooks),
+      register: (plugin: GwenPlugin) => this.pluginManager.register(plugin, this.api, this.hooks),
       unregister: (name: string) => this.pluginManager.unregister(name, this.hooks),
       get: (name: string) => this.pluginManager.get(name),
     } as import('../types').IPluginRegistrar);
@@ -200,7 +200,7 @@ export class Engine {
    *
    * @returns `this` for chaining.
    */
-  public registerSystem(plugin: TsPlugin): this {
+  public registerSystem(plugin: GwenPlugin): this {
     this.pluginManager.register(plugin, this.api, this.hooks);
     if (this.config.debug) console.log(`[GWEN] Plugin '${plugin.name}' registered`);
     return this;
@@ -211,7 +211,7 @@ export class Engine {
    * @typeParam T Plugin type to cast to (defaults to `TsPlugin`).
    * @returns The plugin, or `undefined` if not found.
    */
-  public getSystem<T extends TsPlugin>(name: string): T | undefined {
+  public getSystem<T extends GwenPlugin>(name: string): T | undefined {
     return this.pluginManager.get<T>(name);
   }
 
@@ -511,8 +511,8 @@ export class Engine {
     this.sharedMemoryManager = manager;
   }
 
-  /** @internal Called by createEngine() after plugin.onInit() resolves. */
-  public _registerWasmPlugin(plugin: GwenWasmPlugin): void {
+  /** @internal Called by createEngine() after plugin.wasm.onInit() resolves. */
+  public _registerWasmPlugin(plugin: GwenPlugin): void {
     this.pluginManager.registerWasmPlugin(plugin);
   }
 

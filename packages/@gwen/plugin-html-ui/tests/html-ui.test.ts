@@ -14,7 +14,7 @@ const TEMPLATE = `
 
 describe('HtmlUIPlugin', () => {
   let api: ReturnType<typeof makeApi>;
-  let plugin: HtmlUIPlugin;
+  let plugin: InstanceType<typeof HtmlUIPlugin>;
 
   beforeEach(() => {
     // Nettoyer le DOM entre chaque test
@@ -78,7 +78,7 @@ describe('HtmlUIPlugin', () => {
     const ui = api.services.get('htmlUI') as unknown as HtmlUI;
     ui.mount(1, TEMPLATE);
     ui.mount(1, TEMPLATE);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('already has a mounted template'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('already mounted'));
     warn.mockRestore();
   });
 

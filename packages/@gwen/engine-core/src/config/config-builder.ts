@@ -1,45 +1,39 @@
 /**
- * ConfigBuilder — Advanced fluent API for engine configuration
+ * ConfigBuilder — fluent API for programmatic engine configuration.
  *
- * Provides a builder pattern for programmatic configuration with chaining.
- * Useful when configuration is determined at runtime or in advanced scenarios.
- */
-
-import type { EngineConfig, GwenWasmPlugin, TsPlugin } from '../types';
-import { defaultConfig, mergeConfigs } from './config';
-
-/**
- * Advanced builder with chaining
+ * Useful when configuration values are determined at runtime or in
+ * advanced bootstrapping scenarios. For static project configuration,
+ * prefer `defineConfig()` in `gwen.config.ts`.
  *
  * @example
  * ```typescript
  * const config = new ConfigBuilder()
- *   .setMaxEntities(10000)
+ *   .setMaxEntities(10_000)
  *   .setTargetFPS(60)
- *   .addWasmPlugin(Physics2D({ gravity: 9.81 }))
- *   .addTsPlugin(Input())
- *   .addTsPlugin(Audio())
+ *   .addPlugin(physics2D({ gravity: -9.81 }))
+ *   .addPlugin(new InputPlugin())
  *   .enableDebug()
  *   .build();
- *
- * const engine = new Engine(config);
  * ```
  */
+
+import type { EngineConfig, GwenPlugin } from '../types';
+import { defaultConfig, mergeConfigs } from './config';
+
 export class ConfigBuilder {
   private config: Partial<EngineConfig> = {
     maxEntities: defaultConfig.maxEntities,
     targetFPS: defaultConfig.targetFPS,
     debug: defaultConfig.debug,
     enableStats: defaultConfig.enableStats,
-    wasmPlugins: [],
-    tsPlugins: [],
+    plugins: [],
   };
 
   /**
    * Set the maximum number of simultaneously alive entities.
-   * Minimum value accepted by the engine is `100`.
+   * The engine enforces a minimum of `100`.
    *
-   * @param count Maximum entity count.
+   * @param count - Maximum entity count.
    */
   public setMaxEntities(count: number): this {
     this.config.maxEntities = count;
@@ -48,9 +42,9 @@ export class ConfigBuilder {
 
   /**
    * Set the target frames per second for the game loop.
-   * Accepted range: [1, 300].
+   * Accepted range: `[1, 300]`.
    *
-   * @param fps Target FPS.
+   * @param fps - Target FPS.
    */
   public setTargetFPS(fps: number): this {
     this.config.targetFPS = fps;
@@ -82,31 +76,44 @@ export class ConfigBuilder {
   }
 
   /**
-   * Add a WASM plugin (Rust-compiled, performance-critical).
+   * Add a plugin to the unified `plugins` array.
    *
-   * Examples: `Physics2D`, `NetworkingEngine`, custom AI simulation.
+   * Both TS-only plugins and WASM plugins (those with a `wasm` sub-object)
+   * can be added via this method — `createEngine()` detects the kind
+   * automatically.
    *
-   * @param plugin A `GwenWasmPlugin` implementation.
+   * @param plugin - Any `GwenPlugin` instance.
    */
-  public addWasmPlugin(plugin: GwenWasmPlugin): this {
-    if (!this.config.wasmPlugins) {
-      this.config.wasmPlugins = [];
-    }
+  public addPlugin(plugin: GwenPlugin): this {
+    if (!this.config.plugins) this.config.plugins = [];
+    this.config.plugins.push(plugin);
+    return this;
+  }
+
+  /**
+   * @deprecated Use `addPlugin()` instead.
+   *
+   * Add a WASM plugin. Kept for backward compatibility — the plugin is pushed
+   * into the legacy `wasmPlugins` array which `createEngine()` still reads.
+   *
+   * @param plugin - A plugin with a `wasm` sub-object.
+   */
+  public addWasmPlugin(plugin: GwenPlugin): this {
+    if (!this.config.wasmPlugins) this.config.wasmPlugins = [];
     this.config.wasmPlugins.push(plugin);
     return this;
   }
 
   /**
-   * Add a TypeScript plugin (bundled with the game, accesses web APIs).
+   * @deprecated Use `addPlugin()` instead.
    *
-   * Examples: `InputPlugin`, `AudioPlugin`, `Canvas2DRenderer`.
+   * Add a TypeScript plugin. Kept for backward compatibility — the plugin is
+   * pushed into the legacy `tsPlugins` array which `createEngine()` still reads.
    *
-   * @param plugin A `TsPlugin` implementation.
+   * @param plugin - A TS-only plugin.
    */
-  public addTsPlugin(plugin: TsPlugin): this {
-    if (!this.config.tsPlugins) {
-      this.config.tsPlugins = [];
-    }
+  public addTsPlugin(plugin: GwenPlugin): this {
+    if (!this.config.tsPlugins) this.config.tsPlugins = [];
     this.config.tsPlugins.push(plugin);
     return this;
   }
@@ -115,7 +122,7 @@ export class ConfigBuilder {
    * Merge all builder options into a final `EngineConfig` object.
    * Unset options fall back to `defaultConfig`.
    *
-   * @returns A complete `EngineConfig` ready to pass to `new Engine()`.
+   * @returns A complete `EngineConfig` ready to pass to `createEngine()`.
    */
   public build(): EngineConfig {
     return mergeConfigs(defaultConfig, this.config);

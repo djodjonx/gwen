@@ -1,7 +1,7 @@
 {
   "name": "@gwen/plugin-input",
   "version": "0.1.0",
-  "description": "GWEN Input Plugin — keyboard, mouse, gamepad",
+  "description": "GWEN Input Plugin \u2014 keyboard, mouse, gamepad",
   "files": [
     "dist"
   ],
@@ -22,7 +22,8 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwen/engine-core": "workspace:*"
+    "@gwen/engine-core": "workspace:*",
+    "@gwen/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.3.0",

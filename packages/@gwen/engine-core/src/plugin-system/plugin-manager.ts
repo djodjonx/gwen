@@ -14,7 +14,8 @@
  * @see {@link GwenHooks} for available hooks
  */
 
-import type { TsPlugin, EngineAPI, GwenWasmPlugin } from '../types';
+import type { GwenPlugin, EngineAPI } from '../types';
+import { isWasmPlugin } from './plugin-utils';
 import type { GwenHookable } from '../hooks';
 
 /**
@@ -43,11 +44,11 @@ type DefaultHookable = GwenHookable<GwenDefaultHooks>;
  * @internal Used by Engine internally
  */
 export class PluginManager {
-  /** Registered TypeScript plugins (in registration order) */
-  private plugins: TsPlugin[] = [];
+  /** Registered TypeScript plugins (in registration order). */
+  private plugins: GwenPlugin[] = [];
 
-  /** Registered WASM plugins */
-  private wasmPlugins: GwenWasmPlugin[] = [];
+  /** Registered WASM plugins (those with a `wasm` sub-object). */
+  private wasmPlugins: GwenPlugin[] = [];
 
   // ════════════════════════════════════════════════════════════════════════
   // Plugin Registration
@@ -89,7 +90,7 @@ export class PluginManager {
    *
    * @throws Only via hook handlers, not from registration itself
    */
-  register(plugin: TsPlugin, api: EngineAPI, hooks: DefaultHookable): boolean {
+  register(plugin: GwenPlugin, api: EngineAPI, hooks: DefaultHookable): boolean {
     // Check for duplicate
     if (this.plugins.find((p) => p.name === plugin.name)) {
       console.warn(`[GWEN:PluginManager] '${plugin.name}' already registered — skipping.`);
@@ -131,7 +132,7 @@ export class PluginManager {
    * @param plugin - The plugin whose methods to register
    * @param hooks - The hooks system instance
    */
-  private _setupPluginHooks(plugin: TsPlugin, hooks: DefaultHookable): void {
+  private _setupPluginHooks(plugin: GwenPlugin, hooks: DefaultHookable): void {
     if (plugin.onBeforeUpdate) {
       hooks.hook('plugin:beforeUpdate', (api, dt) => plugin.onBeforeUpdate!(api, dt));
     }
@@ -157,7 +158,7 @@ export class PluginManager {
    * manager.registerAll([pluginA, pluginB, pluginC], api, hooks);
    * ```
    */
-  registerAll(plugins: TsPlugin[], api: EngineAPI, hooks: DefaultHookable): void {
+  registerAll(plugins: GwenPlugin[], api: EngineAPI, hooks: DefaultHookable): void {
     for (const p of plugins) {
       this.register(p, api, hooks);
     }
@@ -328,7 +329,7 @@ export class PluginManager {
    * const physics = manager.get<PhysicsPlugin>('Physics2D');
    * ```
    */
-  get<T extends TsPlugin>(name: string): T | undefined {
+  get<T extends GwenPlugin>(name: string): T | undefined {
     return this.plugins.find((p) => p.name === name) as T | undefined;
   }
 
@@ -362,10 +363,11 @@ export class PluginManager {
    *
    * @internal Used by Engine during initialization
    */
-  registerWasmPlugin(plugin: GwenWasmPlugin): boolean {
-    if (this.wasmPlugins.find((p) => p.id === plugin.id)) {
+  registerWasmPlugin(plugin: GwenPlugin): boolean {
+    if (!isWasmPlugin(plugin)) return false;
+    if (this.wasmPlugins.find((p) => isWasmPlugin(p) && p.wasm!.id === plugin.wasm.id)) {
       console.warn(
-        `[GWEN:PluginManager] WASM plugin '${plugin.id}' already registered — skipping.`,
+        `[GWEN:PluginManager] WASM plugin '${plugin.wasm.id}' already registered — skipping.`,
       );
       return false;
     }
@@ -385,9 +387,10 @@ export class PluginManager {
   dispatchWasmStep(deltaTime: number): void {
     for (const plugin of this.wasmPlugins) {
       try {
-        plugin.onStep?.(deltaTime);
+        plugin.wasm?.onStep?.(deltaTime);
       } catch (err) {
-        console.error(`[GWEN:PluginManager] Error in WASM plugin '${plugin.id}' onStep:`, err);
+        const id = isWasmPlugin(plugin) ? plugin.wasm.id : plugin.name;
+        console.error(`[GWEN:PluginManager] Error in WASM plugin '${id}' onStep:`, err);
       }
     }
   }
@@ -404,7 +407,8 @@ export class PluginManager {
       try {
         plugin.onDestroy?.();
       } catch (err) {
-        console.error(`[GWEN:PluginManager] Error destroying WASM plugin '${plugin.id}':`, err);
+        const id = isWasmPlugin(plugin) ? plugin.wasm.id : plugin.name;
+        console.error(`[GWEN:PluginManager] Error destroying WASM plugin '${id}':`, err);
       }
     }
     this.wasmPlugins = [];
@@ -426,6 +430,6 @@ export class PluginManager {
    * @returns true if registered
    */
   hasWasmPlugin(id: string): boolean {
-    return this.wasmPlugins.some((p) => p.id === id);
+    return this.wasmPlugins.some((p) => isWasmPlugin(p) && p.wasm.id === id);
   }
 }

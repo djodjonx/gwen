@@ -1,30 +1,27 @@
 /**
- * AudioPlugin — TsPlugin wrapping the Web Audio API
+ * AudioPlugin — wraps the Web Audio API.
  *
- * Manages an AudioContext, sound buffer preloading, and playback.
- * Registers itself in api.services as 'audio' for other plugins to consume.
+ * Registers an `AudioService` in `api.services` as `'audio'`.
  *
  * @example
  * ```typescript
  * import { AudioPlugin } from '@gwen/plugin-audio';
  *
- * engine.registerSystem(new AudioPlugin({ masterVolume: 0.8 }));
+ * export default defineConfig({
+ *   plugins: [new AudioPlugin({ masterVolume: 0.8 })],
+ * });
  *
- * // In any TsPlugin.onInit():
- * const audio = api.services.get<AudioPlugin>('audio');
- * audio.preload('jump', '/sounds/jump.wav');
- *
- * // In onUpdate():
- * if (keyboard.isJustPressed('Space')) {
- *   audio.play('jump');
- * }
+ * // In any plugin onInit():
+ * const audio = api.services.get('audio') as AudioService;
+ * await audio.preload('jump', '/sounds/jump.wav');
+ * audio.play('jump');
  * ```
  */
 
-import type { EngineAPI } from '@gwen/engine-core';
-import type { GwenPlugin } from '@gwen/engine-core';
+import { definePlugin } from '@gwen/kit';
+import type { EngineAPI } from '@gwen/kit';
 
-// ============= Types =============
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface SoundOptions {
   /** Volume multiplier (0-1). Defaults to 1. */
@@ -40,213 +37,186 @@ export interface AudioPluginConfig {
   masterVolume?: number;
 }
 
-// ============= Sound track =============
-
 interface SoundTrack {
   buffer: AudioBuffer;
   nodes: AudioBufferSourceNode[];
 }
 
-// ============= AudioPlugin =============
-
-export class AudioPlugin implements GwenPlugin<'AudioPlugin', { audio: AudioPlugin }> {
-  readonly name = 'AudioPlugin' as const;
+/**
+ * Service exposed by AudioPlugin via `api.services.get('audio')`.
+ */
+export interface AudioService {
+  /**
+   * Preload a sound from a URL. Must be called before `play()`.
+   *
+   * @param id  Unique sound identifier.
+   * @param url Fetch-able URL to audio file (WAV, MP3, OGG…).
+   */
+  preload(id: string, url: string): Promise<void>;
 
   /**
-   * Déclare le service 'audio' injecté dans api.services.
-   * Utilisé par TypeScript pour l'inférence — jamais lu à runtime.
-   */
-  readonly provides = { audio: {} as AudioPlugin };
-
-  private context: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private sounds = new Map<string, SoundTrack>();
-  private pendingLoads = new Map<string, Promise<void>>();
-  private config: Required<AudioPluginConfig>;
-
-  constructor(config: AudioPluginConfig = {}) {
-    this.config = {
-      masterVolume: config.masterVolume ?? 1,
-    };
-  }
-
-  onInit(api: EngineAPI): void {
-    // AudioContext creation deferred until user gesture in browsers,
-    // but we create it here and it will auto-resume on first interaction.
-    this.context = new AudioContext();
-    this.masterGain = this.context.createGain();
-    this.masterGain.gain.value = this.config.masterVolume;
-    this.masterGain.connect(this.context.destination);
-
-    api.services.register('audio', this);
-  }
-
-  onDestroy(): void {
-    this.stopAll();
-    this.context?.close();
-    this.context = null;
-    this.masterGain = null;
-    this.sounds.clear();
-    this.pendingLoads.clear();
-  }
-
-  // ── Preloading ─────────────────────────────────────────────────────────
-
-  /**
-   * Preload a sound from a URL. Must be called before play().
-   * Returns a promise that resolves when the sound is ready.
+   * Preload from an already-decoded AudioBuffer (useful in tests).
    *
-   * @param id Unique sound identifier
-   * @param url Fetch-able URL to audio file (WAV, MP3, OGG, etc.)
-   * @returns Promise that resolves when audio is decoded and ready
-   * @throws Error if plugin not initialized or fetch fails
-   *
-   * @example
-   * ```typescript
-   * const audio = api.services.get('audio');
-   * await audio.preload('jump', '/sounds/jump.wav');
-   * audio.play('jump');
-   * ```
+   * @param id     Unique sound identifier.
+   * @param buffer Pre-decoded AudioBuffer.
    */
-  async preload(id: string, url: string): Promise<void> {
-    if (this.sounds.has(id)) return;
-    if (this.pendingLoads.has(id)) return this.pendingLoads.get(id)!;
-
-    if (!this.context) {
-      throw new Error('[AudioPlugin] Plugin not initialized. Call engine.registerSystem() first.');
-    }
-
-    const loadPromise = fetch(url)
-      .then((res) => res.arrayBuffer())
-      .then((buf) => this.context!.decodeAudioData(buf))
-      .then((buffer) => {
-        this.sounds.set(id, { buffer, nodes: [] });
-        this.pendingLoads.delete(id);
-      });
-
-    this.pendingLoads.set(id, loadPromise);
-    return loadPromise;
-  }
-
-  /**
-   * Preload from an already-decoded AudioBuffer (useful for tests).
-   * Direct buffer registration without fetching.
-   *
-   * @param id Unique sound identifier
-   * @param buffer Pre-decoded AudioBuffer
-   */
-  preloadBuffer(id: string, buffer: AudioBuffer): void {
-    this.sounds.set(id, { buffer, nodes: [] });
-  }
-
-  // ── Playback ───────────────────────────────────────────────────────────
+  preloadBuffer(id: string, buffer: AudioBuffer): void;
 
   /**
    * Play a preloaded sound. Multiple instances can play simultaneously.
    *
-   * Automatically resumes AudioContext if suspended (browser autoplay policy).
-   * Returns the source node for advanced control (time, fade, etc.).
-   *
-   * @param id Sound identifier (must be preloaded first)
-   * @param options Volume (0-1), pitch (playback rate), loop flag
-   * @returns AudioBufferSourceNode for advanced control, or null if sound not found
-   *
-   * @example
-   * ```typescript
-   * const source = audio.play('jump', { volume: 0.8, pitch: 1.2 });
-   * if (source) {
-   *   // Stop after 1 second
-   *   setTimeout(() => source.stop(), 1000);
-   * }
-   * ```
+   * @param id      Sound identifier (must be preloaded first).
+   * @param options Volume, pitch, loop flag.
+   * @returns The AudioBufferSourceNode, or `null` if sound not found.
    */
-  play(id: string, options: SoundOptions = {}): AudioBufferSourceNode | null {
-    const ctx = this.context;
-    const track = this.sounds.get(id);
-    if (!ctx || !track || !this.masterGain) {
-      console.warn(`[AudioPlugin] Sound '${id}' not found or AudioContext not ready.`);
-      return null;
-    }
-
-    // Resume context if suspended (browser autoplay policy)
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
-    const source = ctx.createBufferSource();
-    source.buffer = track.buffer;
-    source.playbackRate.value = options.pitch ?? 1;
-    source.loop = options.loop ?? false;
-
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = options.volume ?? 1;
-
-    source.connect(gainNode);
-    gainNode.connect(this.masterGain);
-
-    // Track active nodes for stop/cleanup
-    track.nodes.push(source);
-    source.onended = () => {
-      track.nodes = track.nodes.filter((n) => n !== source);
-    };
-
-    source.start(0);
-    return source;
-  }
+  play(id: string, options?: SoundOptions): AudioBufferSourceNode | null;
 
   /**
    * Stop all playing instances of a specific sound.
-   * Safe to call even if sound is not playing.
    *
-   * @param id Sound identifier
-   *
-   * @example
-   * ```typescript
-   * audio.stop('jump');  // Stops all jump sound instances
-   * ```
+   * @param id Sound identifier.
    */
-  stop(id: string): void {
-    const track = this.sounds.get(id);
-    if (!track) return;
-    for (const node of track.nodes) {
-      try {
-        node.stop();
-      } catch {
-        /* already stopped */
-      }
-    }
-    track.nodes = [];
-  }
+  stop(id: string): void;
+
+  /** Stop all currently playing sounds. */
+  stopAll(): void;
 
   /**
-   * Stop all currently playing sounds.
-   * Useful for scene transitions or game over.
+   * Set the master volume.
+   *
+   * @param volume Value between 0 and 1.
    */
-  stopAll(): void {
-    for (const id of this.sounds.keys()) {
-      this.stop(id);
-    }
-  }
+  setMasterVolume(volume: number): void;
 
-  // ── Volume ─────────────────────────────────────────────────────────────
+  /** Get the current master volume (0-1). */
+  getMasterVolume(): number;
 
-  setMasterVolume(volume: number): void {
-    if (this.masterGain) {
-      this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
-    }
-  }
+  /**
+   * Returns `true` if the sound has been preloaded successfully.
+   *
+   * @param id Sound identifier.
+   */
+  isLoaded(id: string): boolean;
 
-  getMasterVolume(): number {
-    return this.masterGain?.gain.value ?? 0;
-  }
-
-  // ── State ──────────────────────────────────────────────────────────────
-
-  isLoaded(id: string): boolean {
-    return this.sounds.has(id);
-  }
-
-  getContext(): AudioContext | null {
-    return this.context;
-  }
+  /** Returns the underlying AudioContext, or `null` before `onInit`. */
+  getContext(): AudioContext | null;
 }
+
+// ── AudioPlugin ───────────────────────────────────────────────────────────────
+
+export const AudioPlugin = definePlugin({
+  name: 'AudioPlugin',
+  provides: { audio: {} as AudioService },
+
+  setup(config: AudioPluginConfig = {}) {
+    const masterVolume = config.masterVolume ?? 1;
+
+    let context: AudioContext | null = null;
+    let masterGain: GainNode | null = null;
+    const sounds = new Map<string, SoundTrack>();
+    const pendingLoads = new Map<string, Promise<void>>();
+
+    function stop(id: string): void {
+      const track = sounds.get(id);
+      if (!track) return;
+      for (const node of track.nodes) {
+        try {
+          node.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      track.nodes = [];
+    }
+
+    const service: AudioService = {
+      async preload(id, url) {
+        if (sounds.has(id)) return;
+        if (pendingLoads.has(id)) return pendingLoads.get(id)!;
+        if (!context) throw new Error('[AudioPlugin] Plugin not initialized.');
+
+        const p = fetch(url)
+          .then((r) => r.arrayBuffer())
+          .then((buf) => context!.decodeAudioData(buf))
+          .then((buffer) => {
+            sounds.set(id, { buffer, nodes: [] });
+            pendingLoads.delete(id);
+          });
+        pendingLoads.set(id, p);
+        return p;
+      },
+
+      preloadBuffer(id, buffer) {
+        sounds.set(id, { buffer, nodes: [] });
+      },
+
+      play(id, options = {}) {
+        const ctx = context;
+        const track = sounds.get(id);
+        if (!ctx || !track || !masterGain) {
+          console.warn(`[AudioPlugin] Sound '${id}' not found or AudioContext not ready.`);
+          return null;
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+
+        const source = ctx.createBufferSource();
+        source.buffer = track.buffer;
+        source.playbackRate.value = options.pitch ?? 1;
+        source.loop = options.loop ?? false;
+
+        const gain = ctx.createGain();
+        gain.gain.value = options.volume ?? 1;
+        source.connect(gain);
+        gain.connect(masterGain);
+
+        track.nodes.push(source);
+        source.onended = () => {
+          track.nodes = track.nodes.filter((n) => n !== source);
+        };
+        source.start(0);
+        return source;
+      },
+
+      stop,
+
+      stopAll() {
+        for (const id of sounds.keys()) stop(id);
+      },
+
+      setMasterVolume(volume) {
+        if (masterGain) masterGain.gain.value = Math.max(0, Math.min(1, volume));
+      },
+
+      getMasterVolume() {
+        return masterGain?.gain.value ?? 0;
+      },
+
+      isLoaded(id) {
+        return sounds.has(id);
+      },
+
+      getContext() {
+        return context;
+      },
+    };
+
+    return {
+      onInit(api: EngineAPI): void {
+        context = new AudioContext();
+        masterGain = context.createGain();
+        masterGain.gain.value = masterVolume;
+        masterGain.connect(context.destination);
+        api.services.register('audio', service);
+      },
+
+      onDestroy(): void {
+        service.stopAll();
+        context?.close();
+        context = null;
+        masterGain = null;
+        sounds.clear();
+        pendingLoads.clear();
+      },
+    };
+  },
+});

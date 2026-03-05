@@ -65,6 +65,7 @@ export type {
   TsPluginLifecycle,
   WasmPluginLifecycle,
   PluginClass,
+  GwenPluginInstance,
 } from './define-plugin';
 
 // ── Type re-exports from @gwen/engine-core ────────────────────────────────────

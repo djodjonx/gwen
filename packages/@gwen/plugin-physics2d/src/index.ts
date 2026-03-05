@@ -9,11 +9,11 @@
  * import { physics2D } from '@gwen/plugin-physics2d';
  *
  * export default defineConfig({
- *   wasmPlugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
+ *   plugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
  * });
  * ```
  *
- * ## Accessing the API in a TsPlugin
+ * ## Accessing the API in a plugin
  * ```typescript
  * onInit(api) {
  *   const physics = api.services.get('physics') as Physics2DAPI;
@@ -23,15 +23,8 @@
  * ```
  */
 
-import type {
-  GwenWasmPlugin,
-  WasmBridge,
-  EngineAPI,
-  MemoryRegion,
-  PluginChannel,
-} from '@gwen/engine-core';
-import { loadWasmPlugin } from '@gwen/engine-core';
-import type { PluginDataBus } from '@gwen/engine-core';
+import { definePlugin, loadWasmPlugin } from '@gwen/kit';
+import type { WasmBridge, MemoryRegion, EngineAPI, PluginDataBus, PluginChannel } from '@gwen/kit';
 
 import type {
   Physics2DConfig,
@@ -54,205 +47,182 @@ export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, Ri
  *
  * Uses the Plugin Data Bus for zero-SAB communication:
  * - "transform" channel: TS → Rapier (kinematic body positions)
- * - "events" channel: Rapier → TS (collision events, binary ring buffer)
+ * - "events"    channel: Rapier → TS (collision events, binary ring buffer)
  */
-export class Physics2DPlugin implements GwenWasmPlugin {
-  // ── GwenWasmPlugin identity ──────────────────────────────────────────────
-  readonly id = 'physics2d' as const;
-  readonly name = 'Physics2D' as const;
-  readonly version = '0.1.0';
+export const Physics2DPlugin = definePlugin({
+  name: 'Physics2D',
+  provides: { physics: {} as Physics2DAPI },
+  wasm: {
+    id: 'physics2d',
+    /** No legacy SAB — Plugin Data Bus is used exclusively. */
+    sharedMemoryBytes: 0,
+    channels: [
+      {
+        name: 'transform',
+        direction: 'read',
+        strideBytes: 20, // pos_x, pos_y, rotation, scale_x, scale_y (5 × f32)
+        bufferType: 'f32',
+      } satisfies PluginChannel,
+      {
+        name: 'events',
+        direction: 'write',
+        bufferType: 'ring',
+        capacityEvents: 256,
+      } satisfies PluginChannel,
+    ],
+  },
 
-  /**
-   * No legacy SAB allocation — the Plugin Data Bus is used instead.
-   * Setting this to 0 tells SharedMemoryManager to skip allocation and
-   * passes `region = null` to onInit.
-   */
-  readonly sharedMemoryBytes = 0;
-
-  /**
-   * Channel declarations — PluginDataBus allocates one ArrayBuffer per channel
-   * before onInit() is called.
-   */
-  readonly channels: PluginChannel[] = [
-    {
-      name: 'transform',
-      direction: 'read',
-      strideBytes: 20, // pos_x, pos_y, rotation, scale_x, scale_y (5 × f32)
-      bufferType: 'f32',
-    },
-    {
-      name: 'events',
-      direction: 'write',
-      bufferType: 'ring',
-      capacityEvents: 256,
-    },
-  ];
-
-  /** Service map declared for type inference in api.services. */
-  readonly provides = { physics: {} as Physics2DAPI };
-
-  // ── Internal state ───────────────────────────────────────────────────────
-  private wasmPlugin: WasmPhysics2DPlugin | null = null;
-  readonly config: Required<Physics2DConfig>;
-  private _eventsBuf: ArrayBuffer | null = null;
-  private _debugFrameCount = 0;
-
-  constructor(config: Physics2DConfig = {}) {
-    this.config = {
+  setup(config: Physics2DConfig = {}) {
+    const cfg: Required<Physics2DConfig> = {
       gravity: config.gravity ?? -9.81,
       gravityX: config.gravityX ?? 0,
       maxEntities: config.maxEntities ?? 10_000,
     };
-  }
 
-  // ── GwenWasmPlugin lifecycle ─────────────────────────────────────────────
+    let wasmPlugin: WasmPhysics2DPlugin | null = null;
+    let eventsBuf: ArrayBuffer | null = null;
+    let debugFrameCount = 0;
 
-  /**
-   * Load the `.wasm` module, instantiate the Rapier2D simulation, and
-   * register the `physics` service in `api.services`.
-   *
-   * Called once by `createEngine()` before `engine.start()`.
-   * `region` is always `null` because `sharedMemoryBytes === 0`.
-   */
-  async onInit(
-    _bridge: WasmBridge,
-    _region: MemoryRegion | null,
-    api: EngineAPI,
-    bus?: PluginDataBus,
-  ): Promise<void> {
-    // Retrieve pre-allocated channel buffers from the PluginDataBus.
-    // Fallback to a fresh ArrayBuffer if the bus is not available
-    // (e.g. in unit tests without a full engine).
-    const transformChannel = bus?.get(this.id, 'transform');
-    const eventsChannel = bus?.get(this.id, 'events');
+    // ── Service factory ──────────────────────────────────────────────────
 
-    const transformBuf: ArrayBuffer =
-      transformChannel?.buffer ?? new ArrayBuffer(this.config.maxEntities * 20);
-    const eventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
+    function createAPI(): Physics2DAPI {
+      return {
+        addRigidBody(entityIndex, type, x, y) {
+          if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
+          const handle = wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
+          console.log(
+            `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
+          );
+          return handle;
+        },
 
-    this._eventsBuf = eventsBuf;
+        addBoxCollider(bodyHandle, hw, hh, opts: ColliderOptions = {}) {
+          console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
+          wasmPlugin?.add_box_collider(
+            bodyHandle,
+            hw,
+            hh,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+          );
+        },
 
-    const wasm = await loadWasmPlugin<Physics2DWasmModule>({
-      jsUrl: '/wasm/gwen_physics2d.js',
-      wasmUrl: '/wasm/gwen_physics2d_bg.wasm',
-      name: 'Physics2D',
-    });
+        addBallCollider(bodyHandle, radius, opts: ColliderOptions = {}) {
+          console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
+          wasmPlugin?.add_ball_collider(
+            bodyHandle,
+            radius,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+          );
+        },
 
-    // Pass JS-native ArrayBuffers as Uint8Array views to the Rust constructor.
-    // These buffers are independent of gwen-core's linear memory — memory.grow()
-    // in gwen-core has zero effect on them.
-    this.wasmPlugin = new wasm.Physics2DPlugin(
-      this.config.gravityX,
-      this.config.gravity,
-      new Uint8Array(transformBuf),
-      new Uint8Array(eventsBuf),
-      this.config.maxEntities,
-    );
+        removeBody(entityIndex) {
+          console.log(`[Physics2D] removeBody entity=${entityIndex}`);
+          wasmPlugin?.remove_rigid_body(entityIndex);
+        },
 
-    // Register the service so TsPlugins can call api.services.get('physics')
-    api.services.register('physics', this._createAPI());
-  }
+        setKinematicPosition(entityIndex, x, y) {
+          wasmPlugin?.set_kinematic_position(entityIndex, x, y);
+        },
 
-  /**
-   * Advance the Rapier2D simulation by `deltaTime` seconds.
-   * Called each frame at the WasmStep slot — BEFORE TsPlugin.onUpdate.
-   */
-  onStep(deltaTime: number): void {
-    this.wasmPlugin?.step(deltaTime);
-    this._debugFrameCount++;
-  }
+        applyImpulse(entityIndex, x, y) {
+          wasmPlugin?.apply_impulse(entityIndex, x, y);
+        },
 
-  /** Free the WASM instance. Called when the engine stops. */
-  onDestroy(): void {
-    this.wasmPlugin?.free?.();
-    this.wasmPlugin = null;
-    this._eventsBuf = null;
-  }
+        getCollisionEvents(): CollisionEvent[] {
+          if (!wasmPlugin || !eventsBuf) return [];
+          const events = readCollisionEventsFromBuffer(eventsBuf);
+          const f = debugFrameCount;
+          if (f <= 300 && f % 60 === 0 && f > 0) {
+            const stats = wasmPlugin.stats();
+            console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
+          }
+          if (events.length > 0) {
+            console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
+          }
+          return events;
+        },
 
-  // ── Service factory ──────────────────────────────────────────────────────
+        getPosition(entityIndex) {
+          const result = wasmPlugin?.get_position(entityIndex);
+          if (!result || result.length < 3) return null;
+          return { x: result[0], y: result[1], rotation: result[2] };
+        },
+      };
+    }
 
-  private _createAPI(): Physics2DAPI {
     return {
-      addRigidBody: (entityIndex, type, x, y) => {
-        if (!this.wasmPlugin) throw new Error('[Physics2D] not initialized');
-        const handle = this.wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
-        console.log(
-          `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
+      // ── WASM lifecycle ─────────────────────────────────────────────────
+
+      /**
+       * Load the `.wasm` module, instantiate the Rapier2D simulation, and
+       * register the `physics` service in `api.services`.
+       */
+      async onWasmInit(
+        _bridge: WasmBridge,
+        _region: MemoryRegion | null,
+        api: EngineAPI,
+        bus: PluginDataBus,
+      ): Promise<void> {
+        const transformChannel = bus.get('physics2d', 'transform');
+        const eventsChannel = bus.get('physics2d', 'events');
+
+        const transformBuf: ArrayBuffer =
+          transformChannel?.buffer ?? new ArrayBuffer(cfg.maxEntities * 20);
+        const resolvedEventsBuf: ArrayBuffer =
+          eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
+        eventsBuf = resolvedEventsBuf;
+
+        const wasm = await loadWasmPlugin<Physics2DWasmModule>({
+          jsUrl: '/wasm/gwen_physics2d.js',
+          wasmUrl: '/wasm/gwen_physics2d_bg.wasm',
+          name: 'Physics2D',
+        });
+
+        wasmPlugin = new wasm.Physics2DPlugin(
+          cfg.gravityX,
+          cfg.gravity,
+          new Uint8Array(transformBuf),
+          new Uint8Array(resolvedEventsBuf),
+          cfg.maxEntities,
         );
-        return handle;
+
+        api.services.register('physics', createAPI());
       },
 
-      addBoxCollider: (bodyHandle, hw, hh, opts: ColliderOptions = {}) => {
-        console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
-        this.wasmPlugin?.add_box_collider(
-          bodyHandle,
-          hw,
-          hh,
-          opts.restitution ?? 0,
-          opts.friction ?? 0.5,
-        );
+      /**
+       * Advance the Rapier2D simulation by `deltaTime` seconds.
+       * Called each frame before `onUpdate`.
+       */
+      onStep(deltaTime: number): void {
+        wasmPlugin?.step(deltaTime);
+        debugFrameCount++;
       },
 
-      addBallCollider: (bodyHandle, radius, opts: ColliderOptions = {}) => {
-        console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
-        this.wasmPlugin?.add_ball_collider(
-          bodyHandle,
-          radius,
-          opts.restitution ?? 0,
-          opts.friction ?? 0.5,
-        );
-      },
-
-      removeBody: (entityIndex) => {
-        console.log(`[Physics2D] removeBody entity=${entityIndex}`);
-        this.wasmPlugin?.remove_rigid_body(entityIndex);
-      },
-
-      setKinematicPosition: (entityIndex, x, y) => {
-        this.wasmPlugin?.set_kinematic_position(entityIndex, x, y);
-      },
-
-      applyImpulse: (entityIndex, x, y) => {
-        this.wasmPlugin?.apply_impulse(entityIndex, x, y);
-      },
-
-      getCollisionEvents: (): CollisionEvent[] => {
-        if (!this.wasmPlugin || !this._eventsBuf) return [];
-        const events = readCollisionEventsFromBuffer(this._eventsBuf);
-        const f = this._debugFrameCount;
-        if (f <= 300 && f % 60 === 0 && f > 0) {
-          const stats = this.wasmPlugin.stats();
-          console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
-        }
-        if (events.length > 0) {
-          console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
-        }
-        return events;
-      },
-
-      getPosition: (entityIndex) => {
-        const result = this.wasmPlugin?.get_position(entityIndex);
-        if (!result || result.length < 3) return null;
-        return { x: result[0], y: result[1], rotation: result[2] };
+      /** Free the WASM instance when the engine stops. */
+      onDestroy(): void {
+        wasmPlugin?.free?.();
+        wasmPlugin = null;
+        eventsBuf = null;
       },
     };
-  }
-}
+  },
+});
 
 // ─── Helper factory ───────────────────────────────────────────────────────────
 
 /**
  * Create a `Physics2DPlugin` instance.
- * Use in `gwen.config.ts` under `wasmPlugins`.
  *
  * ```typescript
  * import { physics2D } from '@gwen/plugin-physics2d';
  *
  * export default defineConfig({
- *   wasmPlugins: [physics2D({ gravity: -9.81 })],
+ *   plugins: [physics2D({ gravity: -9.81 })],
  * });
  * ```
  */
-export function physics2D(config: Physics2DConfig = {}): Physics2DPlugin {
+export function physics2D(config: Physics2DConfig = {}): InstanceType<typeof Physics2DPlugin> {
   return new Physics2DPlugin(config);
 }

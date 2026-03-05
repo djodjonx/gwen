@@ -13,19 +13,28 @@ export { defaultConfig, mergeConfigs, defineConfig, createEngine } from './confi
 export { ConfigBuilder } from './config/config-builder';
 export type { TypedEngineConfig, GwenConfigServices, GwenConfigHooks } from './config/config';
 
-// Typed plugin system — GwenPlugin interface
+// Unified plugin system — GwenPlugin, GwenPluginWasmContext, isWasmPlugin
+// isWasmPlugin is a runtime function living in plugin-system/plugin-utils.ts
+// so Vite does not tree-shake it when bundling.
+export { isWasmPlugin } from './plugin-system/plugin-utils';
+export type { GwenPlugin, GwenPluginWasmContext, PluginEntry } from './types/plugin';
+
+// Plugin system utilities — type helpers for defineConfig() inference
 export type {
-  GwenPlugin,
   GwenPluginMeta,
+  // Primary (new)
+  MergePluginsProvides,
+  MergePluginsHooks,
   PluginProvides,
   PluginProvidesHooks,
-  WasmPluginProvides,
+  UnionToIntersection,
+  // Legacy (deprecated)
   MergeProvides,
   MergeHooks,
+  WasmPluginProvides,
   MergeWasmProvides,
   MergeAllProvides,
   MergeAllHooks,
-  UnionToIntersection,
 } from './plugin-system/plugin';
 
 // System definition — defineSystem() for game logic

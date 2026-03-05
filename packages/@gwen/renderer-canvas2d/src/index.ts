@@ -1,6 +1,7 @@
 // @gwen/renderer-canvas2d — Public API
 export { Canvas2DRenderer } from './renderer';
 export type {
+  RendererService,
   SpriteComponent,
   TransformComponent,
   Camera,

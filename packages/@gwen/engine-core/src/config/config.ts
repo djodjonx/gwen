@@ -1,5 +1,6 @@
-import type { EngineConfig, TsPlugin, GwenWasmPlugin } from '../types';
-import type { GwenPlugin, MergeAllProvides } from '../plugin-system/plugin';
+import type { EngineConfig, GwenPlugin } from '../types';
+import type { MergePluginsProvides, MergePluginsHooks } from '../plugin-system/plugin';
+import { isWasmPlugin } from '../plugin-system/plugin-utils';
 import { Engine } from '../engine/engine';
 import { SceneManager } from '../api/scene';
 import { SharedMemoryManager } from '../wasm/shared-memory';
@@ -8,161 +9,195 @@ import { getWasmBridge } from '../engine/wasm-bridge';
 export { ConfigBuilder } from './config-builder';
 
 /**
- * Default engine configuration - Pure logic, no rendering concerns
- * Matches Nuxt-like config pattern with wasm/ts plugin separation
+ * Default engine configuration values.
+ *
+ * Used as the base for `mergeConfigs()` and `new Engine()` when no config is provided.
  */
 export const defaultConfig: EngineConfig = {
   maxEntities: 5000,
   targetFPS: 60,
   debug: false,
   enableStats: true,
-  wasmPlugins: [],
-  tsPlugins: [],
+  plugins: [],
 };
 
 /**
- * Merge user config with defaults
- * Handles both new (wasm/ts) plugin formats
+ * Merge a user-supplied partial config with a base config.
+ *
+ * Plugin arrays are concatenated: base plugins come first, user plugins second.
+ * Legacy `tsPlugins` and `wasmPlugins` arrays are also merged for backward
+ * compatibility — they are drained by `createEngine()` into the unified pipeline.
+ *
+ * @param defaults - Base configuration (typically `defaultConfig`).
+ * @param user     - Partial user configuration to merge on top.
+ * @returns Merged `EngineConfig`.
  */
 export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>): EngineConfig {
   return {
     ...defaults,
     ...user,
-    wasmPlugins: [...(defaults.wasmPlugins || []), ...(user.wasmPlugins || [])],
-    tsPlugins: [...(defaults.tsPlugins || []), ...(user.tsPlugins || [])],
+    plugins: [...(defaults.plugins ?? []), ...(user.plugins ?? [])],
+    // Legacy arrays — kept for backward compatibility
+    wasmPlugins: [...(defaults.wasmPlugins ?? []), ...(user.wasmPlugins ?? [])],
+    tsPlugins: [...(defaults.tsPlugins ?? []), ...(user.tsPlugins ?? [])],
   };
 }
 
 /**
- * Typed result of defineConfig() — exposes the inferred ServiceMap and HooksMap from plugins.
+ * Typed result of `defineConfig()`.
  *
- * `Services` is the intersection of `provides` from all declared plugins.
- * `Hooks` is the intersection of `providesHooks` from all declared plugins.
+ * Carries two phantom type parameters that are inferred from the declared
+ * plugins and used by `gwen prepare` to generate `GwenDefaultServices` and
+ * `GwenDefaultHooks` in `.gwen/gwen.d.ts`.
+ *
+ * - `Services` — intersection of every plugin's `provides` map.
+ * - `Hooks`    — `GwenHooks` & intersection of every plugin's `providesHooks`.
+ *
+ * Neither `_services` nor `_hooks` is read at runtime — they are purely
+ * compile-time markers.
  */
 export interface TypedEngineConfig<
   Services extends Record<string, unknown>,
   Hooks extends Record<string, any> = Record<string, never>,
 > {
-  readonly _services: Services; // phantom type — never read at runtime
-  readonly _hooks: Hooks; // phantom type — never read at runtime
+  /** @internal Phantom type — never read at runtime. */
+  readonly _services: Services;
+  /** @internal Phantom type — never read at runtime. */
+  readonly _hooks: Hooks;
   readonly maxEntities?: number;
   readonly targetFPS?: number;
   readonly debug?: boolean;
   readonly enableStats?: boolean;
-  readonly tsPlugins?: TsPlugin[];
-  readonly wasmPlugins?: GwenWasmPlugin[];
+  /**
+   * All plugins — TS-only and WASM plugins in a single array.
+   *
+   * `createEngine()` automatically splits them by inspecting the `wasm`
+   * sub-object (via `isWasmPlugin()`).
+   */
+  readonly plugins?: GwenPlugin[];
+  /**
+   * @deprecated Use `plugins` instead.
+   * Kept for backward compatibility — entries are merged into `plugins`
+   * by `createEngine()` before processing.
+   */
+  readonly tsPlugins?: GwenPlugin[];
+  /**
+   * @deprecated Use `plugins` instead.
+   * Kept for backward compatibility — entries are merged into `plugins`
+   * by `createEngine()` before processing.
+   */
+  readonly wasmPlugins?: GwenPlugin[];
   /**
    * Scene to load at engine startup.
    *
-   * If not specified, prepare() looks for scenes named 'Main', 'MainMenu',
-   * or 'Boot', otherwise uses the first detected scene.
-   *
-   * @example mainScene: 'MainMenu'
+   * If omitted, `createEngine()` looks for scenes named `'Main'`, `'MainMenu'`
+   * or `'Boot'`, then falls back to the first registered scene.
    */
   readonly mainScene?: string;
   /**
-   * Automatic scene loading from src/scenes/.
+   * Automatic scene loading from `src/scenes/`.
    *
-   * - `'auto'` (default): CLI scans src/scenes/*.ts during prepare.
-   *   File .gwen/scenes.ts is generated with imports + registrations.
-   * - `false`: disabled, manage your scenes manually in main.ts.
+   * - `'auto'` (default) — the CLI scans `src/scenes/*.ts` during `prepare`
+   *   and generates `.gwen/scenes.ts` with imports + registrations.
+   * - `false` — disabled; manage scenes manually in `main.ts`.
    */
   readonly scenes?: 'auto' | false;
-  /**
-   * Configuration for HTML generated by GWEN.
-   * If index.html is missing from the project, GWEN auto-generates it.
-   *
-   * @example
-   * html: {
-   *   title: 'My Game',
-   *   canvasId: 'game-canvas',
-   *   canvasWidth: 800,
-   *   canvasHeight: 600,
-   *   background: '#000',
-   * }
-   */
+  /** HTML generation settings used by `gwen prepare` to scaffold `index.html`. */
   readonly html?: {
-    /** Page title. Default: project name */
+    /** Page `<title>`. Defaults to the project folder name. */
     title?: string;
-    /** Page background color. Default: '#000' */
+    /** Page background colour. Defaults to `'#000'`. */
     background?: string;
   };
 }
 
+// ── defineConfig overloads ────────────────────────────────────────────────────
+
 /**
- * Define a GWEN project configuration with full service and hook type inference.
- *
- * Services and hooks exposed by each plugin are automatically merged into
- * `TypedEngineConfig<Services, Hooks>`, making `api.services.get()` and
- * `api.hooks.hook()` strongly typed everywhere in the project.
- *
- * ```typescript
- * // gwen.config.ts
- * export default defineConfig({
- *   tsPlugins: [new InputPlugin(), new AudioPlugin()],
- *   wasmPlugins: [Physics2D({ gravity: 9.81 })],
- *   maxEntities: 10_000,
- *   targetFPS: 60,
- * });
- *
- * // In any system / plugin — fully typed after gwen prepare, no annotation needed
- * onInit(api) {
- *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
- *   const au = api.services.get('audio');    // → AudioManager  ✅
- *   api.hooks.hook('input:keyDown', (key) => {}); // ✅ type-safe
- *   api.hooks.hook('physics:collision', (e) => {}); // ✅ type-safe
- * }
- * ```
- *
- * @param config Project configuration. `tsPlugins` accepts any plugin
- *   implementing `GwenPlugin` (typed, with `provides` / `providesHooks`)
- *   or `TsPlugin` (untyped fallback).
+ * Shape of the config object accepted by `defineConfig()`.
+ * Separated into its own type so both overloads share the same parameter list.
  */
-export function defineConfig<
-  const TsPlugins extends readonly GwenPlugin[],
-  const WasmPlugins extends readonly GwenWasmPlugin[],
->(config: {
+type DefineConfigInput<Plugins extends readonly GwenPlugin[]> = {
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
-  tsPlugins?: [...TsPlugins];
-  wasmPlugins?: [...WasmPlugins];
+  /** Unified plugin array — TS-only and WASM plugins mixed in declaration order. */
+  plugins?: [...Plugins];
+  /** @deprecated Use `plugins` instead. */
+  tsPlugins?: GwenPlugin[];
+  /** @deprecated Use `plugins` instead. */
+  wasmPlugins?: GwenPlugin[];
   maxEntities?: number;
   targetFPS?: number;
   debug?: boolean;
   enableStats?: boolean;
   mainScene?: string;
   scenes?: 'auto' | false;
-  html?: {
-    title?: string;
-    background?: string;
-  };
-}): TypedEngineConfig<
-  MergeAllProvides<TsPlugins, WasmPlugins>,
-  import('../plugin-system/plugin').MergeAllHooks<TsPlugins>
-> {
+  html?: { title?: string; background?: string };
+};
+
+/**
+ * Define a GWEN project configuration with full service and hook type inference.
+ *
+ * Services and hooks exposed by each plugin are automatically merged into
+ * `TypedEngineConfig<Services, Hooks>`, making `api.services.get()` and
+ * `api.hooks.hook()` strongly typed everywhere in the project after
+ * `gwen prepare` runs.
+ *
+ * WASM plugins (those with a `wasm` sub-object) and TS-only plugins can be
+ * freely mixed in the `plugins` array — `createEngine()` sorts them automatically.
+ *
+ * @param config Project configuration.
+ * @returns Typed engine configuration carrying inferred `Services` and `Hooks`.
+ *
+ * @example
+ * ```typescript
+ * // gwen.config.ts
+ * export default defineConfig({
+ *   plugins: [
+ *     physics2D({ gravity: -9.81 }),
+ *     new InputPlugin(),
+ *     new AudioPlugin({ masterVolume: 0.8 }),
+ *   ],
+ *   engine: { maxEntities: 10_000, targetFPS: 60 },
+ * });
+ *
+ * // In any system — fully typed after `gwen prepare`
+ * onInit(api) {
+ *   const kb  = api.services.get('keyboard'); // → KeyboardInput ✅
+ *   const phy = api.services.get('physics');  // → Physics2DAPI ✅
+ *   api.hooks.hook('physics:collision', (e) => {}); // ✅ type-safe
+ * }
+ * ```
+ */
+export function defineConfig<const Plugins extends readonly GwenPlugin[]>(
+  config: DefineConfigInput<Plugins>,
+): TypedEngineConfig<MergePluginsProvides<Plugins>, MergePluginsHooks<Plugins>> {
   return config as unknown as TypedEngineConfig<
-    MergeAllProvides<TsPlugins, WasmPlugins>,
-    import('../plugin-system/plugin').MergeAllHooks<TsPlugins>
+    MergePluginsProvides<Plugins>,
+    MergePluginsHooks<Plugins>
   >;
 }
 
 /**
- * Create an Engine and SceneManager from a `TypedEngineConfig`.
+ * Create an `Engine` and `SceneManager` from a `TypedEngineConfig`.
  *
- * **This function is async** — it awaits initialization of each WASM plugin
- * declared in `config.wasmPlugins` before returning.
+ * **This function is async** — it awaits initialisation of every WASM plugin
+ * declared in `config.plugins` (or the legacy `config.wasmPlugins`) before
+ * returning.
  *
- * The `sceneLoader` callback is auto-generated by `gwen prepare` in
- * `.gwen/scenes.ts`. It receives the `SceneManager` and registers all scenes
- * found in `src/scenes/`. Pass `undefined` (and manage scenes manually) when
- * `scenes: false` in config.
+ * ### Plugin initialisation order
+ * 1. All plugins with `wasm !== undefined` are detected via `isWasmPlugin()`.
+ * 2. Their `wasm.prefetch?.()` methods are called **in parallel**.
+ * 3. Their `wasm.onInit()` methods are called **sequentially** (memory
+ *    allocation must be deterministic).
+ * 4. All plugins (WASM and TS-only) are registered with `engine.registerSystem()`
+ *    in declaration order so `onInit(api)` and the frame hooks run for every plugin.
  *
- * @param config       Typed engine configuration from `defineConfig()`
- * @param sceneLoader  Optional scene registration callback (auto-generated)
- * @param mainScene    Name of the scene to load first (overrides config.mainScene)
+ * @param config       Typed engine configuration from `defineConfig()`.
+ * @param sceneLoader  Optional scene-registration callback (auto-generated by `gwen prepare`).
+ * @param mainScene    Name of the first scene to load (overrides `config.mainScene`).
  *
  * @example
  * ```typescript
- * // main.ts
  * import { initWasm, createEngine } from '@gwen/engine-core';
  * import gwenConfig from '../gwen.config';
  * import { registerScenes, mainScene } from '../.gwen/scenes';
@@ -176,16 +211,15 @@ export async function createEngine(
   config: TypedEngineConfig<Record<string, unknown>>,
   sceneLoader?: (scenes: SceneManager) => void,
   mainScene?: string,
-): Promise<{
-  engine: Engine;
-  scenes: SceneManager;
-}> {
+): Promise<{ engine: Engine; scenes: SceneManager }> {
   const raw = config as unknown as EngineConfig & {
-    tsPlugins?: TsPlugin[];
-    wasmPlugins?: GwenWasmPlugin[];
+    plugins?: GwenPlugin[];
+    tsPlugins?: GwenPlugin[];
+    wasmPlugins?: GwenPlugin[];
     mainScene?: string;
     engine?: Partial<EngineConfig>;
   };
+
   const engineOpts = raw.engine ?? {};
   const maxEntities = engineOpts.maxEntities ?? raw.maxEntities ?? 5000;
 
@@ -200,9 +234,17 @@ export async function createEngine(
   const scenes = new SceneManager();
   engine.registerSystem(scenes);
 
-  // ── WASM plugins ───────────────────────────────────────────────────────────
-  const wasmPlugins: GwenWasmPlugin[] = raw.wasmPlugins ?? [];
+  // ── Collect all plugins (new unified array + legacy fallbacks) ────────────
+  const allPlugins: GwenPlugin[] = [
+    ...(raw.plugins ?? []),
+    ...(raw.wasmPlugins ?? []), // @deprecated — backward compat
+    ...(raw.tsPlugins ?? []), // @deprecated — backward compat
+  ];
 
+  const wasmPlugins = allPlugins.filter(isWasmPlugin);
+  const tsOnlyPlugins = allPlugins.filter((p) => !isWasmPlugin(p));
+
+  // ── WASM plugins ──────────────────────────────────────────────────────────
   if (wasmPlugins.length > 0) {
     const bridge = getWasmBridge();
 
@@ -213,8 +255,6 @@ export async function createEngine(
       );
     }
 
-    // Warn if the browser context is not cross-origin isolated
-    // (not a hard requirement for our pointer-based bridge, but good practice)
     if (typeof crossOriginIsolated !== 'undefined' && !crossOriginIsolated) {
       console.warn(
         '[GWEN] Cross-origin isolation is inactive (crossOriginIsolated = false).\n' +
@@ -225,79 +265,50 @@ export async function createEngine(
       );
     }
 
-    // Allocate the shared buffer in gwen-core's WASM linear memory.
-    // The manager is kept on the Engine so _tick() can call checkSentinels() in debug mode.
     const sharedMemory = SharedMemoryManager.create(bridge, maxEntities);
     engine._setSharedMemoryPtr(sharedMemory.getTransformRegion().ptr, maxEntities, sharedMemory);
 
-    // ── Plugin Data Bus ────────────────────────────────────────────────────
-    // Allocate JS-native ArrayBuffers for each channel declared by WASM plugins.
-    // These buffers are independent of gwen-core's linear memory — a memory.grow()
-    // event in gwen-core has zero effect on them.
+    // Allocate Plugin Data Bus channels for all WASM plugins
     const pluginDataBus = new PluginDataBus();
     for (const plugin of wasmPlugins) {
-      if (plugin.channels) {
-        for (const channel of plugin.channels) {
-          pluginDataBus.allocate(plugin.id, channel, maxEntities);
+      if (plugin.wasm!.channels) {
+        for (const channel of plugin.wasm!.channels) {
+          pluginDataBus.allocate(plugin.wasm!.id, channel, maxEntities);
         }
       }
     }
     pluginDataBus.writeSentinels();
     engine._setPluginDataBus(pluginDataBus);
 
-    // ── Phase 1: fetch all WASM binaries in parallel ──────────────────────
-    // Network downloads can overlap — we only need their order to match
-    // declaration order for the sequential memory allocation below.
-    //
-    // Each plugin's onInit() is intentionally split into two phases:
-    //   Phase 1: fetch the .wasm binary (parallel — pure network I/O)
-    //   Phase 2: allocate region, init Rust plugin, register services (sequential)
-    //
-    // This avoids the race condition that would arise from running onInit()
-    // fully in parallel: allocateRegion() mutates `usedBytes` and is not
-    // concurrency-safe.
-    //
-    // Plugins that do not use loadWasmPlugin() internally (e.g. pure-TS adapters
-    // that implement GwenWasmPlugin) still go through Phase 2 sequentially.
     if (raw.debug) {
       console.log(`[GWEN] Fetching ${wasmPlugins.length} WASM plugin(s) in parallel…`);
     }
 
-    const pluginModules = await Promise.all(
+    // Phase 1 — parallel prefetch
+    await Promise.all(
       wasmPlugins.map(async (plugin) => {
-        // Kick off the WASM binary fetch for this plugin.
-        // Plugins that implement the optional `_prefetch()` hook use it to
-        // download their .wasm early; others will fetch lazily inside onInit().
-        await (plugin as GwenWasmPlugin & { _prefetch?(): Promise<void> })._prefetch?.();
+        await plugin.wasm!.prefetch?.();
         return plugin;
       }),
     );
 
-    // ── Phase 2: allocate regions and initialize sequentially ─────────────
-    // Memory allocation and service registration must happen in order so that
-    // region offsets are deterministic and services are registered before any
-    // subsequent plugin's onInit() might try to access them.
-    for (const plugin of pluginModules) {
-      // Bus-first plugins set sharedMemoryBytes = 0: no legacy SAB region needed.
+    // Phase 2 — sequential onInit + region allocation
+    for (const plugin of wasmPlugins) {
+      const sharedMemBytes = plugin.wasm!.sharedMemoryBytes ?? 0;
       const region =
-        plugin.sharedMemoryBytes > 0
-          ? sharedMemory.allocateRegion(plugin.id, plugin.sharedMemoryBytes)
-          : null;
+        sharedMemBytes > 0 ? sharedMemory.allocateRegion(plugin.wasm!.id, sharedMemBytes) : null;
 
-      await plugin.onInit(bridge, region, api, pluginDataBus);
+      await plugin.wasm!.onInit(bridge, region, api, pluginDataBus);
       engine._registerWasmPlugin(plugin);
 
       if (raw.debug) {
-        const memoryMode = region ? `SAB=${region.byteLength}B` : 'SAB=disabled (DataBus only)';
+        const memMode = region ? `SAB=${region.byteLength}B` : 'SAB=disabled (DataBus only)';
         console.log(
-          `[GWEN] WASM plugin '${plugin.name}' (id='${plugin.id}') initialized — ${memoryMode}`,
+          `[GWEN] WASM plugin '${plugin.name}' (id='${plugin.wasm!.id}') initialized — ${memMode}`,
         );
       }
     }
 
-    // Write sentinel canaries into the shared buffer now that all regions are
-    // allocated. The Rust plugins have not written anything yet at this point,
-    // so the sentinel positions are guaranteed to be untouched.
     sharedMemory._writeSentinels(bridge);
 
     if (raw.debug) {
@@ -308,13 +319,17 @@ export async function createEngine(
     }
   }
 
-  // ── TypeScript plugins ─────────────────────────────────────────────────────
-  const plugins: TsPlugin[] = raw.tsPlugins ?? [];
-  for (const plugin of plugins) {
+  // ── TS-only plugins ───────────────────────────────────────────────────────
+  for (const plugin of tsOnlyPlugins) {
     engine.registerSystem(plugin);
   }
 
-  // ── Scene loading ──────────────────────────────────────────────────────────
+  // WASM plugins also participate in the TS game loop (onInit, onUpdate…)
+  for (const plugin of wasmPlugins) {
+    engine.registerSystem(plugin);
+  }
+
+  // ── Scene loading ─────────────────────────────────────────────────────────
   if (sceneLoader) {
     sceneLoader(scenes);
     const resolvedMain = mainScene ?? raw.mainScene ?? resolveMainScene(scenes);
@@ -331,25 +346,32 @@ export async function createEngine(
 }
 
 /**
- * Resolve the main scene by convention among registered scenes.
- * Searches in order: 'Main', 'MainMenu', 'Boot', then first.
+ * Resolve the startup scene by convention.
+ *
+ * Searches registered scene names in order: `'Main'`, `'MainMenu'`, `'Boot'`.
+ * Falls back to the first registered scene if none of those names are found.
+ *
+ * @param scenes - The `SceneManager` after `sceneLoader` has been called.
+ * @returns The resolved scene name, or `null` if no scenes are registered.
  */
 function resolveMainScene(scenes: SceneManager): string | null {
   const candidates = ['Main', 'MainMenu', 'Boot'];
   for (const name of candidates) {
     if (scenes.hasScene(name)) return name;
   }
-  // Fallback: first registered scene
   const all = scenes.getSceneNames();
   return all.length > 0 ? all[0] : null;
 }
 
 /**
  * Extract the `Services` type from a `TypedEngineConfig`.
- * Used by `gwen prepare` to generate the `GwenDefaultServices` augmentation.
  *
+ * Used by `gwen prepare` to generate the `GwenDefaultServices` augmentation
+ * in `.gwen/gwen.d.ts`.
+ *
+ * @example
  * ```typescript
- * const config = defineConfig({ tsPlugins: [new InputPlugin()] });
+ * const config = defineConfig({ plugins: [new InputPlugin()] });
  * export type MyServices = GwenConfigServices<typeof config>;
  * // → { keyboard: KeyboardInput; mouse: MouseInput; … }
  * ```
@@ -359,10 +381,13 @@ export type GwenConfigServices<C> =
 
 /**
  * Extract the `Hooks` type from a `TypedEngineConfig`.
- * Used by `gwen prepare` to generate the `GwenDefaultHooks` augmentation.
  *
+ * Used by `gwen prepare` to generate the `GwenDefaultHooks` augmentation
+ * in `.gwen/gwen.d.ts`.
+ *
+ * @example
  * ```typescript
- * const config = defineConfig({ tsPlugins: [new InputPlugin(), new Physics2DPlugin()] });
+ * const config = defineConfig({ plugins: [new InputPlugin(), physics2D()] });
  * export type MyHooks = GwenConfigHooks<typeof config>;
  * // → GwenHooks & InputPluginHooks & Physics2DHooks
  * ```

@@ -104,6 +104,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -123,6 +126,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -138,6 +144,10 @@ importers:
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
   packages/@gwen/plugin-html-ui:
+    dependencies:
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       '@gwen/engine-core':
         specifier: workspace:*
@@ -166,6 +176,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -185,6 +198,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -206,6 +222,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.3.0
