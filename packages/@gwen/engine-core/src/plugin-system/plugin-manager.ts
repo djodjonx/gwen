@@ -50,6 +50,101 @@ export class PluginManager {
   /** Registered WASM plugins (those with a `wasm` sub-object). */
   private wasmPlugins: GwenPlugin[] = [];
 
+  /**
+   * WeakMap tracking unsubscriber functions for each plugin instance.
+   *
+   * **Why WeakMap?**
+   * - Key is the plugin instance object itself (not plugin.name string)
+   * - Automatically garbage-collected when plugin is no longer referenced elsewhere
+   * - Prevents memory leaks from forgotten cleanup
+   * - Avoids name collision if two plugins happen to have identical names at different times
+   *
+   * @internal Used by _track() and _cleanup()
+   */
+  private readonly _unsubscribers = new WeakMap<GwenPlugin, Array<() => void>>();
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Hook Tracking & Cleanup (P0-1 v2)
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Track an unsubscriber function for a plugin instance.
+   *
+   * Called whenever a hook is registered (auto-lifecycle or manual).
+   * Stores the unsubscriber function returned by `hooks.hook()` so it can be
+   * called later during plugin destruction to properly clean up.
+   *
+   * @param plugin - The plugin instance (used as WeakMap key)
+   * @param unregisterFn - The unsubscriber function returned by hooks.hook()
+   * @internal
+   */
+  private _track(plugin: GwenPlugin, unregisterFn: () => void): void {
+    const list = this._unsubscribers.get(plugin) ?? [];
+    list.push(unregisterFn);
+    this._unsubscribers.set(plugin, list);
+  }
+
+  /**
+   * Clean up all hooks registered by a plugin instance.
+   *
+   * Invokes each stored unsubscriber function to remove hooks from the system.
+   * Should be called during plugin destruction BEFORE any lifecycle events
+   * to ensure handlers are fully removed before other operations.
+   *
+   * **Order matters:** Called before plugin:destroy hook and onDestroy(),
+   * so the plugin cannot accidentally receive callbacks during its own destruction.
+   *
+   * @param plugin - The plugin instance whose hooks should be cleaned
+   * @internal
+   */
+  private _cleanup(plugin: GwenPlugin): void {
+    const list = this._unsubscribers.get(plugin);
+    if (list) {
+      // Unsubscribe from all hooks (in registration order)
+      for (const unregister of list) {
+        unregister();
+      }
+      // Release the WeakMap entry (optional but explicit)
+      this._unsubscribers.delete(plugin);
+    }
+  }
+
+  /**
+   * Create a scoped version of the hooks API for a plugin.
+   *
+   * Wraps `hooks.hook()` to automatically track hook registrations made
+   * directly by plugins in `onInit()`. Other methods (callHook, removeHook, etc.)
+   * are preserved via prototype chain using Object.create().
+   *
+   * **Example:**
+   * ```typescript
+   * // In plugin.onInit(scopedApi):
+   * scopedApi.hooks.hook('custom:event', handler);  // Tracked automatically
+   * scopedApi.hooks.callHook('custom:event', ...);  // Works normally
+   * ```
+   *
+   * @param plugin - The plugin instance (used to track unsubscribers)
+   * @param hooks - The hooks system instance to wrap
+   * @returns A hooks API that looks identical but tracks manual hook registrations
+   * @internal
+   */
+  private _createScopedHooks(plugin: GwenPlugin, hooks: DefaultHookable): DefaultHookable {
+    // Create an object that inherits from hooks prototype (preserves callHook, removeHook, etc.)
+    const scopedHooks = Object.create(hooks) as DefaultHookable;
+
+    // Bind the original hook method to the real hooks instance
+    const originalHook = hooks.hook.bind(hooks);
+
+    // Override hook() to track the unsubscriber
+    scopedHooks.hook = ((name: string, fn: (...args: any[]) => any) => {
+      const unregister = originalHook(name as any, fn);
+      this._track(plugin, unregister);
+      return unregister;
+    }) as any;
+
+    return scopedHooks;
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // Plugin Registration
   // ════════════════════════════════════════════════════════════════════════
@@ -61,15 +156,20 @@ export class PluginManager {
    * 1. Plugin is added to the registry (fails if already registered)
    * 2. `plugin:register` hook is called
    * 3. Plugin lifecycle methods are registered as hooks:
-   *    - `onBeforeUpdate` → hooked to `plugin:beforeUpdate`
-   *    - `onUpdate` → hooked to `plugin:update`
-   *    - `onRender` → hooked to `plugin:render`
+   *    - `onBeforeUpdate` → hooked to `plugin:beforeUpdate` (tracked)
+   *    - `onUpdate` → hooked to `plugin:update` (tracked)
+   *    - `onRender` → hooked to `plugin:render` (tracked)
    * 4. `plugin:init` hook is called
-   * 5. Plugin's `onInit` method is called directly
+   * 5. Plugin's `onInit` method is called with scoped API (hooks are auto-tracked)
    *
    * **Errors:**
    * - Returns false if a plugin with the same name is already registered
    * - Errors in hooks are logged but don't stop plugin registration
+   *
+   * **Hook Tracking (P0-1 v2):**
+   * - All automatic lifecycle hooks (via _setupPluginHooks) are tracked
+   * - All manual hooks registered in onInit (via scopedApi.hooks.hook) are tracked
+   * - Both types are cleaned up automatically during unregister/destroyAll
    *
    * @param plugin - The plugin to register (must have unique name)
    * @param api - Engine API instance to pass to plugin
@@ -107,7 +207,7 @@ export class PluginManager {
       console.error(`[GWEN:PluginManager] Error in plugin:register hook:`, err);
     }
 
-    // Auto-register plugin lifecycle methods as hooks
+    // Auto-register plugin lifecycle methods as hooks (tracked)
     this._setupPluginHooks(plugin, hooks);
 
     // Emit plugin:init hook (synchronous)
@@ -117,32 +217,50 @@ export class PluginManager {
       console.error(`[GWEN:PluginManager] Error in plugin:init hook:`, err);
     }
 
-    // Call plugin's onInit
+    // Create scoped API where manual hooks are automatically tracked
+    const scopedApi = {
+      ...api,
+      hooks: this._createScopedHooks(plugin, hooks),
+    };
+
+    // Call plugin's onInit with scoped API
     if (plugin.onInit) {
-      plugin.onInit(api);
+      plugin.onInit(scopedApi);
     }
 
     return true;
   }
 
   /**
-   * Register plugin lifecycle methods as hooks.
+   * Register plugin lifecycle methods as hooks and track their unsubscribers.
    *
-   * @internal
+   * Creates closures for `onBeforeUpdate`, `onUpdate`, and `onRender` methods
+   * and registers them with the hooks system. The unsubscriber function returned
+   * by `hooks.hook()` is captured and stored for later cleanup.
+   *
+   * **P0-1 v2 Fix:** Previously, the unsubscriber was discarded, causing
+   * "zombie handlers" to persist after plugin destruction. Now we track it.
+   *
    * @param plugin - The plugin whose methods to register
    * @param hooks - The hooks system instance
+   * @internal
    */
   private _setupPluginHooks(plugin: GwenPlugin, hooks: DefaultHookable): void {
     if (plugin.onBeforeUpdate) {
-      hooks.hook('plugin:beforeUpdate', (api, dt) => plugin.onBeforeUpdate!(api, dt));
+      const unregister = hooks.hook('plugin:beforeUpdate', (api, dt) =>
+        plugin.onBeforeUpdate!(api, dt),
+      );
+      this._track(plugin, unregister);
     }
 
     if (plugin.onUpdate) {
-      hooks.hook('plugin:update', (api, dt) => plugin.onUpdate!(api, dt));
+      const unregister = hooks.hook('plugin:update', (api, dt) => plugin.onUpdate!(api, dt));
+      this._track(plugin, unregister);
     }
 
     if (plugin.onRender) {
-      hooks.hook('plugin:render', (api) => plugin.onRender!(api));
+      const unregister = hooks.hook('plugin:render', (api) => plugin.onRender!(api));
+      this._track(plugin, unregister);
     }
   }
 
@@ -165,18 +283,18 @@ export class PluginManager {
   }
 
   /**
-   * Unregister a plugin by name and call its onDestroy.
+   * Unregister a plugin by name and clean up its hooks.
    *
-   * **What happens:**
+   * **What happens (in order):**
    * 1. Plugin is found by name
-   * 2. `plugin:destroy` hook is called
-   * 3. Plugin's `onDestroy` method is called
-   * 4. Plugin is removed from registry
+   * 2. **All tracked hooks are unsubscribed** (P0-1 v2)
+   * 3. `plugin:destroy` hook is called
+   * 4. Plugin's `onDestroy` method is called
+   * 5. Plugin is removed from registry
    *
-   * Note: Previously registered hooks for this plugin will continue to be
-   * called from the hooks registry. We cannot easily remove individual hooks
-   * from hookable, but since the plugin is removed from the registry, those
-   * hooks will call methods on a "dead" plugin which should handle gracefully.
+   * **P0-1 v2 Fix:** Cleanup is now called FIRST, before any events.
+   * This ensures handlers are completely removed before the plugin
+   * receives its destruction notification.
    *
    * @param name - Plugin name to unregister
    * @param hooks - Hooks system instance
@@ -195,17 +313,20 @@ export class PluginManager {
 
     const plugin = this.plugins[idx];
 
-    // Emit plugin:destroy hook (synchronous)
+    // 1. Clean up ALL hooks (automatic + manual) before any lifecycle events
+    this._cleanup(plugin);
+
+    // 2. Notify the plugin it's being destroyed
     try {
       hooks.callHook('plugin:destroy', plugin);
     } catch (err) {
       console.error(`[GWEN:PluginManager] Error in plugin:destroy hook:`, err);
     }
 
-    // Call plugin's onDestroy
+    // 3. Call plugin's onDestroy
     plugin.onDestroy?.();
 
-    // Remove from registry
+    // 4. Remove from registry
     this.plugins.splice(idx, 1);
 
     return true;
@@ -279,28 +400,40 @@ export class PluginManager {
   }
 
   /**
-   * Destroy all registered plugins.
+   * Destroy all registered plugins and clean up their hooks.
    *
    * Calls `plugin:destroy` hook and each plugin's `onDestroy` in reverse order
-   * (last-registered, first-destroyed).
+   * (last-registered, first-destroyed). All hooks are cleaned up first.
+   *
+   * **P0-1 v2:** All tracked hooks are unsubscribed before any plugin:destroy
+   * events or onDestroy() calls to ensure complete cleanup.
    *
    * @param hooks - Hooks system instance
    *
    * @internal Called by Engine._stop()
    */
   destroyAll(hooks: DefaultHookable): void {
-    // Iterate in reverse order (LIFO)
-    for (const plugin of [...this.plugins].reverse()) {
+    // Create a snapshot for iteration (order: last-registered first)
+    const pluginsToDestroy = [...this.plugins].reverse();
+
+    for (const plugin of pluginsToDestroy) {
+      // 1. Clean up all hooks first
+      this._cleanup(plugin);
+
+      // 2. Notify destruction
       try {
         hooks.callHook('plugin:destroy', plugin);
       } catch (err) {
         console.error(`[GWEN:PluginManager] Error destroying plugin '${plugin.name}':`, err);
       }
 
+      // 3. Call lifecycle callback
       plugin.onDestroy?.();
     }
 
+    // Clear the registry
     this.plugins = [];
+    // WeakMap will auto-cleanup as plugins are garbage collected
   }
 
   // ════════════════════════════════════════════════════════════════════════

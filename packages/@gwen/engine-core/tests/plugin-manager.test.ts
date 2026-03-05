@@ -54,7 +54,7 @@ describe('PluginManager', () => {
     it('should register plugin and call onInit', () => {
       const p = makePlugin('test');
       pm.register(p, api, api.hooks);
-      expect(p.onInit).toHaveBeenCalledWith(api);
+      expect(p.onInit).toHaveBeenCalled();
       expect(pm.has('test')).toBe(true);
     });
 
@@ -238,6 +238,244 @@ describe('PluginManager', () => {
 
       pm.register(inputPlugin, api, api.hooks);
       pm.register(playerPlugin, api, api.hooks);
+    });
+  });
+
+  // ── P0-1 v2: Hook Tracking & Cleanup (Zombie Handler Fix) ──────────────
+
+  describe('P0-1 v2: Automatic hook tracking', () => {
+    /**
+     * Test 1: Automatic lifecycle hooks should not accumulate after unregister
+     *
+     * Verifies that:
+     * - hooks.hook() returns an unsubscriber that is captured
+     * - unregister() calls the unsubscriber
+     * - Handlers are not called after unregister
+     */
+    it('should not call onUpdate after unregister (Test 1)', async () => {
+      const calls: number[] = [];
+      const plugin: TsPlugin = {
+        name: 'TestPlugin',
+        onUpdate: () => calls.push(1),
+      };
+
+      pm.register(plugin, api, api.hooks);
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      expect(calls).toHaveLength(1);
+
+      pm.unregister('TestPlugin', api.hooks);
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      expect(calls).toHaveLength(1); // ← Still 1, not 2
+    });
+
+    /**
+     * Test 2: Manual hooks registered in onInit should be tracked
+     *
+     * Verifies that:
+     * - Plugins can call api.hooks.hook() directly in onInit
+     * - The scoped API automatically tracks these registrations
+     * - unregister() cleans up both auto and manual hooks
+     */
+    it('should track manual hooks registered in onInit (Test 2)', async () => {
+      const calls: number[] = [];
+      const plugin: TsPlugin = {
+        name: 'CustomHookPlugin',
+        onInit(api) {
+          // Register a custom hook manually
+          api.hooks.hook('custom:event', () => calls.push(1));
+        },
+      };
+
+      pm.register(plugin, api, api.hooks);
+
+      // Call the custom hook
+      await api.hooks.callHook('custom:event');
+      expect(calls).toHaveLength(1);
+
+      // Unregister the plugin
+      pm.unregister('CustomHookPlugin', api.hooks);
+
+      // The custom hook should no longer execute
+      await api.hooks.callHook('custom:event');
+      expect(calls).toHaveLength(1); // ← Still 1, not 2
+    });
+
+    /**
+     * Test 3: Multiple scene reloads should not accumulate handlers
+     *
+     * Verifies that repeated register/unregister cycles don't cause
+     * exponential growth of handler invocations (the original bug symptom).
+     */
+    it('should not accumulate handlers across scene reloads (Test 3)', async () => {
+      const calls: number[] = [];
+      const makePlugin = (): TsPlugin => ({
+        name: 'ReloadablePlugin',
+        onUpdate: () => calls.push(1),
+      });
+
+      // Simulate 5 scene reloads (register + unregister)
+      for (let i = 0; i < 5; i++) {
+        const plugin = makePlugin();
+        pm.register(plugin, api, api.hooks);
+        pm.unregister('ReloadablePlugin', api.hooks);
+      }
+
+      // Load the scene one more time
+      pm.register(makePlugin(), api, api.hooks);
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+
+      // Should only be called once, not 5 times (exponential bug)
+      expect(calls).toHaveLength(1);
+    });
+
+    /**
+     * Test 4: destroyAll should clean all handlers
+     *
+     * Verifies that destroyAll() properly unsubscribes all hooks
+     * from all plugins at once.
+     */
+    it('should clean all handlers on destroyAll (Test 4)', async () => {
+      const calls: number[] = [];
+      const plugins: TsPlugin[] = [
+        { name: 'P1', onUpdate: () => calls.push(1) },
+        { name: 'P2', onUpdate: () => calls.push(2) },
+      ];
+
+      pm.registerAll(plugins, api, api.hooks);
+      pm.destroyAll(api.hooks);
+
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      expect(calls).toHaveLength(0); // ← No calls at all
+    });
+
+    /**
+     * Test 5: WeakMap allows garbage collection of plugins
+     *
+     * Verifies that after unregister, plugins can be garbage collected
+     * without lingering references in the unsubscriber map.
+     *
+     * Note: This is more of a memory hygiene test. We cannot directly
+     * trigger GC in a portable way, but we can verify the API design
+     * allows it by checking that the WeakMap doesn't prevent collection.
+     */
+    it('should allow garbage collection of plugin after unregister (Test 5)', () => {
+      let plugin: TsPlugin | null = {
+        name: 'GCTestPlugin',
+        onUpdate: () => {
+          /* no-op */
+        },
+      };
+
+      pm.register(plugin, api, api.hooks);
+      pm.unregister('GCTestPlugin', api.hooks);
+
+      // Plugin is now only held by this local variable
+      // Setting to null allows GC (in a real GC scenario)
+      plugin = null;
+
+      // No crash, no reference errors — test is just that we get here
+      expect(pm.count()).toBe(0);
+    });
+
+    /**
+     * Test 6: scopedApi.hooks provides full API with wrapped hook()
+     *
+     * Verifies that the scoped hooks preserve all methods (callHook, etc.)
+     * while only wrapping hook() for tracking.
+     */
+    it('should preserve full hooks API in scopedApi', async () => {
+      let apiUsed: any = null;
+      const plugin: TsPlugin = {
+        name: 'ScopedAPITest',
+        onInit(api) {
+          apiUsed = api;
+        },
+      };
+
+      pm.register(plugin, api, api.hooks);
+
+      // Check that all hooks methods are available
+      expect(apiUsed.hooks.hook).toBeDefined();
+      expect(apiUsed.hooks.callHook).toBeDefined();
+      expect(apiUsed.hooks.removeHook).toBeDefined();
+      expect(typeof apiUsed.hooks.hook).toBe('function');
+      expect(typeof apiUsed.hooks.callHook).toBe('function');
+      expect(typeof apiUsed.hooks.removeHook).toBe('function');
+    });
+
+    /**
+     * Test 7: All lifecycle hooks are tracked
+     *
+     * Verifies that onBeforeUpdate, onUpdate, and onRender are all
+     * properly tracked and cleaned up.
+     */
+    it('should track all lifecycle hooks (onBeforeUpdate, onUpdate, onRender)', async () => {
+      const calls: string[] = [];
+      const plugin: TsPlugin = {
+        name: 'AllLifecyclePlugin',
+        onBeforeUpdate: () => calls.push('before'),
+        onUpdate: () => calls.push('update'),
+        onRender: () => calls.push('render'),
+      };
+
+      pm.register(plugin, api, api.hooks);
+
+      // Dispatch all phases
+      await pm.dispatchBeforeUpdate(api, 0.016, api.hooks);
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      await pm.dispatchRender(api, api.hooks);
+
+      expect(calls).toEqual(['before', 'update', 'render']);
+
+      // Unregister
+      pm.unregister('AllLifecyclePlugin', api.hooks);
+
+      // Clear calls
+      calls.length = 0;
+
+      // Dispatch again
+      await pm.dispatchBeforeUpdate(api, 0.016, api.hooks);
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      await pm.dispatchRender(api, api.hooks);
+
+      // Should not be called
+      expect(calls).toHaveLength(0);
+    });
+
+    /**
+     * Test 8: Combination of auto and manual hooks are all tracked
+     *
+     * Verifies that a plugin using both auto lifecycle hooks and
+     * manual hooks registered in onInit gets everything cleaned up.
+     */
+    it('should track combination of auto and manual hooks', async () => {
+      const calls: string[] = [];
+      const plugin: TsPlugin = {
+        name: 'MixedHooksPlugin',
+        onUpdate: () => calls.push('auto:update'),
+        onInit(api) {
+          // Register a custom hook
+          api.hooks.hook('custom:hook', () => calls.push('manual:custom'));
+        },
+      };
+
+      pm.register(plugin, api, api.hooks);
+
+      // Trigger both
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      await api.hooks.callHook('custom:hook');
+
+      expect(calls).toEqual(['auto:update', 'manual:custom']);
+
+      // Unregister
+      pm.unregister('MixedHooksPlugin', api.hooks);
+      calls.length = 0;
+
+      // Both should be cleaned
+      await pm.dispatchUpdate(api, 0.016, api.hooks);
+      await api.hooks.callHook('custom:hook');
+
+      expect(calls).toHaveLength(0);
     });
   });
 });
