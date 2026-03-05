@@ -88,6 +88,18 @@ export class StringPoolManager {
   /** Persistent pool — never cleared, survives scene transitions */
   public readonly persistent = new StringPool();
 
+  /** Enable debug warnings for potential memory leaks */
+  private readonly debug: boolean;
+
+  /**
+   * Create a new StringPoolManager.
+   *
+   * @param debug - Enable debug warnings (e.g., for persistent pool growth). Defaults to false.
+   */
+  public constructor(debug: boolean = false) {
+    this.debug = debug;
+  }
+
   /**
    * Clear the scene pool (called during scene transitions).
    * The persistent pool is NOT affected.
@@ -106,8 +118,8 @@ export class StringPoolManager {
       persistentPoolSize: this.persistent.size,
     };
 
-    // Dev mode warning for persistent pool growth
-    if (import.meta.env.DEV && stats.persistentPoolSize > 1000) {
+    // Debug warning for persistent pool growth
+    if (this.debug && stats.persistentPoolSize > 1000) {
       console.warn(
         `[StringPoolManager] persistentPool has ${stats.persistentPoolSize} entries. ` +
           `This may indicate a memory leak if strings are incorrectly marked as persistent.`,
@@ -121,8 +133,9 @@ export class StringPoolManager {
 /**
  * Global StringPoolManager instance.
  * Manages both scene-scoped and persistent string pools.
+ * Debug mode is disabled by default (pass true if needed during development).
  */
-export const GlobalStringPoolManager = new StringPoolManager();
+export const GlobalStringPoolManager = new StringPoolManager(false);
 
 /**
  * Legacy global StringPool — delegates to scene pool for backward compatibility.

@@ -168,6 +168,9 @@ let _wasmExports: { memory?: WebAssembly.Memory } | null = null; // raw WASM ins
 let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
 
+/** Track the last seen ArrayBuffer to detect memory.grow() events. */
+let _lastMemoryBuffer: ArrayBuffer | null = null;
+
 /**
  * Base URL for WASM artifacts (auto-resolved in browser, null in Node).
  *
@@ -488,6 +491,35 @@ export interface WasmBridge {
    */
   getLinearMemory(): WebAssembly.Memory | null;
 
+  /**
+   * Detect whether `memory.grow()` has been called since the last check.
+   *
+   * **Usage** : Call this manually in your plugin's `onStep()` if you cache
+   * TypedArray views over `getLinearMemory().buffer`. Most plugins using
+   * `PluginDataBus` do NOT need this — their buffers are immune to WASM grows.
+   *
+   * **Idempotent** : Returns `false` if called twice without a grow in between.
+   *
+   * **O(1) cost** : Simple pointer comparison.
+   *
+   * @returns `true` if memory has grown since last check, `false` otherwise.
+   *
+   * @example
+   * ```typescript
+   * onStep(deltaTime: number) {
+   *   if (this.bridge.checkMemoryGrow()) {
+   *     this._refreshCachedViews();
+   *   }
+   *   // ... simulation
+   * }
+   * ```
+   *
+   * @remarks
+   * See the guide at `docs/WASM_MEMORY_GROW.md` for complete information
+   * on handling buffer-detach issues.
+   */
+  checkMemoryGrow(): boolean;
+
   // ── Stats ────────────────────────────────────────────────────────────────
 
   /** Return a JSON string with engine runtime metrics (entity count, frame, etc.). */
@@ -633,6 +665,45 @@ class WasmBridgeImpl implements WasmBridge {
     return _wasmExports?.memory ?? null;
   }
 
+  /**
+   * Detect whether `memory.grow()` has been called since the last check.
+   *
+   * When Rust allocates enough memory to exhaust the current WASM linear memory,
+   * the runtime calls `memory.grow(n_pages)`. This **replaces** the underlying
+   * `ArrayBuffer`. We detect this by comparing the reference to the current
+   * buffer against the one stored during the previous check.
+   *
+   * **Idempotent** : Calling this twice without a grow returns `false` on the
+   * second call (the state was already updated by the first call).
+   *
+   * **Cost** : O(1) — single pointer comparison.
+   *
+   * @returns `true` if memory has grown since last check, `false` otherwise.
+   *
+   * @internal
+   */
+  checkMemoryGrow(): boolean {
+    const mem = _wasmExports?.memory;
+    if (!mem) return false;
+
+    const currentBuffer = mem.buffer;
+
+    // First call: initialize state
+    if (_lastMemoryBuffer === null) {
+      _lastMemoryBuffer = currentBuffer;
+      return false;
+    }
+
+    // Grow detected: buffer reference changed
+    if (_lastMemoryBuffer !== currentBuffer) {
+      _lastMemoryBuffer = currentBuffer;
+      return true;
+    }
+
+    // No grow since last check
+    return false;
+  }
+
   // ── Stats ────────────────────────────────────────────────────────────────
 
   stats(): string {
@@ -677,15 +748,43 @@ export function _injectMockWasmEngine(mock: WasmEngine): void {
 }
 
 /**
+ * Inject mock WASM exports — **reserved for unit tests only**.
+ *
+ * Allows testing `checkMemoryGrow()` by injecting a fake memory object
+ * that can be manipulated to simulate a grow event.
+ *
+ * @param exports - A mock exports object with optional `memory` property.
+ *
+ * @example
+ * ```typescript
+ * const buf1 = new ArrayBuffer(100);
+ * const buf2 = new ArrayBuffer(200);
+ * const mockMemory = { buffer: buf1 } as any;
+ * _injectMockWasmExports({ memory: mockMemory });
+ *
+ * const bridge = getWasmBridge();
+ * bridge.checkMemoryGrow(); // init
+ * mockMemory.buffer = buf2; // simulate grow
+ * expect(bridge.checkMemoryGrow()).toBe(true);
+ * ```
+ *
+ * @internal
+ */
+export function _injectMockWasmExports(exports: { memory?: WebAssembly.Memory }): void {
+  _wasmExports = exports;
+}
+
+/**
  * Fully reset the bridge state — **reserved for unit tests only**.
  *
- * Clears `_wasmEngine`, `_wasmModule`, `_wasmExports` and `_initPromise`
- * so that the next `initWasm()` call starts from a clean slate.
- * Call this in `afterEach` to prevent state leaking between tests.
+ * Clears `_wasmEngine`, `_wasmModule`, `_wasmExports`, `_initPromise`,
+ * and `_lastMemoryBuffer` so that the next `initWasm()` call starts from
+ * a clean slate. Call this in `afterEach` to prevent state leaking between tests.
  */
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
   _wasmModule = null;
   _wasmExports = null;
   _initPromise = null;
+  _lastMemoryBuffer = null;
 }

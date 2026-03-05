@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getWasmBridge,
   _injectMockWasmEngine,
+  _injectMockWasmExports,
   _resetWasmBridge,
   type WasmBridge,
   type WasmEngine,
@@ -283,5 +284,72 @@ describe('Engine — WASM bridge integration', () => {
     await (engine as any)._tick(performance.now());
     expect(mock.tick).toHaveBeenCalled();
     engine.stop();
+  });
+});
+
+// ── checkMemoryGrow() tests ───────────────────────────────────────────────────
+
+describe('WasmBridge — checkMemoryGrow()', () => {
+  afterEach(() => {
+    _resetWasmBridge();
+  });
+
+  it('should return false on first call (initializes state)', () => {
+    const buf1 = new ArrayBuffer(100);
+    const mockMemory = { buffer: buf1 } as WebAssembly.Memory;
+
+    _injectMockWasmExports({ memory: mockMemory });
+
+    const bridge = getWasmBridge();
+    expect(bridge.checkMemoryGrow()).toBe(false);
+  });
+
+  it('should return true when buffer reference changes', () => {
+    const buf1 = new ArrayBuffer(100);
+    const buf2 = new ArrayBuffer(200);
+    const mockMemory = { buffer: buf1 } as any;
+
+    _injectMockWasmExports({ memory: mockMemory });
+
+    const bridge = getWasmBridge();
+    bridge.checkMemoryGrow(); // initialise _lastMemoryBuffer = buf1
+
+    // Simulate a grow
+    mockMemory.buffer = buf2;
+    expect(bridge.checkMemoryGrow()).toBe(true);
+  });
+
+  it('should return false if called twice without grow', () => {
+    const buf1 = new ArrayBuffer(100);
+    const mockMemory = { buffer: buf1 } as WebAssembly.Memory;
+
+    _injectMockWasmExports({ memory: mockMemory });
+
+    const bridge = getWasmBridge();
+    bridge.checkMemoryGrow(); // init
+    expect(bridge.checkMemoryGrow()).toBe(false); // no grow
+  });
+
+  it('should return false if bridge is inactive', () => {
+    _resetWasmBridge();
+    const bridge = getWasmBridge();
+    expect(bridge.checkMemoryGrow()).toBe(false);
+  });
+
+  it('should be idempotent after a grow detection', () => {
+    const buf1 = new ArrayBuffer(100);
+    const buf2 = new ArrayBuffer(200);
+    const mockMemory = { buffer: buf1 } as any;
+
+    _injectMockWasmExports({ memory: mockMemory });
+
+    const bridge = getWasmBridge();
+    bridge.checkMemoryGrow(); // init
+
+    mockMemory.buffer = buf2; // simulate grow
+    expect(bridge.checkMemoryGrow()).toBe(true); // detects grow
+
+    // State is now updated to buf2, so next call returns false
+    expect(bridge.checkMemoryGrow()).toBe(false);
   });
 });

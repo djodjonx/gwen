@@ -123,13 +123,39 @@ export interface GwenPluginWasmContext {
   onStep?(deltaTime: number): void;
 
   /**
-   * Memory-grow callback.
+   * Memory-grow callback (**OPTIONAL** — advanced use case only).
    *
-   * Fired when gwen-core's WASM linear memory grows (`memory.grow()` event).
-   * Any `TypedArray` or `DataView` views that were built over the old
-   * `ArrayBuffer` are now detached — recreate them here.
+   * Called when gwen-core's WASM linear memory grows (`memory.grow()` event).
+   * Any `TypedArray` or `DataView` views built over the old `ArrayBuffer`
+   * become detached — recreate them here.
    *
-   * @param newMemory The live `WebAssembly.Memory` object after the grow.
+   * **⚠️ Most plugins do NOT need this** — plugins using `PluginDataBus` are
+   * immune to gwen-core's memory growth because their buffers live outside
+   * the WASM linear memory.
+   *
+   * **⚠️ Currently NOT dispatched automatically** — you must call
+   * `bridge.checkMemoryGrow()` manually in your `onStep()` if you cache views.
+   *
+   * **When to implement:**
+   * - You cache a `TypedArray` view over `bridge.getLinearMemory().buffer`
+   * - You use `SharedMemoryManager.allocateRegion()` and store views
+   * - You are a debug tool that directly reads WASM linear memory
+   *
+   * @param newMemory The live `WebAssembly.Memory` object after the grow
+   *   (the `.buffer` has already been replaced).
+   *
+   * @see {@link WasmBridge.checkMemoryGrow} for manual detection
+   *
+   * @example
+   * ```typescript
+   * private _view: Float32Array | null = null;
+   *
+   * onMemoryGrow(newMemory: WebAssembly.Memory) {
+   *   if (this._region) {
+   *     this._view = new Float32Array(newMemory.buffer, this._region.ptr, 10_000);
+   *   }
+   * }
+   * ```
    */
   onMemoryGrow?(newMemory: WebAssembly.Memory): void;
 }
