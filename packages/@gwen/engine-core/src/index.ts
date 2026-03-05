@@ -98,3 +98,7 @@ export {
   getDataChannelView,
 } from './wasm/plugin-data-bus';
 export type { AllocatedChannel } from './wasm/plugin-data-bus';
+
+// String Pool — memory-efficient string storage for ECS
+export { GlobalStringPoolManager, StringPoolManager, StringPool } from './utils/string-pool';
+export { GlobalStringPool } from './utils/string-pool'; // Legacy export for backward compatibility

@@ -23,6 +23,7 @@
 import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from '../types';
 import { UIManager, type UIDefinition } from './ui';
 import type { ReloadContext, ReloadEvaluator } from './scene-context';
+import { GlobalStringPoolManager } from '../utils/string-pool.js';
 
 // ============= Scene Interface =============
 
@@ -536,6 +537,9 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     for (const id of all) {
       api.destroyEntity(id);
     }
+
+    // Clear scene-scoped string pool to prevent memory leak
+    GlobalStringPoolManager.clearScene();
   }
 
   /**

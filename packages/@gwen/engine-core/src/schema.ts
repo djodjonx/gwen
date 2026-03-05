@@ -74,6 +74,23 @@ export const Types = {
     read: 'getString' as const,
     write: 'setString' as const,
   },
+  /**
+   * Persistent string — survives scene transitions.
+   *
+   * **⚠️ Use sparingly!** Only for cross-scene data like:
+   * - Player names from save files
+   * - User preferences
+   * - Configuration loaded once at startup
+   *
+   * Default to `Types.string` (scene-scoped) unless you explicitly need persistence.
+   */
+  persistentString: {
+    type: 'string' as const,
+    byteLength: 4,
+    read: 'getString' as const,
+    write: 'setString' as const,
+    isPersistent: true, // Flag for computeSchemaLayout to select the persistent pool
+  },
 };
 
 export type SchemaType = (typeof Types)[keyof typeof Types];
@@ -118,7 +135,7 @@ interface FieldMeta {
   byteLength: number;
 }
 
-import { GlobalStringPool } from './utils/string-pool.js';
+import { GlobalStringPoolManager } from './utils/string-pool.js';
 
 export function computeSchemaLayout<T extends Record<string, FieldValue>>(
   schema: ComponentSchema,
@@ -141,7 +158,12 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
       if (meta.type === 'bool') {
         view.setInt8(meta.offset, val ? 1 : 0);
       } else if (meta.type === 'string') {
-        const strId = GlobalStringPool.intern(val as string);
+        // Select pool based on isPersistent flag
+        const typeObj = schema[key];
+        const pool = (typeObj as any).isPersistent
+          ? GlobalStringPoolManager.persistent
+          : GlobalStringPoolManager.scene;
+        const strId = pool.intern(val as string);
         view.setInt32(meta.offset, strId, true);
       } else if (meta.type === 'i64' || meta.type === 'u64') {
         const method = Types[meta.type as BigIntSchemaTypeName].write as BigIntWriteMethod;
@@ -162,7 +184,12 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
         obj[key] = view.getInt8(meta.offset) !== 0;
       } else if (meta.type === 'string') {
         const strId = view.getInt32(meta.offset, true);
-        obj[key] = GlobalStringPool.get(strId);
+        // Select pool based on isPersistent flag
+        const typeObj = schema[key];
+        const pool = (typeObj as any).isPersistent
+          ? GlobalStringPoolManager.persistent
+          : GlobalStringPoolManager.scene;
+        obj[key] = pool.get(strId);
       } else if (meta.type === 'i64' || meta.type === 'u64') {
         const method = Types[meta.type as BigIntSchemaTypeName].read as BigIntReadMethod;
         obj[key] = view[method](meta.offset, true);

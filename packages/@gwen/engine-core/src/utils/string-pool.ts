@@ -13,6 +13,20 @@ export class StringPool {
   /**
    * Get or create a unique ID for a string.
    *
+   * ⚠️ **WARNING**: Never store string IDs in closures, globals, or outside component data.
+   * IDs are ONLY valid within their pool's lifecycle (scene or persistent).
+   *
+   * ❌ **BAD**:
+   * ```ts
+   * const cachedId = GlobalStringPoolManager.scene.intern('Name');
+   * ```
+   *
+   * ✅ **GOOD**:
+   * ```ts
+   * const name = 'Name'; // Store the string, not the ID
+   * // Let the schema serializer handle intern() automatically
+   * ```
+   *
    * @param str The string to intern
    * @returns A unique 32-bit signed integer ID for this string
    */
@@ -44,7 +58,74 @@ export class StringPool {
     this.idToStr.clear();
     this.nextId = 1;
   }
+
+  /**
+   * Get the number of strings currently in this pool.
+   * Useful for debugging and monitoring memory usage.
+   */
+  public get size(): number {
+    return this.strToId.size;
+  }
 }
 
-/** Global singleton StringPool instance for the engine. */
-export const GlobalStringPool = new StringPool();
+/**
+ * String Pool Manager — manages separate pools for scene and persistent strings.
+ *
+ * **Scene Pool**: Cleared on every scene transition (default for `Types.string`)
+ * **Persistent Pool**: Never cleared, for cross-scene data (use `Types.persistentString`)
+ *
+ * **⚠️ Rule of Thumb**:
+ * - Default: Use `Types.string` (scene-scoped)
+ * - Only use `Types.persistentString` for:
+ *   - Player names from save files
+ *   - User preferences
+ *   - Configuration loaded once at startup
+ */
+export class StringPoolManager {
+  /** Scene-scoped pool — cleared on every scene transition */
+  public readonly scene = new StringPool();
+
+  /** Persistent pool — never cleared, survives scene transitions */
+  public readonly persistent = new StringPool();
+
+  /**
+   * Clear the scene pool (called during scene transitions).
+   * The persistent pool is NOT affected.
+   */
+  public clearScene(): void {
+    this.scene.clear();
+  }
+
+  /**
+   * Get debug statistics about both pools.
+   * Useful for monitoring memory usage and detecting leaks.
+   */
+  public getDebugStats(): { scenePoolSize: number; persistentPoolSize: number } {
+    const stats = {
+      scenePoolSize: this.scene.size,
+      persistentPoolSize: this.persistent.size,
+    };
+
+    // Dev mode warning for persistent pool growth
+    if (import.meta.env.DEV && stats.persistentPoolSize > 1000) {
+      console.warn(
+        `[StringPoolManager] persistentPool has ${stats.persistentPoolSize} entries. ` +
+          `This may indicate a memory leak if strings are incorrectly marked as persistent.`,
+      );
+    }
+
+    return stats;
+  }
+}
+
+/**
+ * Global StringPoolManager instance.
+ * Manages both scene-scoped and persistent string pools.
+ */
+export const GlobalStringPoolManager = new StringPoolManager();
+
+/**
+ * Legacy global StringPool — delegates to scene pool for backward compatibility.
+ * @deprecated Use GlobalStringPoolManager.scene or GlobalStringPoolManager.persistent instead.
+ */
+export const GlobalStringPool = GlobalStringPoolManager.scene;

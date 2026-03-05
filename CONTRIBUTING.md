@@ -306,6 +306,112 @@ pnpm clean
 - Use ECS queries efficiently
 - Minimize entity creation/destruction per frame
 
+## String Pool Best Practices
+
+### Overview
+
+GWEN uses a **String Pool** system to store strings efficiently in ECS components. Understanding this system is critical to avoid memory leaks.
+
+### Golden Rule: Never Store String IDs
+
+**❌ NEVER DO THIS:**
+```typescript
+// BAD: Storing string IDs in closures or globals
+const cachedId = GlobalStringPoolManager.scene.intern('PlayerName');
+
+export const MySystem = () => {
+  // This ID becomes INVALID after a scene transition!
+  const name = GlobalStringPoolManager.scene.get(cachedId);
+};
+```
+
+**✅ ALWAYS DO THIS:**
+```typescript
+// GOOD: Store the string itself, let the schema handle IDs
+const cachedName = 'PlayerName';
+
+export const MyComponent = defineComponent({
+  name: 'MyComponent',
+  schema: {
+    name: Types.string  // Automatic ID management
+  }
+});
+```
+
+### When to Use Each String Type
+
+#### `Types.string` (Scene-Scoped) — Default ✅
+
+**Use this 99% of the time.**
+
+```typescript
+const Enemy = defineComponent({
+  name: 'Enemy',
+  schema: {
+    name: Types.string,      // Cleared on scene transition
+    description: Types.string
+  }
+});
+```
+
+**Cleared automatically on scene transitions** — prevents memory leaks.
+
+---
+
+#### `Types.persistentString` (Persistent) — Use Sparingly ⚠️
+
+**Only use for data that MUST survive scene transitions.**
+
+```typescript
+const PlayerSave = defineComponent({
+  name: 'PlayerSave',
+  schema: {
+    playerName: Types.persistentString,  // Survives transitions
+    lastPlayed: Types.persistentString
+  }
+});
+```
+
+**Never cleared** — overuse will cause memory leaks!
+
+**Valid use cases:**
+- Player names from save files
+- User preferences (language, volume settings)
+- Configuration loaded once at startup
+
+**Invalid use cases:**
+- Enemy names
+- UI labels
+- Temporary messages
+- Any scene-specific data
+
+### Debugging String Pool Leaks
+
+If memory grows indefinitely after scene transitions:
+
+```typescript
+import { GlobalStringPoolManager } from '@gwen/engine-core';
+
+// Check pool sizes
+const stats = GlobalStringPoolManager.getDebugStats();
+console.log(`Scene pool: ${stats.scenePoolSize} strings`);
+console.log(`Persistent pool: ${stats.persistentPoolSize} strings`);
+```
+
+**Expected behavior:**
+- `scenePoolSize`: Only current scene's strings (typically 10-100)
+- `persistentPoolSize`: Stable across transitions (only truly persistent data)
+
+**Red flags:**
+- `scenePoolSize` growing with each transition
+- `persistentPoolSize` > 1000 (warning logged in dev mode)
+
+### Further Reading
+
+See [docs/core/string-pool.md](docs/core/string-pool.md) for complete documentation.
+
+---
+
 ## Documentation Standards
 
 ### README Structure
