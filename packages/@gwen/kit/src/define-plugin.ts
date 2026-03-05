@@ -187,6 +187,7 @@ interface BasePluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
+  // oxlint-disable-next-line no-unused-vars
   Options,
 > {
   /** Unique plugin name — literal type, used as the dedup key. */

@@ -1,156 +1,92 @@
 #!/usr/bin/env node
 /**
- * @gwen/cli — Exécutable en ligne de commande
+ * @gwen/cli — Main entry point
+ *
+ * CLI entry point using Citty framework.
+ * All commands are defined in src/commands/*.ts
+ *
+ * Supports graceful shutdown via SIGINT/SIGTERM.
  *
  * Usage:
- *   gwen prepare            Génère .gwen/ (tsconfig + types)
- *   gwen dev                Démarre le serveur de dev (Vite offusqué)
- *   gwen build              Build production (WASM + bundle)
- *   gwen preview            Prévisualise le build production
+ *   gwen [command] [options]
  *
- * All configuration lives in gwen.config.ts — no vite.config.ts needed.
+ * Global options:
+ *   --verbose (-v)  Show detailed logs
+ *   --debug         Show debug information
+ *
+ * Commands:
+ *   prepare         Generate .gwen/ (tsconfig + types)
+ *   dev             Start development server
+ *   build           Production build
+ *   preview         Preview production build
+ *   lint            Lint source code
+ *   format          Format source code
+ *   info            Show parsed config
+ *
+ * @example
+ * ```bash
+ * gwen --help
+ * gwen prepare --help
+ * gwen dev --port 3001 --open
+ * gwen build --verbose
+ * ```
  */
 
 import process from 'node:process';
-import { prepare } from './prepare.js';
-import { dev } from './dev.js';
-import { build } from './builder.js';
+import { defineCommand, runMain } from 'citty';
+import { logger } from './utils/logger.js';
+import { VERSION } from './utils/constants.js';
 
-const args = process.argv.slice(2);
-const command = args[0] ?? 'help';
+// Import commands
+import devCommand from './commands/dev.js';
+import buildCommand from './commands/build.js';
+import prepareCommand from './commands/prepare.js';
+import previewCommand from './commands/preview.js';
+import lintCommand from './commands/lint.js';
+import formatCommand from './commands/format.js';
+import infoCommand from './commands/info.js';
 
-function hasFlag(flag: string): boolean {
-  return args.includes(flag);
-}
-function getFlag(flag: string, fallback: string): string {
-  const idx = args.indexOf(flag);
-  return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
-}
+/**
+ * Graceful shutdown handler
+ * Stops any pending operations on SIGINT/SIGTERM
+ */
+const cleanup = () => {
+  logger.info('Shutting down gracefully...');
+  process.exit(0);
+};
 
-const verbose = hasFlag('--verbose') || hasFlag('-v');
-const port = parseInt(getFlag('--port', '3000'), 10);
-const previewPort = parseInt(getFlag('--preview-port', '4173'), 10);
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
 
-async function main() {
-  switch (command) {
-    case 'prepare': {
-      const result = await prepare({ verbose });
-      if (!result.success) {
-        for (const e of result.errors) console.error('[gwen]', e);
-        process.exit(1);
-      }
-      break;
-    }
+/**
+ * Main CLI command definition
+ * Acts as a dispatcher to all subcommands
+ */
+const main = defineCommand({
+  meta: {
+    name: 'gwen',
+    version: VERSION,
+    description: 'GWEN Game Engine CLI — dev, build, and manage game projects',
+  },
+  subCommands: {
+    dev: devCommand,
+    build: buildCommand,
+    prepare: prepareCommand,
+    preview: previewCommand,
+    lint: lintCommand,
+    format: formatCommand,
+    info: infoCommand,
+  },
+});
 
-    case 'dev': {
-      await dev({ port, open: hasFlag('--open'), verbose });
-      break;
-    }
-
-    case 'build': {
-      await prepare({ verbose });
-      const result = await build({
-        mode: hasFlag('--debug') ? 'debug' : 'release',
-        outDir: hasFlag('--out-dir') ? getFlag('--out-dir', 'dist') : undefined,
-        verbose,
-        dryRun: hasFlag('--dry-run'),
-      });
-      if (!result.success) {
-        for (const e of result.errors) console.error('[gwen]', e);
-        process.exit(1);
-      }
-      break;
-    }
-
-    case 'preview': {
-      const { preview } = await import('vite');
-      const server = await preview({
-        root: process.cwd(),
-        configFile: false,
-        preview: {
-          port: hasFlag('--port') ? port : previewPort,
-        },
-      });
-
-      const localUrls = server.resolvedUrls?.local ?? [];
-      if (localUrls.length > 0) {
-        console.log(`[gwen] Preview server listening on ${localUrls[0]}`);
-      } else {
-        const addr = server.httpServer?.address();
-        if (addr && typeof addr === 'object') {
-          const host = addr.address === '::' ? 'localhost' : addr.address;
-          console.log(`[gwen] Preview server listening on http://${host}:${addr.port}`);
-        } else {
-          console.log(
-            `[gwen] Preview server started (port=${hasFlag('--port') ? port : previewPort})`,
-          );
-        }
-      }
-      break;
-    }
-
-    case 'lint': {
-      const { lint } = await import('./lint.js');
-      lint({ fix: hasFlag('--fix') });
-      break;
-    }
-
-    case 'format': {
-      const { format } = await import('./format.js');
-      format({ check: hasFlag('--check') });
-      break;
-    }
-
-    case 'info': {
-      const { findConfigFile, parseConfigFile } = await import('./config-parser.js');
-      const configPath = findConfigFile(process.cwd());
-      if (!configPath) {
-        console.error('gwen.config.ts not found');
-        process.exit(1);
-      }
-      const parsed = parseConfigFile(configPath);
-      console.log(JSON.stringify(parsed, null, 2));
-      break;
-    }
-
-    default: {
-      console.log(`
-╔═══════════════════════════════════╗
-║  GWEN Game Engine CLI  v0.1.0     ║
-╚═══════════════════════════════════╝
-
-Usage: gwen <command> [options]
-
-Commands:
-  prepare       Generate .gwen/ (tsconfig + types)
-  dev           Start dev server (Vite abstracted)
-  build         Production build (WASM + bundle)
-  preview       Preview production build
-  lint          Lint src/ with oxlint
-  format        Format src/ with oxfmt
-  info          Show parsed gwen.config.ts
-
-Options:
-  --port <n>    Dev server port (default: 3000)
-  --open        Open browser on start
-  --debug       Build in debug mode (faster, larger WASM)
-  --out-dir     Output directory (default: dist/)
-  --fix         Auto-fix lint errors (lint only)
-  --check       Check format without writing (format only)
-  --verbose     Show detailed logs
-  --dry-run     Simulate without writing files
-
-All config lives in gwen.config.ts — no vite.config.ts needed.
-`);
-      if (command !== 'help' && command !== '--help' && command !== '-h') {
-        console.error(`Unknown command: ${command}`);
-        process.exit(1);
-      }
-    }
-  }
-}
-
-main().catch((err) => {
-  console.error('[gwen]', err instanceof Error ? err.message : err);
+/**
+ * Run the CLI
+ * runMain handles:
+ * - Usage generation
+ * - Error handling
+ * - Process exit codes
+ */
+runMain(main).catch((error) => {
+  logger.error('Fatal error:', error instanceof Error ? error.message : error);
   process.exit(1);
 });

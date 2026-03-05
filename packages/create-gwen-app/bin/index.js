@@ -136,9 +136,22 @@ async function main() {
 
   // 3. Copie du template
   log(`\nScaffolding ${c.bold}${safeName}${c.reset}...`);
+
+  // Récupérer la vraie version de @gwen/cli depuis package.json
+  const cliPkgPath = path.join(__dirname, '..', '..', '@gwen', 'cli', 'package.json');
+  let gwenVersion = '0.2.0'; // default
+  if (fs.existsSync(cliPkgPath)) {
+    try {
+      const cliPkg = JSON.parse(fs.readFileSync(cliPkgPath, 'utf-8'));
+      gwenVersion = cliPkg.version;
+    } catch {
+      // use default
+    }
+  }
+
   copyTemplate(templateDir, destDir, {
     PROJECT_NAME: safeName,
-    GWEN_VERSION: '0.1.0',
+    GWEN_VERSION: gwenVersion,
   });
 
   success(`Project created at ./${safeName}/`);

@@ -42,3 +42,6 @@ crates/*/pkg/
 
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+
+# Coverage reports
+coverage/
