@@ -16,7 +16,7 @@ npm install @gwen/plugin-input
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 
 export default defineConfig({

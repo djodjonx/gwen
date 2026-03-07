@@ -248,7 +248,7 @@ Configure the engine and register plugins.
 > The service types are automatically inferred from `tsPlugins`.
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 
 export const gwenConfig = defineConfig({
   engine: { maxEntities: 5000, targetFPS: 60, debug: false },
@@ -275,7 +275,7 @@ It is inferred from the `tsPlugins` declared in your `gwen.config.ts` and writte
 
 ```typescript
 // gwen.config.ts — just declare your plugins
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 

@@ -173,7 +173,8 @@ export async function generateDts(
  * This makes all define* (defineSystem, defineUI, defineScene, definePrefab)
  * automatically typed - no explicit annotation required.
  */
-${refBlock}${directImportBlock}import type { GwenConfigServices, GwenConfigHooks, EngineAPI } from '@gwen/engine-core';
+${refBlock}${directImportBlock}import type { GwenConfigServices, GwenConfigHooks } from '@gwen/engine-core';
+import type { EngineAPI } from '@gwen/schema';
 ${configImport}
 
 type _FallbackServices = GwenConfigServices<typeof _cfg>;

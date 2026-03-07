@@ -1,4 +1,4 @@
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 
 /**
  * Configuration de votre jeu GWEN.

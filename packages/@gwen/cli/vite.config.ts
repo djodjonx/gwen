@@ -22,7 +22,6 @@ export default defineConfig({
           id.startsWith('consola') ||
           id.startsWith('c12') ||
           id.startsWith('pathe') ||
-          id.startsWith('zod') ||
           id.startsWith('execa') ||
           id.startsWith('jiti') ||
           id.startsWith('oxlint') ||

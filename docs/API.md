@@ -268,7 +268,7 @@ api.addComponent(player, UIComponent, { uiName: 'PlayerUI' });
 Configure the engine and register plugins. Returns a `TypedEngineConfig` with inferred services.
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';

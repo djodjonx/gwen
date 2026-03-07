@@ -241,7 +241,7 @@ export const PlayerUI = defineUI({
 This is the single source of truth for your game's setup.
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';

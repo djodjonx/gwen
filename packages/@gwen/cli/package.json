@@ -1,7 +1,7 @@
 {
   "name": "@gwen/cli",
   "version": "0.2.0",
-  "description": "GWEN Engine CLI with Citty, Zod validation, and safe process execution",
+  "description": "GWEN Engine CLI with Citty and schema-based config validation",
   "bin": {
     "gwen": "./dist/cli/src/bin.js"
   },
@@ -30,6 +30,7 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@gwen/schema": "workspace:*",
     "c12": "4.0.0-beta.3",
     "citty": "^0.2.1",
     "consola": "^3.4.2",
@@ -37,8 +38,7 @@
     "jiti": "^2.4.2",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
-    "pathe": "^2.0.3",
-    "zod": "^4.3.6"
+    "pathe": "^2.0.3"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",

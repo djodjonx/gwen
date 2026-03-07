@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { defineConfig } from '../../kit/src/config';
 import {
-  defineConfig,
   isWasmPlugin,
   type GwenPlugin,
   type GwenPluginWasmContext,

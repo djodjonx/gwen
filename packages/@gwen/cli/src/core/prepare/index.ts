@@ -12,7 +12,7 @@ import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
 import { collectPluginTypingMeta } from './plugin-resolver.js';
-import type { GwenConfig } from '../../utils/validation.js';
+import type { GwenOptions } from '@gwen/schema';
 
 /**
  * Options for the prepare command
@@ -60,7 +60,7 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   const result: PrepareResult = { success: false, gwenDir, files: [], errors: [] };
 
   // 1. Load config
-  let config: GwenConfig;
+  let config: GwenOptions;
   let configPath: string;
   try {
     const loaded = await loadGwenConfig(projectDir);
@@ -129,7 +129,7 @@ async function generateTsconfigFile(
 async function generateDtsFile(
   gwenDir: string,
   projectDir: string,
-  config: GwenConfig,
+  config: GwenOptions,
   configPath: string,
   result: PrepareResult,
 ): Promise<void> {

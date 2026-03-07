@@ -9,8 +9,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { defineConfig } from '../../kit/src/config';
 import type { EngineConfig, GwenPlugin, GwenPluginWasmContext } from '../src/types';
-import { defineConfig, ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
+import { ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
 import { isWasmPlugin } from '../src/plugin-system/plugin-utils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

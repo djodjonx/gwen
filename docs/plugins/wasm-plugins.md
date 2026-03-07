@@ -485,7 +485,7 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 ## 8. Declaring the plugin in `gwen.config.ts`
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { myPlugin } from '@gwen/plugin-my-plugin';
 
 export default defineConfig({
@@ -676,7 +676,7 @@ The official `@gwen/plugin-physics2d` plugin covers every pattern documented her
 
 ```typescript
 // Complete usage example
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { physics2D } from '@gwen/plugin-physics2d';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 

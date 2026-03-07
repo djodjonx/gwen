@@ -39,6 +39,9 @@ importers:
 
   packages/@gwen/cli:
     dependencies:
+      '@gwen/schema':
+        specifier: workspace:*
+        version: link:../schema
       c12:
         specifier: 4.0.0-beta.3
         version: 4.0.0-beta.3(dotenv@8.6.0)(jiti@2.6.1)(magicast@0.5.2)
@@ -63,9 +66,6 @@ importers:
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.0.18
@@ -85,6 +85,9 @@ importers:
 
   packages/@gwen/engine-core:
     dependencies:
+      '@gwen/schema':
+        specifier: workspace:*
+        version: link:../schema
       hookable:
         specifier: ^6.0.1
         version: 6.0.1
@@ -109,6 +112,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../engine-core
+      '@gwen/schema':
+        specifier: workspace:*
+        version: link:../schema
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -263,6 +269,25 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
 
+  packages/@gwen/schema:
+    dependencies:
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+    devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@5.4.21(@types/node@25.3.3))
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@25.3.3)(jsdom@28.1.0)
+
   packages/@gwen/vite-plugin:
     devDependencies:
       typescript:
@@ -298,6 +323,9 @@ importers:
       '@gwen/engine-core':
         specifier: workspace:*
         version: link:../../packages/@gwen/engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/kit
       '@gwen/plugin-audio':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-audio
@@ -3097,9 +3125,6 @@ packages:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
 
-  zod@4.3.6:
-    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
-
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -5889,7 +5914,5 @@ snapshots:
   yocto-queue@1.2.2: {}
 
   yoctocolors@2.1.2: {}
-
-  zod@4.3.6: {}
 
   zwitch@2.0.4: {}

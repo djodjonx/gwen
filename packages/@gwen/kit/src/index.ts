@@ -14,46 +14,13 @@
  *   these are game development primitives, not plugin authoring tools.
  *   Import them from `@gwen/engine-core`.
  * - `defineConfig()`, `createEngine()` — project bootstrap, not authoring.
- *   Import from `@gwen/engine-core`.
- *
- * @example TS-only plugin
- * ```ts
- * import { definePlugin } from '@gwen/kit';
- *
- * export const MyPlugin = definePlugin({
- *   name: 'MyPlugin',
- *   provides: { myService: {} as MyService },
- *   setup(opts: MyOptions = {}) {
- *     return {
- *       onInit(api) { api.services.register('myService', new MyService(opts)); },
- *     };
- *   },
- * });
- * ```
- *
- * @example WASM plugin
- * ```ts
- * import { definePlugin, loadWasmPlugin } from '@gwen/kit';
- *
- * export const Physics2DPlugin = definePlugin({
- *   name: 'Physics2D',
- *   provides: { physics: {} as Physics2DAPI },
- *   wasm: { id: 'physics2d', channels: [...] },
- *   setup(opts: Physics2DConfig = {}) {
- *     let wasm: WasmPhysics2D | null = null;
- *     return {
- *       async onWasmInit(_bridge, _region, api, bus) {
- *         const mod = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js' });
- *         wasm = new mod.Physics2DPlugin(opts.gravity ?? -9.81);
- *         api.services.register('physics', buildAPI(wasm));
- *       },
- *       onStep(dt) { wasm?.step(dt); },
- *       onDestroy() { wasm?.free(); },
- *     };
- *   },
- * });
- * ```
+ *   Import `defineConfig` from `@gwen/kit` and `createEngine` from `@gwen/engine-core`.
  */
+
+// ── Project config helper ─────────────────────────────────────────────────────
+
+export { defineConfig } from './config';
+export type { TypedEngineConfig, MergePluginsProvides, MergePluginsHooks } from './config';
 
 // ── Plugin authoring helper ───────────────────────────────────────────────────
 

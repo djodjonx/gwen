@@ -5,13 +5,13 @@
 import fs from 'node:fs/promises';
 import { join } from 'pathe';
 import { logger } from '../../utils/logger.js';
-import type { GwenConfig } from '../../utils/validation.js';
+import type { GwenOptions } from '@gwen/schema';
 import type { BuildContext } from './context.js';
 
 interface Manifest {
   version: string;
   builtAt: string;
-  engine: GwenConfig['engine'];
+  engine: GwenOptions['engine'];
   plugins: Array<{
     name: string;
     type: 'wasm' | 'js';

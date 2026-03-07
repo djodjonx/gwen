@@ -15,4 +15,4 @@ export {
   createError,
 } from './errors.js';
 
-export { isError, isZodError, parseError, parseErrorCode } from './guards.js';
+export { isError, parseError, parseErrorCode } from './guards.js';

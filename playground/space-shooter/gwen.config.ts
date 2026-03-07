@@ -16,7 +16,7 @@
  * TODO: Migrate to unified `plugins: [...]` once validator is updated.
  */
 
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { HtmlUIPlugin } from '@gwen/plugin-html-ui';

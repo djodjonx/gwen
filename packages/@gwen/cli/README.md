@@ -83,7 +83,7 @@ Configure your game engine:
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 

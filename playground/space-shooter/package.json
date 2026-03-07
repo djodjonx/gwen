@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@gwen/engine-core": "workspace:*",
+    "@gwen/kit": "workspace:*",
     "@gwen/plugin-audio": "workspace:*",
     "@gwen/plugin-debug": "workspace:*",
     "@gwen/plugin-html-ui": "workspace:*",

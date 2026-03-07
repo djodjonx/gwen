@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@gwen/engine-core": "^{{GWEN_VERSION}}",
+    "@gwen/kit": "^{{GWEN_VERSION}}",
     "@gwen/plugin-audio": "^{{GWEN_VERSION}}",
     "@gwen/plugin-input": "^{{GWEN_VERSION}}",
     "@gwen/renderer-canvas2d": "^{{GWEN_VERSION}}"

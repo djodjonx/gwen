@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { logger } from '../../utils/logger.js';
-import type { GwenConfig } from '../../utils/validation.js';
+import type { GwenOptions } from '@gwen/schema';
 
 export interface GwenTypeRefMeta {
   from: string;
@@ -32,7 +32,7 @@ interface PluginGwenMeta {
  */
 export async function collectPluginTypingMeta(
   projectDir: string,
-  config: GwenConfig,
+  config: GwenOptions,
 ): Promise<CollectedPluginTypingMeta> {
   const typeReferences = new Set<string>();
   const serviceTypes: Record<string, GwenTypeRefMeta> = {};

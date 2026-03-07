@@ -3,14 +3,14 @@
  * Maintains state during the build pipeline
  */
 
-import type { GwenConfig } from '../../utils/validation.js';
+import type { GwenOptions } from '@gwen/schema';
 
 export interface BuildContext {
   projectDir: string;
   outDir: string;
   mode: 'release' | 'debug';
   dryRun: boolean;
-  config?: GwenConfig;
+  config?: GwenOptions;
   configPath?: string;
   errors: string[];
   warnings: string[];

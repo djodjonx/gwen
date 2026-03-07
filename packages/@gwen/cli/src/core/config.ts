@@ -1,25 +1,16 @@
 /**
- * Configuration loader using C12
- *
- * Loads gwen.config.ts safely without regex parsing.
- * Validates using Zod schema for runtime type-safety.
- *
- * @example
- * ```typescript
- * const result = await loadGwenConfig(process.cwd());
- * console.log(result.config.engine.maxEntities); // Type-safe!
- * ```
+ * Configuration loader using C12 and @gwen/schema.
  */
 
 import { loadConfig } from 'c12';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { GwenConfigSchema, type GwenConfig } from '../utils/validation.js';
+import { resolveConfig, type GwenConfigInput, type GwenOptions } from '@gwen/schema';
 import { logger } from '../utils/logger.js';
 import { CONFIG_FILE_NAMES } from '../utils/constants.js';
 
 export interface LoadConfigResult {
-  config: GwenConfig;
+  config: GwenOptions;
   configPath: string;
 }
 
@@ -31,15 +22,10 @@ export interface LoadConfigOptions {
 }
 
 /**
- * Load and validate GWEN configuration
+ * Load and resolve GWEN configuration.
  *
- * Uses C12 to safely load TypeScript config files without eval.
- * Validates with Zod for runtime type-safety and clear error messages.
- *
- * @param options - Loading options
- * @returns Validated configuration and config file path
- * @throws ZodError if validation fails with clear messages
- * @throws Error if config file not found
+ * @param options - Loading options or cwd path.
+ * @returns Resolved configuration and absolute config path.
  */
 export async function loadGwenConfig(
   options: LoadConfigOptions | string,
@@ -48,25 +34,17 @@ export async function loadGwenConfig(
 
   logger.debug('Loading config from:', cwd);
 
-  // C12 automatically searches for gwen.config.ts, gwen.config.js, etc.
-  const { config, configFile } = await loadConfig({
+  const { config, configFile } = await loadConfig<GwenConfigInput>({
     name: 'gwen',
     cwd,
     packageJson: false,
-    defaults: {
-      engine: {
-        maxEntities: 10_000,
-        targetFPS: 60,
-        debug: false,
-      },
-    },
+    defaults: {},
   });
 
   if (!configFile) {
     throw new Error(`Config file not found. Expected one of: ${CONFIG_FILE_NAMES.join(', ')}`);
   }
 
-  // Ensure absolute path
   const absolutePath = path.isAbsolute(configFile) ? configFile : path.resolve(cwd, configFile);
 
   if (!existsSync(absolutePath)) {
@@ -75,24 +53,18 @@ export async function loadGwenConfig(
 
   logger.debug(`[loadGwenConfig] Found config file: ${absolutePath}`);
 
-  // Validate with Zod
-  try {
-    const validated = GwenConfigSchema.parse(config);
-    return {
-      config: validated,
-      configPath: absolutePath,
-    };
-  } catch (error) {
-    logger.error('Config validation failed');
-    throw error; // Zod error has clear messages
-  }
+  const resolved = resolveConfig(config ?? {});
+  resolved.rootDir = cwd;
+  resolved.dev = process.env.NODE_ENV === 'development';
+
+  return {
+    config: resolved,
+    configPath: absolutePath,
+  };
 }
 
 /**
  * Find config file without loading it (for info command)
- *
- * @param cwd - Current working directory
- * @returns Config file path or null if not found
  */
 export async function findConfigFile(cwd: string): Promise<string | null> {
   const { configFile } = await loadConfig({

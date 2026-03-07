@@ -115,7 +115,7 @@ cd my-game
 Create `gwen.config.ts`:
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({

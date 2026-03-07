@@ -16,7 +16,7 @@ npm install @gwen/plugin-audio
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { AudioPlugin } from '@gwen/plugin-audio';
 
 export default defineConfig({

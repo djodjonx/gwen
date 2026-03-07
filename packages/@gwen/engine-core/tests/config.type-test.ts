@@ -1,5 +1,6 @@
 import { describe, it, expectTypeOf } from 'vitest';
-import { defineConfig, type GwenPlugin, type GwenConfigServices } from '../src';
+import { defineConfig } from '../../kit/src/config';
+import { type GwenPlugin, type GwenConfigServices } from '../src';
 
 const PluginA = {} as GwenPlugin<'A', { a: string }>;
 const PluginB = {} as GwenPlugin<'B', { b: number }>;

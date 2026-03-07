@@ -23,6 +23,7 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
+    "@gwen/schema": "workspace:*",
     "hookable": "^6.0.1"
   },
   "devDependencies": {

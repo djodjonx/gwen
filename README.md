@@ -109,7 +109,7 @@ This structure is intentional: it keeps gameplay code discoverable as the projec
 Example config shape:
 
 ```ts
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';

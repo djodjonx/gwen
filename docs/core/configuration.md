@@ -7,7 +7,7 @@ GWEN projects are configured in a single file: `gwen.config.ts`. This is where y
 Use `defineConfig()` to create your configuration:
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 
 export default defineConfig({
   engine: {
@@ -118,7 +118,7 @@ export default defineConfig({
 From the playground:
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
@@ -395,7 +395,7 @@ Don't put game logic in config — use scenes and systems.
 ### Minimal Config
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
@@ -410,7 +410,7 @@ export default defineConfig({
 ### Full-Featured Config
 
 ```typescript
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { InputPlugin } from '@gwen/plugin-input';
 import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';

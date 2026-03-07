@@ -10,7 +10,7 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
 
   return {
     onInit(api) {
-      physics = api.services.get('physics') as Physics2DAPI;
+      physics = api.services.get('physics');
     },
 
     onUpdate(api) {

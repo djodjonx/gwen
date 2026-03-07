@@ -16,7 +16,7 @@ npm install @gwen/plugin-debug
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/engine-core';
+import { defineConfig } from '@gwen/kit';
 import { DebugPlugin } from '@gwen/plugin-debug';
 
 export default defineConfig({

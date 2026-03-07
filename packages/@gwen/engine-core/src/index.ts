@@ -8,10 +8,10 @@ export * from './schema';
 export { createGwenHooks } from './hooks';
 export type { GwenHooks, GwenHookable } from './hooks';
 
-// Config — defineConfig() generic + TypedEngineConfig
-export { defaultConfig, mergeConfigs, defineConfig, createEngine } from './config/config';
+// Config runtime helpers
+export { defaultConfig, mergeConfigs, createEngine } from './config/config';
 export { ConfigBuilder } from './config/config-builder';
-export type { TypedEngineConfig, GwenConfigServices, GwenConfigHooks } from './config/config';
+export type { GwenConfigServices, GwenConfigHooks } from './config/config';
 
 // Unified plugin system — GwenPlugin, GwenPluginWasmContext, isWasmPlugin
 // isWasmPlugin is a runtime function living in plugin-system/plugin-utils.ts
