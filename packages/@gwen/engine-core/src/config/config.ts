@@ -57,8 +57,8 @@ export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>
  * compile-time markers.
  */
 export interface TypedEngineConfig<
-  Services extends Record<string, unknown>,
-  Hooks extends Record<string, any> = Record<string, never>,
+  Services extends object = Record<string, unknown>,
+  Hooks extends object = Record<string, never>,
 > {
   /** @internal Phantom type — never read at runtime. */
   readonly _services: Services;
@@ -117,14 +117,18 @@ export interface TypedEngineConfig<
  * Shape of the config object accepted by `defineConfig()`.
  * Separated into its own type so both overloads share the same parameter list.
  */
-type DefineConfigInput<Plugins extends readonly GwenPlugin[]> = {
+type DefineConfigInput<
+  Plugins extends readonly GwenPlugin[],
+  TsPlugins extends readonly GwenPlugin[],
+  WasmPlugins extends readonly GwenPlugin[],
+> = {
   engine?: { maxEntities?: number; targetFPS?: number; debug?: boolean; enableStats?: boolean };
   /** Unified plugin array — TS-only and WASM plugins mixed in declaration order. */
-  plugins?: [...Plugins];
+  plugins?: readonly [...Plugins];
   /** @deprecated Use `plugins` instead. */
-  tsPlugins?: GwenPlugin[];
+  tsPlugins?: readonly [...TsPlugins];
   /** @deprecated Use `plugins` instead. */
-  wasmPlugins?: GwenPlugin[];
+  wasmPlugins?: readonly [...WasmPlugins];
   maxEntities?: number;
   targetFPS?: number;
   debug?: boolean;
@@ -168,12 +172,19 @@ type DefineConfigInput<Plugins extends readonly GwenPlugin[]> = {
  * }
  * ```
  */
-export function defineConfig<const Plugins extends readonly GwenPlugin[]>(
-  config: DefineConfigInput<Plugins>,
-): TypedEngineConfig<MergePluginsProvides<Plugins>, MergePluginsHooks<Plugins>> {
+export function defineConfig<
+  const Plugins extends readonly GwenPlugin[] = [],
+  const TsPlugins extends readonly GwenPlugin[] = [],
+  const WasmPlugins extends readonly GwenPlugin[] = [],
+>(
+  config: DefineConfigInput<Plugins, TsPlugins, WasmPlugins>,
+): TypedEngineConfig<
+  MergePluginsProvides<[...Plugins, ...TsPlugins, ...WasmPlugins]>,
+  MergePluginsHooks<[...Plugins, ...TsPlugins, ...WasmPlugins]>
+> {
   return config as unknown as TypedEngineConfig<
-    MergePluginsProvides<Plugins>,
-    MergePluginsHooks<Plugins>
+    MergePluginsProvides<[...Plugins, ...TsPlugins, ...WasmPlugins]>,
+    MergePluginsHooks<[...Plugins, ...TsPlugins, ...WasmPlugins]>
   >;
 }
 

@@ -24,7 +24,14 @@
  */
 
 import { definePlugin, loadWasmPlugin } from '@gwen/kit';
-import type { WasmBridge, MemoryRegion, EngineAPI, PluginDataBus, PluginChannel } from '@gwen/kit';
+import type {
+  WasmBridge,
+  MemoryRegion,
+  EngineAPI,
+  PluginDataBus,
+  PluginChannel,
+  GwenPluginMeta,
+} from '@gwen/kit';
 
 import type {
   Physics2DConfig,
@@ -40,6 +47,14 @@ import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
 // Re-export public types
 export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, RigidBodyType };
 
+// ─── Plugin metadata ───────────────────────────────────────────────────────────
+
+export const pluginMeta: GwenPluginMeta = {
+  serviceTypes: {
+    physics: { from: '@gwen/plugin-physics2d', exportName: 'Physics2DAPI' },
+  },
+};
+
 // ─── Physics2DPlugin ──────────────────────────────────────────────────────────
 
 /**
@@ -51,6 +66,7 @@ export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, Ri
  */
 export const Physics2DPlugin = definePlugin({
   name: 'Physics2D',
+  meta: pluginMeta,
   provides: { physics: {} as Physics2DAPI },
   wasm: {
     id: 'physics2d',

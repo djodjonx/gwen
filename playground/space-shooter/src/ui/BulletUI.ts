@@ -2,10 +2,10 @@ import { defineUI } from '@gwen/engine-core';
 import { Position, Tag } from '../components';
 
 /**
- * BulletUI — Rendu des balles joueur et ennemi.
- * Enregistrée avant PlayerUI/EnemyUI → dessinée sous les vaisseaux.
+ * BulletUI - Rendu des balles joueur et ennemi.
+ * Enregistree avant PlayerUI/EnemyUI -> dessinee sous les vaisseaux.
  */
-export const BulletUI = defineUI<GwenServices>({
+export const BulletUI = defineUI({
   name: 'BulletUI',
 
   render(api, id) {
@@ -19,18 +19,18 @@ export const BulletUI = defineUI<GwenServices>({
     ctx.translate(pos.x, pos.y);
 
     if (tag.type === 'bullet') {
-      // Balle joueur — trait jaune avec halo
+      // Balle joueur - trait jaune avec halo
       ctx.fillStyle = '#ffe600';
       ctx.shadowColor = '#ffe600';
       ctx.shadowBlur = 10;
       ctx.fillRect(-2, -9, 4, 18);
 
-      // Cœur lumineux au centre
+      // Coeur lumineux au centre
       ctx.shadowBlur = 4;
       ctx.fillStyle = '#fff';
       ctx.fillRect(-1, -4, 2, 8);
     } else {
-      // Balle ennemi — orbe rouge pulsante
+      // Balle ennemi - orbe rouge pulsante
       const pulse = 0.85 + Math.sin(Date.now() / 80) * 0.15;
       ctx.scale(pulse, pulse);
       ctx.fillStyle = '#ff4444';
@@ -39,6 +39,7 @@ export const BulletUI = defineUI<GwenServices>({
       ctx.beginPath();
       ctx.arc(0, 0, 4, 0, Math.PI * 2);
       ctx.fill();
+
       // Point blanc au centre
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(255,200,200,0.9)';

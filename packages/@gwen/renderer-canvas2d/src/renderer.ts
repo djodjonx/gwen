@@ -14,7 +14,7 @@
  */
 
 import { definePlugin } from '@gwen/kit';
-import type { EngineAPI, EntityId } from '@gwen/kit';
+import type { EngineAPI, EntityId, GwenPluginMeta } from '@gwen/kit';
 
 // ── Component types ───────────────────────────────────────────────────────────
 
@@ -98,8 +98,15 @@ export interface RendererService {
 
 // ── Canvas2DRenderer ──────────────────────────────────────────────────────────
 
+export const pluginMeta: GwenPluginMeta = {
+  serviceTypes: {
+    renderer: { from: '@gwen/renderer-canvas2d', exportName: 'Canvas2DRendererService' },
+  },
+};
+
 export const Canvas2DRenderer = definePlugin({
   name: 'Canvas2DRenderer',
+  meta: pluginMeta,
   provides: { renderer: {} as RendererService },
 
   setup(config: Canvas2DRendererConfig) {

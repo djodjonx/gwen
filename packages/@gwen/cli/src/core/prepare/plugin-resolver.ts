@@ -9,37 +9,90 @@ import * as path from 'node:path';
 import { logger } from '../../utils/logger.js';
 import type { GwenConfig } from '../../utils/validation.js';
 
-/**
- * Collect type references from all plugins in config
- * Silently ignores plugins without metadata
- */
-export async function collectPluginTypeReferences(
-  projectDir: string,
-  config: GwenConfig,
-): Promise<string[]> {
-  const refs = new Set<string>();
+export interface GwenTypeRefMeta {
+  from: string;
+  exportName: string;
+}
 
-  for (const plugin of config.plugins ?? []) {
-    try {
-      const typeRefs = await readPluginGwenMeta(projectDir, plugin.packageName);
-      for (const ref of typeRefs) {
-        refs.add(ref);
-        logger.debug(`📦 ${plugin.packageName} → typeRef: ${ref}`);
-      }
-    } catch {
-      // Plugin without metadata — silently ignore
-      logger.trace(`Plugin ${plugin.packageName} has no gwen metadata`);
-    }
-  }
+export interface CollectedPluginTypingMeta {
+  typeReferences: string[];
+  serviceTypes: Record<string, GwenTypeRefMeta>;
+  hookTypes: Record<string, GwenTypeRefMeta>;
+}
 
-  return Array.from(refs);
+interface PluginGwenMeta {
+  typeReferences?: string[];
+  serviceTypes?: Record<string, GwenTypeRefMeta>;
+  hookTypes?: Record<string, GwenTypeRefMeta>;
 }
 
 /**
- * Read GWEN metadata from a plugin's package.json
- * Looks for gwen.typeReferences field
+ * Collect type metadata from all plugins in config.
+ * Silently ignores plugins without metadata.
  */
-async function readPluginGwenMeta(projectDir: string, packageName: string): Promise<string[]> {
+export async function collectPluginTypingMeta(
+  projectDir: string,
+  config: GwenConfig,
+): Promise<CollectedPluginTypingMeta> {
+  const typeReferences = new Set<string>();
+  const serviceTypes: Record<string, GwenTypeRefMeta> = {};
+  const hookTypes: Record<string, GwenTypeRefMeta> = {};
+
+  for (const plugin of config.plugins ?? []) {
+    try {
+      // Use meta from plugin instance if available, otherwise fallback to package.json
+      let meta: PluginGwenMeta = {};
+
+      if ('meta' in plugin && plugin.meta) {
+        meta = plugin.meta as PluginGwenMeta;
+      } else if ('packageName' in plugin && plugin.packageName) {
+        meta = await readPluginGwenMeta(projectDir, plugin.packageName as string);
+      } else {
+        const pluginName = 'name' in plugin ? (plugin as any).name : 'unknown';
+        logger.trace(`Plugin ${pluginName} has no meta and no packageName`);
+        continue;
+      }
+
+      const pluginId =
+        'packageName' in plugin ? (plugin.packageName as string) : (plugin.name as string);
+
+      for (const ref of meta.typeReferences ?? []) {
+        typeReferences.add(ref);
+        logger.debug(`📦 ${pluginId} -> typeRef: ${ref}`);
+      }
+
+      for (const [serviceName, ref] of Object.entries(meta.serviceTypes ?? {})) {
+        serviceTypes[serviceName] = ref;
+        logger.debug(
+          `📦 ${pluginId} -> serviceType: ${serviceName} => ${ref.from}#${ref.exportName}`,
+        );
+      }
+
+      for (const [hookName, ref] of Object.entries(meta.hookTypes ?? {})) {
+        hookTypes[hookName] = ref;
+        logger.debug(`📦 ${pluginId} -> hookType: ${hookName} => ${ref.from}#${ref.exportName}`);
+      }
+    } catch {
+      logger.trace(
+        `Plugin ${'packageName' in plugin ? plugin.packageName : plugin.name} has no gwen metadata`,
+      );
+    }
+  }
+
+  return {
+    typeReferences: Array.from(typeReferences),
+    serviceTypes,
+    hookTypes,
+  };
+}
+
+/**
+ * Read GWEN metadata from a plugin's package.json.
+ */
+async function readPluginGwenMeta(
+  projectDir: string,
+  packageName: string,
+): Promise<PluginGwenMeta> {
   let dir = projectDir;
 
   // Search up to 5 levels for node_modules
@@ -48,16 +101,16 @@ async function readPluginGwenMeta(projectDir: string, packageName: string): Prom
     if (existsSync(pkgJsonPath)) {
       try {
         const pkg = JSON.parse(await fs.readFile(pkgJsonPath, 'utf-8')) as {
-          gwen?: { typeReferences?: string[] };
+          gwen?: PluginGwenMeta;
         };
-        return pkg.gwen?.typeReferences ?? [];
+        return pkg.gwen ?? {};
       } catch (error) {
         logger.trace(`Failed to parse ${pkgJsonPath}`, error);
-        return [];
+        return {};
       }
     }
     dir = path.dirname(dir);
   }
 
-  return [];
+  return {};
 }

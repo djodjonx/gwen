@@ -1,7 +1,7 @@
 import { defineUI } from '@gwen/engine-core';
 import { drawStars } from './helpers/drawStars';
 
-export const MainMenuUI = defineUI<GwenServices>('MainMenuUI', () => {
+export const MainMenuUI = defineUI('MainMenuUI', () => {
   // État local en closure — pas de variables globales
   let blink = true;
   let blinkT = 0;

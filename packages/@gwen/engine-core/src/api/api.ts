@@ -38,25 +38,28 @@ import { createGwenHooks } from '../hooks';
  * ```
  */
 export class ServiceLocator<
-  M extends Record<string, unknown> = GwenDefaultServices,
+  M extends object = GwenDefaultServices,
 > implements TypedServiceLocator<M> {
   private registry = new Map<string, unknown>();
 
-  register<K extends keyof M & string>(name: K, instance: M[K]): void {
-    if (this.registry.has(name)) {
-      console.warn(`[GWEN:ServiceLocator] '${name}' already registered — overwriting.`);
+  register<K extends import('../types').ServiceKey<M>>(
+    name: K,
+    instance: import('../types').ServiceValue<M, K>,
+  ): void {
+    if (this.registry.has(name as string)) {
+      console.warn(`[GWEN:ServiceLocator] '${name as string}' already registered — overwriting.`);
     }
-    this.registry.set(name, instance);
+    this.registry.set(name as string, instance);
   }
 
-  get<K extends keyof M & string>(name: K): M[K] {
-    if (!this.registry.has(name)) {
+  get<K extends import('../types').ServiceKey<M>>(name: K): import('../types').ServiceValue<M, K> {
+    if (!this.registry.has(name as string)) {
       throw new Error(
-        `[GWEN:ServiceLocator] Service '${name}' not found. ` +
+        `[GWEN:ServiceLocator] Service '${name as string}' not found. ` +
           `Available: [${[...this.registry.keys()].join(', ')}]`,
       );
     }
-    return this.registry.get(name) as M[K];
+    return this.registry.get(name as string) as import('../types').ServiceValue<M, K>;
   }
 
   has(name: string): boolean {
@@ -103,8 +106,8 @@ export interface EngineState {
  * @typeParam H - Hooks map type (inferred from declared plugins)
  */
 export class EngineAPIImpl<
-  M extends Record<string, unknown> = GwenDefaultServices,
-  H extends Record<string, any> = GwenDefaultHooks,
+  M extends object = GwenDefaultServices,
+  H extends object = GwenDefaultHooks,
 > implements EngineAPI<M, H> {
   readonly services: TypedServiceLocator<M>;
   readonly prefabs: PrefabManager;
@@ -157,7 +160,7 @@ export class EngineAPIImpl<
   ) {
     this.services = services;
     this.prefabs = new PrefabManager();
-    this.prefabs._setAPI(this);
+    this.prefabs._setAPI(this as any);
     this.hooks = hooks;
   }
 
@@ -171,7 +174,9 @@ export class EngineAPIImpl<
 
   get scene(): SceneNavigator | null {
     return this.services.has('SceneManager')
-      ? (this.services.get('SceneManager') as unknown as SceneNavigator)
+      ? (this.services.get(
+          'SceneManager' as import('../types').ServiceKey<M>,
+        ) as unknown as SceneNavigator)
       : null;
   }
 
@@ -275,8 +280,8 @@ export class EngineAPIImpl<
  * @typeParam H - Hooks map type
  */
 export function createEngineAPI<
-  M extends Record<string, unknown> = Record<string, unknown>,
-  H extends Record<string, any> = GwenDefaultHooks,
+  M extends object = GwenDefaultServices,
+  H extends object = GwenDefaultHooks,
 >(
   entityManager: EntityManager,
   components: ComponentRegistry,

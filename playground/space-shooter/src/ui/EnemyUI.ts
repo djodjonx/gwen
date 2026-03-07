@@ -4,7 +4,7 @@ import { Position, Health } from '../components';
 /**
  * EnemyUI — Rendu complet d'un ennemi.
  */
-export const EnemyUI = defineUI<GwenServices>({
+export const EnemyUI = defineUI({
   name: 'EnemyUI',
 
   render(api, id) {

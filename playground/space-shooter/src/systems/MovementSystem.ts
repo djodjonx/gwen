@@ -1,5 +1,4 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem('MovementSystem', () => {
@@ -8,10 +7,9 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
   // correct positions before step()), but we only destroy off-screen entities
   // in onUpdate — after the physics step — so they are always registered in
   // Rapier for at least one full frame and their slot is never wasted.
-  const toDestroy: number[] = [];
-
+  const toDestroy: import('@gwen/engine-core').EntityId[] = [];
   return {
-    onBeforeUpdate(api: EngineAPI<GwenServices>, dt: number) {
+    onBeforeUpdate(api, dt) {
       toDestroy.length = 0;
 
       const movables = api.query([Position.name, Velocity.name]);
@@ -35,7 +33,7 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
       }
     },
 
-    onUpdate(api: EngineAPI<GwenServices>) {
+    onUpdate(api) {
       // Destroy off-screen entities after the physics step has run.
       // PhysicsBindingSystem.cleanup (next onBeforeUpdate) will call
       // physics.removeBody() and clean up the Rapier side.

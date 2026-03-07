@@ -210,6 +210,9 @@ export interface GwenPlugin<
   /** Unique plugin name — used for dedup checks and `engine.getSystem()` lookup. */
   readonly name: N;
 
+  /** Static metadata for gwen CLI tools. */
+  readonly meta?: import('../plugin-system/plugin').GwenPluginMeta;
+
   /** Semver-compatible version string (optional, for debug overlay). */
   readonly version?: string;
 

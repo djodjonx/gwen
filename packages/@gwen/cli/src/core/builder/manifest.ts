@@ -39,16 +39,23 @@ export async function generateManifest(ctx: BuildContext): Promise<void> {
         wasmPath: './wasm/gwen_core_bg.wasm',
         jsPath: './wasm/gwen_core.js',
       },
-      ...(ctx.config.plugins ?? []).map((p) => ({
-        name: p.symbolName,
-        type: p.type as 'wasm' | 'js',
-        ...(p.type === 'wasm'
-          ? {
-              wasmPath: `./wasm/${p.packageName.replace('@gwen/', '')}_bg.wasm`,
-              jsPath: `./wasm/${p.packageName.replace('@gwen/', '')}.js`,
-            }
-          : {}),
-      })),
+      ...(ctx.config.plugins ?? []).map((p: any) => {
+        const isLegacy = 'packageName' in p;
+        const name = isLegacy ? p.symbolName : p.name;
+        const type = isLegacy ? p.type : p.wasm ? 'wasm' : 'js';
+        const pkgName = isLegacy ? p.packageName : p.wasm?.id || '';
+
+        return {
+          name,
+          type: type as 'wasm' | 'js',
+          ...(type === 'wasm' && pkgName
+            ? {
+                wasmPath: `./wasm/${pkgName.replace('@gwen/', '')}_bg.wasm`,
+                jsPath: `./wasm/${pkgName.replace('@gwen/', '')}.js`,
+              }
+            : {}),
+        };
+      }),
     ],
   };
 

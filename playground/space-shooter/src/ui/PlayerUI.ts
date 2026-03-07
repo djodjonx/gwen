@@ -9,7 +9,7 @@ import { Position, Velocity } from '../components';
  *  - Sprite géométrique avec halo cyan
  *  - Barre de vie + icônes cœur sous le vaisseau
  */
-export const PlayerUI = defineUI<GwenServices>({
+export const PlayerUI = defineUI({
   name: 'PlayerUI',
 
   render(api, id) {

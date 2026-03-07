@@ -1,5 +1,4 @@
 import { defineScene, UIComponent } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -30,7 +29,7 @@ export const GameScene = defineScene('Game', () => ({
     CollisionSystem,
   ],
 
-  onEnter(api: EngineAPI<GwenServices>) {
+  onEnter(api) {
     api.prefabs.register(PlayerPrefab);
     api.prefabs.register(EnemyPrefab);
     api.prefabs.register(BulletPrefab);
@@ -48,5 +47,5 @@ export const GameScene = defineScene('Game', () => ({
     }
   },
 
-  onExit(_api: EngineAPI<GwenServices>) {},
+  onExit(_api) {},
 }));

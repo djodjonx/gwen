@@ -1,5 +1,4 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 
 const WAVE_INTERVAL = 3.5;
 const COLS = 5;
@@ -12,7 +11,7 @@ export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
       spawnTimer = 0;
     },
 
-    onUpdate(api: EngineAPI<GwenServices>, dt: number) {
+    onUpdate(api, dt) {
       spawnTimer += dt;
       if (spawnTimer < WAVE_INTERVAL) return;
       spawnTimer = 0;

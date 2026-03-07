@@ -6,18 +6,18 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SceneManager, defineScene } from '../src/api/scene';
 import { createEngineAPI, type EngineAPIImpl } from '../src/api/api';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
-import { createGwenHooks, type GwenHooks } from '../src/hooks';
+import { createGwenHooks } from '../src/hooks';
 import type { ReloadContext } from '../src';
 
 describe('Scene Reload System', () => {
   let sceneManager: SceneManager;
-  let api: EngineAPIImpl<Record<string, unknown>, GwenHooks>;
+  let api: EngineAPIImpl;
 
   beforeEach(() => {
     const entityManager = new EntityManager(1000);
     const components = new ComponentRegistry();
     const queryEngine = new QueryEngine();
-    const hooks = createGwenHooks<GwenHooks>();
+    const hooks = createGwenHooks<GwenDefaultHooks>();
 
     api = createEngineAPI(entityManager, components, queryEngine, undefined, hooks);
     sceneManager = new SceneManager();

@@ -7,10 +7,10 @@ import { PluginManager } from '../src/plugin-system/plugin-manager';
 import type { TsPlugin } from '../src/types';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 import { createEngineAPI, type EngineAPIImpl } from '../src/api/api';
-import { createGwenHooks, type GwenHooks } from '../src/hooks';
+import { createGwenHooks } from '../src/hooks';
 
-function makeAPI(): EngineAPIImpl<Record<string, unknown>, GwenHooks> {
-  const hooks = createGwenHooks<GwenHooks>();
+function makeAPI(): EngineAPIImpl {
+  const hooks = createGwenHooks<GwenDefaultHooks>();
   return createEngineAPI(
     new EntityManager(100),
     new ComponentRegistry(),
@@ -282,21 +282,21 @@ describe('PluginManager', () => {
         name: 'CustomHookPlugin',
         onInit(api) {
           // Register a custom hook manually
-          api.hooks.hook('custom:event', () => calls.push(1));
+          api.hooks.hook('custom:event' as any, () => calls.push(1));
         },
       };
 
       pm.register(plugin, api, api.hooks);
 
       // Call the custom hook
-      await api.hooks.callHook('custom:event');
+      await api.hooks.callHook('custom:event' as any);
       expect(calls).toHaveLength(1);
 
       // Unregister the plugin
       pm.unregister('CustomHookPlugin', api.hooks);
 
       // The custom hook should no longer execute
-      await api.hooks.callHook('custom:event');
+      await api.hooks.callHook('custom:event' as any);
       expect(calls).toHaveLength(1); // ← Still 1, not 2
     });
 
@@ -455,7 +455,7 @@ describe('PluginManager', () => {
         onUpdate: () => calls.push('auto:update'),
         onInit(api) {
           // Register a custom hook
-          api.hooks.hook('custom:hook', () => calls.push('manual:custom'));
+          api.hooks.hook('custom:hook' as any, () => calls.push('manual:custom'));
         },
       };
 
@@ -463,7 +463,7 @@ describe('PluginManager', () => {
 
       // Trigger both
       await pm.dispatchUpdate(api, 0.016, api.hooks);
-      await api.hooks.callHook('custom:hook');
+      await api.hooks.callHook('custom:hook' as any);
 
       expect(calls).toEqual(['auto:update', 'manual:custom']);
 
@@ -473,7 +473,7 @@ describe('PluginManager', () => {
 
       // Both should be cleaned
       await pm.dispatchUpdate(api, 0.016, api.hooks);
-      await api.hooks.callHook('custom:hook');
+      await api.hooks.callHook('custom:hook' as any);
 
       expect(calls).toHaveLength(0);
     });

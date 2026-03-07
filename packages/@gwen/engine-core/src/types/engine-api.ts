@@ -13,6 +13,16 @@ export type { EntityId, ComponentType } from './entity';
 
 // ── Service locator ───────────────────────────────────────────────────────────
 
+/** Service key type: strict when services are known, open string fallback otherwise. */
+export type ServiceKey<M extends object> = [keyof M] extends [never] ? string : keyof M & string;
+
+/** Service value type for TypedServiceLocator. */
+export type ServiceValue<M extends object, K extends ServiceKey<M>> = [keyof M] extends [never]
+  ? unknown
+  : K extends keyof M
+    ? M[K]
+    : never;
+
 /**
  * Typed service locator parameterized by a service map `M`.
  *
@@ -23,7 +33,7 @@ export type { EntityId, ComponentType } from './entity';
  * api.services.get<MyService>('anything')  // explicit cast fallback
  * ```
  */
-export interface TypedServiceLocator<M extends GwenDefaultServices = GwenDefaultServices> {
+export interface TypedServiceLocator<M extends object = GwenDefaultServices> {
   /**
    * Register a service under the given key.
    * Overwrites any existing registration with a warning.
@@ -31,7 +41,7 @@ export interface TypedServiceLocator<M extends GwenDefaultServices = GwenDefault
    * @param name     Service key (must be a key of `M`).
    * @param instance Service instance.
    */
-  register<K extends keyof M & string>(name: K, instance: M[K]): void;
+  register<K extends ServiceKey<M>>(name: K, instance: ServiceValue<M, K>): void;
 
   /**
    * Retrieve a service by key.
@@ -40,7 +50,7 @@ export interface TypedServiceLocator<M extends GwenDefaultServices = GwenDefault
    * @param name Service key.
    * @returns The registered service instance, typed as `M[K]`.
    */
-  get<K extends keyof M & string>(name: K): M[K];
+  get<K extends ServiceKey<M>>(name: K): ServiceValue<M, K>;
 
   /**
    * Check whether a service is registered under the given key.
@@ -121,8 +131,8 @@ export interface SceneNavigator {
  * ```
  */
 export interface EngineAPI<
-  M extends GwenDefaultServices = GwenDefaultServices,
-  H extends GwenDefaultHooks = GwenDefaultHooks,
+  M extends object = GwenDefaultServices,
+  H extends object = GwenDefaultHooks,
 > {
   // ── ECS ──────────────────────────────────────────────────────────────────
 

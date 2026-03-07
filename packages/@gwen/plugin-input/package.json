@@ -32,6 +32,20 @@
     "vitest": "^1.0.0"
   },
   "gwen": {
-    "type": "typescript"
+    "type": "typescript",
+    "serviceTypes": {
+      "keyboard": {
+        "from": "@gwen/plugin-input",
+        "exportName": "KeyboardInput"
+      },
+      "mouse": {
+        "from": "@gwen/plugin-input",
+        "exportName": "MouseInput"
+      },
+      "gamepad": {
+        "from": "@gwen/plugin-input",
+        "exportName": "GamepadInput"
+      }
+    }
   }
 }

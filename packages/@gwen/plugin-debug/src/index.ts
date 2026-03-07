@@ -49,7 +49,6 @@ export interface DebugService {
 
 export interface DebugPluginServices {
   debug: DebugService;
-  [key: string]: unknown;
 }
 
 // ── DebugPlugin ───────────────────────────────────────────────────────────────

@@ -50,8 +50,7 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
  * type P = PluginProvides<InputPlugin>; // → { keyboard: KeyboardInput; ... }
  * ```
  */
-export type PluginProvides<T> =
-  T extends GwenPlugin<string, infer P, any> ? P : Record<string, unknown>;
+export type PluginProvides<T> = T extends GwenPlugin<string, infer P, any> ? P : {};
 
 /**
  * Extracts the `providesHooks` type from a `GwenPlugin`.
@@ -61,8 +60,16 @@ export type PluginProvides<T> =
  * type H = PluginProvidesHooks<Physics2DPlugin>; // → { 'physics:collision': ... }
  * ```
  */
-export type PluginProvidesHooks<T> =
-  T extends GwenPlugin<string, any, infer H> ? H : Record<string, never>;
+export type PluginProvidesHooks<T> = T extends GwenPlugin<string, any, infer H> ? H : {};
+
+/**
+ * Normalises union results to an object shape (handles empty unions becoming unknown).
+ * Ensures MergePluginsProvides/MergePluginsHooks always resolve to object types,
+ * never to `never` or `unknown`.
+ *
+ * @internal
+ */
+export type AsObject<T> = T extends object ? T : {};
 
 // ── Primary helpers (new — unified) ──────────────────────────────────────────
 
@@ -80,10 +87,9 @@ export type PluginProvidesHooks<T> =
  * // → { keyboard: KeyboardInput; physics: Physics2DAPI }
  * ```
  */
-export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
-  PluginProvides<Plugins[number]>
-> &
-  Record<string, unknown>;
+export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = AsObject<
+  UnionToIntersection<PluginProvides<Plugins[number]>>
+>;
 
 /**
  * Merges the `providesHooks` types from all plugins in a mixed array,
@@ -100,8 +106,7 @@ export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = UnionT
  */
 export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
   import('../hooks').GwenHooks &
-    UnionToIntersection<PluginProvidesHooks<Plugins[number]>> &
-    Record<string, any>;
+    AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
 // ── Legacy helpers (deprecated) ───────────────────────────────────────────────
 
@@ -118,10 +123,9 @@ export type MergeProvides<Plugins extends readonly GwenPlugin[]> = MergePluginsP
  *
  * Merges `providesHooks` from a list of TS-only plugins.
  */
-export type MergeHooks<Plugins extends readonly GwenPlugin[]> = UnionToIntersection<
-  PluginProvidesHooks<Plugins[number]>
-> &
-  Record<string, any>;
+export type MergeHooks<Plugins extends readonly GwenPlugin[]> = AsObject<
+  UnionToIntersection<PluginProvidesHooks<Plugins[number]>>
+>;
 
 /**
  * @deprecated Use `MergePluginsProvides` instead.
@@ -182,4 +186,27 @@ export interface GwenPluginMeta {
    * Active only when the plugin is declared in `gwen.config.ts`.
    */
   typeReferences?: string[];
+
+  /**
+   * Optional direct mapping used by `gwen prepare` to generate reliable
+   * service typings via direct imports in `.gwen/gwen.d.ts`.
+   */
+  serviceTypes?: Record<
+    string,
+    {
+      from: string;
+      exportName: string;
+    }
+  >;
+
+  /**
+   * Optional direct mapping used by `gwen prepare` to augment hooks typing.
+   */
+  hookTypes?: Record<
+    string,
+    {
+      from: string;
+      exportName: string;
+    }
+  >;
 }

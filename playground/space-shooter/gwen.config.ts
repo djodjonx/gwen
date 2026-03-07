@@ -6,11 +6,14 @@
  *
  * @example
  * ```typescript
- * onInit(api: EngineAPI<GwenServices>) {
- *   const kb  = api.services.get('keyboard');  // → KeyboardInput ✅
- *   const rdr = api.services.get('renderer');  // → Canvas2DRenderer ✅
+ * onInit(api) {
+ *   const kb = api.services.get('keyboard');  // → KeyboardInput ✅
+ *   const rdr = api.services.get('renderer'); // → Canvas2DRendererService ✅
  * }
  * ```
+ *
+ * NOTE: Using legacy tsPlugins/wasmPlugins for now until CLI validator supports unified plugins format.
+ * TODO: Migrate to unified `plugins: [...]` once validator is updated.
  */
 
 import { defineConfig } from '@gwen/engine-core';
@@ -30,14 +33,12 @@ export default defineConfig({
     title: 'GWEN — Space Shooter',
     background: '#000814',
   },
-  wasmPlugins: [
+  plugins: [
     physics2D({
-      gravity: 0, // space — no gravity
+      gravity: 0,
       gravityX: 0,
       maxEntities: 2_000,
     }),
-  ],
-  tsPlugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({

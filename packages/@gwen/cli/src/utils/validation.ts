@@ -36,12 +36,21 @@ export const HtmlConfigSchema = z.object({
 
 /**
  * Plugin info schema
+ * Accepts either a legacy CLI plugin format or a new instantiated GwenPlugin
  */
-export const PluginInfoSchema = z.object({
-  symbolName: z.string(),
-  packageName: z.string(),
-  type: z.enum(['wasm', 'js']),
-});
+export const PluginInfoSchema = z.union([
+  z.object({
+    symbolName: z.string(),
+    packageName: z.string(),
+    type: z.enum(['wasm', 'js']),
+  }),
+  z
+    .object({
+      name: z.string(),
+      meta: z.any().optional(),
+    })
+    .passthrough(),
+]);
 
 /**
  * Full GWEN configuration schema

@@ -1,5 +1,5 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI, EntityId } from '@gwen/engine-core';
+import type { EntityId } from '@gwen/engine-core';
 import { unpackEntityId } from '@gwen/engine-core';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 import { Tag, Score, Health } from '../components';
@@ -9,11 +9,11 @@ export const CollisionSystem = defineSystem('CollisionSystem', () => {
   const slotToCurrentId = new Map<number, EntityId>();
 
   return {
-    onInit(api: EngineAPI<GwenServices>) {
+    onInit(api) {
       physics = api.services.get('physics') as Physics2DAPI;
     },
 
-    onUpdate(api: EngineAPI<GwenServices>) {
+    onUpdate(api) {
       if (!physics) return;
 
       const scoreList = api.query([Score.name]);

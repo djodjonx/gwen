@@ -1,5 +1,4 @@
 import { defineUI } from '@gwen/engine-core';
-import type { HtmlUI } from '@gwen/plugin-html-ui';
 import scoreHtml from './score.html?raw';
 import { Score } from '../components';
 
@@ -9,7 +8,7 @@ import { Score } from '../components';
  * Le template HTML/CSS est dans score.html (autocomplétion IDE complète).
  * Monté/démonté automatiquement via api.services.get('htmlUI').
  */
-export const ScoreUI = defineUI<GwenServices>({
+export const ScoreUI = defineUI({
   name: 'ScoreUI',
 
   onMount(api, entityId) {

@@ -1,5 +1,4 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
@@ -9,7 +8,7 @@ const W = 480,
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem' as const,
 
-  onUpdate(api: EngineAPI<GwenServices>, dt: number) {
+  onUpdate(api, dt) {
     const keyboard = api.services.get('keyboard');
 
     const players = api.query([Tag.name, Position.name, Velocity.name, ShootTimer.name]);

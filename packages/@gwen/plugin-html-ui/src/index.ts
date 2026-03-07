@@ -36,6 +36,9 @@ import type { EngineAPI, EntityId, GwenPluginMeta } from '@gwen/kit';
  */
 export const pluginMeta: GwenPluginMeta = {
   typeReferences: ['@gwen/plugin-html-ui/vite-env'],
+  serviceTypes: {
+    htmlUI: { from: '@gwen/plugin-html-ui', exportName: 'HtmlUI' },
+  },
 };
 
 // ── HtmlUI service ────────────────────────────────────────────────────────────

@@ -498,6 +498,7 @@ export function definePlugin<
   class PluginInstance implements GwenPlugin<N, P, H> {
     readonly name: N;
     readonly version: string | undefined;
+    readonly meta: import('@gwen/engine-core').GwenPluginMeta | undefined;
     readonly provides: P | undefined;
     readonly providesHooks: H | undefined;
     readonly wasm: GwenPluginWasmContext | undefined;
@@ -507,6 +508,7 @@ export function definePlugin<
     constructor(options?: Options) {
       this.name = definition.name;
       this.version = definition.version;
+      this.meta = definition.meta;
       this.provides = definition.provides;
       this.providesHooks = definition.providesHooks;
 

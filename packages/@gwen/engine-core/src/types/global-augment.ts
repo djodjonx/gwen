@@ -1,51 +1,32 @@
 /**
  * Global ambient augmentations — enriched by `gwen prepare`.
  *
- * These two interfaces start empty (safe fallback) and are merged at compile-time
- * by `.gwen/gwen.d.ts`, which extends them with the services and hooks inferred
- * from the project's `gwen.config.ts`.
+ * These interfaces extend core types with permissive index signatures (before gwen prepare)
+ * to allow test code that creates EngineAPIImpl with Record<string, unknown>.
  *
- * This is the same declaration-merging pattern used by Nuxt, Vite and others.
- * Nothing lives here at runtime — it is purely a TypeScript mechanism.
- *
- * @see https://www.typescriptlang.org/docs/handbook/declaration-merging.html
+ * After `gwen prepare` runs, `.gwen/gwen.d.ts` extends these with strict services/hooks.
  */
+
+import type { GwenHooks } from '../hooks';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 declare global {
   /**
-   * Global service registry.
-   * Enriched by `gwen prepare` with every service declared by installed plugins.
+   * Global service registry enriched by `.gwen/gwen.d.ts`.
    *
-   * The index signature `[key: string]: unknown` satisfies `Record<string, unknown>`
-   * so this interface works as the default generic bound for `EngineAPI<M>`.
-   *
-   * @example After `gwen prepare`:
-   * ```ts
-   * // .gwen/gwen.d.ts (auto-generated)
-   * interface GwenDefaultServices extends _GwenServices {}
-   * // → { keyboard: KeyboardInput; audio: AudioManager; … }
-   * ```
+   * Before prepare: accepts any service (needed for test code).
+   * After prepare: extended with strict project-specific services.
    */
-  interface GwenDefaultServices {
-    [key: string]: unknown;
-  }
+  interface GwenDefaultServices {}
 
   /**
-   * Global hooks registry.
-   * Enriched by `gwen prepare` with every hook declared by installed plugins.
+   * Global hooks registry enriched by `.gwen/gwen.d.ts`.
    *
-   * The index signature satisfies `Record<string, any>` so this interface
-   * works as the default generic bound for `EngineAPI<M, H>`.
-   *
-   * @example After `gwen prepare`:
-   * ```ts
-   * api.hooks.hook('physics:collision', (event) => { … }); // ✅ typed
-   * ```
+   * Extends GwenHooks to maintain variance compatibility.
+   * Before prepare: also accepts any hook via index signature.
+   * After prepare: extended with strict project-specific hooks.
    */
-  interface GwenDefaultHooks {
-    [key: string]: (...args: any[]) => any;
-  }
+  interface GwenDefaultHooks extends GwenHooks {}
 }
 
 export {};

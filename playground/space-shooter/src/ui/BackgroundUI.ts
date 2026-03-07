@@ -5,7 +5,7 @@ import { drawStars } from './helpers/drawStars';
  * BackgroundUI — Clear canvas + étoiles parallax.
  * Première UI enregistrée → dessinée en premier → sous tout le reste.
  */
-export const BackgroundUI = defineUI<GwenServices>({
+export const BackgroundUI = defineUI({
   name: 'BackgroundUI',
 
   render(api, _entityId) {

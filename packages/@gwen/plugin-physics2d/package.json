@@ -38,6 +38,12 @@
     "wasmFiles": [
       "wasm/gwen_physics2d.js",
       "wasm/gwen_physics2d_bg.wasm"
-    ]
+    ],
+    "serviceTypes": {
+      "physics": {
+        "from": "@gwen/plugin-physics2d",
+        "exportName": "Physics2DAPI"
+      }
+    }
   }
 }

@@ -32,6 +32,12 @@
     "vitest": "^1.0.0"
   },
   "gwen": {
-    "type": "typescript"
+    "type": "typescript",
+    "serviceTypes": {
+      "debug": {
+        "from": "@gwen/plugin-debug",
+        "exportName": "DebugService"
+      }
+    }
   }
 }

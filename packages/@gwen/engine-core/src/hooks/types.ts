@@ -118,7 +118,7 @@ export interface EntityLifecycleHooks {
    *
    * @param id - The newly created entity ID
    */
-  'entity:create': (id: number) => void; // EntityId
+  'entity:create': (id: import('../types').EntityId) => void;
 
   /**
    * Called when an entity is about to be destroyed.
@@ -126,7 +126,7 @@ export interface EntityLifecycleHooks {
    *
    * @param id - The entity ID being destroyed
    */
-  'entity:destroy': (id: number) => void; // EntityId
+  'entity:destroy': (id: import('../types').EntityId) => void;
 
   /**
    * Called after an entity has been destroyed.
@@ -134,7 +134,7 @@ export interface EntityLifecycleHooks {
    *
    * @param id - The destroyed entity ID
    */
-  'entity:destroyed': (id: number) => void; // EntityId
+  'entity:destroyed': (id: import('../types').EntityId) => void;
 }
 
 /**
@@ -151,7 +151,7 @@ export interface ComponentLifecycleHooks {
    * @param type - Component type name
    * @param data - Component data
    */
-  'component:add': (id: number, type: string, data: unknown) => void;
+  'component:add': (id: import('../types').EntityId, type: string, data: unknown) => void;
 
   /**
    * Called when a component is about to be removed.
@@ -160,7 +160,7 @@ export interface ComponentLifecycleHooks {
    * @param id - Entity ID
    * @param type - Component type name
    */
-  'component:remove': (id: number, type: string) => void;
+  'component:remove': (id: import('../types').EntityId, type: string) => void;
 
   /**
    * Called after a component has been removed.
@@ -169,7 +169,7 @@ export interface ComponentLifecycleHooks {
    * @param id - Entity ID
    * @param type - Component type name
    */
-  'component:removed': (id: number, type: string) => void;
+  'component:removed': (id: import('../types').EntityId, type: string) => void;
 
   /**
    * Called when a component is updated (via addComponent on existing component).
@@ -179,7 +179,7 @@ export interface ComponentLifecycleHooks {
    * @param type - Component type name
    * @param data - New component data
    */
-  'component:update': (id: number, type: string, data: unknown) => void;
+  'component:update': (id: import('../types').EntityId, type: string, data: unknown) => void;
 }
 
 /**
@@ -277,16 +277,4 @@ export interface GwenHooks
     PluginLifecycleHooks,
     EntityLifecycleHooks,
     ComponentLifecycleHooks,
-    SceneLifecycleHooks {
-  /**
-   * Plugins can define custom hooks with any name.
-   *
-   * @example
-   * ```typescript
-   * api.hooks.hook('physics:collision' as any, (event) => {
-   *   console.log('Collision:', event);
-   * });
-   * ```
-   */
-  [key: string]: (...args: any[]) => any;
-}
+    SceneLifecycleHooks {}

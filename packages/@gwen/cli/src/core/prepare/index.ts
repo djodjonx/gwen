@@ -11,7 +11,7 @@ import { logger } from '../../utils/logger.js';
 import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
-import { collectPluginTypeReferences } from './plugin-resolver.js';
+import { collectPluginTypingMeta } from './plugin-resolver.js';
 import type { GwenConfig } from '../../utils/validation.js';
 
 /**
@@ -133,11 +133,10 @@ async function generateDtsFile(
   configPath: string,
   result: PrepareResult,
 ): Promise<void> {
-  // Collect type references from plugins
-  const typeRefs = await collectPluginTypeReferences(projectDir, config);
+  const pluginTypingMeta = await collectPluginTypingMeta(projectDir, config);
 
   const filePath = path.join(gwenDir, 'gwen.d.ts');
-  const content = await generateDts(projectDir, configPath, typeRefs);
+  const content = await generateDts(projectDir, configPath, pluginTypingMeta);
   await fs.writeFile(filePath, content, 'utf-8');
   result.files.push(filePath);
   logger.debug(`✅ ${path.relative(projectDir, filePath)}`);

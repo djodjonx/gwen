@@ -43,6 +43,12 @@
   "gwen": {
     "typeReferences": [
       "@gwen/plugin-html-ui/vite-env"
-    ]
+    ],
+    "serviceTypes": {
+      "htmlUI": {
+        "from": "@gwen/plugin-html-ui",
+        "exportName": "HtmlUI"
+      }
+    }
   }
 }

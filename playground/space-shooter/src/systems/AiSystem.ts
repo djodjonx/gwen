@@ -1,10 +1,9 @@
 import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
 import { Tag, Position, ShootTimer } from '../components';
 
 export const AiSystem = defineSystem({
   name: 'AiSystem' as const,
-  onUpdate(api: EngineAPI<GwenServices>, dt: number) {
+  onUpdate(api, dt) {
     const enemies = api.query([Tag.name, Position.name, ShootTimer.name]);
     for (const id of enemies) {
       const tag = api.getComponent(id, Tag);
