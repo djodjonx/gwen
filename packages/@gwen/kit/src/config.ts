@@ -32,7 +32,7 @@ export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = AsObje
 
 /** Merge all hooks from a plugins tuple and include core hooks. */
 export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
-  import('@gwen/engine-core').GwenHooks &
+  import('@gwen/schema').GwenHooks &
     AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
 /**

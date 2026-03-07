@@ -43,6 +43,14 @@ import type { GwenHooks } from './types';
 // Exports
 // ════════════════════════════════════════════════════════════════════════════
 
+export type {
+  EngineLifecycleHooks,
+  PluginLifecycleHooks,
+  EntityLifecycleHooks,
+  ComponentLifecycleHooks,
+  SceneLifecycleHooks,
+} from '@gwen/schema';
+
 export type { GwenHooks } from './types';
 
 /**

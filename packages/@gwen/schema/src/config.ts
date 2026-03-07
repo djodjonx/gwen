@@ -133,7 +133,7 @@ export type DeepPartial<T> = T extends object
  */
 export interface EngineAPI<
   Services extends object = Record<string, unknown>,
-  Hooks extends object = Record<string, (...args: unknown[]) => unknown>,
+  Hooks extends object = Record<string, (...args: any[]) => any>,
 > {
   services: {
     get<K extends keyof Services & string>(name: K): Services[K];
