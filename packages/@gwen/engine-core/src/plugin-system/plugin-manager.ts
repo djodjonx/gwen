@@ -247,19 +247,20 @@ export class PluginManager {
    */
   private _setupPluginHooks(plugin: GwenPlugin, hooks: DefaultHookable): void {
     if (plugin.onBeforeUpdate) {
-      const unregister = hooks.hook('plugin:beforeUpdate', (api, dt) =>
-        plugin.onBeforeUpdate!(api, dt),
-      );
+      const unregister = hooks.hook('plugin:beforeUpdate', ((api: EngineAPI, dt: number) =>
+        plugin.onBeforeUpdate!(api, dt)) as any);
       this._track(plugin, unregister);
     }
 
     if (plugin.onUpdate) {
-      const unregister = hooks.hook('plugin:update', (api, dt) => plugin.onUpdate!(api, dt));
+      const unregister = hooks.hook('plugin:update', ((api: EngineAPI, dt: number) =>
+        plugin.onUpdate!(api, dt)) as any);
       this._track(plugin, unregister);
     }
 
     if (plugin.onRender) {
-      const unregister = hooks.hook('plugin:render', (api) => plugin.onRender!(api));
+      const unregister = hooks.hook('plugin:render', ((api: EngineAPI) =>
+        plugin.onRender!(api)) as any);
       this._track(plugin, unregister);
     }
   }
