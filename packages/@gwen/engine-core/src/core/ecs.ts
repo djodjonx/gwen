@@ -30,7 +30,7 @@ function idGeneration(id: EntityId): number {
 }
 
 export class EntityManager {
-  private generations: Uint16Array;
+  private generations: Uint32Array;
   private alive: Uint8Array; // 1 = alive, 0 = dead
   private freeList: number[] = [];
   private liveCount = 0;
@@ -38,7 +38,7 @@ export class EntityManager {
 
   constructor(maxEntities: number) {
     this.maxEntities = maxEntities;
-    this.generations = new Uint16Array(maxEntities);
+    this.generations = new Uint32Array(maxEntities);
     this.alive = new Uint8Array(maxEntities);
   }
 

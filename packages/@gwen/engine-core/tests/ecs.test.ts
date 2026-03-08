@@ -125,6 +125,35 @@ describe('EntityManager', () => {
       expect(alive).not.toContain(e2);
     });
   });
+
+  describe('generation width (u32 parity)', () => {
+    it('should continue incrementing generation beyond 65535', () => {
+      const small = new EntityManager(1);
+      let id = small.create();
+
+      for (let i = 0; i < 70_000; i++) {
+        expect(small.destroy(id)).toBe(true);
+        id = small.create();
+      }
+
+      expect(small.getGeneration(0)).toBeGreaterThan(65_535);
+    });
+
+    it('should keep stale IDs invalid after many slot recyclings', () => {
+      const small = new EntityManager(1);
+      const stale = small.create();
+      expect(small.destroy(stale)).toBe(true);
+
+      let current = small.create();
+      for (let i = 0; i < 70_000; i++) {
+        expect(small.destroy(current)).toBe(true);
+        current = small.create();
+      }
+
+      expect(small.isAlive(stale)).toBe(false);
+      expect(small.isAlive(current)).toBe(true);
+    });
+  });
 });
 
 // ============= ComponentRegistry =============
