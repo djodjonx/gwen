@@ -109,30 +109,65 @@ impl ComponentColumn {
         }
     }
 
-    /// Variable-size mode: add **or update** component bytes for an entity.
-    /// Used by the JS/WASM bridge where component data is JSON-serialised.
+    /// Add **or update** raw component bytes for an entity (variable-size mode).
+    ///
+    /// This is the **hot path** of the JS→WASM bridge: called on every
+    /// `addComponent()` from TypeScript, where component data is JSON-serialised
+    /// (e.g. `{"x":1.0,"y":2.0}`).
+    ///
+    /// # Two execution paths
+    ///
+    /// - **Fast path** (`new_len == old_len`): single `copy_from_slice` directly
+    ///   into the internal buffer — **zero allocation**. This is the common case
+    ///   in the JS bridge because JSON for a given component type has a stable
+    ///   byte length (e.g. a `Position` serialises to the same number of bytes
+    ///   regardless of the actual coordinate values).
+    ///
+    /// - **Slow path** (`new_len != old_len`): `Vec::splice` replaces the old
+    ///   bytes in-place, then all subsequent slot offsets are shifted by an
+    ///   iterator (no bounds-check overhead). No second `Vec` is allocated.
+    ///
+    /// # Returns
+    /// - `true`  — entity was **inserted** (first time this entity has this component).
+    /// - `false` — entity was **updated** (component data replaced in-place).
+    ///
+    /// # Complexity
+    /// | Case        | Time         | Allocations |
+    /// |-------------|--------------|-------------|
+    /// | Fast path   | O(new_len)   | 0           |
+    /// | Slow path   | O(total_buf) | 0           |
+    /// | Insert      | O(new_len)   | amortised 0 |
+    ///
+    /// # Invariants
+    /// - `self.offsets[slot]` is always `(start, len)` where
+    ///   `self.data[start..start+len]` contains the exact bytes for that entity.
+    /// - Offsets of all slots after the mutated slot are kept consistent.
+    /// - In the fast path, `self.offsets[slot]` is intentionally **not** updated
+    ///   because `(start, new_len) == (start, old_len)`.
     pub fn upsert_raw(&mut self, entity_id: u32, data: &[u8]) -> bool {
         if let Some(&slot) = self.index_map.get(&entity_id) {
             // Update existing slot
-            let (start, _old_len) = self.offsets[slot];
-            // Rebuild data vec replacing the old bytes for this slot
-            let old_end = start + _old_len;
+            let (start, old_len) = self.offsets[slot];
+            let old_end = start + old_len;
             let new_len = data.len();
-            let delta = new_len as isize - _old_len as isize;
 
-            // Splice data in-place
-            let mut new_data = self.data[..start].to_vec();
-            new_data.extend_from_slice(data);
-            new_data.extend_from_slice(&self.data[old_end..]);
-            self.data = new_data;
+            if new_len == old_len {
+                // Fast path (most common in JS bridge): same-size update — zero allocation
+                self.data[start..old_end].copy_from_slice(data);
+            } else {
+                // Slow path: size changed — splice in place (avoids full Vec reconstruction)
+                self.data.splice(start..old_end, data.iter().copied());
 
-            // Update offset for this slot
-            self.offsets[slot] = (start, new_len);
+                // Update offset for this slot
+                self.offsets[slot] = (start, new_len);
 
-            // Shift offsets of all slots that come after this one
-            if delta != 0 {
-                for i in (slot + 1)..self.offsets.len() {
-                    self.offsets[i].0 = (self.offsets[i].0 as isize + delta) as usize;
+                // Shift offsets of all subsequent slots safely via iterator (no bounds check)
+                for offset in &mut self.offsets[(slot + 1)..] {
+                    if new_len > old_len {
+                        offset.0 += new_len - old_len;
+                    } else {
+                        offset.0 -= old_len - new_len;
+                    }
                 }
             }
             false // updated, not inserted
@@ -203,7 +238,25 @@ impl ComponentColumn {
         }
     }
 
-    /// Remove component from entity – O(1) via swap-remove
+    /// Remove component from entity.
+    ///
+    /// - **Variable-size mode** (`element_size == 0`): removes the byte blob
+    ///   from the packed buffer using `Vec::drain` (in-place, no allocation),
+    ///   then shifts all subsequent slot offsets. The `index_map` is rebuilt
+    ///   in O(n) because slot indices change after a non-tail removal. This
+    ///   path is used by the JS bridge.
+    ///
+    /// - **Fixed-size mode** (`element_size > 0`): O(1) swap-remove with the
+    ///   last slot — no offset management needed.
+    ///
+    /// Returns `true` if the component was present and removed, `false` if the
+    /// entity had no such component.
+    ///
+    /// # Complexity
+    /// | Mode           | Time         | Allocations |
+    /// |----------------|--------------|-------------|
+    /// | Variable-size  | O(total_buf) | 0           |
+    /// | Fixed-size     | O(1)         | 0           |
     pub fn remove(&mut self, entity_id: u32) -> bool {
         let idx = match self.index_map.remove(&entity_id) {
             Some(i) => i,
@@ -213,19 +266,18 @@ impl ComponentColumn {
         let last_slot = self.entity_ids.len() - 1;
 
         if self.element_size == 0 {
-            // Variable-size: rebuild without this slot
+            // Variable-size: remove slot in-place — no allocation
             let (rm_start, rm_len) = self.offsets[idx];
-            let rm_end = rm_start + rm_len;
-            let mut new_data = self.data[..rm_start].to_vec();
-            new_data.extend_from_slice(&self.data[rm_end..]);
-            self.data = new_data;
+
+            // drain() shifts elements in-place, no heap allocation
+            self.data.drain(rm_start..(rm_start + rm_len));
 
             self.entity_ids.remove(idx);
             self.offsets.remove(idx);
 
-            // Shift all offsets after idx
-            for i in idx..self.offsets.len() {
-                self.offsets[i].0 -= rm_len;
+            // Shift all offsets after idx via iterator (no bounds check)
+            for offset in &mut self.offsets[idx..] {
+                offset.0 -= rm_len;
             }
 
             // Rebuild index_map

@@ -293,3 +293,120 @@ mod tests {
         }
     }
 }
+
+mod upsert_raw_tests {
+    use gwen_core::component::{ComponentColumn, ComponentTypeId};
+
+    fn make_col() -> ComponentColumn {
+        ComponentColumn::new(ComponentTypeId::from_raw(99), 0)
+    }
+
+    // ── Fast path (same size) ────────────────────────────────────────────
+
+    #[test]
+    fn same_size_update_returns_false() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"hello");
+        let inserted = col.upsert_raw(0, b"world"); // même taille (5 octets)
+        assert!(!inserted, "update should return false");
+    }
+
+    #[test]
+    fn same_size_update_writes_new_data() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"hello");
+        col.upsert_raw(0, b"world");
+        assert_eq!(col.get(0).unwrap(), b"world");
+    }
+
+    #[test]
+    fn same_size_update_does_not_change_neighbor() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"AAAAA");
+        col.upsert_raw(1, b"BBBBB");
+        col.upsert_raw(0, b"ZZZZZ"); // mise à jour de l'entité 0
+        assert_eq!(col.get(1).unwrap(), b"BBBBB", "neighbor must be untouched");
+    }
+
+    // ── Slow path (different size) ───────────────────────────────────────
+
+    #[test]
+    fn grow_update_returns_false() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"hi");
+        let inserted = col.upsert_raw(0, b"hello world"); // grandit
+        assert!(!inserted);
+    }
+
+    #[test]
+    fn grow_update_writes_new_data() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"hi");
+        col.upsert_raw(0, b"hello world");
+        assert_eq!(col.get(0).unwrap(), b"hello world");
+    }
+
+    #[test]
+    fn shrink_update_writes_new_data() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"hello world");
+        col.upsert_raw(0, b"hi");
+        assert_eq!(col.get(0).unwrap(), b"hi");
+    }
+
+    #[test]
+    fn grow_update_preserves_neighbor_after() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"AB");
+        col.upsert_raw(1, b"CD");
+        col.upsert_raw(0, b"ABCDEF"); // entité 0 grandit
+        assert_eq!(col.get(1).unwrap(), b"CD", "entity 1 must be intact");
+    }
+
+    #[test]
+    fn shrink_update_preserves_neighbor_after() {
+        let mut col = make_col();
+        col.upsert_raw(0, b"ABCDEF");
+        col.upsert_raw(1, b"CD");
+        col.upsert_raw(0, b"AB"); // entité 0 rétrécit
+        assert_eq!(col.get(1).unwrap(), b"CD", "entity 1 must be intact");
+    }
+
+    #[test]
+    fn grow_update_preserves_neighbor_before() {
+        // Cas médiane : entité[1] grandit, entité[0] (avant) ne doit pas être corrompue
+        let mut col = make_col();
+        col.upsert_raw(0, b"BEFORE");
+        col.upsert_raw(1, b"hi");
+        col.upsert_raw(2, b"AFTER");
+        col.upsert_raw(1, b"hello world"); // entité 1 (milieu) grandit
+        assert_eq!(col.get(0).unwrap(), b"BEFORE", "entity 0 must be untouched");
+        assert_eq!(col.get(1).unwrap(), b"hello world");
+        assert_eq!(col.get(2).unwrap(), b"AFTER", "entity 2 must be untouched");
+    }
+
+    // ── Insert & Multiple ────────────────────────────────────────────────
+
+    #[test]
+    fn first_insert_returns_true() {
+        let mut col = make_col();
+        let inserted = col.upsert_raw(0, b"data");
+        assert!(inserted);
+    }
+
+    #[test]
+    fn multiple_entities_roundtrip() {
+        let mut col = make_col();
+        for i in 0u32..10 {
+            col.upsert_raw(i, format!("entity_{i:02}").as_bytes());
+        }
+        for i in 0u32..10 {
+            col.upsert_raw(i, format!("updated_{i:02}").as_bytes());
+        }
+        for i in 0u32..10 {
+            let expected = format!("updated_{i:02}");
+            assert_eq!(col.get(i).unwrap(), expected.as_bytes());
+        }
+    }
+}
+
