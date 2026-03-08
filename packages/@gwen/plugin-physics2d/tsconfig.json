@@ -18,5 +18,5 @@
     "outDir": "./dist",
     "baseUrl": "."
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "src/vite-env.d.ts"]
 }

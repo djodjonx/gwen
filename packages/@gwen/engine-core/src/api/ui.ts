@@ -170,21 +170,29 @@ export class UIManager implements TsPlugin {
     const entities = api.query([UIComponent.name]);
     const alive = new Set<EntityId>();
 
-    // Sort entities by UIDefinition registration order so that rendering is
-    // deterministic: BackgroundUI before BulletUI before PlayerUI, etc.
-    const sorted = [...entities].sort((a, b) => {
-      const da = api.getComponent(a, UIComponent)?.uiName ?? '';
-      const db = api.getComponent(b, UIComponent)?.uiName ?? '';
+    // Read UIComponent data once per entity and cache in a local Map
+    // This avoids O(n log n) WASM calls in the sort comparator
+    const uiNames = new Map<EntityId, string>();
+    for (const id of entities) {
+      const data = api.getComponent(id, UIComponent);
+      if (data) {
+        uiNames.set(id, data.uiName);
+      }
+    }
+
+    // Sort entities by UIDefinition registration order — comparator reads from local Map
+    const sorted = [...uiNames.keys()].sort((a, b) => {
+      const da = uiNames.get(a) ?? '';
+      const db = uiNames.get(b) ?? '';
       return (this.definitionOrder.get(da) ?? 999) - (this.definitionOrder.get(db) ?? 999);
     });
 
     for (const id of sorted) {
       alive.add(id);
-      const data = api.getComponent(id, UIComponent);
-      if (!data) continue;
-      const def = this.definitions.get(data.uiName);
+      const uiName = uiNames.get(id)!;
+      const def = this.definitions.get(uiName);
       if (!def) {
-        console.warn(`[UIManager] No UIDefinition registered for '${data.uiName}'.`);
+        console.warn(`[UIManager] No UIDefinition registered for '${uiName}'.`);
         continue;
       }
 

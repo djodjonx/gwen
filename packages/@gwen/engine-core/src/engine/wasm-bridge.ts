@@ -783,13 +783,12 @@ export function _injectMockWasmExports(exports: { memory?: WebAssembly.Memory })
 /**
  * Fully reset the bridge state — **reserved for unit tests only**.
  *
- * Clears `_wasmEngine`, `_wasmModule`, `_wasmExports`, `_initPromise`,
- * and `_lastMemoryBuffer` so that the next `initWasm()` call starts from
- * a clean slate. Call this in `afterEach` to prevent state leaking between tests.
+ * Clears `_wasmEngine`, `_wasmExports`, `_initPromise`, and `_lastMemoryBuffer`
+ * so that the next `initWasm()` call starts from a clean slate.
+ * Call this in `afterEach` to prevent state leaking between tests.
  */
 export function _resetWasmBridge(): void {
   _wasmEngine = null;
-  _wasmModule = null;
   _wasmExports = null;
   _initPromise = null;
   _lastMemoryBuffer = null;

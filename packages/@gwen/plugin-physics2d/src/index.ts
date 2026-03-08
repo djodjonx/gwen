@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /**
  * @gwen/plugin-physics2d
  *
@@ -149,13 +151,15 @@ export const Physics2DPlugin = definePlugin({
         getCollisionEvents(): CollisionEvent[] {
           if (!wasmPlugin || !eventsBuf) return [];
           const events = readCollisionEventsFromBuffer(eventsBuf);
-          const f = debugFrameCount;
-          if (f <= 300 && f % 60 === 0 && f > 0) {
-            const stats = wasmPlugin.stats();
-            console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
-          }
-          if (events.length > 0) {
-            console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
+          if (import.meta.env.DEV) {
+            const f = debugFrameCount;
+            if (f <= 300 && f % 60 === 0 && f > 0) {
+              const stats = wasmPlugin.stats();
+              console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
+            }
+            if (events.length > 0) {
+              console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
+            }
           }
           return events;
         },

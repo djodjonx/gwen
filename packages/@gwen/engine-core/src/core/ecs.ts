@@ -69,8 +69,8 @@ export class EntityManager {
     if (!this.isAlive(id)) return false;
 
     this.alive[index] = 0;
-    // Increment generation to invalidate all old references
-    this.generations[index] = (gen + 1) & 0xffff;
+    // Increment generation to invalidate all old references (u32 wrapping like Rust)
+    this.generations[index] = (gen + 1) >>> 0; // >>> 0 forces unsigned 32-bit
     this.freeList.push(index);
     this.liveCount--;
     return true;
