@@ -50,7 +50,13 @@ function makeAudioContextMock() {
 // Inject mock AudioContext globally before each test
 function installAudioContextMock() {
   const mock = makeAudioContextMock();
-  (globalThis as any).AudioContext = vi.fn(() => mock);
+
+  // Vitest 4 exige un mock constructible pour `new AudioContext()`.
+  const MockAudioContext = vi.fn(function MockAudioContext(this: Record<string, unknown>) {
+    Object.assign(this, mock);
+  });
+
+  (globalThis as unknown as { AudioContext: unknown }).AudioContext = MockAudioContext;
   return mock;
 }
 
