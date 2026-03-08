@@ -179,18 +179,19 @@ for (const ev of readEventChannel(this._eventsBuf!)) { /* always empty */ }
 ### Rule: `slotA` / `slotB` are raw slot indices — not packed EntityIds
 
 Rapier and other simulation engines store raw ECS slot indices (0–maxEntities),
-not the packed `(generation << 20) | index` format used by the GWEN TypeScript ECS.
+not the 64-bit `EntityId` (bigint) used by the GWEN TypeScript ECS.
 
 ```typescript
-// ✅ Correct — reconstruct packed EntityId before using with ECS API
+import { createEntityId } from '@gwen/engine-core';
+
+// ✅ Correct — reconstruct EntityId before using with ECS API
 for (const ev of physics.getCollisionEvents()) {
-  const gen = api.getEntityGeneration(ev.slotA);
-  const entityA = (gen << 20) | ev.slotA;
+  const entityA = createEntityId(ev.slotA, api.getEntityGeneration(ev.slotA));
   const tag = api.getComponent(entityA, Tag);
 }
 
-// ❌ Wrong — ev.slotA is not a valid EntityId
-api.getComponent(ev.slotA, Tag); // undefined or wrong entity
+// ❌ Wrong — ev.slotA is a raw slot index, NOT a valid EntityId
+api.getComponent(ev.slotA as any, Tag); // undefined or wrong entity
 ```
 
 ---
@@ -415,8 +416,15 @@ parsing overhead entirely.
 
 ### Pitfall: Passing packed EntityId to physics API
 **Symptom:** `addRigidBody` warns "entity_index >= max_entities".
-**Cause:** Passing the packed `(gen << 20) | index` value instead of the raw slot index.
-**Fix:** Use `(entityId & 0xFFFFF)` or store the raw index at entity creation.
+**Cause:** Passing the 64-bit `EntityId` (bigint) directly instead of the raw slot index.
+**Fix:** Use `unpackEntityId(entityId).index` to extract the raw slot index:
+
+```typescript
+import { unpackEntityId } from '@gwen/engine-core';
+
+const { index } = unpackEntityId(entityId);
+const handle = physics.addRigidBody(index, 'dynamic', x, y);
+```
 
 ### Pitfall: `maxEntities` mismatch between engine and plugin
 **Symptom:** Entities with index > plugin's `maxEntities` are ignored by simulation.

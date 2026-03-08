@@ -235,7 +235,7 @@ Engine.tick(delta)        → WasmBridge → Rust GameLoop
 Engine.physics_step()     → Physics2DPlugin.onStep() → Rust Rapier2D (SharedArrayBuffer)
 ```
 
-**EntityId packed** : `(generation << 20) | index` — format aligné Rust/TS, zéro conversion.
+**EntityId 64-bit** : `(BigInt(generation) << 32n) | BigInt(index)` — 32 bits index + 32 bits génération, format `bigint` aligné Rust/TS, zéro conversion. Utiliser `createEntityId(index, generation)` / `unpackEntityId(id)` depuis `@gwen/engine-core`.
 
 **Sérialisation binaire** : `computeSchemaLayout()` génère `serialize`/`deserialize` compilés depuis `defineComponent()`. Scratchpad global 1 KB — zéro allocation par frame.
 

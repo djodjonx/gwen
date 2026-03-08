@@ -167,11 +167,14 @@ api.query([Position, Velocity])
 ### Entity ID Format
 
 ```
-EntityId = (index | (generation << 20))
+EntityId = (BigInt(generation) << 32n) | BigInt(index)   // bigint, 64 bits
 
-- index (20 bits): which slot in the dense array
-- generation (12 bits): how many times this slot was reused
+- index      (32 bits low)  : which slot in the dense array
+- generation (32 bits high) : how many times this slot was reused
 ```
+
+Use `createEntityId(index, generation)` and `unpackEntityId(id)` from `@gwen/engine-core`
+— never construct or decompose an `EntityId` with raw bitwise arithmetic.
 
 **Why two parts?**
 - ✅ Prevents "use-after-free" bugs

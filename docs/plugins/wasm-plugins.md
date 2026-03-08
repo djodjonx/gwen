@@ -497,6 +497,8 @@ export default defineConfig({
 ### Accessing the service in a TsPlugin
 
 ```typescript
+import { createEntityId } from '@gwen/engine-core';
+
 onInit(api: EngineAPI) {
   this.myService = api.services.get('myService') as MyServiceAPI;
 }
@@ -504,9 +506,8 @@ onInit(api: EngineAPI) {
 onUpdate(api: EngineAPI) {
   for (const ev of this.myService.getEvents()) {
     // ev: { type, slotA, slotB, flags }
-    // Reconstruct packed EntityId from raw slot index:
-    const gen = api.getEntityGeneration(ev.slotA);
-    const entityA = (gen << 20) | ev.slotA;
+    // Reconstruct EntityId (bigint) from raw slot index:
+    const entityA = createEntityId(ev.slotA, api.getEntityGeneration(ev.slotA));
   }
 }
 ```
@@ -677,6 +678,7 @@ The official `@gwen/plugin-physics2d` plugin covers every pattern documented her
 ```typescript
 // Complete usage example
 import { defineConfig } from '@gwen/kit';
+import { createEntityId } from '@gwen/engine-core';
 import { physics2D } from '@gwen/plugin-physics2d';
 import type { Physics2DAPI } from '@gwen/plugin-physics2d';
 
@@ -696,9 +698,8 @@ onInit(api: EngineAPI) {
 
 onUpdate(api: EngineAPI) {
   for (const ev of this.physics.getCollisionEvents()) {
-    // ev.slotA / ev.slotB are raw slot indices — reconstruct packed EntityId:
-    const genA   = api.getEntityGeneration(ev.slotA);
-    const entityA = (genA << 20) | ev.slotA;
+    // ev.slotA / ev.slotB are raw slot indices — reconstruct EntityId (bigint):
+    const entityA = createEntityId(ev.slotA, api.getEntityGeneration(ev.slotA));
     const tagA    = api.getComponent(entityA, Tag);
   }
 }

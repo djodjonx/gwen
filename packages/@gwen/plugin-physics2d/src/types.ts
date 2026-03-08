@@ -56,16 +56,17 @@ export interface ColliderOptions {
  * ## ⚠️ IMPORTANT — slotA/slotB are raw slot indices, NOT packed EntityIds
  *
  * Rapier stores and returns raw ECS slot indices (0–maxEntities), not the
- * packed EntityId format used by the GWEN TypeScript ECS
- * (`(generation << 20) | index`).
+ * 64-bit `EntityId` (bigint) used by the GWEN TypeScript ECS.
  *
  * To use these values with `api.getComponent()` or `api.destroyEntity()`,
- * you MUST reconstruct the packed EntityId:
+ * you MUST reconstruct the EntityId using `createEntityId`:
  *
  * ```typescript
+ * import { createEntityId } from '@gwen/engine-core';
+ *
  * for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
- *   const entityA = (api.getEntityGeneration(slotA) << 20) | slotA;
- *   const entityB = (api.getEntityGeneration(slotB) << 20) | slotB;
+ *   const entityA = createEntityId(slotA, api.getEntityGeneration(slotA));
+ *   const entityB = createEntityId(slotB, api.getEntityGeneration(slotB));
  *   const tagA = api.getComponent(entityA, Tag);
  * }
  * ```

@@ -73,3 +73,4 @@ export type { AllocatedChannel, PluginDataBus } from '@gwen/engine-core';
 
 export { loadWasmPlugin } from '@gwen/engine-core';
 export { isWasmPlugin } from '@gwen/engine-core';
+export { createEntityId, unpackEntityId } from '@gwen/engine-core';

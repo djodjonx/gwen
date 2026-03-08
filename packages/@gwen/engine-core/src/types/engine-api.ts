@@ -205,13 +205,15 @@ export interface EngineAPI<
 
   /**
    * Get the generation counter for a raw entity slot index.
-   * Used to reconstruct a packed EntityId from a WASM-side raw index
+   * Used to reconstruct a valid `EntityId` from a WASM-side raw slot index
    * (e.g. `slotA` / `slotB` returned by physics collision events).
    *
    * @example
    * ```ts
+   * import { createEntityId } from '@gwen/engine-core';
+   *
    * const gen = api.getEntityGeneration(slotA);
-   * const entityId = (gen << 20) | (slotA & 0xfffff);
+   * const entityId = createEntityId(slotA, gen);
    * ```
    */
   getEntityGeneration(slotIndex: number): number;
