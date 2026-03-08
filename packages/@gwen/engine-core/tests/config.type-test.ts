@@ -12,13 +12,13 @@ describe('defineConfig type inference', () => {
     expectTypeOf(conf._services).toMatchTypeOf<{ a: string; b: number }>();
   });
 
-  it('infers services from tsPlugins and wasmPlugins', () => {
-    const conf = defineConfig({ tsPlugins: [PluginA], wasmPlugins: [PluginB] });
+  it('infers services from unified plugins array', () => {
+    const conf = defineConfig({ plugins: [PluginA, PluginB] });
     expectTypeOf(conf._services).toMatchTypeOf<{ a: string; b: number }>();
   });
 
   it('merges all plugin arrays', () => {
-    const conf = defineConfig({ plugins: [PluginA], tsPlugins: [PluginB], wasmPlugins: [PluginC] });
+    const conf = defineConfig({ plugins: [PluginA, PluginB, PluginC] });
     expectTypeOf(conf._services).toMatchTypeOf<{ a: string; b: number; c: boolean }>();
     expectTypeOf(conf._hooks).toHaveProperty('c:event');
   });

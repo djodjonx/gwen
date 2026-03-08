@@ -148,7 +148,10 @@ interface EntityManagerShim extends Pick<EntityManager, 'count' | 'maxEntities'>
 interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'registeredTypes'> {
   add<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType, data: T): void;
   remove(id: EntityId, type: ComponentType): boolean;
-  get<T>(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): T | undefined;
+  get<T extends Record<string, ComponentFieldValue>>(
+    id: EntityId,
+    type: ComponentDefinition<ComponentSchema> | ComponentType,
+  ): T | undefined;
   has(id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType): boolean;
 }
 
@@ -209,7 +212,7 @@ export function createShims(engine: Engine): {
     remove: (id: EntityId, type: ComponentType) => {
       return engine._removeComponentInternal(id, type);
     },
-    get: <T>(
+    get: <T extends Record<string, ComponentFieldValue>>(
       id: EntityId,
       type: ComponentDefinition<ComponentSchema> | ComponentType,
     ): T | undefined => {

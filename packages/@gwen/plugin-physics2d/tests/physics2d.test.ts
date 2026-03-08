@@ -57,6 +57,14 @@ function makeMockBus(transformBuf?: ArrayBuffer, eventsBuf?: ArrayBuffer) {
   };
 }
 
+function makeConstructibleCtorMock<T extends object>(value: T) {
+  // Vitest 4 requires constructor-style mocks when code uses `new`.
+  return vi.fn(function MockCtor(this: Record<string, unknown>) {
+    Object.assign(this, value);
+    return value;
+  });
+}
+
 // ── Mock loadWasmPlugin ───────────────────────────────────────────────────────
 
 vi.mock('@gwen/engine-core', async (importOriginal) => {
@@ -106,7 +114,7 @@ describe('Physics2DPlugin', () => {
     mockBus = makeMockBus();
 
     (loadWasmPlugin as Mock).mockResolvedValue({
-      Physics2DPlugin: vi.fn().mockReturnValue(mockWasmPlugin),
+      Physics2DPlugin: makeConstructibleCtorMock(mockWasmPlugin),
     });
   });
 
@@ -161,7 +169,7 @@ describe('Physics2DPlugin', () => {
 
   it('wasm.onInit constructs WasmPhysics2DPlugin with correct gravity and Bus buffers', async () => {
     const plugin = new Physics2DPlugin({ gravity: -20, gravityX: 1 });
-    const WasmCtor = vi.fn().mockReturnValue(mockWasmPlugin);
+    const WasmCtor = makeConstructibleCtorMock(mockWasmPlugin);
     (loadWasmPlugin as Mock).mockResolvedValue({ Physics2DPlugin: WasmCtor });
 
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
@@ -179,13 +187,13 @@ describe('Physics2DPlugin', () => {
     const tb = new ArrayBuffer(500 * 20);
     const eb = new ArrayBuffer(8 + 256 * 11);
     const bus = makeMockBus(tb, eb);
-    const WasmCtor = vi.fn().mockReturnValue(mockWasmPlugin);
+    const WasmCtor = makeConstructibleCtorMock(mockWasmPlugin);
     (loadWasmPlugin as Mock).mockResolvedValue({ Physics2DPlugin: WasmCtor });
 
     const plugin = new Physics2DPlugin({ maxEntities: 500 });
     await initPlugin(plugin, mockBridge, mockAPI, bus);
 
-    const [, , transformArg, eventsArg] = WasmCtor.mock.calls[0] as [
+    const [, , transformArg, eventsArg] = WasmCtor.mock.calls[0] as unknown as [
       unknown,
       unknown,
       Uint8Array,

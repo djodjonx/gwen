@@ -1,0 +1,102 @@
+.snake-root {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #e6edff;
+  background: radial-gradient(circle at top, #18233f 0%, #0b1020 55%, #070b16 100%);
+}
+
+.snake-wrap {
+  position: relative;
+  width: min(90vw, 640px);
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.snake-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.snake-title {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.snake-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: #b9c8f5;
+}
+
+.snake-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 3px;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  background: #0b1120;
+  border-radius: 12px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.snake-cell {
+  border-radius: 4px;
+  background: #101a31;
+}
+
+.snake-cell--food {
+  background: #ff5f6d;
+}
+
+.snake-cell--body {
+  background: #4af49d;
+}
+
+.snake-cell--head {
+  background: #7afcbd;
+}
+
+.snake-help {
+  margin-top: 12px;
+  font-size: 0.88rem;
+  color: #97a9dd;
+}
+
+.snake-overlay {
+  position: absolute;
+  inset: 8px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border-radius: 10px;
+  background: rgba(6, 10, 24, 0.78);
+  backdrop-filter: blur(2px);
+  color: #ffffff;
+}
+
+/* Empêche tout affichage tant que le jeu n'est pas en game over. */
+.snake-overlay[hidden] {
+  display: none;
+}
+
+.snake-overlay p {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 24, 46, 0.55);
+  font-size: 1.1rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}

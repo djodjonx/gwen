@@ -60,9 +60,9 @@ describe('defaultConfig', () => {
 
 describe('defineConfig()', () => {
   it('passes scalar fields through unchanged', () => {
-    const config = defineConfig({ maxEntities: 10_000, targetFPS: 120 });
-    expect((config as any).maxEntities).toBe(10_000);
-    expect((config as any).targetFPS).toBe(120);
+    const config = defineConfig({ engine: { maxEntities: 10_000, targetFPS: 120 } });
+    expect(config.engine?.maxEntities).toBe(10_000);
+    expect(config.engine?.targetFPS).toBe(120);
   });
 
   it('accepts the unified plugins array (TS-only and WASM mixed)', () => {
@@ -264,7 +264,7 @@ describe('ConfigBuilder', () => {
 describe('Integration — defineConfig + mergeConfigs', () => {
   it('defineConfig result can be merged with defaultConfig', () => {
     const config = defineConfig({
-      maxEntities: 10_000,
+      engine: { maxEntities: 10_000 },
       plugins: [mockWasmPlugin('physics', 'Physics'), mockTsPlugin('input')],
     });
 

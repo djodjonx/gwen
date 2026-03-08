@@ -119,7 +119,7 @@ describe('@gwen/schema - Hooks Contracts', () => {
 
     it('supports generic type parameters for runtime binding', () => {
       type RuntimeHooks = GwenHooks<number, object, object, object>;
-      const hooks: RuntimeHooks = {
+      const hooks: Partial<RuntimeHooks> = {
         'engine:tick': () => {},
         'entity:create': (id: number) => {
           expectTypeOf(id).toBeNumber();

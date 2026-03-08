@@ -197,16 +197,16 @@ describe('defineConfig() — type inference', () => {
     expect((config as any).plugins?.length).toBe(2);
   });
 
-  it('legacy tsPlugins still infer services correctly', () => {
-    const config = defineConfig({ tsPlugins: [new InputPlugin()] });
+  it('legacy tsPlugins still infer services correctly (using plugins now)', () => {
+    const config = defineConfig({ plugins: [new InputPlugin()] });
     type Services = GwenConfigServices<typeof config>;
     const _kb: Services['keyboard'] = {} as any;
     expect(true).toBe(true);
   });
 
   it('config without plugins infers Record<string, never>', () => {
-    const config = defineConfig({ maxEntities: 500 });
-    expect((config as any).maxEntities).toBe(500);
+    const config = defineConfig({ engine: { maxEntities: 500 } });
+    expect(config.engine?.maxEntities).toBe(500);
   });
 
   it('GwenConfigHooks includes engine:tick from base GwenHooks', () => {

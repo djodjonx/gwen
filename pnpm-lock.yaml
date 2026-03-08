@@ -315,6 +315,37 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@20.19.35)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
+  playground/snake-html:
+    dependencies:
+      '@gwen/cli':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/cli
+      '@gwen/engine-core':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/engine-core
+      '@gwen/kit':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/kit
+      '@gwen/plugin-html-ui':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/plugin-html-ui
+      '@gwen/plugin-input':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/plugin-input
+      '@gwen/vite-plugin':
+        specifier: workspace:*
+        version: link:../../packages/@gwen/vite-plugin
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
+
   playground/space-shooter:
     dependencies:
       '@gwen/cli':
