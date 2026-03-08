@@ -2,7 +2,7 @@ import { defineScene, UIComponent } from '@gwen/engine-core';
 import { SnakeSystem } from '../systems/SnakeSystem';
 import { SnakeUI } from '../ui/SnakeUI';
 
-export const MainScene = defineScene('Main', () => ({
+export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true,
   systems: [SnakeSystem],
   ui: [SnakeUI],
