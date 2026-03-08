@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/playground-snake-html",
+  "name": "@playground/snake-html",
   "version": "0.1.0",
   "description": "GWEN Playground — Snake HTML/CSS demo",
   "type": "module",

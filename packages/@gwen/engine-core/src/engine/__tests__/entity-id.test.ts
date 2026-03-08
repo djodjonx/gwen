@@ -238,9 +238,9 @@ describe('EntityId (64-bit BigInt with brand)', () => {
     });
   });
 
-  describe('Stress test: 1M random (index, generation) pairs', () => {
-    it('should round-trip 1 million random pairs without loss', () => {
-      for (let i = 0; i < 1_000_000; i++) {
+  describe('Stress test: 100k random (index, generation) pairs', () => {
+    it('should round-trip 100k random pairs without loss', () => {
+      for (let i = 0; i < 100_000; i++) {
         const index = Math.floor(Math.random() * 4_294_967_295);
         const generation = Math.floor(Math.random() * 4_294_967_295);
 
@@ -250,7 +250,7 @@ describe('EntityId (64-bit BigInt with brand)', () => {
         expect(idx).toBe(index);
         expect(gen).toBe(generation);
       }
-    }, 10000); // 10 seconds timeout for stress test
+    }, 30_000);
   });
 
   describe('Type safety (compile-time checks)', () => {

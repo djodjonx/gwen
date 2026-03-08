@@ -7,210 +7,91 @@ on:
     branches: [main]
 
 jobs:
-  # ── Linting & Formatting ──────────────────────────────────────────────────
+  # ── Lint & Format ─────────────────────────────────────────────────────────
   lint:
-    name: Lint & Format check
+    name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: "20"
+          pnpm-version: '10'
+      - run: pnpm lint
+      - run: pnpm format:check
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Lint (oxlint)
-        run: pnpm lint
-
-      - name: Format check (oxfmt)
-        run: pnpm format:check
-
-  # ── Tests Rust + compilation WASM ─────────────────────────────────────────
+  # ── Rust + WASM ───────────────────────────────────────────────────────────
   rust:
     name: Rust tests + WASM build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
-          # Covers the full Cargo workspace (gwen-core + gwen-plugin-physics2d)
           workspaces: ". -> target"
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      # ── gwen-core ──────────────────────────────────────────────────────────
-      - name: Rust tests — gwen-core (native)
+      - name: Rust tests — gwen-core
         run: cargo test -p gwen-core
 
-      - name: WASM tests — gwen-core (wasm-pack + Node)
+      - name: WASM tests — gwen-core
         run: wasm-pack test --node crates/gwen-core
 
-      - name: Build WASM release — gwen-core
+      - name: Build WASM — gwen-core
         run: |
-          wasm-pack build \
-            --target web \
-            --release \
+          wasm-pack build --target web --release \
             --out-dir $GITHUB_WORKSPACE/packages/@gwen/engine-core/wasm \
             crates/gwen-core
 
-      - name: Validate WASM build — gwen-core
-        run: |
-          [ -f "packages/@gwen/engine-core/wasm/gwen_core_bg.wasm" ] \
-            && echo "✅ gwen-core WASM validated" \
-            || (echo "❌ gwen-core WASM binary missing" && exit 1)
-
-      # ── gwen-plugin-physics2d ──────────────────────────────────────────────
-      - name: Rust tests — gwen-plugin-physics2d (native)
+      - name: Rust tests — gwen-plugin-physics2d
         run: cargo test -p gwen-plugin-physics2d
 
-      - name: Build WASM release — gwen-plugin-physics2d
+      - name: Build WASM — gwen-plugin-physics2d
         run: |
-          wasm-pack build \
-            --target web \
-            --release \
+          wasm-pack build --target web --release \
             --out-dir $GITHUB_WORKSPACE/packages/@gwen/plugin-physics2d/wasm \
             --out-name gwen_physics2d \
             crates/gwen-plugin-physics2d
 
-      - name: Validate WASM build — gwen-plugin-physics2d
-        run: |
-          [ -f "packages/@gwen/plugin-physics2d/wasm/gwen_physics2d_bg.wasm" ] \
-            && echo "✅ gwen-plugin-physics2d WASM validated" \
-            || (echo "❌ gwen-plugin-physics2d WASM binary missing" && exit 1)
-
-      # ── Upload all WASM artefacts ──────────────────────────────────────────
-      - name: Upload WASM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: wasm-artifacts
-          path: |
-            packages/@gwen/engine-core/wasm/
-            packages/@gwen/plugin-physics2d/wasm/
-          retention-days: 7
-
-  # ── Tests TypeScript ───────────────────────────────────────────────────────
+  # ── TypeScript : build → typecheck → test ────────────────────────────────
   typescript:
-    name: TypeScript tests
+    name: TypeScript
     runs-on: ubuntu-latest
-    needs: [lint, build]
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Test all packages
-        run: pnpm test
-
-  # ── Typecheck global ──────────────────────────────────────────────────────
-  typecheck:
-    name: TypeScript type check
-    runs-on: ubuntu-latest
-    needs: [lint, build]
-    steps:
-      - uses: actions/checkout@v4
-
       - uses: ./.github/actions/setup-node-pnpm
         with:
           pnpm-version: '10'
 
-      - name: Typecheck all packages
+      - name: Build packages
+        run: pnpm build:ts
+
+      - name: Typecheck
         run: pnpm typecheck
 
-  # ── Build verification ────────────────────────────────────────────────────
-  build:
-    name: Build all packages
-    runs-on: ubuntu-latest
-    needs: [lint, rust]
-    steps:
-      - uses: actions/checkout@v4
+      - name: Test packages
+        run: pnpm test:ts
 
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          pnpm-version: '10'
-
-      - name: Download WASM artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: wasm-artifacts
-          path: packages/
-
-      - name: Build all packages (exclude playgrounds)
-        run: pnpm --filter='!playground-*' build
-
-      - name: Verify build outputs
-        run: |
-          echo "✅ Verifying build outputs..."
-          [ -d "packages/@gwen/engine-core/dist" ] && echo "✅ engine-core built" || echo "⚠️ engine-core dist not found"
-          [ -d "packages/@gwen/cli/dist" ] && echo "✅ cli built" || echo "⚠️ cli dist not found"
-          true
-
-  # ── CI Status ──────────────────────────────────────────────────────────────
+  # ── CI Status ─────────────────────────────────────────────────────────────
   ci-status:
     name: CI Status
     runs-on: ubuntu-latest
-    needs: [lint, typescript, typecheck, rust, build]
+    needs: [lint, rust, typescript]
     if: always()
     steps:
-      - name: Check CI status
+      - name: Check all jobs
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.typescript.result }}" != "success" ] || \
-             [ "${{ needs.typecheck.result }}" != "success" ] || \
-             [ "${{ needs.rust.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
+          if [ "${{ needs.lint.result }}"       != "success" ] || \
+             [ "${{ needs.rust.result }}"       != "success" ] || \
+             [ "${{ needs.typescript.result }}" != "success" ]; then
             echo "❌ CI failed"
             exit 1
           fi
-          echo "✅ All CI checks passed"
+          echo "✅ All checks passed"

@@ -23,6 +23,7 @@
     "prepublishOnly": "pnpm run build && pnpm run test:coverage",
     "dev": "node bin.js",
     "typecheck": "tsc --noEmit",
+    "pretest": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
