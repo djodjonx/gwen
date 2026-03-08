@@ -20,7 +20,7 @@ Types.string // String (stored as UTF-8 intern ID)
 ## EngineAPI (runtime surface)
 
 ```typescript
-type EntityId = number;
+type EntityId = bigint & { readonly __brand: unique symbol };
 type ComponentType = string;
 
 interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {

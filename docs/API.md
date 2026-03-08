@@ -399,7 +399,7 @@ interface EngineConfig {
 ### EntityId
 
 ```typescript
-type EntityId = number;
+type EntityId = bigint & { readonly __brand: unique symbol };
 ```
 
 ### EngineStats

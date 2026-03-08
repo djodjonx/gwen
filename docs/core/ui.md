@@ -170,7 +170,7 @@ Both forms produce a `UIDefinition` object that you register in a scene's `ui` a
 UI components have a single method:
 
 ```typescript
-render(api: EngineAPI, entityId: number): void
+render(api: EngineAPI, entityId: EntityId): void
 ```
 
 - Called every frame for each entity with a matching `UIComponent`
