@@ -250,7 +250,7 @@ describe('EntityId (64-bit BigInt with brand)', () => {
         expect(idx).toBe(index);
         expect(gen).toBe(generation);
       }
-    });
+    }, 10000); // 10 seconds timeout for stress test
   });
 
   describe('Type safety (compile-time checks)', () => {

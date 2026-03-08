@@ -160,6 +160,10 @@ export class Engine {
     this.serializer.getOrComputeLayout(def);
     const bytes = this.serializer.serialize(typeName, data);
     const { index, generation } = unpackEntityId(id);
+
+    // Track the component addition BEFORE calling WASM to keep cache consistent
+    this.componentRegistry.trackAdd(index, typeId);
+
     this.wasmBridge.addComponent(index, generation, typeId, bytes);
     this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
   }
