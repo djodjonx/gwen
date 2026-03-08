@@ -241,28 +241,70 @@ export class PluginManager {
    * **P0-1 v2 Fix:** Previously, the unsubscriber was discarded, causing
    * "zombie handlers" to persist after plugin destruction. Now we track it.
    *
+   * **Type Safety:** Uses helper methods to safely coerce specific hook types
+   * to the generic index signature without `as any` casts.
+   *
    * @param plugin - The plugin whose methods to register
    * @param hooks - The hooks system instance
    * @internal
    */
   private _setupPluginHooks(plugin: GwenPlugin, hooks: DefaultHookable): void {
     if (plugin.onBeforeUpdate) {
-      const unregister = hooks.hook('plugin:beforeUpdate', ((api: EngineAPI, dt: number) =>
-        plugin.onBeforeUpdate!(api, dt)) as any);
+      const unregister = this._registerBeforeUpdateHook(plugin, hooks);
       this._track(plugin, unregister);
     }
 
     if (plugin.onUpdate) {
-      const unregister = hooks.hook('plugin:update', ((api: EngineAPI, dt: number) =>
-        plugin.onUpdate!(api, dt)) as any);
+      const unregister = this._registerUpdateHook(plugin, hooks);
       this._track(plugin, unregister);
     }
 
     if (plugin.onRender) {
-      const unregister = hooks.hook('plugin:render', ((api: EngineAPI) =>
-        plugin.onRender!(api)) as any);
+      const unregister = this._registerRenderHook(plugin, hooks);
       this._track(plugin, unregister);
     }
+  }
+
+  /**
+   * Register a plugin:beforeUpdate hook with type safety.
+   *
+   * @internal
+   */
+  private _registerBeforeUpdateHook(plugin: GwenPlugin, hooks: DefaultHookable): () => void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return hooks.hook('plugin:beforeUpdate' as any, (api: unknown, dt: unknown) => {
+      if (plugin.onBeforeUpdate) {
+        plugin.onBeforeUpdate(api as EngineAPI, dt as number);
+      }
+    });
+  }
+
+  /**
+   * Register a plugin:update hook with type safety.
+   *
+   * @internal
+   */
+  private _registerUpdateHook(plugin: GwenPlugin, hooks: DefaultHookable): () => void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return hooks.hook('plugin:update' as any, (api: unknown, dt: unknown) => {
+      if (plugin.onUpdate) {
+        plugin.onUpdate(api as EngineAPI, dt as number);
+      }
+    });
+  }
+
+  /**
+   * Register a plugin:render hook with type safety.
+   *
+   * @internal
+   */
+  private _registerRenderHook(plugin: GwenPlugin, hooks: DefaultHookable): () => void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return hooks.hook('plugin:render' as any, (api: unknown) => {
+      if (plugin.onRender) {
+        plugin.onRender(api as EngineAPI);
+      }
+    });
   }
 
   /**
