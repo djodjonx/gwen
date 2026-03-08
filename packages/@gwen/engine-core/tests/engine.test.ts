@@ -90,6 +90,90 @@ function createMockWasmEngine(): WasmEngine {
   };
 }
 
+/**
+ * Mock WasmEngine with slot reuse (free-list) to reproduce stale-cache bugs
+ * that only appear on second game / scene restart.
+ */
+function createReusableSlotMockWasmEngine(): WasmEngine {
+  let nextIndex = 0;
+  const free: number[] = [];
+  const entities = new Map<number, number>(); // index -> generation
+  const archetypes = new Map<number, number[]>();
+  const components = new Map<string, Uint8Array>();
+  let nextTypeId = 0;
+
+  return {
+    create_entity: vi.fn((): WasmEntityId => {
+      const index = free.length > 0 ? free.pop()! : nextIndex++;
+      const generation = entities.get(index) ?? 0;
+      entities.set(index, generation);
+      return { index, generation };
+    }),
+    delete_entity: vi.fn((index, generation): boolean => {
+      if (entities.get(index) !== generation) return false;
+      entities.set(index, generation + 1);
+      free.push(index);
+      return true;
+    }),
+    is_alive: vi.fn((index, generation): boolean => entities.get(index) === generation),
+    count_entities: vi.fn((): number => {
+      let alive = 0;
+      for (const [idx, gen] of entities) {
+        if (!free.includes(idx) && gen !== undefined) alive++;
+      }
+      return alive;
+    }),
+
+    register_component_type: vi.fn((): number => nextTypeId++),
+    add_component: vi.fn((index, generation, typeId, data): boolean => {
+      if (entities.get(index) !== generation || free.includes(index)) return false;
+      components.set(`${index}:${typeId}`, new Uint8Array(data));
+      return true;
+    }),
+    remove_component: vi.fn((index, generation, typeId): boolean => {
+      if (entities.get(index) !== generation || free.includes(index)) return false;
+      return components.delete(`${index}:${typeId}`);
+    }),
+    has_component: vi.fn((index, generation, typeId): boolean => {
+      if (entities.get(index) !== generation || free.includes(index)) return false;
+      return components.has(`${index}:${typeId}`);
+    }),
+    get_component_raw: vi.fn((index, generation, typeId): Uint8Array => {
+      if (entities.get(index) !== generation || free.includes(index)) return new Uint8Array(0);
+      return components.get(`${index}:${typeId}`) ?? new Uint8Array(0);
+    }),
+    update_entity_archetype: vi.fn((index, typeIds: Uint32Array) => {
+      archetypes.set(index, Array.from(typeIds));
+    }),
+    remove_entity_from_query: vi.fn((index: number) => {
+      archetypes.delete(index);
+    }),
+    query_entities: vi.fn((typeIds: Uint32Array): Uint32Array => {
+      const needed = Array.from(typeIds);
+      const result: number[] = [];
+      for (const [index, generation] of entities) {
+        if (free.includes(index)) continue;
+        if (generation === undefined) continue;
+        const arch = archetypes.get(index) ?? [];
+        if (needed.every((t) => arch.includes(t))) result.push(index);
+      }
+      return new Uint32Array(result);
+    }),
+    get_entity_generation: vi.fn((index: number): number => {
+      return entities.get(index) ?? 0xffffffff;
+    }),
+
+    tick: vi.fn(),
+    frame_count: vi.fn(() => BigInt(0)),
+    delta_time: vi.fn(() => 0.016),
+    total_time: vi.fn(() => 0),
+    alloc_shared_buffer: vi.fn(() => 4096),
+    sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_from_buffer: vi.fn(),
+    stats: vi.fn(() => '{"entities":0}'),
+  };
+}
+
 // ── Setup global ──────────────────────────────────────────────────────────────
 
 describe('Engine', () => {
@@ -298,6 +382,44 @@ describe('Engine', () => {
       expect(engine.query([Position.name])).toContain(e);
       engine.removeComponent(e, Position);
       expect(engine.query([Position.name])).not.toContain(e);
+    });
+
+    it('should keep archetype/cache consistent when using EngineAPI destroy + slot reuse', async () => {
+      _resetWasmBridge();
+      const reusable = createReusableSlotMockWasmEngine();
+      _injectMockWasmEngine(reusable);
+      const e = new Engine({ maxEntities: 1000, targetFPS: 60 });
+      const api = e.getAPI();
+
+      // First game: slot gets Position and is destroyed via API path.
+      const e1 = api.createEntity();
+      api.addComponent(e1, Position, { x: 1, y: 1 });
+      expect(api.query([Position.name])).toContain(e1);
+      expect(api.destroyEntity(e1)).toBe(true);
+
+      // Second game: same slot reused, only Velocity is added.
+      const e2 = api.createEntity();
+      api.addComponent(e2, Velocity, { vx: 2, vy: 3 });
+
+      // Regression guard: reused entity must NOT inherit stale Position archetype.
+      expect(api.query([Position.name])).not.toContain(e2);
+      expect(api.query([Velocity.name])).toContain(e2);
+
+      // Ensure query index cleanup hook is called through unified destroy path.
+      expect(reusable.remove_entity_from_query).toHaveBeenCalled();
+
+      e.stop();
+    });
+
+    it('should keep removeComponent consistent through EngineAPI shim path', async () => {
+      const api = engine.getAPI();
+      const id = api.createEntity();
+
+      api.addComponent(id, Position, { x: 0, y: 0 });
+      expect(api.query([Position.name])).toContain(id);
+
+      expect(api.removeComponent(id, Position)).toBe(true);
+      expect(api.query([Position.name])).not.toContain(id);
     });
   });
 

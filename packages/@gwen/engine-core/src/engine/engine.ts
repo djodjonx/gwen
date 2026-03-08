@@ -161,10 +161,11 @@ export class Engine {
     const bytes = this.serializer.serialize(typeName, data);
     const { index, generation } = unpackEntityId(id);
 
-    // Track the component addition BEFORE calling WASM to keep cache consistent
-    this.componentRegistry.trackAdd(index, typeId);
+    // Only update TS cache + archetype if WASM accepted the write.
+    const ok = this.wasmBridge.addComponent(index, generation, typeId, bytes);
+    if (!ok) return;
 
-    this.wasmBridge.addComponent(index, generation, typeId, bytes);
+    this.componentRegistry.trackAdd(index, typeId);
     this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
   }
 
@@ -193,6 +194,69 @@ export class Engine {
   }
   /** @internal */ public _getOrComputeLayout(def: ComponentDefinition<ComponentSchema>) {
     return this.serializer.getOrComputeLayout(def);
+  }
+
+  /**
+   * Remove a component directly in WASM and keep archetype/cache state consistent.
+   *
+   * This method is the single source of truth for component removal and is used
+   * by both Engine public API and EngineAPI shims.
+   *
+   * @internal
+   */
+  public _removeComponentInternal(
+    id: EntityId,
+    type: ComponentDefinition<ComponentSchema> | ComponentType,
+  ): boolean {
+    const typeName = typeof type === 'string' ? type : type.name;
+    const typeId = this.componentRegistry.get(typeName);
+    if (typeId === undefined) return false;
+
+    const { index, generation } = unpackEntityId(id);
+    const result = this.wasmBridge.removeComponent(index, generation, typeId);
+    if (!result) return false;
+
+    this.componentRegistry.trackRemove(index, typeId);
+    this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
+    return true;
+  }
+
+  /**
+   * Remove all registered component types from an entity slot in WASM.
+   *
+   * Intended for entity destruction path; does not emit hooks.
+   *
+   * @internal
+   */
+  public _removeAllComponentsInternal(id: EntityId): void {
+    const { index, generation } = unpackEntityId(id);
+    for (const [, typeId] of this.componentRegistry.getAll()) {
+      if (this.wasmBridge.removeComponent(index, generation, typeId)) {
+        this.componentRegistry.trackRemove(index, typeId);
+      }
+    }
+  }
+
+  /**
+   * Destroy an entity directly in WASM and clear all related query/cache state.
+   *
+   * This method is the single source of truth for destruction and is used
+   * by both Engine public API and EngineAPI shims.
+   *
+   * @internal
+   */
+  public _destroyEntityInternal(id: EntityId): boolean {
+    const { index, generation } = unpackEntityId(id);
+    if (!this.wasmBridge.isAlive(index, generation)) return false;
+
+    this._removeAllComponentsInternal(id);
+
+    const result = this.wasmBridge.deleteEntity(index, generation);
+    if (!result) return false;
+
+    this.wasmBridge.removeEntityFromQuery(index);
+    this.componentRegistry.clearEntityCache(index);
+    return true;
   }
 
   // ── Plugin system ─────────────────────────────────────────────────────────────
@@ -278,19 +342,11 @@ export class Engine {
    * @returns `false` if the entity is already dead.
    */
   public destroyEntity(id: EntityId): boolean {
-    const { index, generation } = unpackEntityId(id);
-    if (!this.wasmBridge.isAlive(index, generation)) return false;
+    if (!this.entityExists(id)) return false;
 
     this.hooks.callHook('entity:destroy', id);
 
-    for (const [, typeId] of this.componentRegistry.getAll()) {
-      this.wasmBridge.removeComponent(index, generation, typeId);
-    }
-    const result = this.wasmBridge.deleteEntity(index, generation);
-    this.wasmBridge.removeEntityFromQuery(index);
-
-    // Clear the entity type cache for this slot to prevent memory leaks
-    this.componentRegistry.clearEntityCache(index);
+    const result = this._destroyEntityInternal(id);
 
     try {
       this.hooks.callHook('entity:destroyed', id);
@@ -346,18 +402,10 @@ export class Engine {
     type: ComponentDefinition<ComponentSchema> | ComponentType,
   ): boolean {
     const typeName = typeof type === 'string' ? type : type.name;
-    const typeId = this.componentRegistry.get(typeName);
-    if (typeId === undefined) return false;
-
     this.hooks.callHook('component:remove', id, typeName);
 
-    const { index, generation } = unpackEntityId(id);
-    const result = this.wasmBridge.removeComponent(index, generation, typeId);
+    const result = this._removeComponentInternal(id, type);
     if (result) {
-      // Track the component removal AFTER successful WASM call to keep cache consistent
-      this.componentRegistry.trackRemove(index, typeId);
-
-      this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
       try {
         this.hooks.callHook('component:removed', id, typeName);
       } catch (err) {

@@ -26,9 +26,9 @@ export class EngineComponentRegistry {
    * Clé : slot index (raw, pas packed EntityId) — invariant par rapport à la génération.
    * Valeur : Set des typeIds attachés à ce slot.
    *
-   * Invariant : ce cache doit rester parfaitement synchronisé avec l'état WASM.
-   * Il est mis à jour de façon atomique par trackAdd/trackRemove avant
-   * d'appeler updateEntityArchetype côté WASM.
+   * Invariant : ce cache reste synchronisé avec l'état WASM via les méthodes
+   * internes de `Engine` (`_addComponentInternal`, `_removeComponentInternal`,
+   * `_destroyEntityInternal`).
    *
    * Élimine O(N×M) appels WASM dans getEntityTypeIds() — remplacés par une lecture O(1).
    */
@@ -73,7 +73,7 @@ export class EngineComponentRegistry {
    * Track that a component type has been added to an entity slot.
    *
    * Maintains the entityTypeCache in sync with WASM state.
-   * Call this BEFORE calling wasmBridge.addComponent() to ensure cache consistency.
+   * Called after `addComponent` succeeds on WASM.
    *
    * @param slotIndex Raw entity slot index (not packed EntityId)
    * @param typeId Rust component type ID
@@ -91,7 +91,7 @@ export class EngineComponentRegistry {
    * Track that a component type has been removed from an entity slot.
    *
    * Maintains the entityTypeCache in sync with WASM state.
-   * Call this AFTER calling wasmBridge.removeComponent() to ensure cache consistency.
+   * Called after `removeComponent` succeeds on WASM.
    *
    * @param slotIndex Raw entity slot index (not packed EntityId)
    * @param typeId Rust component type ID

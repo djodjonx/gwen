@@ -186,8 +186,7 @@ export function createShims(engine: Engine): {
       return packId(wid);
     },
     destroy: (id: EntityId) => {
-      const { index, generation } = unpackEntityId(id);
-      return wasmBridge.deleteEntity(index, generation);
+      return engine._destroyEntityInternal(id);
     },
     isAlive: (id: EntityId) => {
       const { index, generation } = unpackEntityId(id);
@@ -208,40 +207,19 @@ export function createShims(engine: Engine): {
       engine._addComponentInternal(id, type, data);
     },
     remove: (id: EntityId, type: ComponentType) => {
-      const typeId = engine._getComponentTypeId(type);
-      if (typeId === undefined) return false;
-      const { index, generation } = unpackEntityId(id);
-      const ok = wasmBridge.removeComponent(index, generation, typeId);
-      if (ok) {
-        wasmBridge.updateEntityArchetype(index, engine._getEntityTypeIds(id));
-      }
-      return ok;
+      return engine._removeComponentInternal(id, type);
     },
     get: <T>(
       id: EntityId,
       type: ComponentDefinition<ComponentSchema> | ComponentType,
     ): T | undefined => {
-      const typeName = typeof type === 'string' ? type : type.name;
-      const typeId = engine._getComponentTypeId(typeName);
-      if (typeId === undefined) return undefined;
-      const { index, generation } = unpackEntityId(id);
-      const raw = wasmBridge.getComponentRaw(index, generation, typeId);
-      if (raw.length === 0) return undefined;
-      return engine._deserializeComponent(typeName, raw) as T;
+      return engine.getComponent<T>(id, type);
     },
     has: (id: EntityId, type: ComponentDefinition<ComponentSchema> | ComponentType) => {
-      const typeName = typeof type === 'string' ? type : type.name;
-      const typeId = engine._getComponentTypeId(typeName);
-      if (typeId === undefined) return false;
-      const { index, generation } = unpackEntityId(id);
-      return wasmBridge.hasComponent(index, generation, typeId);
+      return engine.hasComponent(id, type);
     },
     removeAll: (id: EntityId) => {
-      const { index, generation } = unpackEntityId(id);
-      const componentTypeIds = engine._getComponentTypeIds();
-      for (const [, typeId] of componentTypeIds) {
-        wasmBridge.removeComponent(index, generation, typeId);
-      }
+      engine._removeAllComponentsInternal(id);
     },
     registeredTypes: () => {
       const componentTypeIds = engine._getComponentTypeIds();
