@@ -186,8 +186,8 @@ jobs:
           name: wasm-artifacts
           path: packages/
 
-      - name: Build all packages
-        run: pnpm -r build
+      - name: Build all packages (exclude playgrounds)
+        run: pnpm --filter='!playground-*' build
 
       - name: Verify build outputs
         run: |
