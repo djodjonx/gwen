@@ -20,6 +20,20 @@ export class EngineComponentRegistry {
   /** TS component name → Rust numeric typeId */
   private typeIds = new Map<ComponentType, number>();
 
+  /**
+   * Cache TS des typeIds actifs par slot d'entité.
+   *
+   * Clé : slot index (raw, pas packed EntityId) — invariant par rapport à la génération.
+   * Valeur : Set des typeIds attachés à ce slot.
+   *
+   * Invariant : ce cache doit rester parfaitement synchronisé avec l'état WASM.
+   * Il est mis à jour de façon atomique par trackAdd/trackRemove avant
+   * d'appeler updateEntityArchetype côté WASM.
+   *
+   * Élimine O(N×M) appels WASM dans getEntityTypeIds() — remplacés par une lecture O(1).
+   */
+  private entityTypeCache = new Map<number, Set<number>>();
+
   constructor(private readonly wasmBridge: WasmBridge) {}
 
   // ── Registration ─────────────────────────────────────────────────────────────
@@ -56,17 +70,64 @@ export class EngineComponentRegistry {
   // ── Entity helpers ───────────────────────────────────────────────────────────
 
   /**
-   * Collect all Rust typeIds currently attached to an entity.
-   * Used to rebuild the archetype bitmask after add/remove operations.
+   * Track that a component type has been added to an entity slot.
+   *
+   * Maintains the entityTypeCache in sync with WASM state.
+   * Call this BEFORE calling wasmBridge.addComponent() to ensure cache consistency.
+   *
+   * @param slotIndex Raw entity slot index (not packed EntityId)
+   * @param typeId Rust component type ID
    */
-  getEntityTypeIds(id: EntityId): number[] {
-    const { index, generation } = unpackId(id);
-    const result: number[] = [];
-    for (const [, typeId] of this.typeIds) {
-      if (this.wasmBridge.hasComponent(index, generation, typeId)) {
-        result.push(typeId);
+  trackAdd(slotIndex: number, typeId: number): void {
+    let types = this.entityTypeCache.get(slotIndex);
+    if (!types) {
+      types = new Set<number>();
+      this.entityTypeCache.set(slotIndex, types);
+    }
+    types.add(typeId);
+  }
+
+  /**
+   * Track that a component type has been removed from an entity slot.
+   *
+   * Maintains the entityTypeCache in sync with WASM state.
+   * Call this AFTER calling wasmBridge.removeComponent() to ensure cache consistency.
+   *
+   * @param slotIndex Raw entity slot index (not packed EntityId)
+   * @param typeId Rust component type ID
+   */
+  trackRemove(slotIndex: number, typeId: number): void {
+    const types = this.entityTypeCache.get(slotIndex);
+    if (types) {
+      types.delete(typeId);
+      // Cleanup empty sets to avoid memory leak
+      if (types.size === 0) {
+        this.entityTypeCache.delete(slotIndex);
       }
     }
-    return result;
+  }
+
+  /**
+   * Collect all Rust typeIds currently attached to an entity.
+   *
+   * Used to rebuild the archetype bitmask after add/remove operations.
+   *
+   * **Performance:** O(1) cache read instead of O(N×M) WASM calls.
+   * The cache is maintained by trackAdd/trackRemove called from Engine.
+   */
+  getEntityTypeIds(id: EntityId): number[] {
+    const { index } = unpackId(id);
+    const types = this.entityTypeCache.get(index);
+    return types ? Array.from(types) : [];
+  }
+
+  /**
+   * Clear the cache for a specific entity slot.
+   * Called when an entity is destroyed to prevent memory leaks.
+   *
+   * @param slotIndex Raw entity slot index (not packed EntityId)
+   */
+  clearEntityCache(slotIndex: number): void {
+    this.entityTypeCache.delete(slotIndex);
   }
 }

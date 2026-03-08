@@ -285,6 +285,9 @@ export class Engine {
     const result = this.wasmBridge.deleteEntity(index, generation);
     this.wasmBridge.removeEntityFromQuery(index);
 
+    // Clear the entity type cache for this slot to prevent memory leaks
+    this.componentRegistry.clearEntityCache(index);
+
     try {
       this.hooks.callHook('entity:destroyed', id);
     } catch (err) {
@@ -347,6 +350,9 @@ export class Engine {
     const { index, generation } = unpackEntityId(id);
     const result = this.wasmBridge.removeComponent(index, generation, typeId);
     if (result) {
+      // Track the component removal AFTER successful WASM call to keep cache consistent
+      this.componentRegistry.trackRemove(index, typeId);
+
       this.wasmBridge.updateEntityArchetype(index, this.componentRegistry.getEntityTypeIds(id));
       try {
         this.hooks.callHook('component:removed', id, typeName);
