@@ -17,6 +17,15 @@ export type {
   EngineAPI,
 } from './config';
 
+export type {
+  EngineLifecycleHooks,
+  PluginLifecycleHooks,
+  EntityLifecycleHooks,
+  ComponentLifecycleHooks,
+  SceneLifecycleHooks,
+  GwenHooks,
+} from './hooks';
+
 // Runtime
 export { defaultOptions, resolveConfig } from './defaults';
 export { validateResolvedConfig } from './validate';
