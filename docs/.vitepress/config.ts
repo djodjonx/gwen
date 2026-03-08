@@ -17,45 +17,37 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: 'Introduction',
+        text: 'Guide',
         items: [
           { text: 'What is GWEN?', link: '/' },
           { text: 'Quick Start', link: '/guide/quick-start' },
-          { text: 'Philosophy', link: '/guide/philosophy' },
           { text: 'Project Structure', link: '/guide/project-structure' },
         ],
       },
       {
         text: 'Core Concepts',
         items: [
-          { text: 'Components', link: '/core/components' },
           { text: 'Scenes', link: '/core/scenes' },
+          { text: 'Components', link: '/core/components' },
           { text: 'Systems', link: '/core/systems' },
           { text: 'Prefabs', link: '/core/prefabs' },
           { text: 'UI Rendering', link: '/core/ui' },
-          { text: 'Configuration', link: '/core/configuration' },
-        ],
-      },
-      {
-        text: 'Plugins',
-        items: [
-          { text: 'Official Plugins', link: '/plugins/official' },
-          { text: 'Creating a TypeScript Plugin', link: '/plugins/creating' },
-          {
-            text: 'WASM Plugins (Rust)',
-            items: [
-              { text: 'Guide & API Reference', link: '/plugins/wasm-plugins' },
-              { text: 'Best Practices', link: '/plugins/wasm-plugin-best-practices' },
-            ],
-          },
         ],
       },
       {
         text: 'API Reference',
         items: [
           { text: 'Helpers (define*)', link: '/api/helpers' },
-          { text: 'Engine API', link: '/api/engine-api' },
-          { text: 'Types', link: '/api/types' },
+          { text: 'Configuration', link: '/core/configuration' },
+          { text: 'Engine API (api.*)', link: '/api/engine-api' },
+          { text: 'CLI Commands', link: '/cli/commands' },
+        ],
+      },
+      {
+        text: 'Plugins',
+        items: [
+          { text: 'Official Plugins', link: '/plugins/official' },
+          { text: 'Using & Creating Plugins', link: '/plugins/creating' },
         ],
       },
       {
@@ -66,8 +58,19 @@ export default defineConfig({
         ],
       },
       {
-        text: 'CLI',
-        items: [{ text: 'Commands', link: '/cli/commands' }],
+        text: 'Advanced',
+        collapsed: true,
+        items: [
+          { text: 'Philosophy', link: '/guide/philosophy' },
+          { text: 'Types Reference', link: '/api/types' },
+          {
+            text: 'WASM Plugins (Rust)',
+            items: [
+              { text: 'Guide & API Reference', link: '/plugins/wasm-plugins' },
+              { text: 'Best Practices', link: '/plugins/wasm-plugin-best-practices' },
+            ],
+          },
+        ],
       },
     ],
 

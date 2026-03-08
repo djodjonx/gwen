@@ -148,7 +148,7 @@ import { defineConfig, GwenConfigServices } from '@gwen/engine-core';
 import { InputPlugin } from '@gwen/plugin-input';
 
 const gwenConfig = defineConfig({
-  tsPlugins: [new InputPlugin()],
+  plugins: [new InputPlugin()],
 });
 
 // Advanced / library use case only

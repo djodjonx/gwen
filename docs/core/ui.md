@@ -445,7 +445,7 @@ For menus and HUD, you can use HTML instead of Canvas:
 import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
 
 export default defineConfig({
-  tsPlugins: [
+  plugins: [
     new HtmlUIPlugin()
   ]
 });

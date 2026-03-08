@@ -60,7 +60,7 @@ Want input? Audio? Debug overlay?
 
 ```typescript
 export default defineConfig({
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin(),
     new DebugPlugin()

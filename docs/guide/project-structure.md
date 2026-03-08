@@ -258,7 +258,7 @@ export default defineConfig({
     background: '#000000'
   },
 
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({ width: 800, height: 600 })

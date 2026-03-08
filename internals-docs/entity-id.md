@@ -168,7 +168,7 @@ const { index, generation } = unpackEntityId(id);
 
 - **64-bit support** : JavaScript numbers (53-bit safe integer) can't represent full u32+u32
 - **Native primitives** : No allocation overhead (unlike objects)
-- **Direct Map usage** : V8 optimizes Map<bigint, T> natively
+- **Direct Map usage** : V8 optimizes `Map<bigint, T>` natively
 - **Unlimited generation** : Unlike the old 12-bit limit, supports full 2^32
 
 ---
@@ -205,7 +205,7 @@ Functions accepting `EntityId` continue to work because:
 - **Creation** : O(1) — simple bitwise operation
 - **Unpacking** : O(1) — division and bitwise AND
 - **Comparison** : O(1) — bigint primitive comparison
-- **Map operations** : O(log n) — V8 optimizes Map<bigint> natively
+- **Map operations** : O(log n) — V8 optimizes `Map<bigint>` natively
 - **Serialization** : O(1) — just decimal formatting
 
 ---

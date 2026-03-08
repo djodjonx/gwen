@@ -283,7 +283,7 @@ export const gwenConfig = defineConfig({
     title: 'My Game',
     background: '#000000',
   },
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({ width: 800, height: 600 }),
@@ -375,7 +375,7 @@ Register in config:
 
 ```typescript
 export const gwenConfig = defineConfig({
-  tsPlugins: [new MyPlugin()],
+  plugins: [new MyPlugin()],
 });
 ```
 
@@ -392,7 +392,7 @@ interface EngineConfig {
   debug?: boolean;       // Debug logging (default: false)
   enableStats?: boolean; // Performance stats (default: true)
   wasmPlugins?: WasmPlugin[];
-  tsPlugins?: TsPlugin[];
+  plugins?: TsPlugin[];
 }
 ```
 

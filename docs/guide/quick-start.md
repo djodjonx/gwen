@@ -32,20 +32,9 @@ Open `http://localhost:3000` in your browser. You should see your game running.
 
 ## Project Structure
 
-Your generated project looks like this:
+Your generated project is ready to go with a standardized layout. 
 
-```text
-my-game/
-├── src/
-│   ├── components/     # Data definitions (Position, Velocity, etc.)
-│   ├── prefabs/        # Reusable entities (Player, Enemy, Bullet)
-│   ├── scenes/         # Game flow (MainMenu, GameScene)
-│   ├── systems/        # Gameplay logic (Movement, Collision, etc.)
-│   └── ui/             # Custom rendering (PlayerUI, ScoreUI, etc.)
-├── gwen.config.ts      # Engine & plugins configuration
-├── package.json
-└── tsconfig.json
-```
+[**Learn more about the generated Project Structure →**](/guide/project-structure)
 
 ## What's Next?
 

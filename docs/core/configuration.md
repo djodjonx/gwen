@@ -16,7 +16,7 @@ export default defineConfig({
     debug: false
   },
 
-  tsPlugins: []
+  plugins: []
 });
 ```
 
@@ -105,7 +105,7 @@ import { AudioPlugin } from '@gwen/plugin-audio';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin(),
     new Canvas2DRenderer({ width: 800, height: 600 })
@@ -137,7 +137,7 @@ export default defineConfig({
     background: '#000814',
   },
 
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.7 }),
     new Canvas2DRenderer({
@@ -268,7 +268,7 @@ export default defineConfig({
     maxEntities: parseInt(process.env.MAX_ENTITIES || '5000')
   },
 
-  tsPlugins: [
+  plugins: [
     new AudioPlugin({
       masterVolume: parseFloat(process.env.VOLUME || '0.7')
     })
@@ -298,7 +298,7 @@ export default defineConfig({
     maxEntities: isDev ? 1000 : 5000
   },
 
-  tsPlugins: [
+  plugins: [
     new Canvas2DRenderer({
       width: 800,
       height: 600,
@@ -316,7 +316,7 @@ export default defineConfig({
 Plugins are initialized in order:
 
 ```typescript
-tsPlugins: [
+plugins: [
   new InputPlugin(),      // 1st - input ready first
   new AudioPlugin(),      // 2nd
   new Canvas2DRenderer(), // 3rd
@@ -328,12 +328,12 @@ tsPlugins: [
 
 Service types are inferred **automatically** — no manual interface needed.
 
-Run `gwen prepare` (or `gwen dev` / `gwen build`, which call it automatically) once after adding plugins. GWEN reads your `tsPlugins` list and writes `.gwen/gwen.d.ts` with a global `GwenServices` type available **everywhere in your project without any import**:
+Run `gwen prepare` (or `gwen dev` / `gwen build`, which call it automatically) once after adding plugins. GWEN reads your `plugins` list and writes `.gwen/gwen.d.ts` with a global `GwenServices` type available **everywhere in your project without any import**:
 
 ```typescript
 // gwen.config.ts — declare your plugins
 export const gwenConfig = defineConfig({
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({ width: 800, height: 600 }),
@@ -400,7 +400,7 @@ import { InputPlugin } from '@gwen/plugin-input';
 import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
 
 export default defineConfig({
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new Canvas2DRenderer({ width: 800, height: 600 })
   ]
@@ -431,7 +431,7 @@ export default defineConfig({
     background: '#000000',
   },
 
-  tsPlugins: [
+  plugins: [
     new InputPlugin(),
     new AudioPlugin({ masterVolume: 0.8 }),
     new Canvas2DRenderer({
