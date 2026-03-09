@@ -33,7 +33,7 @@
     "changeset:status": "changeset status",
     "changeset:version": "changeset version",
     "release:dry": "pnpm changeset:version --canary",
-    "release": "pnpm changeset:version && changeset publish",
+    "release": "changeset publish",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

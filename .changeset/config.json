@@ -3,7 +3,20 @@
   "changelog": ["./changelog.cjs", { "repo": "djodjonx/gwen" }],
   "commit": false,
   "fixed": [],
-  "linked": [["@djodjonx/*"]],
+  "linked": [
+    [
+      "@djodjonx/gwen-engine-core",
+      "@djodjonx/gwen-schema",
+      "@djodjonx/gwen-kit",
+      "@djodjonx/gwen-cli",
+      "@djodjonx/gwen-plugin-input",
+      "@djodjonx/gwen-plugin-audio",
+      "@djodjonx/gwen-plugin-debug",
+      "@djodjonx/gwen-plugin-html-ui",
+      "@djodjonx/gwen-plugin-physics2d",
+      "@djodjonx/gwen-renderer-canvas2d"
+    ]
+  ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
