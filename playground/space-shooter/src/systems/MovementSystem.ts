@@ -1,14 +1,17 @@
 import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem('MovementSystem', () => {
-  // Entities to destroy after PhysicsBindingSystem has had a chance to
-  // register them. We move positions in onBeforeUpdate (so Rapier sees
-  // correct positions before step()), but we only destroy off-screen entities
-  // in onUpdate — after the physics step — so they are always registered in
-  // Rapier for at least one full frame and their slot is never wasted.
   const toDestroy: import('@djodjonx/gwen-engine-core').EntityId[] = [];
+  let physics: Physics2DAPI | null = null;
+
   return {
+    onInit(api) {
+      physics = api.services.get('physics') as Physics2DAPI | null;
+    },
+
     onBeforeUpdate(api, dt) {
       toDestroy.length = 0;
 
@@ -23,10 +26,6 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
           y: pos.y + vel.vy * dt,
         });
 
-        // Flag off-screen entities for deferred destruction.
-        // Destroying here (before PhysicsBindingSystem runs) would cause
-        // the entity to be registered in Rapier then immediately removed
-        // in the same onBeforeUpdate, wasting a slot and missing collisions.
         if (pos.y < -80 || pos.y > 720 || pos.x < -80 || pos.x > 560) {
           toDestroy.push(id);
         }
@@ -34,12 +33,18 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
     },
 
     onUpdate(api) {
-      // Destroy off-screen entities after the physics step has run.
-      // PhysicsBindingSystem.cleanup (next onBeforeUpdate) will call
-      // physics.removeBody() and clean up the Rapier side.
       for (const id of toDestroy) {
+        if (physics) {
+          const { index } = unpackEntityId(id);
+          physics.removeBody(index);
+        }
         api.destroyEntity(id);
       }
+      toDestroy.length = 0;
+    },
+
+    onDestroy() {
+      physics = null;
       toDestroy.length = 0;
     },
   };
