@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/create-gwen-app",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Scaffold a new GWEN game project — no Rust required",
   "keywords": [
     "create-app",
