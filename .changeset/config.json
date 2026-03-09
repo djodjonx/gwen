@@ -14,13 +14,14 @@
       "@djodjonx/gwen-plugin-debug",
       "@djodjonx/gwen-plugin-html-ui",
       "@djodjonx/gwen-plugin-physics2d",
-      "@djodjonx/gwen-renderer-canvas2d"
+      "@djodjonx/gwen-renderer-canvas2d",
+      "@djodjonx/gwen-vite-plugin",
+      "@djodjonx/create-gwen-app"
     ]
   ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@djodjonx/gwen-vite-plugin", "@djodjonx/create-gwen-app"],
   "privatePackages": {
     "version": false,
     "publish": false
