@@ -18,7 +18,7 @@ NC='\033[0m'
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CRATES_DIR="$PROJECT_ROOT/crates"
-PACKAGES_DIR="$PROJECT_ROOT/packages/@gwen"
+PACKAGES_DIR="$PROJECT_ROOT/packages/@djodjonx"
 
 # Functions
 log_info() {

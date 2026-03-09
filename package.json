@@ -7,7 +7,8 @@
   "license": "MPL-2.0",
   "author": "Jonathan Moutier <jonathan.moutier.dev@gmail.com>",
   "workspaces": [
-    "packages/**"
+    "packages/@djodjonx/**",
+    "packages/create-gwen-app"
   ],
   "scripts": {
     "prepare": "husky",
