@@ -16,6 +16,7 @@ import readline from 'node:readline';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
+const VERSIONS_FILE = path.join(__dirname, '..', 'versions.json');
 
 // ── Couleurs ANSI ─────────────────────────────────────────────────────────────
 const c = {
@@ -137,21 +138,30 @@ async function main() {
   // 3. Copie du template
   log(`\nScaffolding ${c.bold}${safeName}${c.reset}...`);
 
-  // Récupérer la vraie version de @gwen/cli depuis package.json
-  const cliPkgPath = path.join(__dirname, '..', '..', '@gwen', 'cli', 'package.json');
-  let gwenVersion = '0.2.0'; // default
-  if (fs.existsSync(cliPkgPath)) {
+  // Versions des packages injectées dans le template.
+  // En release, ce fichier est régénéré par scripts/sync-create-app-versions.mjs.
+  let versions = {
+    GWEN_ENGINE_CORE_VERSION: '0.3.1',
+    GWEN_KIT_VERSION: '0.3.1',
+    GWEN_PLUGIN_AUDIO_VERSION: '0.3.1',
+    GWEN_PLUGIN_INPUT_VERSION: '0.3.1',
+    GWEN_RENDERER_CANVAS2D_VERSION: '0.3.1',
+    GWEN_CLI_VERSION: '0.3.1',
+    GWEN_VITE_PLUGIN_VERSION: '0.1.1',
+  };
+
+  if (fs.existsSync(VERSIONS_FILE)) {
     try {
-      const cliPkg = JSON.parse(fs.readFileSync(cliPkgPath, 'utf-8'));
-      gwenVersion = cliPkg.version;
+      const fromFile = JSON.parse(fs.readFileSync(VERSIONS_FILE, 'utf-8'));
+      versions = { ...versions, ...fromFile };
     } catch {
-      // use default
+      // Keep defaults if file cannot be read.
     }
   }
 
   copyTemplate(templateDir, destDir, {
     PROJECT_NAME: safeName,
-    GWEN_VERSION: gwenVersion,
+    ...versions,
   });
 
   success(`Project created at ./${safeName}/`);

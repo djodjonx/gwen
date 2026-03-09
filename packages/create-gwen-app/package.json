@@ -14,7 +14,8 @@
   },
   "files": [
     "bin",
-    "templates"
+    "templates",
+    "versions.json"
   ],
   "type": "module",
   "scripts": {
