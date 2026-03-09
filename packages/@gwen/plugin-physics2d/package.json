@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-plugin-physics2d",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "2D physics plugin for GWEN — Rapier2D via WASM",
   "files": [
     "dist",

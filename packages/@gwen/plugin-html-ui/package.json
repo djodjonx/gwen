@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-plugin-html-ui",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "GWEN HTML UI plugin — DOM renderer for defineUI",
   "files": [
     "dist"
