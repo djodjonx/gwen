@@ -7,7 +7,6 @@
  * Ce module est utilisé par `gwen dev` et `gwen build`.
  */
 
-import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { InlineConfig } from 'vite';
@@ -99,7 +98,7 @@ export async function buildViteConfig(
 
 // ── Chargement dynamique du vite-plugin gwen ──────────────────────────────────
 
-async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> {
+async function loadGwenVitePlugin(_projectDir: string): Promise<Function | null> {
   // Try to load from @djodjonx/gwen-vite-plugin using standard resolution
   try {
     // In Node.js ESM, dynamic import() uses standard resolution logic.
@@ -114,7 +113,7 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
     if (gwenPlugin && typeof gwenPlugin === 'function') {
       return gwenPlugin as Function;
     }
-  } catch (err) {
+  } catch {
     // If not found, it might be that the package is not installed or linked yet.
   }
 

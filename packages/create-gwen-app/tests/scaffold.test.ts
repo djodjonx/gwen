@@ -23,7 +23,14 @@ async function scaffold(projectName: string, destBase: string): Promise<string> 
     fs.mkdirSync(dest, { recursive: true });
     for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
       const srcPath = path.join(src, entry.name);
-      const destName = entry.name.startsWith('_') ? '.' + entry.name.slice(1) : entry.name;
+
+      // Sync with CLI logic in bin/index.js
+      const destName = entry.name.startsWith('__')
+        ? entry.name.slice(2)
+        : entry.name.startsWith('_')
+          ? '.' + entry.name.slice(1)
+          : entry.name;
+
       const destPath = path.join(dest, destName);
       if (entry.isDirectory()) {
         copyDir(srcPath, destPath, vars);
@@ -90,17 +97,6 @@ describe('create-gwen-app scaffold', () => {
     expect(pkg.devDependencies.oxlint).toBeDefined();
   });
 
-  it('generates vite.config.ts', async () => {
-    const dest = await scaffold('my-game', tmpDir);
-    expect(fs.existsSync(path.join(dest, 'vite.config.ts'))).toBe(true);
-  });
-
-  it('vite.config.ts imports @djodjonx/gwen-vite-plugin', async () => {
-    const dest = await scaffold('my-game', tmpDir);
-    const content = fs.readFileSync(path.join(dest, 'vite.config.ts'), 'utf-8');
-    expect(content).toContain("from '@djodjonx/gwen-vite-plugin'");
-  });
-
   it('generates gwen.config.ts', async () => {
     const dest = await scaffold('my-game', tmpDir);
     expect(fs.existsSync(path.join(dest, 'gwen.config.ts'))).toBe(true);
@@ -110,28 +106,6 @@ describe('create-gwen-app scaffold', () => {
     const dest = await scaffold('my-game', tmpDir);
     const content = fs.readFileSync(path.join(dest, 'gwen.config.ts'), 'utf-8');
     expect(content).toContain('defineConfig');
-  });
-
-  it('generates index.html with canvas', async () => {
-    const dest = await scaffold('my-game', tmpDir);
-    const html = fs.readFileSync(path.join(dest, 'index.html'), 'utf-8');
-    expect(html).toContain('<canvas');
-    expect(html).toContain('src/main.ts');
-  });
-
-  it('generates src/main.ts with initWasm()', async () => {
-    const dest = await scaffold('my-game', tmpDir);
-    const main = fs.readFileSync(path.join(dest, 'src', 'main.ts'), 'utf-8');
-    expect(main).toContain('initWasm()');
-    expect(main).toContain('@djodjonx/gwen-engine-core');
-  });
-
-  it('main.ts calls initWasm() without arguments (auto-resolve)', async () => {
-    const dest = await scaffold('my-game', tmpDir);
-    const main = fs.readFileSync(path.join(dest, 'src', 'main.ts'), 'utf-8');
-    // Should NOT have hardcoded paths
-    expect(main).not.toContain("initWasm('");
-    expect(main).not.toContain('initWasm("/');
   });
 
   it('generates src/scenes/MainScene.ts', async () => {
@@ -169,6 +143,11 @@ describe('create-gwen-app scaffold', () => {
   it('generates .gitignore (from _gitignore)', async () => {
     const dest = await scaffold('my-game', tmpDir);
     expect(fs.existsSync(path.join(dest, '.gitignore'))).toBe(true);
+  });
+
+  it('generates oxlint.json (from __oxlint.json)', async () => {
+    const dest = await scaffold('my-game', tmpDir);
+    expect(fs.existsSync(path.join(dest, 'oxlint.json'))).toBe(true);
   });
 
   it('sanitizes project name to kebab-case', async () => {

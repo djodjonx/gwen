@@ -323,7 +323,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         log(`Resolved WASM dir via import.meta.resolve: ${wasmDir}`);
         return wasmDir;
       }
-    } catch (e) {
+    } catch {
       // Fallback
     }
 

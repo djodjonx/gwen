@@ -292,10 +292,10 @@ describe('readEventChannel — edge cases', () => {
     view.setUint8(8 + 3 * 11 + 10, 1);
 
     // Slot 0: type=31
-    view.setUint16(8 + 0 * 11, 31, true);
-    view.setUint32(8 + 0 * 11 + 2, 310, true);
-    view.setUint32(8 + 0 * 11 + 6, 310, true);
-    view.setUint8(8 + 0 * 11 + 10, 1);
+    view.setUint16(8 + 0, 31, true);
+    view.setUint32(8 + 0 + 2, 310, true);
+    view.setUint32(8 + 0 + 6, 310, true);
+    view.setUint8(8 + 0 + 10, 1);
 
     view.setUint32(0, 1, true); // write_head = 1
     view.setUint32(4, 3, true); // read_head  = 3
