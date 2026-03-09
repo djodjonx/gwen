@@ -1,4 +1,4 @@
-# @djodjonx/gwen-cli
+#@djodjonx/gwen-cli
 
 **GWEN CLI — Command-line interface for game development**
 
@@ -7,9 +7,9 @@ Build, develop, and scaffold GWEN game projects from the command line.
 ## Installation
 
 ```bash
-npm install -D @djodjonx/gwen-cli
+npm install -D@djodjonx/gwen-cli
 # or globally
-npm install -g @djodjonx/gwen-cli
+npm install -g@djodjonx/gwen-cli
 ```
 
 ## Quick Start

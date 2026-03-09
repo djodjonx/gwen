@@ -7,7 +7,7 @@ GWEN projects are configured in a single file: `gwen.config.ts`. This is where y
 Use `defineConfig()` to create your configuration:
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
+import { defineConfig } from '@djodjonx/gwen-kit';
 
 export default defineConfig({
   engine: {
@@ -100,9 +100,9 @@ html: {
 Plugins extend the engine with features like input, audio, rendering, etc.
 
 ```typescript
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export default defineConfig({
   plugins: [
@@ -118,12 +118,12 @@ export default defineConfig({
 From the playground:
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
-import { DebugPlugin } from '@gwen/plugin-debug';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
+import { DebugPlugin } from '@djodjonx/gwen-plugin-debug';
 
 export default defineConfig({
   engine: {
@@ -395,9 +395,9 @@ Don't put game logic in config — use scenes and systems.
 ### Minimal Config
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export default defineConfig({
   plugins: [
@@ -410,12 +410,12 @@ export default defineConfig({
 ### Full-Featured Config
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
-import { DebugPlugin } from '@gwen/plugin-debug';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
+import { DebugPlugin } from '@djodjonx/gwen-plugin-debug';
 
 const isDev = process.env.NODE_ENV === 'development';
 

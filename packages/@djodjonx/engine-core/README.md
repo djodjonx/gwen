@@ -1,4 +1,4 @@
-# @djodjonx/gwen-engine-core
+#@djodjonx/gwen-engine-core
 
 **TypeScript SDK for GWEN Game Engine**
 
@@ -17,7 +17,7 @@ Complete framework for building web games with a powerful Rust/WASM core and fle
 ### Installation
 
 ```bash
-npm install @djodjonx/gwen-engine-core
+npm install@djodjonx/gwen-engine-core
 ```
 
 ### Basic Usage

@@ -38,7 +38,7 @@ GWEN Core (Rust/WASM)
 ### Step 1: Install Dependencies
 
 ```bash
-npm install @djodjonx/gwen-engine-core
+npm install@djodjonx/gwen-engine-core
 ```
 
 ### Step 2: Create HTML Canvas

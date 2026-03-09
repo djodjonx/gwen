@@ -74,7 +74,7 @@ Save and watch the hot-reload in action.
 Add `src/systems/GravitySystem.ts`:
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
 export const GravitySystem = defineSystem({

@@ -1,4 +1,4 @@
-# @djodjonx/gwen-plugin-html-ui
+#@djodjonx/gwen-plugin-html-ui
 
 Plugin GWEN pour le rendu UI via le DOM HTML.
 

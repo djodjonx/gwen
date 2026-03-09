@@ -28,7 +28,7 @@ description: How to build, register, and use Rust/WASM plugins in GWEN. Covers t
 9. [COOP/COEP headers](#9-coopcoep-headers)
 10. [Testing](#10-testing)
 11. [Type reference](#11-type-reference)
-12. [Reference implementation: `@gwen/plugin-physics2d`](#12-reference-implementation-gwenplugin-physics2d)
+12. [Reference implementation: `@djodjonx/gwen-plugin-physics2d`](#12-reference-implementation-gwenplugin-physics2d)
 
 ---
 
@@ -64,7 +64,7 @@ my-plugin/
     tests/
       my_plugin_tests.rs
 
-  packages/@gwen/plugin-my-plugin/  ← TypeScript package (glue layer)
+  packages/@djodjonx/gwen-plugin-my-plugin/  ← TypeScript package (glue layer)
     package.json
     src/
       types.ts         ← TypeScript interfaces
@@ -118,7 +118,7 @@ Key properties:
 Declare your plugin's channels as a static array on the class:
 
 ```typescript
-import type { PluginChannel } from '@gwen/engine-core';
+import type { PluginChannel } from '@djodjonx/gwen-engine-core';
 
 readonly channels: PluginChannel[] = [
   // Transform data from ECS → plugin (read direction)
@@ -195,7 +195,7 @@ async onInit(
 ### Reading events in TypeScript
 
 ```typescript
-import { readEventChannel } from '@gwen/engine-core';
+import { readEventChannel } from '@djodjonx/gwen-engine-core';
 
 getMyEvents() {
   if (!this._eventsBuf) return [];
@@ -374,7 +374,7 @@ pub fn write_events_to_buffer(&self, buf: &Uint8Array) {
 ```bash
 wasm-pack build crates/gwen-plugin-my-plugin \
   --target web \
-  --out-dir packages/@gwen/plugin-my-plugin/wasm \
+  --out-dir packages/@djodjonx/gwen-plugin-my-plugin/wasm \
   --release
 ```
 
@@ -388,9 +388,9 @@ wasm-pack build crates/gwen-plugin-my-plugin \
 import type {
   GwenWasmPlugin, WasmBridge, EngineAPI, MemoryRegion,
   PluginChannel,
-} from '@gwen/engine-core';
-import { loadWasmPlugin, readEventChannel } from '@gwen/engine-core';
-import type { PluginDataBus } from '@gwen/engine-core';
+} from '@djodjonx/gwen-engine-core';
+import { loadWasmPlugin, readEventChannel } from '@djodjonx/gwen-engine-core';
+import type { PluginDataBus } from '@djodjonx/gwen-engine-core';
 
 export class MyPlugin implements GwenWasmPlugin {
   readonly id      = 'my-plugin' as const;
@@ -471,7 +471,7 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 
 ```json
 {
-  "name": "@gwen/plugin-my-plugin",
+  "name": "@djodjonx/gwen-plugin-my-plugin",
   "gwen": {
     "type": "wasm-plugin",
     "wasmId": "my-plugin",
@@ -485,8 +485,8 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 ## 8. Declaring the plugin in `gwen.config.ts`
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { myPlugin } from '@gwen/plugin-my-plugin';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { myPlugin } from '@djodjonx/gwen-plugin-my-plugin';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60, debug: true },
@@ -497,7 +497,7 @@ export default defineConfig({
 ### Accessing the service in a TsPlugin
 
 ```typescript
-import { createEntityId } from '@gwen/engine-core';
+import { createEntityId } from '@djodjonx/gwen-engine-core';
 
 onInit(api: EngineAPI) {
   this.myService = api.services.get('myService') as MyServiceAPI;
@@ -516,7 +516,7 @@ onUpdate(api: EngineAPI) {
 
 ## 9. COOP/COEP headers
 
-`@gwen/vite-plugin` sets the isolation headers automatically in dev mode.
+`@djodjonx/gwen-vite-plugin` sets the isolation headers automatically in dev mode.
 For production servers:
 
 ```nginx
@@ -662,25 +662,25 @@ function getDataChannelView(buffer: ArrayBuffer): Float32Array;
 
 ---
 
-## 12. Reference implementation: `@gwen/plugin-physics2d`
+## 12. Reference implementation: `@djodjonx/gwen-plugin-physics2d`
 
-The official `@gwen/plugin-physics2d` plugin covers every pattern documented here:
+The official `@djodjonx/gwen-plugin-physics2d` plugin covers every pattern documented here:
 
 | Pattern | File |
 |---|---|
-| Channel declaration | `packages/@gwen/plugin-physics2d/src/index.ts` |
-| Bus buffer retrieval in `onInit` | `packages/@gwen/plugin-physics2d/src/index.ts` |
-| Binary event reading (`readCollisionEventsFromBuffer`) | `packages/@gwen/plugin-physics2d/src/types.ts` |
+| Channel declaration | `packages/@djodjonx/gwen-plugin-physics2d/src/index.ts` |
+| Bus buffer retrieval in `onInit` | `packages/@djodjonx/gwen-plugin-physics2d/src/index.ts` |
+| Binary event reading (`readCollisionEventsFromBuffer`) | `packages/@djodjonx/gwen-plugin-physics2d/src/types.ts` |
 | Rust ring-buffer event writing | `crates/gwen-plugin-physics2d/src/world.rs` |
 | `gwen-wasm-utils` usage | `crates/gwen-plugin-physics2d/src/world.rs` |
-| TS tests with mock Bus | `packages/@gwen/plugin-physics2d/tests/physics2d.test.ts` |
+| TS tests with mock Bus | `packages/@djodjonx/gwen-plugin-physics2d/tests/physics2d.test.ts` |
 
 ```typescript
 // Complete usage example
-import { defineConfig } from '@gwen/kit';
-import { createEntityId } from '@gwen/engine-core';
-import { physics2D } from '@gwen/plugin-physics2d';
-import type { Physics2DAPI } from '@gwen/plugin-physics2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { createEntityId } from '@djodjonx/gwen-engine-core';
+import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
+import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60, debug: true },

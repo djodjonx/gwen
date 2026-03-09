@@ -5,7 +5,7 @@ Type definitions used throughout GWEN.
 ## Schema Types
 
 ```typescript
-import { Types } from '@gwen/engine-core';
+import { Types } from '@djodjonx/gwen-engine-core';
 
 Types.f32    // 32-bit float (most common for positions, velocities)
 Types.f64    // 64-bit float (double precision)
@@ -101,7 +101,7 @@ type PluginEntry = TsPlugin | (() => TsPlugin);
 Extract the TypeScript type from a `ComponentDefinition`:
 
 ```typescript
-import { defineComponent, Types, InferComponent } from '@gwen/engine-core';
+import { defineComponent, Types, InferComponent } from '@djodjonx/gwen-engine-core';
 
 export const Health = defineComponent({
   name: 'health',
@@ -144,8 +144,8 @@ declare global {
 `GwenConfigServices<T>` is the utility type used by `gwen prepare` to extract the merged services map from a `defineConfig()` result. For normal game development, use the global `GwenServices` instead. Use `GwenConfigServices` for advanced cases (shared libraries, custom tooling):
 
 ```typescript
-import { defineConfig, GwenConfigServices } from '@gwen/engine-core';
-import { InputPlugin } from '@gwen/plugin-input';
+import { defineConfig, GwenConfigServices } from '@djodjonx/gwen-engine-core';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 
 const gwenConfig = defineConfig({
   plugins: [new InputPlugin()],
@@ -176,7 +176,7 @@ interface Scene {
 - `EngineAPI` does **not** expose `entityExists`, `emit`, or `on`.
 - Scene loading uses `api.scene?.load('SceneName')` (string name), not a scene object.
 - `i64` / `u64` fields are `bigint` in JavaScript, not `number`.
-- For exact contracts, see exported types from `@gwen/engine-core`.
+- For exact contracts, see exported types from `@djodjonx/gwen-engine-core`.
 
 ## Next Steps
 

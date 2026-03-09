@@ -18,7 +18,7 @@ GWEN follows a **3-layer architecture**:
 
 ### Layer 1: Core Engine (Rust/WASM)
 
-**Location:** `crates/gwen-core/` (Rust) → `packages/@gwen/engine-core/wasm/` (compiled WASM)
+**Location:** `crates/gwen-core/` (Rust) → `packages/@djodjonx/gwen-engine-core/wasm/` (compiled WASM)
 
 **Responsibilities:**
 - Entity creation/destruction
@@ -42,7 +42,7 @@ GWEN follows a **3-layer architecture**:
 
 ### Layer 2: Plugins (TypeScript)
 
-**Location:** `packages/@gwen/plugin-*/`
+**Location:** `packages/@djodjonx/gwen-plugin-*/`
 
 **Types of Plugins:**
 1. **Renderers** - Draw to screen (Canvas2D, WebGL)
@@ -173,7 +173,7 @@ EntityId = (BigInt(generation) << 32n) | BigInt(index)   // bigint, 64 bits
 - generation (32 bits high) : how many times this slot was reused
 ```
 
-Use `createEntityId(index, generation)` and `unpackEntityId(id)` from `@gwen/engine-core`
+Use `createEntityId(index, generation)` and `unpackEntityId(id)` from `@djodjonx/gwen-engine-core`
 — never construct or decompose an `EntityId` with raw bitwise arithmetic.
 
 **Why two parts?**

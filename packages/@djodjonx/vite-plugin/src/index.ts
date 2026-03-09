@@ -225,15 +225,15 @@ function generateEntryModule(hasScenesDir: boolean): string {
  */
 function findWasmPluginFile(root: string, fileName: string): string | null {
   const nmDirs = [
-    path.resolve(root, 'node_modules/@gwen'),
-    path.resolve(root, '../node_modules/@gwen'),
-    path.resolve(__dirname, '../../../node_modules/@gwen'),
+    path.resolve(root, 'node_modules/@djodjonx'),
+    path.resolve(root, '../node_modules/@djodjonx'),
+    path.resolve(__dirname, '../../../node_modules/@djodjonx'),
   ];
 
   for (const nmDir of nmDirs) {
     if (!fs.existsSync(nmDir)) continue;
     for (const entry of fs.readdirSync(nmDir)) {
-      if (!entry.startsWith('plugin-')) continue;
+      if (!entry.startsWith('gwen-plugin-')) continue;
       const pkgPath = path.join(nmDir, entry);
       const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
       const candidate = path.join(realPkgPath, 'wasm', fileName);
@@ -250,14 +250,14 @@ function findWasmPluginFile(root: string, fileName: string): string | null {
 function collectWasmPluginDirs(root: string): string[] {
   const dirs: string[] = [];
   const nmDirs = [
-    path.resolve(root, 'node_modules/@gwen'),
-    path.resolve(root, '../node_modules/@gwen'),
+    path.resolve(root, 'node_modules/@djodjonx'),
+    path.resolve(root, '../node_modules/@djodjonx'),
   ];
 
   for (const nmDir of nmDirs) {
     if (!fs.existsSync(nmDir)) continue;
     for (const entry of fs.readdirSync(nmDir)) {
-      if (!entry.startsWith('plugin-')) continue;
+      if (!entry.startsWith('gwen-plugin-')) continue;
       // Resolve symlink (pnpm workspace uses symlinks to source packages)
       const pkgPath = path.join(nmDir, entry);
       const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;

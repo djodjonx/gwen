@@ -33,7 +33,7 @@ export const Health = defineComponent({
 **Systems** are pure logic:
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const DamageSystem = defineSystem({
   name: 'DamageSystem',

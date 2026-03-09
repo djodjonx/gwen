@@ -433,7 +433,7 @@ export const GameScene = defineScene('Game', () => ({
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { SceneManager, defineScene } from '@gwen/engine-core';
+import { SceneManager, defineScene } from '@djodjonx/gwen-engine-core';
 
 it('should reload scene when reloadOnReenter is true', () => {
   let enterCount = 0;

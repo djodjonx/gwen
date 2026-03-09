@@ -1,4 +1,4 @@
-# @djodjonx/gwen-plugin-debug
+#@djodjonx/gwen-plugin-debug
 
 **GWEN Debug Plugin — FPS monitor, performance metrics, and debug overlay**
 
@@ -7,7 +7,7 @@ Monitor your game's performance with real-time metrics and a visual overlay.
 ## Installation
 
 ```bash
-npm install @djodjonx/gwen-plugin-debug
+npm install@djodjonx/gwen-plugin-debug
 ```
 
 ## Quick Start

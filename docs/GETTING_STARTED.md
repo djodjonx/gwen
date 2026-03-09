@@ -59,7 +59,7 @@ pnpm build
 pnpm test
 
 # Test specific package
-cd packages/@gwen/engine-core
+cd packages/@djodjonx/engine-core
 pnpm test
 
 # Watch mode
@@ -90,7 +90,7 @@ gwen/
 │   ├── src/                 # Rust source
 │   └── tests/               # Rust tests
 │
-├── packages/@gwen/          # TypeScript packages
+├── packages/@djodjonx/          # TypeScript packages
 │   ├── engine-core/         # Main engine (Rust + TS bindings)
 │   ├── cli/                 # Command-line tool
 │   ├── plugin-*/            # Official plugins
@@ -115,8 +115,8 @@ cd my-game
 Create `gwen.config.ts`:
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export default defineConfig({
   plugins: [
@@ -130,7 +130,7 @@ export default defineConfig({
 `src/components/Position.ts`:
 
 ```typescript
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',
@@ -146,7 +146,7 @@ export const Position = defineComponent({
 `src/systems/movement.ts`:
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Position } from '../components/Position';
 
 export const MovementSystem = defineSystem({
@@ -167,7 +167,7 @@ export const MovementSystem = defineSystem({
 `src/main.ts`:
 
 ```typescript
-import { createEngine, initWasm, defineScene } from '@gwen/engine-core';
+import { createEngine, initWasm, defineScene } from '@djodjonx/gwen-engine-core';
 import gwenConfig from '../gwen.config';
 import { Position } from './components/Position';
 import { MovementSystem } from './systems/movement';
@@ -215,7 +215,7 @@ pnpm dev
 
 ```bash
 # Optimized build with wasm-opt
-wasm-pack build --target web --release --out-dir packages/@gwen/engine-core/wasm crates/gwen-core
+wasm-pack build --target web --release --out-dir packages/@djodjonx/engine-core/wasm crates/gwen-core
 ```
 
 ### Publish Packages to npm
@@ -276,7 +276,7 @@ pnpm install
 
 ```bash
 # Check WASM file exists
-ls packages/@gwen/engine-core/wasm/
+ls packages/@djodjonx/engine-core/wasm/
 
 # Rebuild WASM
 pnpm build

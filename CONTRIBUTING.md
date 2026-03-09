@@ -117,11 +117,11 @@ gwen/
 ├── crates/              # Rust/WASM core
 │   └── gwen-core/
 ├── packages/            # TypeScript packages
-│   ├── @djodjonx/gwen-engine-core/
-│   ├── @djodjonx/gwen-cli/
-│   ├── @djodjonx/gwen-plugin-*/
-│   ├── @djodjonx/gwen-renderer-*/
-│   └── @djodjonx/gwen-vite-plugin/
+│   ├──@djodjonx/gwen-engine-core/
+│   ├──@djodjonx/gwen-cli/
+│   ├──@djodjonx/gwen-plugin-*/
+│   ├──@djodjonx/gwen-renderer-*/
+│   └──@djodjonx/gwen-vite-plugin/
 ├── playground/          # Example game (Space Shooter)
 └── docs/               # Documentation
 ```
@@ -417,7 +417,7 @@ See [docs/core/string-pool.md](docs/core/string-pool.md) for complete documentat
 ### README Structure
 
 ```markdown
-# @djodjonx/gwen-package-name
+#@djodjonx/gwen-package-name
 
 **Short description**
 

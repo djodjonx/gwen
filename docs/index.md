@@ -55,7 +55,7 @@ Everything is configured in one place (`gwen.config.ts`) and runs with `gwen dev
 ## Quick Example
 
 ```typescript
-import { defineComponent, Types, defineSystem, defineScene } from '@gwen/engine-core';
+import { defineComponent, Types, defineSystem, defineScene } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',

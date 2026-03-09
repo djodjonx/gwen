@@ -1,4 +1,4 @@
-# @djodjonx/gwen-plugin-input
+#@djodjonx/gwen-plugin-input
 
 **GWEN Input Plugin — Keyboard, mouse, and gamepad input**
 
@@ -7,7 +7,7 @@ Handle player input with a unified, easy-to-use API.
 ## Installation
 
 ```bash
-npm install @djodjonx/gwen-plugin-input
+npm install@djodjonx/gwen-plugin-input
 ```
 
 ## Quick Start

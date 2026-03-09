@@ -1,4 +1,4 @@
-# @djodjonx/gwen-plugin-input
+#@djodjonx/gwen-plugin-input
 
 ## 0.3.3
 

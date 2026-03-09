@@ -25,7 +25,7 @@ Complete API documentation for GWEN Engine.
 The recommended entry point for game projects is `createEngine()`:
 
 ```typescript
-import { createEngine, initWasm } from '@gwen/engine-core';
+import { createEngine, initWasm } from '@djodjonx/gwen-engine-core';
 import gwenConfig from '../gwen.config';
 
 await initWasm();
@@ -53,7 +53,7 @@ engine.registerSystem(plugin: TsPlugin): this  // Register a plugin manually
 Define a reusable ECS component with a typed schema.
 
 ```typescript
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 // Form 1 — direct object (recommended)
 export const Position = defineComponent({
@@ -91,7 +91,7 @@ Types.string  // String (stored as UTF-8 intern ID)
 Extract the TypeScript type from a component definition:
 
 ```typescript
-import { InferComponent } from '@gwen/engine-core';
+import { InferComponent } from '@djodjonx/gwen-engine-core';
 
 export type PositionData = InferComponent<typeof Position>;
 // → { x: number; y: number }
@@ -104,7 +104,7 @@ export type PositionData = InferComponent<typeof Position>;
 Define a game scene with systems, UI, and lifecycle hooks.
 
 ```typescript
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 
 // Form 1 — direct object
 export const PauseScene = defineScene({
@@ -162,7 +162,7 @@ scenes.loadSceneImmediate('MainMenu', engine.getAPI());
 Define a gameplay system with optional local state.
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 // Form 1 — direct object (no local state)
 export const MovementSystem = defineSystem({
@@ -206,7 +206,7 @@ export const SpawnerSystem = defineSystem('SpawnerSystem', () => {
 Define a reusable entity template.
 
 ```typescript
-import { definePrefab } from '@gwen/engine-core';
+import { definePrefab } from '@djodjonx/gwen-engine-core';
 
 export const PlayerPrefab = definePrefab({
   name: 'Player',
@@ -236,7 +236,7 @@ export const EnemyPrefab = definePrefab({
 Define a renderer-agnostic UI component.
 
 ```typescript
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 
 export const PlayerUI = defineUI<GwenServices>({
   name: 'PlayerUI',
@@ -255,7 +255,7 @@ export const PlayerUI = defineUI<GwenServices>({
 Link a UI to an entity with `UIComponent`:
 
 ```typescript
-import { UIComponent } from '@gwen/engine-core';
+import { UIComponent } from '@djodjonx/gwen-engine-core';
 
 const player = api.createEntity();
 api.addComponent(player, UIComponent, { uiName: 'PlayerUI' });
@@ -268,10 +268,10 @@ api.addComponent(player, UIComponent, { uiName: 'PlayerUI' });
 Configure the engine and register plugins. Returns a `TypedEngineConfig` with inferred services.
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export const gwenConfig = defineConfig({
   engine: {
@@ -350,7 +350,7 @@ interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>>
 Create typed plugins that expose services to `api.services`.
 
 ```typescript
-import type { GwenPlugin, EngineAPI } from '@gwen/engine-core';
+import type { GwenPlugin, EngineAPI } from '@djodjonx/gwen-engine-core';
 
 export interface MyService {
   doSomething(): void;

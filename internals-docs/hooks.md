@@ -20,7 +20,7 @@ Un hook est un point d'extension nommé dans le moteur où les plugins peuvent e
 ### Enregistrer un hook
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const MySystem = defineSystem({
   name: 'MySystem',

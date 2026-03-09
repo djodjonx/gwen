@@ -116,7 +116,7 @@ export const PlayerUI = defineUI<GwenDefaultServices>({
 ### Form 1 — direct object (stateless rendering)
 
 ```typescript
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { Position } from '../components';
 
 export const PlayerUI = defineUI({
@@ -201,7 +201,7 @@ export const GameScene = defineScene('Game', () => ({
 Use the `UIComponent` to link entities to UI renderers:
 
 ```typescript
-import { UIComponent } from '@gwen/engine-core';
+import { UIComponent } from '@djodjonx/gwen-engine-core';
 
 const player = api.createEntity();
 api.addComponent(player, Position, { x: 100, y: 100 });
@@ -213,7 +213,7 @@ api.addComponent(player, UIComponent, { uiName: 'PlayerUI' }); // Links to Playe
 From the playground Space Shooter:
 
 ```typescript
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
 export const PlayerUI = defineUI({
@@ -442,7 +442,7 @@ export const ParticleUI = defineUI({
 For menus and HUD, you can use HTML instead of Canvas:
 
 ```typescript
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
 
 export default defineConfig({
   plugins: [
@@ -463,7 +463,7 @@ Then create HTML UI components:
 Update from systems:
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const ScoreSystem = defineSystem({
   name: 'ScoreSystem',

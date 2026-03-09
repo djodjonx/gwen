@@ -1,4 +1,4 @@
-# @djodjonx/gwen-plugin-audio
+#@djodjonx/gwen-plugin-audio
 
 **GWEN Audio Plugin — Web Audio API integration**
 
@@ -7,7 +7,7 @@ Manage sound effects, background music, and audio playback in your GWEN game.
 ## Installation
 
 ```bash
-npm install @djodjonx/gwen-plugin-audio
+npm install@djodjonx/gwen-plugin-audio
 ```
 
 ## Quick Start

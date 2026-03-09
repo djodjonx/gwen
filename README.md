@@ -34,7 +34,7 @@ GWEN helps you build games with a clear structure:
 ### 1) Scaffold a game project (recommended)
 
 ```bash
-pnpm create @djodjonx/gwen-app my-game
+pnpm create@djodjonx/gwen-app my-game
 cd my-game
 pnpm dev
 ```
@@ -60,7 +60,7 @@ GWEN ships with a CLI designed around the same workflow as the playground.
 
 ```bash
 # Create project
-pnpm create @djodjonx/gwen-app my-game
+pnpm create@djodjonx/gwen-app my-game
 
 # Development
 gwen dev

@@ -116,7 +116,7 @@ export default defineConfig({
 GWEN automatically detects if `SharedArrayBuffer` is unavailable and throws an error:
 
 ```typescript
-// This happens automatically in @gwen/engine-core
+// This happens automatically in@djodjonx/gwen-engine-core
 if (typeof SharedArrayBuffer === 'undefined') {
   throw new Error(
     '[GWEN] SharedArrayBuffer not available.\n' +

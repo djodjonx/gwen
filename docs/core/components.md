@@ -11,7 +11,7 @@ Use `defineComponent()` to create typed component definitions.
 **Form 1 — direct object** (recommended for most cases):
 
 ```typescript
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',

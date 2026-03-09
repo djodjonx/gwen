@@ -96,9 +96,9 @@ export async function buildViteConfig(
 async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> {
   const candidates = [
     // Monorepo dev — dist compilé (Node ESM ne peut pas importer du .ts natif)
-    path.resolve(projectDir, '..', 'packages', '@gwen', 'vite-plugin', 'dist', 'index.js'),
+    path.resolve(projectDir, '..', 'packages', '@djodjonx', 'vite-plugin', 'dist', 'index.js'),
     // node_modules standard — pointer vers dist/index.js explicitement
-    path.resolve(projectDir, 'node_modules', '@gwen', 'vite-plugin', 'dist', 'index.js'),
+    path.resolve(projectDir, 'node_modules', '@djodjonx', 'vite-plugin', 'dist', 'index.js'),
   ];
 
   for (const candidate of candidates) {

@@ -98,7 +98,7 @@ gwen info
 
 ## Notes
 
-Supported global flags by command are implemented in `@gwen/cli`.
+Supported global flags by command are implemented in `@djodjonx/gwen-cli`.
 If in doubt, run:
 
 ```bash

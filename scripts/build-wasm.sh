@@ -123,7 +123,7 @@ main() {
   check_wasm_pack
   echo ""
 
-  # Build gwen-core → @gwen/engine-core/wasm/
+  # Build gwen-core → @djodjonx/engine-core/wasm/
   if [ -d "$CRATES_DIR/gwen-core" ]; then
     build_wasm_crate \
       "$CRATES_DIR/gwen-core" \
@@ -134,7 +134,7 @@ main() {
     log_warn "Skipping gwen-core (not found)"
   fi
 
-  # Build gwen-plugin-physics2d → @gwen/plugin-physics2d/wasm/
+  # Build gwen-plugin-physics2d → @djodjonx/plugin-physics2d/wasm/
   if [ -d "$CRATES_DIR/gwen-plugin-physics2d" ]; then
     build_wasm_crate \
       "$CRATES_DIR/gwen-plugin-physics2d" \

@@ -1,4 +1,4 @@
-# @djodjonx/gwen-cli
+#@djodjonx/gwen-cli
 
 ## 0.3.2
 

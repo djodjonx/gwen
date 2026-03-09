@@ -9,7 +9,7 @@ Use `definePrefab()` to create entity templates. Two forms are supported.
 ### Form 1 — direct object (recommended)
 
 ```typescript
-import { definePrefab } from '@gwen/engine-core';
+import { definePrefab } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity, Health } from '../components';
 
 export const PlayerPrefab = definePrefab({
@@ -205,7 +205,7 @@ export const GameScene = defineScene('Game', () => ({
 ## Usage in Systems
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',

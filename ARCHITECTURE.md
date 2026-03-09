@@ -86,7 +86,7 @@ Point d'entrée du projet utilisateur — le **Composition Root**.
 ```typescript
 // gwen.config.ts (Projet Utilisateur)
 import { defineConfig } from '@djodjonx/gwen-cli';
-import { physics2D } from '@djodjonx/gwen-plugin-physics2d'; // npm install @djodjonx/gwen-plugin-physics2d
+import { physics2D } from '@djodjonx/gwen-plugin-physics2d'; // npm install@djodjonx/gwen-plugin-physics2d
 import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 
@@ -342,7 +342,7 @@ gwen/
 │           └── bindings.rs             ← exports wasm-bindgen (Physics2DPlugin)
 │
 ├── packages/
-│   └── @djodjonx/gwen-
+│   └──@djodjonx/gwen-
 │       ├── engine-core/                ← Orchestrateur TS (Engine, WasmBridge…)
 │       │   └── wasm/                   ← gwen_core_bg.wasm pré-compilé (CI)
 │       ├── cli/                        ← gwen dev/build/prepare
@@ -370,7 +370,7 @@ gwen/
 npm create gwen-app mon-jeu
 
 # Ajouter la physique — simple npm install
-npm install @djodjonx/gwen-plugin-physics2d
+npm install@djodjonx/gwen-plugin-physics2d
 
 # Développement
 gwen dev     # Vite HMR + WASM servi depuis node_modules

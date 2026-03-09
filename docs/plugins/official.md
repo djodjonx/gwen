@@ -2,12 +2,12 @@
 
 GWEN provides official plugins for common game features.
 
-## @gwen/plugin-input
+##@djodjonx/gwen-plugin-input
 
 Keyboard, mouse, and gamepad input handling.
 
 ```typescript
-import { InputPlugin } from '@gwen/plugin-input';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 
 new InputPlugin()
 ```
@@ -26,12 +26,12 @@ if (keyboard.isJustPressed('Enter')) {
 }
 ```
 
-## @gwen/plugin-audio
+##@djodjonx/gwen-plugin-audio
 
 Sound effects and music playback.
 
 ```typescript
-import { AudioPlugin } from '@gwen/plugin-audio';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 
 new AudioPlugin({ masterVolume: 0.7 })
 ```
@@ -45,12 +45,12 @@ audio.play('shoot');
 audio.playMusic('background', { loop: true });
 ```
 
-## @gwen/renderer-canvas2d
+##@djodjonx/gwen-renderer-canvas2d
 
 Canvas 2D rendering.
 
 ```typescript
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 new Canvas2DRenderer({
   width: 800,
@@ -68,12 +68,12 @@ ctx.fillStyle = '#ff0000';
 ctx.fillRect(x, y, 32, 32);
 ```
 
-## @gwen/plugin-html-ui
+##@djodjonx/gwen-plugin-html-ui
 
 HTML/CSS UI integration.
 
 ```typescript
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
 
 new HtmlUIPlugin()
 ```
@@ -84,12 +84,12 @@ new HtmlUIPlugin()
 <div id="score">Score: 0</div>
 ```
 
-## @gwen/plugin-debug
+##@djodjonx/gwen-plugin-debug
 
 Performance overlay and debugging tools.
 
 ```typescript
-import { DebugPlugin } from '@gwen/plugin-debug';
+import { DebugPlugin } from '@djodjonx/gwen-plugin-debug';
 
 new DebugPlugin({
   overlay: { position: 'top-right' }

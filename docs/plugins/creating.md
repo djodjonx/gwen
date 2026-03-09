@@ -1,6 +1,6 @@
 # Creating Plugins
 
-GWEN provides a unified toolkit for authoring plugins via `@gwen/kit`. 
+GWEN provides a unified toolkit for authoring plugins via `@djodjonx/gwen-kit`. 
 
 Instead of writing verbose classes manually, you use the `definePlugin` helper. It creates standard, type-safe plugin constructors that integrate perfectly with the engine.
 
@@ -15,7 +15,7 @@ It elegantly handles local state by keeping it inside a `setup()` closure, so yo
 Here is how you create a simple plugin:
 
 ```typescript
-import { definePlugin } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
 
 export const LoggerPlugin = definePlugin({
   name: 'LoggerPlugin',
@@ -38,7 +38,7 @@ export const LoggerPlugin = definePlugin({
 Usage in `gwen.config.ts`:
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
+import { defineConfig } from '@djodjonx/gwen-kit';
 import { LoggerPlugin } from './plugins/LoggerPlugin';
 
 export default defineConfig({
@@ -51,7 +51,7 @@ export default defineConfig({
 If your plugin needs configuration, you declare an `options` parameter in the `setup()` function. TypeScript will automatically infer the argument type for the generated constructor.
 
 ```typescript
-import { definePlugin } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
 
 export interface AudioConfig {
   masterVolume?: number;
@@ -91,7 +91,7 @@ Plugins can expose APIs (services) to the rest of the game (Systems, Scenes, UI)
 To do this, you declare what your plugin `provides` as a phantom type mapping, and then register the actual implementation in `onInit()`.
 
 ```typescript
-import { definePlugin } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
 
 // 1. Define the service interface
 export interface MathService {
@@ -172,7 +172,7 @@ setup() {
 `definePlugin` also supports creating high-performance plugins powered by Rust/WASM. By simply adding a `wasm` key to the definition, the factory generates a plugin with WASM-specific lifecycles.
 
 ```typescript
-import { definePlugin, loadWasmPlugin } from '@gwen/kit';
+import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
 
 export const Physics2DPlugin = definePlugin({
   name: 'Physics2D',
@@ -216,10 +216,10 @@ export const Physics2DPlugin = definePlugin({
 
 Because `definePlugin` returns a constructor value rather than a named TypeScript type, you cannot use the `const` directly as a type annotation if you need to reference the plugin instance itself in another file.
 
-Use the `GwenPluginInstance` helper utility from `@gwen/kit`:
+Use the `GwenPluginInstance` helper utility from `@djodjonx/gwen-kit`:
 
 ```typescript
-import type { GwenPluginInstance } from '@gwen/kit';
+import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
 import { AudioPlugin } from './AudioPlugin';
 
 let pluginRef: GwenPluginInstance<typeof AudioPlugin>;

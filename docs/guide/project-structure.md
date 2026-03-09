@@ -37,7 +37,7 @@ Components are pure data with no logic. They describe what entities *are*.
 
 ```typescript
 // src/components/Position.ts
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',
@@ -47,7 +47,7 @@ export const Position = defineComponent({
 
 ```typescript
 // src/components/Velocity.ts
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Velocity = defineComponent({
   name: 'velocity',
@@ -87,7 +87,7 @@ Prefabs encapsulate entity creation logic so you don't repeat yourself.
 
 ```typescript
 // src/prefabs/Enemy.ts
-import { definePrefab } from '@gwen/engine-core';
+import { definePrefab } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity, Health } from '../components';
 
 export const EnemyPrefab = definePrefab({
@@ -134,7 +134,7 @@ Scenes control which systems run, what UI displays, and manage entity lifecycles
 
 ```typescript
 // src/scenes/GameScene.ts
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 import { MovementSystem, PlayerSystem } from '../systems';
 import { PlayerUI, ScoreUI } from '../ui';
 import { PlayerPrefab } from '../prefabs';
@@ -170,7 +170,7 @@ Systems query entities and update components based on game rules.
 
 ```typescript
 // src/systems/MovementSystem.ts
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem({
@@ -208,7 +208,7 @@ UI components handle how entities are drawn to the screen.
 
 ```typescript
 // src/ui/PlayerUI.ts
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { Position } from '../components';
 
 export const PlayerUI = defineUI({
@@ -241,10 +241,10 @@ export const PlayerUI = defineUI({
 This is the single source of truth for your game's setup.
 
 ```typescript
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export default defineConfig({
   engine: {
@@ -304,7 +304,7 @@ export const PlayerPrefab = definePrefab({
 
 ```typescript
 // systems/ScoreSystem.ts
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const ScoreSystem = defineSystem({
   name: 'ScoreSystem',

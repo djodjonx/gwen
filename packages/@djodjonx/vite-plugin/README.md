@@ -1,4 +1,4 @@
-# @djodjonx/gwen-vite-plugin
+#@djodjonx/gwen-vite-plugin
 
 **GWEN Vite Plugin — WASM hot-reload, asset management, and scene auto-discovery**
 
@@ -7,7 +7,7 @@ Integrate GWEN with Vite for seamless development with WASM hot-reloading.
 ## Installation
 
 ```bash
-npm install -D @djodjonx/gwen-vite-plugin
+npm install -D@djodjonx/gwen-vite-plugin
 ```
 
 ## Quick Start

@@ -9,7 +9,7 @@ Use `defineSystem()` to define a system. **Two forms are supported.**
 ### Form 1 — direct object (no local state)
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const MovementSystem = defineSystem({
   name: 'MovementSystem',
@@ -209,8 +209,8 @@ export const MovementSystem = defineSystem({
 From the playground Space Shooter:
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
@@ -538,7 +538,7 @@ This works because `gwen prepare` enriches the global `GwenDefaultServices` inte
 If you want to annotate explicitly (e.g. in a shared library or for clarity):
 
 ```typescript
-import type { EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem',
@@ -562,7 +562,7 @@ export const PlayerSystem = defineSystem({
 
 ```typescript
 // .gwen/gwen.d.ts  — auto-generated, do not edit
-import type { GwenConfigServices, EngineAPI } from '@gwen/engine-core';
+import type { GwenConfigServices, EngineAPI } from '@djodjonx/gwen-engine-core';
 import type _cfg from '../gwen.config';
 
 type _GwenServices = GwenConfigServices<typeof _cfg>;

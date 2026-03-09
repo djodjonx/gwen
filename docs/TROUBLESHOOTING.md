@@ -56,11 +56,11 @@ pnpm --version
 
 ---
 
-### "Module '@gwen/engine-core' not found"
+### "Module '@djodjonx/gwen-engine-core' not found"
 
 **Error:**
 ```
-Cannot find module '@gwen/engine-core'
+Cannot find module '@djodjonx/gwen-engine-core'
 ```
 
 **Causes:**
@@ -102,13 +102,13 @@ Failed to load WASM module
 
 ```bash
 # 1. Verify WASM file exists
-ls packages/@gwen/engine-core/wasm/
+ls packages/@djodjonx/gwen-engine-core/wasm/
 
 # 2. Rebuild WASM
 pnpm build
 
 # 3. Check file size (should be > 100KB)
-ls -lh packages/@gwen/engine-core/wasm/gwen_core_bg.wasm
+ls -lh packages/@djodjonx/gwen-engine-core/wasm/gwen_core_bg.wasm
 ```
 
 ---
@@ -335,7 +335,7 @@ pnpm typecheck
 
 ```bash
 # 1. Run single test file
-cd packages/@gwen/engine-core
+cd packages/@djodjonx/gwen-engine-core
 pnpm test tests/my-test.test.ts
 
 # 2. Watch mode
@@ -485,7 +485,7 @@ If your issue isn't listed here:
 
 ### Q: Can I use GWEN with existing Three.js code?
 
-**A:** Yes! You can create a renderer plugin that uses Three.js. See `@gwen/renderer-canvas2d` for an example.
+**A:** Yes! You can create a renderer plugin that uses Three.js. See `@djodjonx/gwen-renderer-canvas2d` for an example.
 
 ---
 
@@ -503,7 +503,7 @@ const audio = new Audio('/path/to/sound.mp3');
 audio.play();
 
 // Or use plugins
-import { AudioPlugin } from '@gwen/plugin-audio';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 ```
 
 ---
@@ -544,7 +544,7 @@ Then in Chrome DevTools (Sources tab), you can step through WASM.
 ```typescript
 // React component
 import { useEffect, useRef } from 'react';
-import { Engine } from '@gwen/engine-core';
+import { Engine } from '@djodjonx/gwen-engine-core';
 
 export function GameCanvas() {
   const canvasRef = useRef();

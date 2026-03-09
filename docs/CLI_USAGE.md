@@ -8,9 +8,9 @@
 ## Installation
 
 ```bash
-npm install -D @gwen/cli
+npm install -D@djodjonx/gwen-cli
 # or
-pnpm add -D @gwen/cli
+pnpm add -D@djodjonx/gwen-cli
 ```
 
 ### Verify Installation
@@ -360,7 +360,7 @@ background must be valid hex color
 mkdir my-game
 cd my-game
 pnpm init
-pnpm add -D @gwen/cli
+pnpm add -D@djodjonx/gwen-cli
 
 # 2. Prepare artifacts
 gwen prepare

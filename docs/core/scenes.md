@@ -11,7 +11,7 @@ Use `defineScene()` to create a scene. Two forms are supported.
 No external dependencies, simplest syntax:
 
 ```typescript
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 
 export const PauseScene = defineScene({
   name: 'Pause',
@@ -89,7 +89,7 @@ A scene definition returns an object with:
 From the playground Space Shooter:
 
 ```typescript
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { MovementSystem } from '../systems/MovementSystem';
 import { CollisionSystem } from '../systems/CollisionSystem';
@@ -138,7 +138,7 @@ Scenes are registered on a `SceneManager` and loaded by name:
 
 ```typescript
 // src/main.ts
-import { createEngine, initWasm } from '@gwen/engine-core';
+import { createEngine, initWasm } from '@djodjonx/gwen-engine-core';
 import gwenConfig from '../gwen.config';
 import { MainMenuScene } from './scenes/MainMenuScene';
 
@@ -343,7 +343,7 @@ export const GameOverScene = defineScene('GameOver', () => ({
 
 ```typescript
 // ✅ After gwen prepare — fully typed with zero annotation
-import type { EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 export const GameScene = defineScene('Game', () => ({
   systems: [],

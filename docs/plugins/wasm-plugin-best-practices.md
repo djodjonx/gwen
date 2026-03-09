@@ -6,7 +6,7 @@ description: Concrete rules, pitfalls, and architectural decisions for building 
 # WASM Plugin Best Practices
 
 > This document captures the concrete rules, pitfalls, and design decisions
-> learned while building `@gwen/plugin-physics2d` — the first official GWEN
+> learned while building `@djodjonx/gwen-plugin-physics2d` — the first official GWEN
 > WASM plugin. Every section describes **why** a rule exists, not just what it is.
 
 ---
@@ -34,13 +34,13 @@ Each WASM plugin lives in two places:
 
 ```
 crates/gwen-plugin-{name}/    ← Rust simulation logic
-packages/@gwen/plugin-{name}/ ← TypeScript glue + public API
+packages/@djodjonx/gwen-plugin-{name}/ ← TypeScript glue + public API
 ```
 
 ### Rule: `wasm/` is always gitignored
 
 ```gitignore
-# packages/@gwen/plugin-{name}/wasm/.gitignore
+# packages/@djodjonx/gwen-plugin-{name}/wasm/.gitignore
 *
 !.gitignore
 ```
@@ -182,7 +182,7 @@ Rapier and other simulation engines store raw ECS slot indices (0–maxEntities)
 not the 64-bit `EntityId` (bigint) used by the GWEN TypeScript ECS.
 
 ```typescript
-import { createEntityId } from '@gwen/engine-core';
+import { createEntityId } from '@djodjonx/gwen-engine-core';
 
 // ✅ Correct — reconstruct EntityId before using with ECS API
 for (const ev of physics.getCollisionEvents()) {
@@ -420,7 +420,7 @@ parsing overhead entirely.
 **Fix:** Use `unpackEntityId(entityId).index` to extract the raw slot index:
 
 ```typescript
-import { unpackEntityId } from '@gwen/engine-core';
+import { unpackEntityId } from '@djodjonx/gwen-engine-core';
 
 const { index } = unpackEntityId(entityId);
 const handle = physics.addRigidBody(index, 'dynamic', x, y);

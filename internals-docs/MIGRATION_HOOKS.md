@@ -141,7 +141,7 @@ engine.on('start', () => {
 **New Code (v0.2.0+):**
 ```typescript
 // auth-plugin.ts
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const AuthPlugin = defineSystem({
   name: 'AuthPlugin',

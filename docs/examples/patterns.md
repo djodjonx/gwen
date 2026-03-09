@@ -7,7 +7,7 @@ Reusable techniques for building games with GWEN.
 ### Destroy Offscreen Entities
 
 ```typescript
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 
 export const CleanupSystem = defineSystem({
   name: 'CleanupSystem',

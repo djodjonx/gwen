@@ -1,4 +1,4 @@
-# @djodjonx/gwen-renderer-canvas2d
+#@djodjonx/gwen-renderer-canvas2d
 
 **GWEN Canvas2D Renderer Plugin — 2D rendering with HTML Canvas**
 
@@ -7,7 +7,7 @@ Render sprites, shapes, and text using the Canvas 2D API.
 ## Installation
 
 ```bash
-npm install @djodjonx/gwen-renderer-canvas2d
+npm install@djodjonx/gwen-renderer-canvas2d
 ```
 
 ## Quick Start

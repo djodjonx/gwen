@@ -40,7 +40,7 @@ security@gwen-engine.dev
 
 1. **Keep GWEN Updated**
    ```bash
-   npm update @djodjonx/gwen-engine-core
+   npm update@djodjonx/gwen-engine-core
    ```
 
 2. **Use HTTPS in Production**

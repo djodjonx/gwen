@@ -43,7 +43,7 @@ export interface Physics2DHooks {
 Dans `src/index.ts` :
 
 ```typescript
-import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenPlugin } from '@djodjonx/gwen-engine-core';
 import type { Physics2DHooks } from './types';
 
 /**
@@ -105,7 +105,7 @@ Dans `package.json` du plugin :
 
 ```json
 {
-  "name": "@gwen/plugin-physics2d",
+  "name": "@djodjonx/gwen-plugin-physics2d",
   "version": "0.1.0",
   "description": "Physics2D Plugin for GWEN",
   "main": "./dist/index.js",
@@ -259,7 +259,7 @@ api.hooks.hook('physics:collision', (event) => {
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
-import { createGwenHooks } from '@gwen/engine-core';
+import { createGwenHooks } from '@djodjonx/gwen-engine-core';
 
 describe('Physics2D Hooks', () => {
   it('should emit collision event', async () => {
