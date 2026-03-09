@@ -146,8 +146,25 @@ Reference files:
 - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - setup and first run
 - [`docs/CLI.md`](docs/CLI.md) - command reference and scaffolding
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - technical architecture
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) - production deployment (SharedArrayBuffer headers)
+- [`docs/NPM_RELEASE.md`](docs/NPM_RELEASE.md) - npm publishing guide
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) - contribution guide
 - [`SECURITY.md`](SECURITY.md) - vulnerability reporting
+
+---
+
+## For Maintainers: Publishing to npm
+
+**Quick start:**
+```bash
+# 1. Build
+./scripts/build-wasm.sh && pnpm build:ts
+
+# 2. Publish
+pnpm publish -r --access public
+```
+
+See [`docs/QUICK_RELEASE.md`](docs/QUICK_RELEASE.md) for complete workflow with Changesets.
 
 ---
 

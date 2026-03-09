@@ -7,7 +7,15 @@ This document outlines the release process for GWEN.
 - Maintainer access to npm
 - Node.js 18+
 - pnpm 8+
+- Rust toolchain with `wasm32-unknown-unknown` target
+- `wasm-pack` installed (`cargo install wasm-pack`)
 - `NPM_TOKEN` configured in CI/CD environment
+
+## ⚠️ Important Notes
+
+**WASM Artifacts:** Packages `@gwen/engine-core` and `@gwen/plugin-physics2d` include pre-compiled WASM binaries in their `wasm/` folders. These MUST be built before publishing with `./scripts/build-wasm.sh`.
+
+**SharedArrayBuffer:** Users deploying GWEN need specific HTTP headers. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for configuration guides (Vercel, Netlify, Cloudflare, etc.).
 
 ## Release Checklist
 
@@ -105,7 +113,11 @@ git commit -m "chore(release): bump @gwen/engine-core to 0.2.0, @gwen/plugin-aud
 git tag v0.2.0
 git push origin main v0.2.0
 
-# 4. Publish
+# 4. Build WASM + TypeScript
+./scripts/build-wasm.sh
+pnpm build:ts
+
+# 5. Publish
 pnpm release
 # npm install @gwen/engine-core@0.2.0
 ```

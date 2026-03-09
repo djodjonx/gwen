@@ -222,6 +222,25 @@ export async function initWasm(
   if (_wasmEngine) return;
   if (_initPromise) return _initPromise;
 
+  // ── P0: Validate SharedArrayBuffer availability ────────────────────────────
+  // Required for WASM plugin communication via zero-copy shared memory.
+  // Without this, physics and other WASM plugins will fail at runtime.
+  if (typeof SharedArrayBuffer === 'undefined') {
+    throw new Error(
+      '[GWEN] SharedArrayBuffer is not available.\n\n' +
+        'GWEN requires SharedArrayBuffer for WASM plugin communication.\n' +
+        'Your server MUST send these HTTP headers:\n\n' +
+        '  Cross-Origin-Embedder-Policy: require-corp\n' +
+        '  Cross-Origin-Opener-Policy: same-origin\n\n' +
+        'See deployment guide: https://github.com/djodjonx/gwen/blob/main/docs/DEPLOYMENT.md\n\n' +
+        'Platform-specific configs:\n' +
+        '  • Vercel: Add to vercel.json\n' +
+        '  • Netlify: Add to netlify.toml\n' +
+        '  • Cloudflare: Add to _headers file\n' +
+        '  • Nginx/Apache: Add to server config\n',
+    );
+  }
+
   _maxEntities = maxEntities;
 
   const resolvedJsUrl = jsUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core.js` : null);

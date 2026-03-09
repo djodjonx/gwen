@@ -1,0 +1,26 @@
+# Development files
+src/
+tests/
+*.test.ts
+*.spec.ts
+vitest.config.ts
+vite.config.ts
+tsconfig.json
+tsconfig.node.json
+
+# Build artifacts (only dist/ and wasm/ should be published)
+.turbo/
+.vite/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Misc
+.DS_Store
+*.log
+
