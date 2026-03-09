@@ -4,7 +4,7 @@
 //! bidirectional mapping between GWEN entity indices (u32) and Rapier
 //! `RigidBodyHandle`s.
 
-use crate::components::{BodyType, PhysicsMaterial};
+use crate::components::{BodyOptions, BodyType, ColliderOptions};
 use gwen_wasm_utils::buffer::{flush_local_to_js, write_u16, write_u32, write_u8};
 use gwen_wasm_utils::ring::RingWriter;
 use js_sys::Uint8Array;
@@ -145,27 +145,33 @@ impl PhysicsWorld {
         x: f32,
         y: f32,
         body_type: BodyType,
+        opts: BodyOptions,
     ) -> u32 {
-        // Remove any existing body without touching the shared buffer
-        // (caller will re-register the new body immediately after)
         self.remove_body_internal(entity_index);
 
-        let mut rb = match body_type {
+        let mut builder = match body_type {
             BodyType::Fixed => RigidBodyBuilder::fixed(),
-            BodyType::Dynamic => {
-                // Give dynamic bodies a minimal mass so Rapier simulates them
-                // even when no collider is attached yet.
-                RigidBodyBuilder::dynamic()
-                    .additional_mass(1.0)
-                    .sleeping(false)
-            }
+            BodyType::Dynamic => RigidBodyBuilder::dynamic()
+                .additional_mass(opts.mass)
+                .sleeping(false),
             BodyType::Kinematic => RigidBodyBuilder::kinematic_position_based(),
-        }
-        .translation(vector![x, y])
-        .build();
+        };
 
-        // Ensure the body is awake immediately
+        builder = builder
+            .translation(vector![x, y])
+            .gravity_scale(opts.gravity_scale)
+            .linear_damping(opts.linear_damping)
+            .angular_damping(opts.angular_damping);
+
+        let mut rb = builder.build();
         rb.wake_up(true);
+
+        if body_type == BodyType::Dynamic {
+            let (vx, vy) = opts.initial_velocity;
+            if vx != 0.0 || vy != 0.0 {
+                rb.set_linvel(vector![vx, vy], true);
+            }
+        }
 
         let handle = self.rigid_body_set.insert(rb);
         let raw = handle.0.into_raw_parts().0;
@@ -182,7 +188,7 @@ impl PhysicsWorld {
         body_handle_raw: u32,
         hw: f32,
         hh: f32,
-        material: PhysicsMaterial,
+        opts: ColliderOptions,
     ) {
         if let Some(handle) = self.find_handle(body_handle_raw) {
             let entity_index = self
@@ -190,9 +196,11 @@ impl PhysicsWorld {
                 .get(&handle)
                 .copied()
                 .unwrap_or(u32::MAX);
-            let collider = ColliderBuilder::cuboid(hw, hh)
-                .restitution(material.restitution)
-                .friction(material.friction)
+            let mut builder = ColliderBuilder::cuboid(hw, hh)
+                .restitution(opts.material.restitution)
+                .friction(opts.material.friction)
+                .density(opts.density)
+                .sensor(opts.is_sensor)
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
@@ -200,8 +208,8 @@ impl PhysicsWorld {
                         | ActiveCollisionTypes::KINEMATIC_KINEMATIC
                         | ActiveCollisionTypes::KINEMATIC_FIXED
                         | ActiveCollisionTypes::DYNAMIC_DYNAMIC,
-                )
-                .build();
+                );
+            let collider = builder.build();
             self.collider_set
                 .insert_with_parent(collider, handle, &mut self.rigid_body_set);
         }
@@ -211,7 +219,7 @@ impl PhysicsWorld {
         &mut self,
         body_handle_raw: u32,
         radius: f32,
-        material: PhysicsMaterial,
+        opts: ColliderOptions,
     ) {
         if let Some(handle) = self.find_handle(body_handle_raw) {
             let entity_index = self
@@ -220,8 +228,10 @@ impl PhysicsWorld {
                 .copied()
                 .unwrap_or(u32::MAX);
             let collider = ColliderBuilder::ball(radius)
-                .restitution(material.restitution)
-                .friction(material.friction)
+                .restitution(opts.material.restitution)
+                .friction(opts.material.friction)
+                .density(opts.density)
+                .sensor(opts.is_sensor)
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
@@ -299,6 +309,16 @@ impl PhysicsWorld {
             if let Some(body) = self.rigid_body_set.get_mut(*handle) {
                 body.wake_up(true);
                 body.apply_impulse(vector![x, y], true);
+            }
+        }
+    }
+
+    /// Set the linear velocity of an entity's rigid body directly (m/s).
+    pub fn set_linear_velocity(&mut self, entity_index: u32, vx: f32, vy: f32) {
+        if let Some(handle) = self.entity_to_body.get(&entity_index) {
+            if let Some(body) = self.rigid_body_set.get_mut(*handle) {
+                body.wake_up(true);
+                body.set_linvel(vector![vx, vy], true);
             }
         }
     }

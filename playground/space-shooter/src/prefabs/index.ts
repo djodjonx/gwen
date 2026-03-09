@@ -34,13 +34,26 @@ export const EnemyPrefab = definePrefab({
   },
 });
 
-export const BulletPrefab = definePrefab({
+export const PlayerBulletPrefab = definePrefab({
   name: 'Bullet',
   create: (api: EngineAPI, x: number, y: number, vx: number, vy: number, tagType: string) => {
     const id = api.createEntity();
     api.addComponent(id, Position, { x, y });
     api.addComponent(id, Velocity, { vx, vy });
-    api.addComponent(id, Tag, { type: tagType as 'bullet' | 'enemy-bullet' });
+    api.addComponent(id, Tag, { type: tagType as 'bullet' });
+    api.addComponent(id, Collider, { radius: tagType === 'bullet' ? 5 : 4 });
+    api.addComponent(id, UIComponent, { uiName: 'BulletUI' });
+    return id;
+  },
+});
+
+export const EnemyBulletPrefab = definePrefab({
+  name: 'Bullet',
+  create: (api: EngineAPI, x: number, y: number, vx: number, vy: number, tagType: string) => {
+    const id = api.createEntity();
+    api.addComponent(id, Position, { x, y });
+    api.addComponent(id, Velocity, { vx, vy });
+    api.addComponent(id, Tag, { type: tagType as 'enemy-bullet' });
     api.addComponent(id, Collider, { radius: tagType === 'bullet' ? 5 : 4 });
     api.addComponent(id, UIComponent, { uiName: 'BulletUI' });
     return id;

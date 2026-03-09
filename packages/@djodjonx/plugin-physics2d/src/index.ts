@@ -126,9 +126,20 @@ export const Physics2DPlugin = definePlugin({
 
     function createAPI(): Physics2DAPI {
       return {
-        addRigidBody(entityIndex, type, x, y) {
+        addRigidBody(entityIndex, type, x, y, opts = {}) {
           if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
-          const handle = wasmPlugin.add_rigid_body(entityIndex, x, y, BODY_TYPE[type]);
+          const handle = wasmPlugin.add_rigid_body(
+            entityIndex,
+            x,
+            y,
+            BODY_TYPE[type],
+            opts.mass ?? 1.0,
+            opts.gravityScale ?? 1.0,
+            opts.linearDamping ?? 0.0,
+            opts.angularDamping ?? 0.0,
+            opts.initialVelocity?.vx ?? 0.0,
+            opts.initialVelocity?.vy ?? 0.0,
+          );
           console.log(
             `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
           );
@@ -143,6 +154,8 @@ export const Physics2DPlugin = definePlugin({
             hh,
             opts.restitution ?? 0,
             opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
           );
         },
 
@@ -153,6 +166,8 @@ export const Physics2DPlugin = definePlugin({
             radius,
             opts.restitution ?? 0,
             opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
           );
         },
 
@@ -167,6 +182,10 @@ export const Physics2DPlugin = definePlugin({
 
         applyImpulse(entityIndex, x, y) {
           wasmPlugin?.apply_impulse(entityIndex, x, y);
+        },
+
+        setLinearVelocity(entityIndex, vx, vy) {
+          wasmPlugin?.set_linear_velocity(entityIndex, vx, vy);
         },
 
         getCollisionEvents(): CollisionEvent[] {
@@ -237,7 +256,7 @@ export const Physics2DPlugin = definePlugin({
         // le nettoyage automatique à l'unregister() du plugin.
         api.hooks.hook('prefab:instantiate' as any, (entityId: any, extensions: any) => {
           const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
-          if (!ext) return; // pas d'extension physics → rien à faire
+          if (!ext) return;
 
           const { index: slot } = unpackEntityId(entityId);
           const pos = (api as any).getComponent?.(entityId, { name: 'position' }) as
@@ -250,22 +269,35 @@ export const Physics2DPlugin = definePlugin({
             ext.bodyType,
             (pos?.x ?? 0) / PIXELS_PER_METER,
             (pos?.y ?? 0) / PIXELS_PER_METER,
+            {
+              mass: ext.mass ?? 1.0,
+              gravityScale: ext.gravityScale ?? 1.0,
+              linearDamping: ext.linearDamping ?? 0.0,
+              angularDamping: ext.angularDamping ?? 0.0,
+              initialVelocity: ext.initialVelocity
+                ? {
+                    vx: ext.initialVelocity.vx / PIXELS_PER_METER,
+                    vy: ext.initialVelocity.vy / PIXELS_PER_METER,
+                  }
+                : undefined,
+            },
           );
 
+          const colliderOpts: ColliderOptions = {
+            restitution: ext.restitution ?? 0,
+            friction: ext.friction ?? 0,
+            isSensor: ext.isSensor ?? false,
+            density: ext.density ?? 1.0,
+          };
+
           if (ext.radius !== undefined) {
-            physicsService.addBallCollider(handle, ext.radius / PIXELS_PER_METER, {
-              restitution: ext.restitution ?? 0,
-              friction: ext.friction ?? 0,
-            });
+            physicsService.addBallCollider(handle, ext.radius / PIXELS_PER_METER, colliderOpts);
           } else if (ext.hw !== undefined && ext.hh !== undefined) {
             physicsService.addBoxCollider(
               handle,
               ext.hw / PIXELS_PER_METER,
               ext.hh / PIXELS_PER_METER,
-              {
-                restitution: ext.restitution ?? 0,
-                friction: ext.friction ?? 0,
-              },
+              colliderOpts,
             );
           }
         });

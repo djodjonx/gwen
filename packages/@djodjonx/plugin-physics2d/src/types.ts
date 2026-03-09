@@ -45,6 +45,10 @@ export interface ColliderOptions {
   restitution?: number;
   /** Friction coefficient ≥ 0. 0 = frictionless. @default 0.5 */
   friction?: number;
+  /** If true, generates collision events but no physical response. @default false */
+  isSensor?: boolean;
+  /** Collider density in kg/m². Used when mass is 0. @default 1.0 */
+  density?: number;
 }
 
 // ─── Collision events ─────────────────────────────────────────────────────────
@@ -105,16 +109,49 @@ export interface CollisionEvent {
 export interface Physics2DPrefabExtension {
   /** How the body participates in the simulation. */
   bodyType: RigidBodyType;
+
+  // ── Collider shape (l'un ou l'autre) ──────────────────────────────────
   /** Ball collider radius in pixels. Mutually exclusive with `hw`/`hh`. */
   radius?: number;
   /** Box collider half-width in pixels. Requires `hh`. */
   hw?: number;
   /** Box collider half-height in pixels. Requires `hw`. */
   hh?: number;
+
+  // ── Collider material ─────────────────────────────────────────────────
   /** Bounciness [0, 1]. @default 0 */
   restitution?: number;
   /** Friction coefficient ≥ 0. @default 0 */
   friction?: number;
+  /**
+   * If true, the collider generates collision events but applies no physical
+   * response (trigger / sensor zone).
+   * @default false
+   */
+  isSensor?: boolean;
+  /** Collider density in kg/m². Used when `mass` is 0. @default 1.0 */
+  density?: number;
+
+  // ── Rigid body properties ─────────────────────────────────────────────
+  /**
+   * Mass in kg (dynamic bodies only). 0 = derive from collider density.
+   * @default 1.0
+   */
+  mass?: number;
+  /**
+   * Gravity scale multiplier. 0 = no gravity, 1 = normal.
+   * @default 1.0
+   */
+  gravityScale?: number;
+  /** Linear velocity damping ≥ 0. @default 0 */
+  linearDamping?: number;
+  /** Angular velocity damping ≥ 0. @default 0 */
+  angularDamping?: number;
+  /**
+   * Initial linear velocity in pixels/s (converted to m/s internally).
+   * Dynamic bodies only.
+   */
+  initialVelocity?: { vx: number; vy: number };
 }
 
 /** Raw JSON shape returned by the Rust `get_collision_events()` export. */
@@ -197,16 +234,29 @@ export interface Physics2DAPI {
    * @param type         Body simulation type.
    * @param x            Initial world position X in metres.
    * @param y            Initial world position Y in metres.
+   * @param opts         Optional body properties (mass, gravityScale, damping, initialVelocity).
    * @returns Opaque `bodyHandle` to pass to `addBoxCollider` / `addBallCollider`.
    */
-  addRigidBody(entityIndex: number, type: RigidBodyType, x: number, y: number): number;
+  addRigidBody(
+    entityIndex: number,
+    type: RigidBodyType,
+    x: number,
+    y: number,
+    opts?: Pick<ColliderOptions, never> & {
+      mass?: number;
+      gravityScale?: number;
+      linearDamping?: number;
+      angularDamping?: number;
+      initialVelocity?: { vx: number; vy: number };
+    },
+  ): number;
 
   /**
    * Add an axis-aligned box collider to a body.
    * @param bodyHandle  Return value of `addRigidBody`.
    * @param hw          Half-width in metres.
    * @param hh          Half-height in metres.
-   * @param opts        Optional restitution and friction overrides.
+   * @param opts        Optional material, sensor and density overrides.
    */
   addBoxCollider(bodyHandle: number, hw: number, hh: number, opts?: ColliderOptions): void;
 
@@ -214,36 +264,26 @@ export interface Physics2DAPI {
    * Add a ball (circle) collider to a body.
    * @param bodyHandle  Return value of `addRigidBody`.
    * @param radius      Radius in metres.
-   * @param opts        Optional restitution and friction overrides.
+   * @param opts        Optional material, sensor and density overrides.
    */
   addBallCollider(bodyHandle: number, radius: number, opts?: ColliderOptions): void;
 
   /** Remove the rigid body (and all its colliders) for an entity. */
   removeBody(entityIndex: number): void;
 
-  /**
-   * Directly set the position of a kinematic body.
-   * Call every frame from TS to drive kinematic bodies — this is more
-   * accurate than relying on the SAB sync (which is in pixels).
-   */
+  /** Directly set the position of a kinematic body (metres). */
   setKinematicPosition(entityIndex: number, x: number, y: number): void;
 
-  /**
-   * Apply an instantaneous linear impulse to a body.
-   * Has no effect on `fixed` bodies.
-   */
+  /** Apply an instantaneous linear impulse to a body (N·s). */
   applyImpulse(entityIndex: number, x: number, y: number): void;
 
-  /**
-   * Return the collision events produced during the last `step()`.
-   * Call once per frame, after the WasmStep slot.
-   */
+  /** Set the linear velocity of a body directly (m/s). */
+  setLinearVelocity(entityIndex: number, vx: number, vy: number): void;
+
+  /** Return the collision events produced during the last `step()`. */
   getCollisionEvents(): CollisionEvent[];
 
-  /**
-   * Return the current world position and rotation of an entity.
-   * Returns `null` if the entity has no rigid body.
-   */
+  /** Return the current world position and rotation of an entity. */
   getPosition(entityIndex: number): { x: number; y: number; rotation: number } | null;
 }
 
@@ -269,23 +309,39 @@ export interface Physics2DWasmModule {
 }
 
 export interface WasmPhysics2DPlugin {
-  add_rigid_body(entityIndex: number, x: number, y: number, bodyType: number): number;
+  add_rigid_body(
+    entityIndex: number,
+    x: number,
+    y: number,
+    bodyType: number,
+    mass: number,
+    gravityScale: number,
+    linearDamping: number,
+    angularDamping: number,
+    vx: number,
+    vy: number,
+  ): number;
   add_box_collider(
     bodyHandle: number,
     hw: number,
     hh: number,
     restitution: number,
     friction: number,
+    isSensor: number,
+    density: number,
   ): void;
   add_ball_collider(
     bodyHandle: number,
     radius: number,
     restitution: number,
     friction: number,
+    isSensor: number,
+    density: number,
   ): void;
   remove_rigid_body(entityIndex: number): void;
   set_kinematic_position(entityIndex: number, x: number, y: number): void;
   apply_impulse(entityIndex: number, x: number, y: number): void;
+  set_linear_velocity(entityIndex: number, vx: number, vy: number): void;
   step(delta: number): void;
   get_position(entityIndex: number): number[];
   stats(): string;

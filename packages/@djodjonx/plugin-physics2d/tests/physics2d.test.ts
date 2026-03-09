@@ -18,6 +18,7 @@ function makeMockWasmPlugin() {
     add_ball_collider: vi.fn(),
     remove_rigid_body: vi.fn(),
     apply_impulse: vi.fn(),
+    set_linear_velocity: vi.fn(),
     set_kinematic_position: vi.fn(),
     step: vi.fn(),
     get_position: vi.fn().mockReturnValue([]),
@@ -262,7 +263,18 @@ describe('Physics2DPlugin', () => {
       addRigidBody: (...a: unknown[]) => unknown;
     };
     physics.addRigidBody(5, 'dynamic', 1.0, 2.0);
-    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(5, 1.0, 2.0, BODY_TYPE.dynamic);
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      5,
+      1.0,
+      2.0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    );
   });
 
   it('addRigidBody delegates fixed body (type=0)', async () => {
@@ -272,7 +284,18 @@ describe('Physics2DPlugin', () => {
       addRigidBody: (...a: unknown[]) => unknown;
     };
     physics.addRigidBody(3, 'fixed', 0, 0);
-    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(3, 0, 0, BODY_TYPE.fixed);
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      3,
+      0,
+      0,
+      BODY_TYPE.fixed,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    );
   });
 
   it('addRigidBody delegates kinematic body (type=2)', async () => {
@@ -282,7 +305,18 @@ describe('Physics2DPlugin', () => {
       addRigidBody: (...a: unknown[]) => unknown;
     };
     physics.addRigidBody(7, 'kinematic', 5, 5);
-    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(7, 5, 5, BODY_TYPE.kinematic);
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      7,
+      5,
+      5,
+      BODY_TYPE.kinematic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    );
   });
 
   // ── Physics2DAPI — colliders ──────────────────────────────────────────────
@@ -294,7 +328,7 @@ describe('Physics2DPlugin', () => {
       addBoxCollider: (...a: unknown[]) => unknown;
     };
     physics.addBoxCollider(0, 1.0, 2.0);
-    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(0, 1.0, 2.0, 0, 0.5);
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(0, 1.0, 2.0, 0, 0.5, 0, 1.0);
   });
 
   it('addBallCollider delegates with custom options', async () => {
@@ -304,7 +338,7 @@ describe('Physics2DPlugin', () => {
       addBallCollider: (...a: unknown[]) => unknown;
     };
     physics.addBallCollider(0, 0.5, { restitution: 0.8, friction: 0.1 });
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(0, 0.5, 0.8, 0.1);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(0, 0.5, 0.8, 0.1, 0, 1.0);
   });
 
   // ── Physics2DAPI — removeBody & applyImpulse ──────────────────────────────
@@ -528,8 +562,8 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledTimes(1);
     expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledTimes(1);
     expect(mockWasmPlugin.add_box_collider).not.toHaveBeenCalled();
-    // radius converti : 14 / 50 = 0.28
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 14 / 50, 0, 0);
+    // radius converti : 14 / 50 = 0.28, defaults: restitution=0, friction=0, isSensor=0, density=1
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 14 / 50, 0, 0, 0, 1.0);
   });
 
   it('crée un box collider si hw + hh sont fournis', async () => {
@@ -542,7 +576,15 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledTimes(1);
     expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledTimes(1);
     expect(mockWasmPlugin.add_ball_collider).not.toHaveBeenCalled();
-    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(42, 20 / 50, 10 / 50, 0, 0);
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      42,
+      20 / 50,
+      10 / 50,
+      0,
+      0,
+      0,
+      1.0,
+    );
   });
 
   it('convertit la position ECS (pixels → mètres) dans addRigidBody', async () => {
@@ -552,12 +594,18 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'kinematic', radius: 5 },
     });
 
-    // La signature WASM réelle est add_rigid_body(entityIndex, x, y, bodyType)
+    // La signature WASM réelle est add_rigid_body(entityIndex, x, y, bodyType, mass, gravityScale, linearDamping, angularDamping, vx, vy)
     expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
-      1, // slot index
-      100 / 50, // x en mètres
-      200 / 50, // y en mètres
+      1,
+      100 / 50,
+      200 / 50,
       BODY_TYPE.kinematic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
     );
   });
 
@@ -568,7 +616,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'dynamic', radius: 8, restitution: 0.5, friction: 0.3 },
     });
 
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0.5, 0.3);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0.5, 0.3, 0, 1.0);
   });
 
   it('utilise restitution=0 et friction=0 par défaut', async () => {
@@ -578,7 +626,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'kinematic', radius: 6 },
     });
 
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 6 / 50, 0, 0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 6 / 50, 0, 0, 0, 1.0);
   });
 
   it('ne crée pas de collider si ni radius ni hw/hh ne sont fournis', async () => {
@@ -595,7 +643,87 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
 
   it('le hook est bien enregistré via api.hooks.hook', async () => {
     const { api } = await boot();
-
     expect(api.hooks.hook).toHaveBeenCalledWith('prefab:instantiate', expect.any(Function));
+  });
+
+  it('mass et gravityScale sont transmis à add_rigid_body', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', radius: 10, mass: 5.0, gravityScale: 0.5 },
+    });
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      5.0,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    );
+  });
+
+  it('linearDamping et angularDamping sont transmis', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', radius: 10, linearDamping: 0.3, angularDamping: 0.1 },
+    });
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.3,
+      0.1,
+      0.0,
+      0.0,
+    );
+  });
+
+  it('initialVelocity est convertie pixels→mètres', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', radius: 10, initialVelocity: { vx: 100, vy: -200 } },
+    });
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      2.0,
+      -4.0,
+    );
+  });
+
+  it('isSensor=true est transmis au collider (1)', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'kinematic', radius: 8, isSensor: true },
+    });
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 1, 1.0);
+  });
+
+  it('isSensor absent → 0 par défaut', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'kinematic', radius: 8 },
+    });
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 0, 1.0);
+  });
+
+  it('density est transmise au collider box', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', hw: 10, hh: 5, density: 2.5 },
+    });
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(42, 10 / 50, 5 / 50, 0, 0, 0, 2.5);
   });
 });

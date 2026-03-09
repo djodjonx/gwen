@@ -15,7 +15,7 @@
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
-use crate::components::{BodyType, PhysicsMaterial};
+use crate::components::{BodyOptions, BodyType, ColliderOptions, PhysicsMaterial};
 use crate::world::PhysicsWorld;
 
 /// 2D physics plugin exposed to JavaScript via wasm-bindgen.
@@ -67,12 +67,30 @@ impl Physics2DPlugin {
 
     /// Register a rigid body for an entity.
     ///
-    /// * `entity_index` — packed `EntityId.index` from the ECS.
-    /// * `x` / `y`      — initial world position (metres).
-    /// * `body_type`     — `0` = fixed, `1` = dynamic, `2` = kinematic.
+    /// * `entity_index`    — ECS slot index (NOT packed EntityId).
+    /// * `x` / `y`         — initial world position in metres.
+    /// * `body_type`        — `0` = fixed, `1` = dynamic, `2` = kinematic.
+    /// * `mass`             — mass in kg (dynamic only). @default 1.0
+    /// * `gravity_scale`    — gravity multiplier. @default 1.0
+    /// * `linear_damping`   — linear velocity damping. @default 0.0
+    /// * `angular_damping`  — angular velocity damping. @default 0.0
+    /// * `vx` / `vy`        — initial linear velocity in m/s (dynamic only). @default 0.0
     ///
     /// Returns an opaque `body_handle` to use when adding colliders.
-    pub fn add_rigid_body(&mut self, entity_index: u32, x: f32, y: f32, body_type: u8) -> u32 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_rigid_body(
+        &mut self,
+        entity_index: u32,
+        x: f32,
+        y: f32,
+        body_type: u8,
+        mass: f32,
+        gravity_scale: f32,
+        linear_damping: f32,
+        angular_damping: f32,
+        vx: f32,
+        vy: f32,
+    ) -> u32 {
         if entity_index >= self.max_entities {
             js_sys::eval(&format!(
                 "console.warn('[Physics2D] add_rigid_body: entity_index {} >= max_entities {} — \
@@ -82,11 +100,26 @@ impl Physics2DPlugin {
             .ok();
             return u32::MAX;
         }
-        self.world
-            .add_rigid_body(entity_index, x, y, BodyType::from_u8(body_type))
+        self.world.add_rigid_body(
+            entity_index,
+            x,
+            y,
+            BodyType::from_u8(body_type),
+            BodyOptions {
+                mass,
+                gravity_scale,
+                linear_damping,
+                angular_damping,
+                initial_velocity: (vx, vy),
+            },
+        )
     }
 
     /// Add a box (cuboid) collider to an existing rigid body.
+    ///
+    /// * `is_sensor` — if `1`, generates events but no physical response.
+    /// * `density`   — kg/m² (used when mass = 0). @default 1.0
+    #[allow(clippy::too_many_arguments)]
     pub fn add_box_collider(
         &mut self,
         body_handle: u32,
@@ -94,32 +127,41 @@ impl Physics2DPlugin {
         hh: f32,
         restitution: f32,
         friction: f32,
+        is_sensor: u8,
+        density: f32,
     ) {
         self.world.add_box_collider(
             body_handle,
             hw,
             hh,
-            PhysicsMaterial {
-                restitution,
-                friction,
+            ColliderOptions {
+                material: PhysicsMaterial { restitution, friction },
+                is_sensor: is_sensor != 0,
+                density,
             },
         );
     }
 
     /// Add a ball (circle) collider to an existing rigid body.
+    ///
+    /// * `is_sensor` — if `1`, generates events but no physical response.
+    /// * `density`   — kg/m² (used when mass = 0). @default 1.0
     pub fn add_ball_collider(
         &mut self,
         body_handle: u32,
         radius: f32,
         restitution: f32,
         friction: f32,
+        is_sensor: u8,
+        density: f32,
     ) {
         self.world.add_ball_collider(
             body_handle,
             radius,
-            PhysicsMaterial {
-                restitution,
-                friction,
+            ColliderOptions {
+                material: PhysicsMaterial { restitution, friction },
+                is_sensor: is_sensor != 0,
+                density,
             },
         );
     }
@@ -139,6 +181,11 @@ impl Physics2DPlugin {
     /// Apply a linear impulse to an entity's rigid body.
     pub fn apply_impulse(&mut self, entity_index: u32, x: f32, y: f32) {
         self.world.apply_impulse(entity_index, x, y);
+    }
+
+    /// Set the linear velocity of an entity's rigid body directly (m/s).
+    pub fn set_linear_velocity(&mut self, entity_index: u32, vx: f32, vy: f32) {
+        self.world.set_linear_velocity(entity_index, vx, vy);
     }
 
     // ── Simulation ────────────────────────────────────────────────────────
