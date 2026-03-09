@@ -80,6 +80,43 @@ export interface CollisionEvent {
   started: boolean;
 }
 
+// ─── Prefab extensions ────────────────────────────────────────────────────────
+
+/**
+ * Extension schema for `definePrefab({ extensions: { physics: … } })`.
+ *
+ * When a prefab is instantiated, the Physics2D plugin reads this object from
+ * the `prefab:instantiate` hook and automatically creates the corresponding
+ * Rapier rigid body + collider.
+ *
+ * Exactly one of `radius` (ball) or `hw`/`hh` (box) must be provided.
+ *
+ * @example
+ * ```ts
+ * export const PlayerPrefab = definePrefab({
+ *   name: 'Player',
+ *   extensions: {
+ *     physics: { bodyType: 'kinematic', radius: 14 },
+ *   },
+ *   create: (api) => { … },
+ * });
+ * ```
+ */
+export interface Physics2DPrefabExtension {
+  /** How the body participates in the simulation. */
+  bodyType: RigidBodyType;
+  /** Ball collider radius in pixels. Mutually exclusive with `hw`/`hh`. */
+  radius?: number;
+  /** Box collider half-width in pixels. Requires `hh`. */
+  hw?: number;
+  /** Box collider half-height in pixels. Requires `hw`. */
+  hh?: number;
+  /** Bounciness [0, 1]. @default 0 */
+  restitution?: number;
+  /** Friction coefficient ≥ 0. @default 0 */
+  friction?: number;
+}
+
 /** Raw JSON shape returned by the Rust `get_collision_events()` export. */
 interface RawCollisionEvent {
   a: number;

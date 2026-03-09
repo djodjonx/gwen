@@ -40,7 +40,7 @@ export const PlayerSystem = defineSystem({
         (keyboard.isPressed('Space') || keyboard.isPressed('KeyZ')) &&
         elapsed >= timer.cooldown
       ) {
-        api.prefabs.instantiate('Bullet', pos.x, pos.y - 20, 0, -500, 'bullet');
+        api.prefabs.instantiate('PlayerBullet', pos.x, pos.y - 20, 0, -500);
         api.addComponent(id, ShootTimer, { ...timer, elapsed: 0 });
       } else {
         api.addComponent(id, ShootTimer, { ...timer, elapsed });

@@ -1,12 +1,11 @@
 import { defineScene, UIComponent } from '@djodjonx/gwen-engine-core';
-import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
+import { PlayerPrefab, EnemyPrefab, PlayerBulletPrefab, EnemyBulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
 import { CollisionSystem } from '../systems/CollisionSystem';
-import { PhysicsBindingSystem } from '../systems/PhysicsBindingSystem';
 import { BackgroundUI } from '../ui/BackgroundUI';
 import { BulletUI } from '../ui/BulletUI';
 import { EnemyUI } from '../ui/EnemyUI';
@@ -14,25 +13,17 @@ import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
 export const GameScene = defineScene('Game', () => ({
-  // ✅ Reload automatique quand on revient dans la scene (comme Unity)
   reloadOnReenter: true,
 
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
-  // ✅ Plus besoin de factories manuelles ! Les systèmes seront recréés automatiquement
-  systems: [
-    MovementSystem,
-    PlayerSystem,
-    AiSystem,
-    SpawnerSystem,
-    PhysicsBindingSystem,
-    CollisionSystem,
-  ],
+  systems: [MovementSystem, PlayerSystem, AiSystem, SpawnerSystem, CollisionSystem],
 
   onEnter(api) {
     api.prefabs.register(PlayerPrefab);
     api.prefabs.register(EnemyPrefab);
-    api.prefabs.register(BulletPrefab);
+    api.prefabs.register(PlayerBulletPrefab);
+    api.prefabs.register(EnemyBulletPrefab);
 
     const bgId = api.createEntity();
     api.addComponent(bgId, UIComponent, { uiName: 'BackgroundUI' });

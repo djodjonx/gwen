@@ -26,6 +26,7 @@
  */
 
 import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
+import { unpackEntityId } from '@djodjonx/gwen-engine-core';
 import type {
   WasmBridge,
   MemoryRegion,
@@ -43,11 +44,23 @@ import type {
   CollisionEvent,
   ColliderOptions,
   RigidBodyType,
+  Physics2DPrefabExtension,
 } from './types';
 import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
 
 // Re-export public types
-export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, RigidBodyType };
+export type {
+  Physics2DConfig,
+  Physics2DAPI,
+  CollisionEvent,
+  ColliderOptions,
+  RigidBodyType,
+  Physics2DPrefabExtension,
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PIXELS_PER_METER = 50;
 
 // ─── Plugin metadata ───────────────────────────────────────────────────────────
 
@@ -70,6 +83,14 @@ export const Physics2DPlugin = definePlugin({
   name: 'Physics2D',
   meta: pluginMeta,
   provides: { physics: {} as Physics2DAPI },
+  /**
+   * Phantom type — consumed by `gwen prepare` to enrich `GwenPrefabExtensions`
+   * with `{ physics: Physics2DPrefabExtension }`.
+   * Values are never read at runtime.
+   */
+  extensions: {
+    prefab: {} as Physics2DPrefabExtension,
+  },
   wasm: {
     id: 'physics2d',
     /** No legacy SAB — Plugin Data Bus is used exclusively. */
@@ -208,7 +229,46 @@ export const Physics2DPlugin = definePlugin({
           cfg.maxEntities,
         );
 
-        api.services.register('physics', createAPI());
+        const physicsService = createAPI();
+        api.services.register('physics', physicsService);
+
+        // ── Prefab extensions ────────────────────────────────────────────
+        // Souscription au hook prefab:instantiate — le scopedApi garantit
+        // le nettoyage automatique à l'unregister() du plugin.
+        api.hooks.hook('prefab:instantiate' as any, (entityId: any, extensions: any) => {
+          const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
+          if (!ext) return; // pas d'extension physics → rien à faire
+
+          const { index: slot } = unpackEntityId(entityId);
+          const pos = (api as any).getComponent?.(entityId, { name: 'position' }) as
+            | { x: number; y: number }
+            | null
+            | undefined;
+
+          const handle = physicsService.addRigidBody(
+            slot,
+            ext.bodyType,
+            (pos?.x ?? 0) / PIXELS_PER_METER,
+            (pos?.y ?? 0) / PIXELS_PER_METER,
+          );
+
+          if (ext.radius !== undefined) {
+            physicsService.addBallCollider(handle, ext.radius / PIXELS_PER_METER, {
+              restitution: ext.restitution ?? 0,
+              friction: ext.friction ?? 0,
+            });
+          } else if (ext.hw !== undefined && ext.hh !== undefined) {
+            physicsService.addBoxCollider(
+              handle,
+              ext.hw / PIXELS_PER_METER,
+              ext.hh / PIXELS_PER_METER,
+              {
+                restitution: ext.restitution ?? 0,
+                friction: ext.friction ?? 0,
+              },
+            );
+          }
+        });
       },
 
       /**

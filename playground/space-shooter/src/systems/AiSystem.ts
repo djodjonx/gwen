@@ -16,7 +16,7 @@ export const AiSystem = defineSystem({
       if (elapsed >= timer.cooldown) {
         const pos = api.getComponent(id, Position);
         if (!pos) continue;
-        api.prefabs.instantiate('Bullet', pos.x, pos.y + 18, 0, 300, 'enemy-bullet');
+        api.prefabs.instantiate('EnemyBullet', pos.x, pos.y + 18, 0, 300);
         api.addComponent(id, ShootTimer, { ...timer, elapsed: 0 });
       } else {
         api.addComponent(id, ShootTimer, { ...timer, elapsed });
