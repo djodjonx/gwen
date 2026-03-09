@@ -15,15 +15,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@djodjonx/gwen-engine-core": "^{{GWEN_VERSION}}",
-    "@djodjonx/gwen-kit": "^{{GWEN_VERSION}}",
-    "@djodjonx/gwen-plugin-audio": "^{{GWEN_VERSION}}",
-    "@djodjonx/gwen-plugin-input": "^{{GWEN_VERSION}}",
-    "@djodjonx/gwen-renderer-canvas2d": "^{{GWEN_VERSION}}"
+    "@djodjonx/gwen-engine-core": "^{{GWEN_ENGINE_CORE_VERSION}}",
+    "@djodjonx/gwen-kit": "^{{GWEN_KIT_VERSION}}",
+    "@djodjonx/gwen-plugin-audio": "^{{GWEN_PLUGIN_AUDIO_VERSION}}",
+    "@djodjonx/gwen-plugin-input": "^{{GWEN_PLUGIN_INPUT_VERSION}}",
+    "@djodjonx/gwen-renderer-canvas2d": "^{{GWEN_RENDERER_CANVAS2D_VERSION}}"
   },
   "devDependencies": {
-    "@djodjonx/gwen-cli": "^{{GWEN_VERSION}}",
-    "@djodjonx/gwen-vite-plugin": "^{{GWEN_VERSION}}",
+    "@djodjonx/gwen-cli": "^{{GWEN_CLI_VERSION}}",
+    "@djodjonx/gwen-vite-plugin": "^{{GWEN_VITE_PLUGIN_VERSION}}",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
   }
