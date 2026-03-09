@@ -50,6 +50,47 @@ export interface SceneLifecycleHooks<ReloadContext = unknown> {
 }
 
 /**
+ * Extension lifecycle hooks — fired when a prefab, scene or UI is instantiated
+ * with an `extensions` map. Plugins subscribe to receive their slice of data.
+ *
+ * Type parameters mirror the same pattern as `EntityLifecycleHooks<EntityId>`:
+ * engine-core binds them to concrete global interface types via `GwenHooks`.
+ *
+ * @typeParam PrefabExt - Shape of `GwenPrefabExtensions` (bound by engine-core)
+ * @typeParam SceneExt  - Shape of `GwenSceneExtensions`  (bound by engine-core)
+ * @typeParam UIExt     - Shape of `GwenUIExtensions`     (bound by engine-core)
+ * @typeParam EntityId  - Entity identifier type
+ */
+export interface ExtensionLifecycleHooks<
+  PrefabExt = unknown,
+  SceneExt = unknown,
+  UIExt = unknown,
+  EntityId = unknown,
+> {
+  /**
+   * Fired by `PrefabManager.instantiate()` after `create()` returns, when the
+   * prefab declares at least one extension key.
+   */
+  'prefab:instantiate': (entityId: EntityId, extensions: Readonly<Partial<PrefabExt>>) => void;
+
+  /**
+   * Fired by `SceneManager` after `onEnter()` is called, when the scene
+   * declares at least one extension key.
+   */
+  'scene:extensions': (sceneName: string, extensions: Readonly<Partial<SceneExt>>) => void;
+
+  /**
+   * Fired by `UIManager` when a UIDefinition with extensions is first mounted
+   * on an entity.
+   */
+  'ui:extensions': (
+    uiName: string,
+    entityId: EntityId,
+    extensions: Readonly<Partial<UIExt>>,
+  ) => void;
+}
+
+/**
  * Global hooks map.
  *
  * Type parameters let engine-core plug concrete runtime types while tooling can
@@ -60,10 +101,14 @@ export interface GwenHooks<
   Plugin = unknown,
   API = unknown,
   ReloadContext = unknown,
+  PrefabExt = unknown,
+  SceneExt = unknown,
+  UIExt = unknown,
 >
   extends
     EngineLifecycleHooks,
     PluginLifecycleHooks<Plugin, API>,
     EntityLifecycleHooks<EntityId>,
     ComponentLifecycleHooks<EntityId>,
-    SceneLifecycleHooks<ReloadContext> {}
+    SceneLifecycleHooks<ReloadContext>,
+    ExtensionLifecycleHooks<PrefabExt, SceneExt, UIExt, EntityId> {}

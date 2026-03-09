@@ -23,6 +23,7 @@ export type {
   EntityLifecycleHooks,
   ComponentLifecycleHooks,
   SceneLifecycleHooks,
+  ExtensionLifecycleHooks,
   GwenHooks,
 } from './hooks';
 

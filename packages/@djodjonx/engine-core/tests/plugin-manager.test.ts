@@ -479,3 +479,53 @@ describe('PluginManager', () => {
     });
   });
 });
+
+// ── createScopedApi ──────────────────────────────────────────────────────────
+
+describe('PluginManager.createScopedApi()', () => {
+  it('hooks registered via createScopedApi are tracked and cleaned up on unregister', async () => {
+    const pm = new PluginManager();
+    const api = makeAPI();
+    const calls: string[] = [];
+
+    const plugin = makePlugin('WasmPlugin');
+    pm.register(plugin, api, api.hooks);
+
+    // Simulate what createEngine() does for wasm.onInit:
+    // create a scopedApi and register a hook via it
+    const scopedApi = pm.createScopedApi(plugin, api, api.hooks);
+    (scopedApi.hooks.hook as any)('prefab:instantiate', () => calls.push('wasm:prefab'));
+
+    // Hook fires
+    await (api.hooks.callHook as any)('prefab:instantiate', 1, {});
+    expect(calls).toEqual(['wasm:prefab']);
+
+    // Unregister cleans up the hook registered via createScopedApi
+    pm.unregister('WasmPlugin', api.hooks);
+    calls.length = 0;
+
+    await (api.hooks.callHook as any)('prefab:instantiate', 1, {});
+    expect(calls).toHaveLength(0); // cleaned up
+  });
+
+  it('createScopedApi returns an api with hooks overridden and other api fields preserved', () => {
+    const pm = new PluginManager();
+    const api = makeAPI();
+    const plugin = makePlugin('TestPlugin');
+    pm.register(plugin, api, api.hooks);
+
+    const scopedApi = pm.createScopedApi(plugin, api, api.hooks);
+
+    // hooks must be present and functional
+    expect(typeof scopedApi.hooks.hook).toBe('function');
+    expect(typeof scopedApi.hooks.callHook).toBe('function');
+    expect(typeof scopedApi.hooks.removeHook).toBe('function');
+
+    // scopedApi.hooks must be a different object from api.hooks (the scoped proxy)
+    expect(scopedApi.hooks).not.toBe(api.hooks);
+
+    // Other api properties must still be accessible
+    expect(scopedApi.services).toBeDefined();
+    expect(scopedApi.prefabs).toBeDefined();
+  });
+});

@@ -145,6 +145,29 @@ export class PluginManager {
     return scopedHooks;
   }
 
+  /**
+   * Create a scoped EngineAPI for a plugin where all `hooks.hook()` calls
+   * are automatically tracked and cleaned up on `unregister()` / `destroyAll()`.
+   *
+   * Used by `createEngine()` to wrap the `api` passed to WASM plugins'
+   * `wasm.onInit()`, which runs outside the normal `register()` flow and
+   * therefore cannot rely on the scoped API built inside `register()`.
+   *
+   * @param plugin - The plugin instance (WeakMap key — must be the same object
+   *                 that will later be passed to `unregister()`)
+   * @param api    - Engine API to wrap
+   * @param hooks  - Hooks system instance
+   * @returns A scoped EngineAPI whose `hooks.hook()` is tracked
+   *
+   * @internal Called by createEngine() for the WASM onWasmInit phase
+   */
+  createScopedApi(plugin: GwenPlugin, api: EngineAPI, hooks: DefaultHookable): EngineAPI {
+    return {
+      ...api,
+      hooks: this._createScopedHooks(plugin, hooks),
+    };
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // Plugin Registration
   // ════════════════════════════════════════════════════════════════════════

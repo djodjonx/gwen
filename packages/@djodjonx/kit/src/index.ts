@@ -20,7 +20,14 @@
 // ── Project config helper ─────────────────────────────────────────────────────
 
 export { defineConfig } from './config';
-export type { TypedEngineConfig, MergePluginsProvides, MergePluginsHooks } from './config';
+export type {
+  TypedEngineConfig,
+  MergePluginsProvides,
+  MergePluginsHooks,
+  MergePluginsPrefabExtensions,
+  MergePluginsSceneExtensions,
+  MergePluginsUIExtensions,
+} from './config';
 
 // ── Plugin authoring helper ───────────────────────────────────────────────────
 

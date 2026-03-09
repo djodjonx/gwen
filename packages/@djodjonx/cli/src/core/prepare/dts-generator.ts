@@ -174,11 +174,15 @@ export async function generateDts(
  * automatically typed - no explicit annotation required.
  */
 ${refBlock}${directImportBlock}import type { GwenConfigServices, GwenConfigHooks } from '@djodjonx/gwen-engine-core';
+import type { MergePluginsPrefabExtensions, MergePluginsSceneExtensions, MergePluginsUIExtensions } from '@djodjonx/gwen-kit';
 import type { EngineAPI } from '@djodjonx/gwen-schema';
 ${configImport}
 
 type _FallbackServices = GwenConfigServices<typeof _cfg>;
 type _FallbackHooks = GwenConfigHooks<typeof _cfg>;
+type _PrefabExtensions = MergePluginsPrefabExtensions<typeof _cfg['plugins']>;
+type _SceneExtensions = MergePluginsSceneExtensions<typeof _cfg['plugins']>;
+type _UIExtensions = MergePluginsUIExtensions<typeof _cfg['plugins']>;
 
 declare global {
   /**
@@ -193,6 +197,24 @@ declare global {
    * Uses direct imports when metadata is available and fallback inference otherwise.
    */
   interface GwenDefaultHooks extends _FallbackHooks {${hookBody}  }
+
+  /**
+   * Enriches GwenPrefabExtensions with each plugin's prefab extension schema.
+   * Used by definePrefab() extensions field.
+   */
+  interface GwenPrefabExtensions extends _PrefabExtensions {}
+
+  /**
+   * Enriches GwenSceneExtensions with each plugin's scene extension schema.
+   * Used by defineScene() extensions field.
+   */
+  interface GwenSceneExtensions extends _SceneExtensions {}
+
+  /**
+   * Enriches GwenUIExtensions with each plugin's UI extension schema.
+   * Used by defineUI() extensions field.
+   */
+  interface GwenUIExtensions extends _UIExtensions {}
 
   /**
    * Convenience alias for EngineAPI<GwenDefaultServices, GwenDefaultHooks>.

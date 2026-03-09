@@ -32,6 +32,20 @@ export interface Scene {
   readonly name: string;
 
   /**
+   * Optional plugin extension data for this scene.
+   *
+   * Declared as a partial map of `GwenSceneExtensions` — enriched by `gwen prepare`
+   * with each installed plugin's scene schema. Fired via `scene:extensions` hook
+   * after `onEnter()` is called.
+   *
+   * @example
+   * ```ts
+   * extensions: { physics: { gravity: -9.81 } }
+   * ```
+   */
+  readonly extensions?: Readonly<Partial<GwenSceneExtensions>>;
+
+  /**
    * Controls whether the scene reloads when re-entered.
    *
    * **Behavior:**
@@ -519,6 +533,19 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     }
 
     next.onEnter(api);
+
+    // Dispatch scene extensions to plugins — only when extensions are declared
+    if (next.extensions && Object.keys(next.extensions).length > 0) {
+      try {
+        await (api.hooks.callHook as (name: string, ...args: any[]) => Promise<void>)(
+          'scene:extensions',
+          name,
+          next.extensions,
+        );
+      } catch (err) {
+        console.error(`[SceneManager] Error in scene:extensions hook for '${name}':`, err);
+      }
+    }
 
     // Call scene:loaded hook
     try {

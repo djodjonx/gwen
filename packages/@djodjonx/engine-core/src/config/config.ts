@@ -112,7 +112,10 @@ export async function createEngine(
       const region =
         sharedMemBytes > 0 ? sharedMemory.allocateRegion(plugin.wasm!.id, sharedMemBytes) : null;
 
-      await plugin.wasm!.onInit(bridge, region, api, pluginDataBus);
+      // Use a scoped API so any hooks.hook() calls inside onWasmInit are
+      // tracked by PluginManager and cleaned up on unregister() / destroyAll().
+      const scopedApi = engine._getPluginManager().createScopedApi(plugin, api, engine.hooks);
+      await plugin.wasm!.onInit(bridge, region, scopedApi, pluginDataBus);
       engine._registerWasmPlugin(plugin);
 
       if (resolved.engine.debug) {

@@ -30,6 +30,18 @@ import type { EntityId } from '../engine/engine-api';
 export interface PrefabDefinition<Args extends any[] = any[]> {
   /** Unique name of the prefab */
   readonly name: string;
+  /**
+   * Optional plugin extension data.
+   *
+   * Declared as a partial map of `GwenPrefabExtensions` — enriched by `gwen prepare`
+   * with each installed plugin's prefab schema. Frozen on `register()`.
+   *
+   * @example
+   * ```ts
+   * extensions: { physics: { mass: 10, isStatic: false } }
+   * ```
+   */
+  readonly extensions?: Readonly<Partial<GwenPrefabExtensions>>;
   /** Factory function that assembles the entity */
   create: (api: EngineAPI, ...args: Args) => EntityId;
 }
@@ -127,6 +139,10 @@ export class PrefabManager {
     if (this.registry.has(def.name)) {
       console.warn(`[GWEN:PrefabManager] Prefab '${def.name}' already registered — overwriting.`);
     }
+    // Freeze extensions to prevent mutations across instantiations (cold path)
+    if (def.extensions) {
+      Object.freeze(def.extensions);
+    }
     this.registry.set(def.name, def);
     return this;
   }
@@ -134,7 +150,8 @@ export class PrefabManager {
   /**
    * Instantiate a registered prefab by name.
    * Calls the prefab's `create()` function with the current `EngineAPI` plus
-   * any additional arguments.
+   * any additional arguments. If the prefab declares `extensions`, fires the
+   * `prefab:instantiate` hook so plugins can react (e.g. add a physics body).
    *
    * @param name   Prefab name (as declared in `PrefabDefinition.name`).
    * @param args   Additional arguments forwarded to `create()`.
@@ -146,7 +163,29 @@ export class PrefabManager {
     if (!def) {
       throw new Error(`[GWEN:PrefabManager] Unknown prefab '${name}'. Did you call register()?`);
     }
-    return def.create(this._api, ...args);
+    const entityId = def.create(this._api, ...args);
+
+    // Dispatch extensions to plugins via hooks — only when extensions are declared
+    if (def.extensions && Object.keys(def.extensions).length > 0) {
+      // Wrap in async IIFE so errors from any hook handler are caught
+      // without blocking instantiate() (which stays synchronous).
+      (async () => {
+        try {
+          await (this._api.hooks.callHook as (name: string, ...args: any[]) => Promise<void>)(
+            'prefab:instantiate',
+            entityId,
+            def.extensions,
+          );
+        } catch (err) {
+          console.error(
+            `[GWEN:PrefabManager] Error in prefab:instantiate hook for '${name}':`,
+            err,
+          );
+        }
+      })();
+    }
+
+    return entityId;
   }
 
   /**

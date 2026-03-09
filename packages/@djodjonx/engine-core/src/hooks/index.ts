@@ -49,6 +49,7 @@ export type {
   EntityLifecycleHooks,
   ComponentLifecycleHooks,
   SceneLifecycleHooks,
+  ExtensionLifecycleHooks,
 } from '@djodjonx/gwen-schema';
 
 export type { GwenHooks } from './types';

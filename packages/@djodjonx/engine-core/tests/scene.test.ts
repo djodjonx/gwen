@@ -295,3 +295,88 @@ describe('defineScene', () => {
     expect(b.getCount()).toBe(0); // isolation guaranteed
   });
 });
+
+// ── Extensions ──────────────────────────────────────────────────────────────
+
+describe('SceneManager — scene:extensions hook', () => {
+  it('fires scene:extensions after onEnter when extensions are declared', async () => {
+    const handler = vi.fn();
+    const api = makeAPI();
+    (api.hooks.hook as any)('scene:extensions', handler);
+
+    const sm = new SceneManager();
+    sm.onInit(api);
+
+    sm.register({
+      name: 'Level1',
+      extensions: { physics: { gravity: -9.81 } },
+      onEnter: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    await sm.loadSceneImmediate('Level1', api);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('Level1', { physics: { gravity: -9.81 } });
+  });
+
+  it('does NOT fire scene:extensions when extensions is absent', async () => {
+    const handler = vi.fn();
+    const api = makeAPI();
+    (api.hooks.hook as any)('scene:extensions', handler);
+
+    const sm = new SceneManager();
+    sm.onInit(api);
+
+    sm.register({
+      name: 'Menu',
+      onEnter: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    await sm.loadSceneImmediate('Menu', api);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire scene:extensions when extensions is empty object', async () => {
+    const handler = vi.fn();
+    const api = makeAPI();
+    (api.hooks.hook as any)('scene:extensions', handler);
+
+    const sm = new SceneManager();
+    sm.onInit(api);
+
+    sm.register({
+      name: 'Empty',
+      extensions: {},
+      onEnter: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    await sm.loadSceneImmediate('Empty', api);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('scene:extensions hook error is caught and does not prevent scene load', async () => {
+    const api = makeAPI();
+    (api.hooks.hook as any)('scene:extensions', () => {
+      throw new Error('plugin failure');
+    });
+
+    const sm = new SceneManager();
+    sm.onInit(api);
+
+    sm.register({
+      name: 'Crash',
+      extensions: { audio: { volume: 1 } },
+      onEnter: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    // Should NOT throw — error is caught internally
+    await expect(sm.loadSceneImmediate('Crash', api)).resolves.not.toThrow();
+    expect(sm.current).toBe('Crash');
+  });
+});

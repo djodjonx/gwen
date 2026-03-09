@@ -36,11 +36,20 @@ export type ComponentLifecycleHooks = import('@djodjonx/gwen-schema').ComponentL
 export type SceneLifecycleHooks = import('@djodjonx/gwen-schema').SceneLifecycleHooks<
   import('../api/scene-context').ReloadContext
 >;
+export type ExtensionLifecycleHooks = import('@djodjonx/gwen-schema').ExtensionLifecycleHooks<
+  GwenPrefabExtensions,
+  GwenSceneExtensions,
+  GwenUIExtensions,
+  import('../types').EntityId
+>;
 
 /** Engine-core concrete hooks map used by Hookable. */
 export interface GwenHooks extends SchemaGwenHooks<
   import('../types').EntityId,
   any,
   any,
-  import('../api/scene-context').ReloadContext
+  import('../api/scene-context').ReloadContext,
+  GwenPrefabExtensions,
+  GwenSceneExtensions,
+  GwenUIExtensions
 > {}

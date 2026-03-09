@@ -35,6 +35,48 @@ export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
   import('@djodjonx/gwen-schema').GwenHooks &
     AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
+// ── Extension merging ─────────────────────────────────────────────────────────
+
+/** Extract the prefab extension shape from a plugin (fallback {} if absent). */
+type PluginPrefabExt<T> = T extends { extensions?: { prefab?: infer E } }
+  ? E extends Record<string, unknown>
+    ? E
+    : {}
+  : {};
+
+/** Extract the scene extension shape from a plugin (fallback {} if absent). */
+type PluginSceneExt<T> = T extends { extensions?: { scene?: infer E } }
+  ? E extends Record<string, unknown>
+    ? E
+    : {}
+  : {};
+
+/** Extract the UI extension shape from a plugin (fallback {} if absent). */
+type PluginUIExt<T> = T extends { extensions?: { ui?: infer E } }
+  ? E extends Record<string, unknown>
+    ? E
+    : {}
+  : {};
+
+/**
+ * Merges the prefab extension shapes from all plugins.
+ * Same mechanics as `MergePluginsProvides` — uses `Plugins[number]` and
+ * `UnionToIntersection`, never `any[]`, never `never` cascade.
+ */
+export type MergePluginsPrefabExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+  UnionToIntersection<PluginPrefabExt<Plugins[number]>>
+>;
+
+/** Merges the scene extension shapes from all plugins. */
+export type MergePluginsSceneExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+  UnionToIntersection<PluginSceneExt<Plugins[number]>>
+>;
+
+/** Merges the UI extension shapes from all plugins. */
+export type MergePluginsUIExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+  UnionToIntersection<PluginUIExt<Plugins[number]>>
+>;
+
 /**
  * Typed shape returned by `defineConfig()`.
  *

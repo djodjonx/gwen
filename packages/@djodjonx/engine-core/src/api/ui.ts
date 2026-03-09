@@ -61,6 +61,20 @@ export interface UIDefinition<Services extends object = GwenDefaultServices> {
   readonly name: string;
 
   /**
+   * Optional plugin extension data for this UI component.
+   *
+   * Declared as a partial map of `GwenUIExtensions` — enriched by `gwen prepare`
+   * with each installed plugin's UI schema. Fired via `ui:extensions` hook
+   * on the first mount of this UI on an entity.
+   *
+   * @example
+   * ```ts
+   * extensions: { htmlUI: { layer: 'hud' } }
+   * ```
+   */
+  readonly extensions?: Readonly<Partial<GwenUIExtensions>>;
+
+  /**
    * Called once when UIComponent is attached to an entity.
    * Allocate resources here: create DOM elements, reserve canvas slot, etc.
    */
@@ -199,6 +213,22 @@ export class UIManager implements TsPlugin {
       if (!this.mounted.has(id)) {
         def.onMount?.(api, id);
         this.mounted.set(id, def.name);
+
+        // Dispatch UI extensions to plugins on first mount
+        if (def.extensions && Object.keys(def.extensions).length > 0) {
+          (async () => {
+            try {
+              await (api.hooks.callHook as (name: string, ...args: any[]) => Promise<void>)(
+                'ui:extensions',
+                def.name,
+                id,
+                def.extensions,
+              );
+            } catch (err) {
+              console.error(`[UIManager] Error in ui:extensions hook for '${def.name}':`, err);
+            }
+          })();
+        }
       }
 
       def.render(api, id);

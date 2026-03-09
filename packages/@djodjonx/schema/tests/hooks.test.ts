@@ -11,6 +11,7 @@ import type {
   EntityLifecycleHooks,
   ComponentLifecycleHooks,
   SceneLifecycleHooks,
+  ExtensionLifecycleHooks,
   GwenHooks,
 } from '../src';
 
@@ -81,6 +82,39 @@ describe('@djodjonx/gwen-schema - Hooks Contracts', () => {
     });
   });
 
+  describe('ExtensionLifecycleHooks', () => {
+    it('should define all extension lifecycle hooks with generic defaults', () => {
+      const hooks: ExtensionLifecycleHooks = {
+        'prefab:instantiate': () => {},
+        'scene:extensions': () => {},
+        'ui:extensions': () => {},
+      };
+      expect(hooks).toBeDefined();
+    });
+
+    it('should type extensions argument from generic parameters', () => {
+      type PrefabExt = { mass: number; isStatic: boolean };
+      type SceneExt = { gravity: number };
+      type UIExt = { layer: string };
+      type BoundHooks = ExtensionLifecycleHooks<PrefabExt, SceneExt, UIExt, number>;
+
+      const hooks: Partial<BoundHooks> = {
+        'prefab:instantiate': (entityId: number, extensions) => {
+          expectTypeOf(entityId).toBeNumber();
+          expectTypeOf(extensions).toMatchTypeOf<Readonly<Partial<PrefabExt>>>();
+        },
+        'scene:extensions': (_sceneName: string, extensions) => {
+          expectTypeOf(extensions).toMatchTypeOf<Readonly<Partial<SceneExt>>>();
+        },
+        'ui:extensions': (_uiName: string, entityId: number, extensions) => {
+          expectTypeOf(entityId).toBeNumber();
+          expectTypeOf(extensions).toMatchTypeOf<Readonly<Partial<UIExt>>>();
+        },
+      };
+      expect(hooks).toBeDefined();
+    });
+  });
+
   describe('GwenHooks', () => {
     it('should aggregate all hook categories', () => {
       const hooks: GwenHooks = {
@@ -113,6 +147,10 @@ describe('@djodjonx/gwen-schema - Hooks Contracts', () => {
         'scene:unload': () => {},
         'scene:unloaded': () => {},
         'scene:willReload': () => {},
+        // Extensions
+        'prefab:instantiate': () => {},
+        'scene:extensions': () => {},
+        'ui:extensions': () => {},
       };
       expect(hooks).toBeDefined();
     });

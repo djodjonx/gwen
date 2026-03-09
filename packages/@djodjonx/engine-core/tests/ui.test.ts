@@ -403,3 +403,126 @@ describe('Scene.ui — auto-injection UIManager', () => {
     expect(unmountFn).toHaveBeenCalledTimes(1);
   });
 });
+
+// ── ui:extensions hook ───────────────────────────────────────────────────────
+
+describe('UIManager — ui:extensions hook', () => {
+  function makeAPI() {
+    return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
+  }
+
+  it('fires ui:extensions on first mount when extensions are declared', async () => {
+    const api = makeAPI();
+    const handler = vi.fn();
+    (api.hooks.hook as any)('ui:extensions', handler);
+
+    const uiManager = new UIManager();
+    const ScoreUI = defineUI({
+      name: 'ScoreUI',
+      extensions: { htmlUI: { layer: 'hud' } },
+      render: vi.fn(),
+    });
+    uiManager.register(ScoreUI);
+
+    const id = api.createEntity();
+    api.addComponent(id, UIComponent, { uiName: 'ScoreUI' });
+
+    uiManager.onRender(api); // triggers first mount
+
+    // Wait for the async IIFE dispatch to run
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith('ScoreUI', id, { htmlUI: { layer: 'hud' } });
+  });
+
+  it('fires ui:extensions only once (not on subsequent renders)', async () => {
+    const api = makeAPI();
+    const handler = vi.fn();
+    (api.hooks.hook as any)('ui:extensions', handler);
+
+    const uiManager = new UIManager();
+    const ScoreUI = defineUI({
+      name: 'ScoreUI2',
+      extensions: { htmlUI: { layer: 'hud' } },
+      render: vi.fn(),
+    });
+    uiManager.register(ScoreUI);
+
+    const id = api.createEntity();
+    api.addComponent(id, UIComponent, { uiName: 'ScoreUI2' });
+
+    uiManager.onRender(api);
+    uiManager.onRender(api);
+    uiManager.onRender(api);
+
+    // Wait for all async IIFE dispatches
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(handler).toHaveBeenCalledTimes(1); // only on first mount
+  });
+
+  it('does NOT fire ui:extensions when extensions is absent', () => {
+    const api = makeAPI();
+    const handler = vi.fn();
+    (api.hooks.hook as any)('ui:extensions', handler);
+
+    const uiManager = new UIManager();
+    const PlainUI = defineUI({ name: 'PlainUI', render: vi.fn() });
+    uiManager.register(PlainUI);
+
+    const id = api.createEntity();
+    api.addComponent(id, UIComponent, { uiName: 'PlainUI' });
+
+    uiManager.onRender(api);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire ui:extensions when extensions is empty object', () => {
+    const api = makeAPI();
+    const handler = vi.fn();
+    (api.hooks.hook as any)('ui:extensions', handler);
+
+    const uiManager = new UIManager();
+    const EmptyUI = defineUI({
+      name: 'EmptyUI',
+      extensions: {},
+      render: vi.fn(),
+    });
+    uiManager.register(EmptyUI);
+
+    const id = api.createEntity();
+    api.addComponent(id, UIComponent, { uiName: 'EmptyUI' });
+
+    uiManager.onRender(api);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('ui:extensions hook error is caught and does not prevent rendering', async () => {
+    const api = makeAPI();
+    (api.hooks.hook as any)('ui:extensions', () => {
+      throw new Error('plugin failure');
+    });
+
+    const renderFn = vi.fn();
+    const uiManager = new UIManager();
+    const CrashUI = defineUI({
+      name: 'CrashUI',
+      extensions: { debug: { show: true } },
+      render: renderFn,
+    });
+    uiManager.register(CrashUI);
+
+    const id = api.createEntity();
+    api.addComponent(id, UIComponent, { uiName: 'CrashUI' });
+
+    // Should NOT throw synchronously
+    expect(() => uiManager.onRender(api)).not.toThrow();
+    expect(renderFn).toHaveBeenCalled();
+
+    // Let the .catch() microtask run — no unhandled rejection
+    await new Promise((r) => setTimeout(r, 0));
+  });
+});

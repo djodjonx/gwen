@@ -206,6 +206,28 @@ interface BasePluginDefinition<
   providesHooks?: H;
 
   /**
+   * Extension schemas declared by this plugin.
+   *
+   * Consumed **only** by `gwen prepare` to enrich the global
+   * `GwenPrefabExtensions`, `GwenSceneExtensions` and `GwenUIExtensions`
+   * interfaces. Values are **never read at runtime** — use `{} as MyShape`
+   * exactly like `provides`.
+   *
+   * @example
+   * ```ts
+   * extensions: {
+   *   prefab: {} as { mass: number; isStatic: boolean },
+   *   scene:  {} as { gravity: number },
+   * }
+   * ```
+   */
+  extensions?: {
+    prefab?: Record<string, unknown>;
+    scene?: Record<string, unknown>;
+    ui?: Record<string, unknown>;
+  };
+
+  /**
    * Semver-compatible version string (optional, displayed in the debug overlay).
    */
   version?: string;
