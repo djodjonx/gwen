@@ -16,16 +16,12 @@ npm run preview  # preview production build
 ```
 {{PROJECT_NAME}}/
   src/
-    main.ts              # Entry point
     scenes/
       MainScene.ts       # Your first scene
-    components/
-      index.ts           # Component definitions (typed via Schema DSL)
+    components/          # Component definitions (typed via Schema DSL)
     systems/             # Game systems (physics, AI, ...)
     prefabs/             # Entity prefabs
   gwen.config.ts         # Engine & plugin configuration
-  vite.config.ts         # Vite + GWEN plugin config
-  index.html
 ```
 
 ## Adding plugins

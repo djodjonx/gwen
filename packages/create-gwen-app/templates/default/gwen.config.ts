@@ -1,36 +1,37 @@
-// Le template est validé dans le monorepo sans dépendances installées du projet généré.
-// @ts-ignore
 import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 /**
- * Configuration de votre jeu GWEN.
+ * GWEN Project Configuration
  *
- * Ajoutez vos plugins dans `tsPlugins` — les services qu'ils exposent
- * sont automatiquement disponibles avec autocomplétion dans vos systèmes,
- * sans aucune annotation explicite après `gwen prepare`.
+ * Plugins are registered here. The services they expose are automatically
+ * available with full autocompletion in your systems and scenes.
  *
- * ```typescript
- * // Dans un système — aucune annotation nécessaire après gwen prepare :
- * onUpdate(api, dt) {
- *   const kb = api.services.get('keyboard'); // → KeyboardInput ✅
- * }
- * ```
+ * Run `gwen prepare` to generate type definitions after adding plugins.
  */
-export const gwenConfig = defineConfig({
+export default defineConfig({
   engine: {
     maxEntities: 10_000,
     targetFPS: 60,
-    debug: false,
+    debug: true,
   },
 
-  // Plugins TypeScript — légers, DOM-natifs
-  // Chaque plugin déclare ses services → autocomplétion garantie
-  tsPlugins: [
-    // new InputPlugin(),       // expose: keyboard, mouse, gamepad
-    // new AudioPlugin(),       // expose: audio
-    // new Canvas2DRenderer(),  // expose: renderer
-  ],
+  html: {
+    title: '{{PROJECT_NAME}} — GWEN',
+    background: '#000000',
+  },
 
-  // Plugins WASM — haute performance (physique, IA, ...)
-  // wasmPlugins: [Physics2D()],
+  mainScene: 'MainScene',
+
+  plugins: [
+    new InputPlugin(),
+    new AudioPlugin({ masterVolume: 0.5 }),
+    new Canvas2DRenderer({
+      width: 800,
+      height: 600,
+      background: '#000000',
+    }),
+  ],
 });
