@@ -99,6 +99,12 @@ build_wasm_crate() {
     cp "pkg/package.json" "$wasm_dir/"
   fi
 
+  # Remove .gitignore from wasm directory if it was copied or exists
+  # wasm-pack generates a .gitignore with '*' which prevents npm from publishing the files
+  if [ -f "$wasm_dir/.gitignore" ]; then
+    rm "$wasm_dir/.gitignore"
+  fi
+
   log_success "Artifacts copied to $wasm_dir"
 
   # List generated files
