@@ -84,6 +84,12 @@ describe('create-gwen-app scaffold', () => {
     expect(pkg.devDependencies['@djodjonx/gwen-vite-plugin']).toBeDefined();
   });
 
+  it('package.json has oxlint as devDependency', async () => {
+    const dest = await scaffold('test-proj', tmpDir);
+    const pkg = JSON.parse(fs.readFileSync(path.join(dest, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies.oxlint).toBeDefined();
+  });
+
   it('generates vite.config.ts', async () => {
     const dest = await scaffold('my-game', tmpDir);
     expect(fs.existsSync(path.join(dest, 'vite.config.ts'))).toBe(true);
