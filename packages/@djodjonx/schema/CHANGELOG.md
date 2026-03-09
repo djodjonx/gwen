@@ -1,5 +1,11 @@
 #@djodjonx/gwen-schema
 
+## 0.3.4
+
+### Patch Changes
+
+- fix issue with old @gwen
+
 ## 0.3.2
 
 ### Patch Changes
