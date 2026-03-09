@@ -35,7 +35,16 @@ async function scaffold(projectName: string, destBase: string): Promise<string> 
     }
   }
 
-  copyDir(templateDir, destDir, { PROJECT_NAME: safeName, GWEN_VERSION: '0.1.0' });
+  copyDir(templateDir, destDir, {
+    PROJECT_NAME: safeName,
+    GWEN_ENGINE_CORE_VERSION: '0.3.1',
+    GWEN_KIT_VERSION: '0.3.1',
+    GWEN_PLUGIN_AUDIO_VERSION: '0.3.1',
+    GWEN_PLUGIN_INPUT_VERSION: '0.3.1',
+    GWEN_RENDERER_CANVAS2D_VERSION: '0.3.1',
+    GWEN_CLI_VERSION: '0.3.1',
+    GWEN_VITE_PLUGIN_VERSION: '0.1.1',
+  });
   return destDir;
 }
 
