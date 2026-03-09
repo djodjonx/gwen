@@ -4,7 +4,7 @@ import { defineConfig, type GwenPlugin } from '../src';
 const PluginA = {} as GwenPlugin<'A', { a: string }>;
 const PluginB = {} as GwenPlugin<'B', { b: number }, { 'b:tick': (dt: number) => void }>;
 
-describe('@gwen/kit defineConfig', () => {
+describe('@djodjonx/gwen-kit defineConfig', () => {
   it('keeps runtime payload unchanged', () => {
     const conf = defineConfig({
       engine: { maxEntities: 10_000 },

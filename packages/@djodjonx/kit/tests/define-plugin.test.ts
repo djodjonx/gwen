@@ -1,5 +1,5 @@
 /**
- * @gwen/kit — definePlugin() unit tests.
+ * @djodjonx/gwen-kit — definePlugin() unit tests.
  *
  * Covers:
  * 1. TS-only plugin — shape, lifecycle, provides, providesHooks

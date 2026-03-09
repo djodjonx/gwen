@@ -3,7 +3,7 @@
  * Maintains state during the build pipeline
  */
 
-import type { GwenOptions } from '@gwen/schema';
+import type { GwenOptions } from '@djodjonx/gwen-schema';
 
 export interface BuildContext {
   projectDir: string;

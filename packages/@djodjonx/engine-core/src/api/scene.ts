@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { SceneManager } from '@gwen/engine-core';
+ * import { SceneManager } from '@djodjonx/gwen-engine-core';
  *
  * const scenes = new SceneManager();
  * engine.registerSystem(scenes);

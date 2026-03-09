@@ -1,14 +1,14 @@
 /// <reference types="vite/client" />
 
 /**
- * @gwen/plugin-physics2d
+ * @djodjonx/gwen-plugin-physics2d
  *
  * 2D physics plugin for GWEN — powered by Rapier2D compiled to WASM.
  *
  * ## Usage
  * ```typescript
  * // gwen.config.ts
- * import { physics2D } from '@gwen/plugin-physics2d';
+ * import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
  *
  * export default defineConfig({
  *   plugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
@@ -25,7 +25,7 @@
  * ```
  */
 
-import { definePlugin, loadWasmPlugin } from '@gwen/kit';
+import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
 import type {
   WasmBridge,
   MemoryRegion,
@@ -33,7 +33,7 @@ import type {
   PluginDataBus,
   PluginChannel,
   GwenPluginMeta,
-} from '@gwen/kit';
+} from '@djodjonx/gwen-kit';
 
 import type {
   Physics2DConfig,
@@ -53,7 +53,7 @@ export type { Physics2DConfig, Physics2DAPI, CollisionEvent, ColliderOptions, Ri
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    physics: { from: '@gwen/plugin-physics2d', exportName: 'Physics2DAPI' },
+    physics: { from: '@djodjonx/gwen-plugin-physics2d', exportName: 'Physics2DAPI' },
   },
 };
 
@@ -236,7 +236,7 @@ export const Physics2DPlugin = definePlugin({
  * Create a `Physics2DPlugin` instance.
  *
  * ```typescript
- * import { physics2D } from '@gwen/plugin-physics2d';
+ * import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
  *
  * export default defineConfig({
  *   plugins: [physics2D({ gravity: -9.81 })],

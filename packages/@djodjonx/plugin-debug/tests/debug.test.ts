@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FpsTracker } from '../src/fps-tracker';
 import { DebugPlugin } from '../src/index';
-import type { EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

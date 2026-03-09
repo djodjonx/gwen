@@ -1,12 +1,12 @@
 /**
- * WASM Bridge — Interface between @gwen/engine-core (TypeScript) and gwen_core.wasm (Rust).
+ * WASM Bridge — Interface between @djodjonx/gwen-engine-core (TypeScript) and gwen_core.wasm (Rust).
  *
  * The Rust/WASM core is MANDATORY — no TypeScript fallback exists.
  * Call `await initWasm()` BEFORE creating the Engine, or an error is thrown.
  *
  * @example
  * ```typescript
- * await initWasm();          // Auto-resolves from @gwen/engine-core/wasm/
+ * await initWasm();          // Auto-resolves from @djodjonx/gwen-engine-core/wasm/
  * const engine = getEngine();
  * engine.start();
  * ```
@@ -176,7 +176,7 @@ let _lastMemoryBuffer: ArrayBuffer | null = null;
  *
  * Resolution strategy (in order):
  *  1. In browser: /wasm/ relative to current origin.
- *     @gwen/vite-plugin serves this via middleware (dev)
+ *     @djodjonx/gwen-vite-plugin serves this via middleware (dev)
  *     and CLI copies it to dist/wasm/ (build).
  *  2. In Node (SSR/tests): null — initWasm() must receive explicit URL.
  *
@@ -197,7 +197,7 @@ const _pkgWasmBase: string | null = (() => {
 /**
  * Load and initialize the gwen_core WASM module. **REQUIRED** before any Engine usage.
  *
- * **Without arguments**: Auto-resolves from `@gwen/engine-core/wasm/`
+ * **Without arguments**: Auto-resolves from `@djodjonx/gwen-engine-core/wasm/`
  * (pre-compiled artifacts published in the package — no Rust build needed).
  *
  * @param jsUrl Optional URL to the wasm-bindgen glue (gwen_core.js)
@@ -249,7 +249,7 @@ export async function initWasm(
   if (!resolvedJsUrl) {
     throw new Error(
       '[GWEN] initWasm(): unable to resolve WASM glue URL.\n' +
-        'Make sure @gwen/engine-core is correctly installed.',
+        'Make sure @djodjonx/gwen-engine-core is correctly installed.',
     );
   }
 

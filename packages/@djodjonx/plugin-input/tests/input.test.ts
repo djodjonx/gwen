@@ -8,8 +8,13 @@ import { KeyboardInput } from '../src/keyboard';
 import { MouseInput } from '../src/mouse';
 import { GamepadInput } from '../src/gamepad';
 import { InputPlugin } from '../src/index';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import {
+  EntityManager,
+  ComponentRegistry,
+  QueryEngine,
+  createEngineAPI,
+} from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 function makeAPI(): EngineAPI {
   return createEngineAPI(new EntityManager(50), new ComponentRegistry(), new QueryEngine());

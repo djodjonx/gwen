@@ -1,4 +1,4 @@
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Tag, Position, ShootTimer } from '../components';
 
 export const AiSystem = defineSystem({

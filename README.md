@@ -1,7 +1,7 @@
 # GWEN (Game Web Engine)
 
 [![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
-[![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwen/engine-core)
+[![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@djodjonx/gwen-engine-core)
 [![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue)](https://djodjonx.github.io/gwen/)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue)](https://www.typescriptlang.org/)
@@ -34,7 +34,7 @@ GWEN helps you build games with a clear structure:
 ### 1) Scaffold a game project (recommended)
 
 ```bash
-pnpm create @gwen/app my-game
+pnpm create @djodjonx/gwen-app my-game
 cd my-game
 pnpm dev
 ```
@@ -60,7 +60,7 @@ GWEN ships with a CLI designed around the same workflow as the playground.
 
 ```bash
 # Create project
-pnpm create @gwen/app my-game
+pnpm create @djodjonx/gwen-app my-game
 
 # Development
 gwen dev
@@ -109,10 +109,10 @@ This structure is intentional: it keeps gameplay code discoverable as the projec
 Example config shape:
 
 ```ts
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 
 export default defineConfig({
   engine: { maxEntities: 2000, targetFPS: 60, debug: false },

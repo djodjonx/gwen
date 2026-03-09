@@ -1,4 +1,4 @@
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import snakeHtml from './snake.html?raw';
 import snakeCss from './snake.css?raw';
 

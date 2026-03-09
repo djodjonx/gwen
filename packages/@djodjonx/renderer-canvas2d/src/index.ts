@@ -1,4 +1,4 @@
-// @gwen/renderer-canvas2d — Public API
+// @djodjonx/gwen-renderer-canvas2d — Public API
 export { Canvas2DRenderer, pluginMeta } from './renderer';
 export type {
   RendererService,

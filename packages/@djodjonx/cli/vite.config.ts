@@ -26,7 +26,7 @@ export default defineConfig({
           id.startsWith('jiti') ||
           id.startsWith('oxlint') ||
           id.startsWith('oxfmt') ||
-          id.startsWith('@gwen/') ||
+          id.startsWith('@djodjonx/gwen-') ||
           id.startsWith('node:') ||
           !id.startsWith('.')
         );

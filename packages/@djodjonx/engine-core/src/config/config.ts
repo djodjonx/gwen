@@ -5,7 +5,7 @@ import { SceneManager } from '../api/scene';
 import { SharedMemoryManager } from '../wasm/shared-memory';
 import { PluginDataBus } from '../wasm/plugin-data-bus';
 import { getWasmBridge } from '../engine/wasm-bridge';
-import { resolveConfig, type GwenConfigInput } from '@gwen/schema';
+import { resolveConfig, type GwenConfigInput } from '@djodjonx/gwen-schema';
 export { ConfigBuilder } from './config-builder';
 
 /**
@@ -37,7 +37,7 @@ export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>
 /**
  * Create an `Engine` and `SceneManager` from a user config.
  *
- * The config is normalized and validated by `@gwen/schema/resolveConfig`.
+ * The config is normalized and validated by `@djodjonx/gwen-schema/resolveConfig`.
  */
 export async function createEngine(
   config: GwenConfigInput = {},

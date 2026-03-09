@@ -1,4 +1,4 @@
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
 /**

@@ -1,7 +1,7 @@
-import { defineSystem } from '@gwen/engine-core';
-import type { EngineAPI, EntityId } from '@gwen/engine-core';
-import { unpackEntityId } from '@gwen/engine-core';
-import type { Physics2DAPI } from '@gwen/plugin-physics2d';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
+import type { EngineAPI, EntityId } from '@djodjonx/gwen-engine-core';
+import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import { Position, Collider, Tag } from '../components';
 
 const PIXELS_PER_METER = 50;

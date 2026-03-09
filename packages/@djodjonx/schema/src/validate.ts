@@ -3,7 +3,7 @@
  *
  * Lightweight runtime validation without external dependencies (no Zod).
  *
- * @module @gwen/schema
+ * @module @djodjonx/gwen-schema
  */
 
 import type { GwenOptions } from './config';

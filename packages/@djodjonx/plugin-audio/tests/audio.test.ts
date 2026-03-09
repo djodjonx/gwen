@@ -5,8 +5,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AudioPlugin } from '../src/index';
 import type { AudioService } from '../src/index';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import {
+  EntityManager,
+  ComponentRegistry,
+  QueryEngine,
+  createEngineAPI,
+} from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 // ── AudioContext Mock ────────────────────────────────────────────────────
 

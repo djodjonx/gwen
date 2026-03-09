@@ -3,7 +3,7 @@
  */
 
 export const VERSION = '0.2.0';
-export const PACKAGE_NAME = '@gwen/cli';
+export const PACKAGE_NAME = '@djodjonx/gwen-cli';
 
 export const DEFAULT_PORT_DEV = 3000;
 export const DEFAULT_PORT_PREVIEW = 4173;

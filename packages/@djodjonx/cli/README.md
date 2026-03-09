@@ -1,4 +1,4 @@
-# @gwen/cli
+# @djodjonx/gwen-cli
 
 **GWEN CLI — Command-line interface for game development**
 
@@ -7,9 +7,9 @@ Build, develop, and scaffold GWEN game projects from the command line.
 ## Installation
 
 ```bash
-npm install -D @gwen/cli
+npm install -D @djodjonx/gwen-cli
 # or globally
-npm install -g @gwen/cli
+npm install -g @djodjonx/gwen-cli
 ```
 
 ## Quick Start
@@ -83,9 +83,9 @@ Configure your game engine:
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 
 export default defineConfig({
   // Canvas element ID
@@ -103,7 +103,7 @@ export default defineConfig({
 
 ```typescript
 import { defineConfig } from 'vite';
-import { gwen } from '@gwen/vite-plugin';
+import { gwen } from '@djodjonx/gwen-vite-plugin';
 
 export default defineConfig({
   plugins: [
@@ -158,7 +158,7 @@ npm run preview
 
 ```typescript
 // src/scenes/GameScene.ts
-import { defineScene, defineComponent, Types } from '@gwen/engine-core';
+import { defineScene, defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 const Position = defineComponent('Position', {
   x: Types.f32,
@@ -184,8 +184,8 @@ export const GameScene = defineScene({
 
 ```typescript
 // gwen.config.ts
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 
 export default defineConfig({
   plugins: [new InputPlugin(), new AudioPlugin()],
@@ -222,6 +222,6 @@ gwen dev --port 3001
 
 ## See Also
 
-- [@gwen/engine-core](../engine-core/) — Core engine API
-- [@gwen/vite-plugin](../vite-plugin/) — Vite integration
+- [@djodjonx/gwen-engine-core](../engine-core/) — Core engine API
+- [@djodjonx/gwen-vite-plugin](../vite-plugin/) — Vite integration
 - [GWEN Documentation](https://gwen.dev/docs)

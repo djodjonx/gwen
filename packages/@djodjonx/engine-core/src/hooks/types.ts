@@ -19,21 +19,21 @@
 /**
  * GWEN hooks type bridge.
  *
- * Base hook contracts now live in `@gwen/schema` and engine-core binds them
+ * Base hook contracts now live in `@djodjonx/gwen-schema` and engine-core binds them
  * to concrete runtime types.
  */
 
-import type { GwenHooks as SchemaGwenHooks } from '@gwen/schema';
+import type { GwenHooks as SchemaGwenHooks } from '@djodjonx/gwen-schema';
 
-export type EngineLifecycleHooks = import('@gwen/schema').EngineLifecycleHooks;
-export type PluginLifecycleHooks = import('@gwen/schema').PluginLifecycleHooks<any, any>;
-export type EntityLifecycleHooks = import('@gwen/schema').EntityLifecycleHooks<
+export type EngineLifecycleHooks = import('@djodjonx/gwen-schema').EngineLifecycleHooks;
+export type PluginLifecycleHooks = import('@djodjonx/gwen-schema').PluginLifecycleHooks<any, any>;
+export type EntityLifecycleHooks = import('@djodjonx/gwen-schema').EntityLifecycleHooks<
   import('../types').EntityId
 >;
-export type ComponentLifecycleHooks = import('@gwen/schema').ComponentLifecycleHooks<
+export type ComponentLifecycleHooks = import('@djodjonx/gwen-schema').ComponentLifecycleHooks<
   import('../types').EntityId
 >;
-export type SceneLifecycleHooks = import('@gwen/schema').SceneLifecycleHooks<
+export type SceneLifecycleHooks = import('@djodjonx/gwen-schema').SceneLifecycleHooks<
   import('../api/scene-context').ReloadContext
 >;
 

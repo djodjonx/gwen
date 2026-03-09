@@ -12,9 +12,9 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['@gwen/engine-core'],
+      external: ['@djodjonx/gwen-engine-core'],
       output: {
-        globals: { '@gwen/engine-core': 'GwenEngineCore' },
+        globals: { '@djodjonx/gwen-engine-core': 'GwenEngineCore' },
       },
     },
   },

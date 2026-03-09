@@ -1,5 +1,5 @@
 /**
- * Tests @gwen/vite-plugin
+ * Tests @djodjonx/gwen-vite-plugin
  * Vérifie la résolution du module virtuel et les options du plugin.
  */
 

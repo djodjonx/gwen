@@ -7,7 +7,7 @@
  * After `gwen prepare` runs, `.gwen/gwen.d.ts` extends these with strict services/hooks.
  */
 
-import type { GwenHooks } from '@gwen/schema';
+import type { GwenHooks } from '@djodjonx/gwen-schema';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 declare global {

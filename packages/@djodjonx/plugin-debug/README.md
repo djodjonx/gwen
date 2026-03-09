@@ -1,4 +1,4 @@
-# @gwen/plugin-debug
+# @djodjonx/gwen-plugin-debug
 
 **GWEN Debug Plugin — FPS monitor, performance metrics, and debug overlay**
 
@@ -7,7 +7,7 @@ Monitor your game's performance with real-time metrics and a visual overlay.
 ## Installation
 
 ```bash
-npm install @gwen/plugin-debug
+npm install @djodjonx/gwen-plugin-debug
 ```
 
 ## Quick Start
@@ -16,8 +16,8 @@ npm install @gwen/plugin-debug
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/kit';
-import { DebugPlugin } from '@gwen/plugin-debug';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { DebugPlugin } from '@djodjonx/gwen-plugin-debug';
 
 export default defineConfig({
   plugins: [process.env.NODE_ENV === 'development' && new DebugPlugin()].filter(Boolean),
@@ -132,6 +132,6 @@ For deeper analysis, use your browser's DevTools:
 
 ## See Also
 
-- [@gwen/engine-core](../engine-core/) — Core engine
-- [@gwen/plugin-input](../plugin-input/) — Input handling
-- [@gwen/plugin-audio](../plugin-audio/) — Audio system
+- [@djodjonx/gwen-engine-core](../engine-core/) — Core engine
+- [@djodjonx/gwen-plugin-input](../plugin-input/) — Input handling
+- [@djodjonx/gwen-plugin-audio](../plugin-audio/) — Audio system

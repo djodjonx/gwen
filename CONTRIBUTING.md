@@ -117,11 +117,11 @@ gwen/
 ├── crates/              # Rust/WASM core
 │   └── gwen-core/
 ├── packages/            # TypeScript packages
-│   ├── @gwen/engine-core/
-│   ├── @gwen/cli/
-│   ├── @gwen/plugin-*/
-│   ├── @gwen/renderer-*/
-│   └── @gwen/vite-plugin/
+│   ├── @djodjonx/gwen-engine-core/
+│   ├── @djodjonx/gwen-cli/
+│   ├── @djodjonx/gwen-plugin-*/
+│   ├── @djodjonx/gwen-renderer-*/
+│   └── @djodjonx/gwen-vite-plugin/
 ├── playground/          # Example game (Space Shooter)
 └── docs/               # Documentation
 ```
@@ -241,7 +241,7 @@ Closes #456
 
 ### Adding a New Plugin
 
-1. Create directory: `packages/@gwen/plugin-myfeature/`
+1. Create directory: `packages/@djodjonx/gwen-plugin-myfeature/`
 2. Copy structure from an existing plugin
 3. Update `package.json` with correct metadata
 4. Implement plugin in `src/index.ts`
@@ -261,7 +261,7 @@ Use `workspace:*` for internal dependencies:
 
 ```json
 "dependencies": {
-  "@gwen/engine-core": "workspace:*"
+  "@djodjonx/gwen-engine-core": "workspace:*"
 }
 ```
 
@@ -271,7 +271,7 @@ Use `workspace:*` for internal dependencies:
 
 ```bash
 # Test one package
-cd packages/@gwen/engine-core
+cd packages/@djodjonx/gwen-engine-core
 pnpm test
 
 # Test with watch mode
@@ -302,7 +302,7 @@ pnpm clean
 ## Performance Considerations
 
 - Keep WASM binary size low
-- Profile hot paths with [@gwen/plugin-debug](packages/@gwen/plugin-debug/)
+- Profile hot paths with [@djodjonx/gwen-plugin-debug](packages/@djodjonx/gwen-plugin-debug/)
 - Use ECS queries efficiently
 - Minimize entity creation/destruction per frame
 
@@ -390,7 +390,7 @@ const PlayerSave = defineComponent({
 If memory grows indefinitely after scene transitions:
 
 ```typescript
-import { GlobalStringPoolManager } from '@gwen/engine-core';
+import { GlobalStringPoolManager } from '@djodjonx/gwen-engine-core';
 
 // Check pool sizes
 const stats = GlobalStringPoolManager.getDebugStats();
@@ -417,7 +417,7 @@ See [docs/core/string-pool.md](docs/core/string-pool.md) for complete documentat
 ### README Structure
 
 ```markdown
-# @gwen/package-name
+# @djodjonx/gwen-package-name
 
 **Short description**
 

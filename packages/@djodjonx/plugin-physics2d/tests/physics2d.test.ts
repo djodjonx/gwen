@@ -1,5 +1,5 @@
 /**
- * Tests for @gwen/plugin-physics2d — Physics2DPlugin
+ * Tests for @djodjonx/gwen-plugin-physics2d — Physics2DPlugin
  *
  * Strategy: mock the WASM module entirely so tests run in Node.js
  * without a browser or real .wasm file.
@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
-import type { GwenPlugin } from '@gwen/kit';
+import type { GwenPlugin } from '@djodjonx/gwen-kit';
 
 // ─── Helpers & mocks ─────────────────────────────────────────────────────────
 
@@ -67,18 +67,18 @@ function makeConstructibleCtorMock<T extends object>(value: T) {
 
 // ── Mock loadWasmPlugin ───────────────────────────────────────────────────────
 
-vi.mock('@gwen/engine-core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@gwen/engine-core')>();
+vi.mock('@djodjonx/gwen-engine-core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@djodjonx/gwen-engine-core')>();
   return { ...original, loadWasmPlugin: vi.fn() };
 });
 
-// @gwen/kit re-exports loadWasmPlugin from @gwen/engine-core — mock it too
-vi.mock('@gwen/kit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@gwen/kit')>();
+// @djodjonx/gwen-kit re-exports loadWasmPlugin from @djodjonx/gwen-engine-core — mock it too
+vi.mock('@djodjonx/gwen-kit', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@djodjonx/gwen-kit')>();
   return { ...original, loadWasmPlugin: vi.fn() };
 });
 
-import { loadWasmPlugin } from '@gwen/kit';
+import { loadWasmPlugin } from '@djodjonx/gwen-kit';
 import { Physics2DPlugin, physics2D } from '../src/index';
 import { BODY_TYPE, parseCollisionEvents, readCollisionEventsFromBuffer } from '../src/types';
 

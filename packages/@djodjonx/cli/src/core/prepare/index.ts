@@ -12,7 +12,7 @@ import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
 import { collectPluginTypingMeta } from './plugin-resolver.js';
-import type { GwenOptions } from '@gwen/schema';
+import type { GwenOptions } from '@djodjonx/gwen-schema';
 
 /**
  * Options for the prepare command

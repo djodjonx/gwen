@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveConfig, validateResolvedConfig } from '@gwen/schema';
+import { resolveConfig, validateResolvedConfig } from '@djodjonx/gwen-schema';
 
-describe('@gwen/schema contract used by CLI', () => {
+describe('@djodjonx/gwen-schema contract used by CLI', () => {
   it('accepts valid config', () => {
     const conf = resolveConfig({
       engine: { maxEntities: 10_000, targetFPS: 120 },

@@ -1,5 +1,5 @@
 /**
- * @gwen/kit — GWEN plugin authoring kit.
+ * @djodjonx/gwen-kit — GWEN plugin authoring kit.
  *
  * Provides helpers and type re-exports for creating GWEN plugins.
  * Intended for plugin authors — both first-party (official plugins)
@@ -12,9 +12,9 @@
  * ## What does NOT belong here
  * - `defineSystem()`, `defineScene()`, `defineUI()`, `definePrefab()` —
  *   these are game development primitives, not plugin authoring tools.
- *   Import them from `@gwen/engine-core`.
+ *   Import them from `@djodjonx/gwen-engine-core`.
  * - `defineConfig()`, `createEngine()` — project bootstrap, not authoring.
- *   Import `defineConfig` from `@gwen/kit` and `createEngine` from `@gwen/engine-core`.
+ *   Import `defineConfig` from `@djodjonx/gwen-kit` and `createEngine` from `@djodjonx/gwen-engine-core`.
  */
 
 // ── Project config helper ─────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export type {
   GwenPluginInstance,
 } from './define-plugin';
 
-// ── Type re-exports from @gwen/engine-core ────────────────────────────────────
+// ── Type re-exports from @djodjonx/gwen-engine-core ────────────────────────────────────
 // Only types necessary to *author* a plugin are re-exported here.
 // Game-loop primitives (defineSystem, defineScene, etc.) are intentionally omitted.
 
@@ -65,12 +65,12 @@ export type {
   // Hooks
   GwenHooks,
   GwenHookable,
-} from '@gwen/engine-core';
+} from '@djodjonx/gwen-engine-core';
 
-export type { AllocatedChannel, PluginDataBus } from '@gwen/engine-core';
+export type { AllocatedChannel, PluginDataBus } from '@djodjonx/gwen-engine-core';
 
 // ── Runtime re-exports (values, not types) ────────────────────────────────────
 
-export { loadWasmPlugin } from '@gwen/engine-core';
-export { isWasmPlugin } from '@gwen/engine-core';
-export { createEntityId, unpackEntityId } from '@gwen/engine-core';
+export { loadWasmPlugin } from '@djodjonx/gwen-engine-core';
+export { isWasmPlugin } from '@djodjonx/gwen-engine-core';
+export { createEntityId, unpackEntityId } from '@djodjonx/gwen-engine-core';

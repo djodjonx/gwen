@@ -1,4 +1,4 @@
-# @gwen/plugin-physics2d
+# @djodjonx/gwen-plugin-physics2d
 
 ## 0.3.1
 

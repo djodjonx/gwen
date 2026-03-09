@@ -17,7 +17,7 @@ GWEN is a **modern game engine for the web** that combines:
 ```
 Your Game (TypeScript)
     ↓
-GWEN Framework (@gwen/engine-core)
+GWEN Framework (@djodjonx/gwen-engine-core)
     ├─ Engine API
     ├─ Renderer
     ├─ Input System
@@ -38,7 +38,7 @@ GWEN Core (Rust/WASM)
 ### Step 1: Install Dependencies
 
 ```bash
-npm install @gwen/engine-core
+npm install @djodjonx/gwen-engine-core
 ```
 
 ### Step 2: Create HTML Canvas
@@ -77,7 +77,7 @@ npm install @gwen/engine-core
 **src/main.ts:**
 
 ```typescript
-import { Engine, defineConfig } from '@gwen/engine-core';
+import { Engine, defineConfig } from '@djodjonx/gwen-engine-core';
 
 // Configure engine
 const config = defineConfig({
@@ -146,7 +146,7 @@ Create a simple game with a bouncing ball:
 **src/games/bouncing-ball.ts:**
 
 ```typescript
-import { Engine, defineConfig } from '@gwen/engine-core';
+import { Engine, defineConfig } from '@djodjonx/gwen-engine-core';
 
 interface Ball {
   entityId: number;
@@ -225,7 +225,7 @@ Template for a game with player movement:
 **src/games/player-movement.ts:**
 
 ```typescript
-import { Engine, defineConfig, useEngine } from '@gwen/engine-core';
+import { Engine, defineConfig, useEngine } from '@djodjonx/gwen-engine-core';
 
 // Configuration
 const config = defineConfig({
@@ -315,8 +315,8 @@ engine.start();
 ### Example: Physics Plugin
 
 ```typescript
-import { Engine, defineConfig } from '@gwen/engine-core';
-import { PhysicsPlugin } from '@gwen/physics';
+import { Engine, defineConfig } from '@djodjonx/gwen-engine-core';
+import { PhysicsPlugin } from '@djodjonx/gwen-physics';
 
 const engine = new Engine(
   defineConfig({
@@ -340,8 +340,8 @@ engine.on('start', () => {
 ### Example: Input Plugin
 
 ```typescript
-import { Engine } from '@gwen/engine-core';
-import { InputPlugin } from '@gwen/input';
+import { Engine } from '@djodjonx/gwen-engine-core';
+import { InputPlugin } from '@djodjonx/gwen-input';
 
 const engine = new Engine();
 engine.loadPlugin('input', InputPlugin);

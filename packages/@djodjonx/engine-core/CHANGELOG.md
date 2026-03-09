@@ -1,4 +1,4 @@
-# @gwen/engine-core
+# @djodjonx/gwen-engine-core
 
 ## 0.3.1
 

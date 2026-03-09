@@ -1,4 +1,4 @@
-import { defineScene, UIComponent } from '@gwen/engine-core';
+import { defineScene, UIComponent } from '@djodjonx/gwen-engine-core';
 import { PlayerPrefab, EnemyPrefab, BulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';

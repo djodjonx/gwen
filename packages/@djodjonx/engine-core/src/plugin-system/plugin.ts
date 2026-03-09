@@ -164,7 +164,7 @@ export type MergeAllProvides<
 export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = MergePluginsHooks<TsPlugins>;
 
 // ── GwenPlugin re-exported for convenience ────────────────────────────────────
-// (Consumers may import GwenPlugin directly from here or from '@gwen/engine-core')
+// (Consumers may import GwenPlugin directly from here or from '@djodjonx/gwen-engine-core')
 
 /**
  * Static metadata declared alongside a plugin package.
@@ -172,9 +172,9 @@ export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = MergePlugin
  *
  * @example
  * ```ts
- * // @gwen/plugin-html-ui/src/index.ts
+ * // @djodjonx/gwen-plugin-html-ui/src/index.ts
  * export const pluginMeta: GwenPluginMeta = {
- *   typeReferences: ['@gwen/plugin-html-ui/vite-env'],
+ *   typeReferences: ['@djodjonx/gwen-plugin-html-ui/vite-env'],
  * };
  * ```
  */

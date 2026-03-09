@@ -7,7 +7,7 @@
  *
  * @example Basic usage
  * ```typescript
- * import { createGwenHooks } from '@gwen/engine-core';
+ * import { createGwenHooks } from '@djodjonx/gwen-engine-core';
  *
  * const hooks = createGwenHooks();
  *
@@ -22,7 +22,7 @@
  *
  * @example In a plugin
  * ```typescript
- * import { defineSystem } from '@gwen/engine-core';
+ * import { defineSystem } from '@djodjonx/gwen-engine-core';
  *
  * export const MyPlugin = defineSystem({
  *   name: 'MyPlugin',
@@ -49,7 +49,7 @@ export type {
   EntityLifecycleHooks,
   ComponentLifecycleHooks,
   SceneLifecycleHooks,
-} from '@gwen/schema';
+} from '@djodjonx/gwen-schema';
 
 export type { GwenHooks } from './types';
 
@@ -90,7 +90,7 @@ export type GwenHookable<H extends Record<string, any> = GwenHooks> = Hookable<H
  *
  * @example Basic initialization
  * ```typescript
- * import { createGwenHooks } from '@gwen/engine-core';
+ * import { createGwenHooks } from '@djodjonx/gwen-engine-core';
  *
  * const hooks = createGwenHooks();
  * ```

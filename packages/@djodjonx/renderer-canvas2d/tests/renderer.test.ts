@@ -7,8 +7,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Canvas2DRenderer } from '../src/renderer';
 import { ShapeRenderer } from '../src/shapes';
 import type { SpriteComponent, TransformComponent, RendererService } from '../src/renderer';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import {
+  EntityManager,
+  ComponentRegistry,
+  QueryEngine,
+  createEngineAPI,
+} from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 // ── Canvas mock ──────────────────────────────────────────────────────────
 

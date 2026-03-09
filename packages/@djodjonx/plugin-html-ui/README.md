@@ -1,4 +1,4 @@
-# @gwen/plugin-html-ui
+# @djodjonx/gwen-plugin-html-ui
 
 Plugin GWEN pour le rendu UI via le DOM HTML.
 
@@ -6,7 +6,7 @@ Plugin GWEN pour le rendu UI via le DOM HTML.
 
 ```ts
 // gwen.config.ts
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
 
 export default defineConfig({
   plugins: [new HtmlUIPlugin()],
@@ -20,7 +20,7 @@ Pour utiliser l'import de fichiers HTML bruts, ajouter une référence dans votr
 ```json
 {
   "compilerOptions": {
-    "types": ["@gwen/plugin-html-ui/vite-env"]
+    "types": ["@djodjonx/gwen-plugin-html-ui/vite-env"]
   }
 }
 ```
@@ -28,7 +28,7 @@ Pour utiliser l'import de fichiers HTML bruts, ajouter une référence dans votr
 Ou via un `/// <reference>` dans n'importe quel fichier `.d.ts` de votre projet :
 
 ```ts
-/// <reference types="@gwen/plugin-html-ui/vite-env" />
+/// <reference types="@djodjonx/gwen-plugin-html-ui/vite-env" />
 ```
 
 Cela active l'autocomplétion pour :
@@ -42,7 +42,7 @@ import scoreHtml from './score.html?raw';
 
 ```ts
 // src/ui/ScoreUI.ts
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { Score } from '../components';
 import scoreHtml from './score.html?raw';
 

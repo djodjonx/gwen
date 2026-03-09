@@ -1,6 +1,6 @@
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
 
 export default defineConfig({
   engine: {

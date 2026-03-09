@@ -6,7 +6,7 @@ import {
   QueryEngine,
   createEngineAPI,
   createEntityId,
-} from '@gwen/engine-core';
+} from '@djodjonx/gwen-engine-core';
 
 function makeApi() {
   return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());

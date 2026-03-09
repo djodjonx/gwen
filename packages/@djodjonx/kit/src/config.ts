@@ -1,12 +1,12 @@
 /**
  * Typed project configuration helper for GWEN apps.
  *
- * `defineConfig()` lives in `@gwen/kit` and carries plugin-derived service/hook
+ * `defineConfig()` lives in `@djodjonx/gwen-kit` and carries plugin-derived service/hook
  * types for `gwen prepare`.
  */
 
-import type { GwenConfigInput } from '@gwen/schema';
-import type { GwenPlugin } from '@gwen/engine-core';
+import type { GwenConfigInput } from '@djodjonx/gwen-schema';
+import type { GwenPlugin } from '@djodjonx/gwen-engine-core';
 
 /** Converts a union to an intersection (`A | B` -> `A & B`). */
 type UnionToIntersection<U> = (U extends unknown ? (arg: U) => void : never) extends (
@@ -32,7 +32,7 @@ export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = AsObje
 
 /** Merge all hooks from a plugins tuple and include core hooks. */
 export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
-  import('@gwen/schema').GwenHooks &
+  import('@djodjonx/gwen-schema').GwenHooks &
     AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
 /**

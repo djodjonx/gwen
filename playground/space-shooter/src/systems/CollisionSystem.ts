@@ -1,7 +1,7 @@
-import { defineSystem } from '@gwen/engine-core';
-import type { EntityId } from '@gwen/engine-core';
-import { unpackEntityId } from '@gwen/engine-core';
-import type { Physics2DAPI } from '@gwen/plugin-physics2d';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
+import type { EntityId } from '@djodjonx/gwen-engine-core';
+import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import { Tag, Score, Health } from '../components';
 
 export const CollisionSystem = defineSystem('CollisionSystem', () => {

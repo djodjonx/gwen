@@ -1,4 +1,4 @@
-# @gwen/plugin-debug
+# @djodjonx/gwen-plugin-debug
 
 ## 0.3.1
 

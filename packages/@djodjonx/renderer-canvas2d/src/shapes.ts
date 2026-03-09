@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { ShapeRenderer } from '@gwen/renderer-canvas2d';
+ * import { ShapeRenderer } from '@djodjonx/gwen-renderer-canvas2d';
  *
  * // Dans onRender d'un TsPlugin custom :
  * ShapeRenderer.rect(ctx, { x: 100, y: 100, width: 50, height: 50, color: 'red' });

@@ -1,4 +1,4 @@
-# @gwen/plugin-input
+# @djodjonx/gwen-plugin-input
 
 **GWEN Input Plugin — Keyboard, mouse, and gamepad input**
 
@@ -7,7 +7,7 @@ Handle player input with a unified, easy-to-use API.
 ## Installation
 
 ```bash
-npm install @gwen/plugin-input
+npm install @djodjonx/gwen-plugin-input
 ```
 
 ## Quick Start
@@ -16,8 +16,8 @@ npm install @gwen/plugin-input
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 
 export default defineConfig({
   plugins: [new InputPlugin()],
@@ -27,7 +27,7 @@ export default defineConfig({
 ### Detect Input in Your System
 
 ```typescript
-import type { EngineAPI } from '@gwen/engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 export function createPlayerMovement(api: EngineAPI) {
   const input = api.services.get('input');
@@ -122,6 +122,6 @@ if (axes.length > 0) {
 
 ## See Also
 
-- [@gwen/engine-core](../engine-core/) — Core engine
-- [@gwen/plugin-audio](../plugin-audio/) — Audio system
-- [@gwen/plugin-debug](../plugin-debug/) — Debug overlay
+- [@djodjonx/gwen-engine-core](../engine-core/) — Core engine
+- [@djodjonx/gwen-plugin-audio](../plugin-audio/) — Audio system
+- [@djodjonx/gwen-plugin-debug](../plugin-debug/) — Debug overlay

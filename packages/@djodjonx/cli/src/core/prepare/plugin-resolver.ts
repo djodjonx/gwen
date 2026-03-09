@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { logger } from '../../utils/logger.js';
-import type { GwenOptions } from '@gwen/schema';
+import type { GwenOptions } from '@djodjonx/gwen-schema';
 
 export interface GwenTypeRefMeta {
   from: string;

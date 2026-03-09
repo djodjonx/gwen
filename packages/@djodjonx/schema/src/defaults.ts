@@ -3,7 +3,7 @@
  *
  * Default configuration values and merge logic using defu.
  *
- * @module @gwen/schema
+ * @module @djodjonx/gwen-schema
  */
 
 import { defu } from 'defu';

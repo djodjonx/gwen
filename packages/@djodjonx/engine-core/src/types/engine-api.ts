@@ -210,7 +210,7 @@ export interface EngineAPI<
    *
    * @example
    * ```ts
-   * import { createEntityId } from '@gwen/engine-core';
+   * import { createEntityId } from '@djodjonx/gwen-engine-core';
    *
    * const gen = api.getEntityGeneration(slotA);
    * const entityId = createEntityId(slotA, gen);

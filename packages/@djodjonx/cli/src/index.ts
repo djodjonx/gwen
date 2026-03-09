@@ -1,5 +1,5 @@
 /**
- * @gwen/cli — Public API exports
+ * @djodjonx/gwen-cli — Public API exports
  *
  * Export all public functions and types for programmatic usage
  */
@@ -16,7 +16,7 @@ export { loadGwenConfig, findConfigFile, type LoadConfigResult } from './core/co
 export { logger, setLogLevel, type LogLevelConfig } from './utils/logger.js';
 export { GLOBAL_ARGS } from './utils/args.js';
 export { VERSION, PACKAGE_NAME, ExitCode } from './utils/constants.js';
-export type { GwenOptions as GwenConfig } from '@gwen/schema';
+export type { GwenOptions as GwenConfig } from '@djodjonx/gwen-schema';
 
 // Core types
 export type { Result } from './core/types/result.js';

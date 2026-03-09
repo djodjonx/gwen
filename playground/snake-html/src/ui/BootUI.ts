@@ -1,4 +1,4 @@
-import { defineUI } from '@gwen/engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import bootHtml from './boot.html?raw';
 import bootCss from './boot.css?raw';
 

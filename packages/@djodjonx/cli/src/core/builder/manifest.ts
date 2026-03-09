@@ -5,7 +5,7 @@
 import fs from 'node:fs/promises';
 import { join } from 'pathe';
 import { logger } from '../../utils/logger.js';
-import type { GwenOptions } from '@gwen/schema';
+import type { GwenOptions } from '@djodjonx/gwen-schema';
 import type { BuildContext } from './context.js';
 
 interface Manifest {
@@ -50,8 +50,8 @@ export async function generateManifest(ctx: BuildContext): Promise<void> {
           type: type as 'wasm' | 'js',
           ...(type === 'wasm' && pkgName
             ? {
-                wasmPath: `./wasm/${pkgName.replace('@gwen/', '')}_bg.wasm`,
-                jsPath: `./wasm/${pkgName.replace('@gwen/', '')}.js`,
+                wasmPath: `./wasm/${pkgName.replace('@djodjonx/gwen-', '')}_bg.wasm`,
+                jsPath: `./wasm/${pkgName.replace('@djodjonx/gwen-', '')}.js`,
               }
             : {}),
         };

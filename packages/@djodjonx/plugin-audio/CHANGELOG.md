@@ -1,4 +1,4 @@
-# @gwen/plugin-audio
+# @djodjonx/gwen-plugin-audio
 
 ## 0.3.1
 

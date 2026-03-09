@@ -5,13 +5,13 @@ import path from 'node:path';
 const ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
 
 const packageFiles = {
-  GWEN_ENGINE_CORE_VERSION: 'packages/@gwen/engine-core/package.json',
-  GWEN_KIT_VERSION: 'packages/@gwen/kit/package.json',
-  GWEN_PLUGIN_AUDIO_VERSION: 'packages/@gwen/plugin-audio/package.json',
-  GWEN_PLUGIN_INPUT_VERSION: 'packages/@gwen/plugin-input/package.json',
-  GWEN_RENDERER_CANVAS2D_VERSION: 'packages/@gwen/renderer-canvas2d/package.json',
-  GWEN_CLI_VERSION: 'packages/@gwen/cli/package.json',
-  GWEN_VITE_PLUGIN_VERSION: 'packages/@gwen/vite-plugin/package.json',
+  GWEN_ENGINE_CORE_VERSION: 'packages/@djodjonx/engine-core/package.json',
+  GWEN_KIT_VERSION: 'packages/@djodjonx/kit/package.json',
+  GWEN_PLUGIN_AUDIO_VERSION: 'packages/@djodjonx/plugin-audio/package.json',
+  GWEN_PLUGIN_INPUT_VERSION: 'packages/@djodjonx/plugin-input/package.json',
+  GWEN_RENDERER_CANVAS2D_VERSION: 'packages/@djodjonx/renderer-canvas2d/package.json',
+  GWEN_CLI_VERSION: 'packages/@djodjonx/cli/package.json',
+  GWEN_VITE_PLUGIN_VERSION: 'packages/@djodjonx/vite-plugin/package.json',
 };
 
 const outFile = path.join(ROOT, 'packages/create-gwen-app/versions.json');

@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { DebugPlugin } from '@gwen/plugin-debug';
+ * import { DebugPlugin } from '@djodjonx/gwen-plugin-debug';
  *
  * export default defineConfig({
  *   plugins: [new DebugPlugin({ overlay: true })],
@@ -18,8 +18,8 @@
  * ```
  */
 
-import { definePlugin } from '@gwen/kit';
-import type { EngineAPI } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
+import type { EngineAPI } from '@djodjonx/gwen-kit';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
 import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';

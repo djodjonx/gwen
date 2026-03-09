@@ -3,7 +3,7 @@
  *
  * Single source of truth for GWEN engine configuration types and defaults.
  *
- * @module @gwen/schema
+ * @module @djodjonx/gwen-schema
  */
 
 // Types

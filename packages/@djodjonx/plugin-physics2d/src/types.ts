@@ -62,7 +62,7 @@ export interface ColliderOptions {
  * you MUST reconstruct the EntityId using `createEntityId`:
  *
  * ```typescript
- * import { createEntityId } from '@gwen/engine-core';
+ * import { createEntityId } from '@djodjonx/gwen-engine-core';
  *
  * for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
  *   const entityA = createEntityId(slotA, api.getEntityGeneration(slotA));

@@ -1,12 +1,12 @@
 /**
- * @gwen/plugin-html-ui
+ * @djodjonx/gwen-plugin-html-ui
  *
  * GWEN plugin for HTML DOM-based UI rendering.
  * Exposes a `HtmlUI` service in `api.services` as `'htmlUI'`.
  *
  * @example
  * ```ts
- * import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
+ * import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
  * export default defineConfig({ plugins: [new HtmlUIPlugin()] });
  *
  * // src/ui/ScoreUI.ts
@@ -25,19 +25,19 @@
  * ```
  */
 
-import { definePlugin } from '@gwen/kit';
-import type { EngineAPI, EntityId, GwenPluginMeta } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
+import type { EngineAPI, EntityId, GwenPluginMeta } from '@djodjonx/gwen-kit';
 
 // ── Plugin metadata ───────────────────────────────────────────────────────────
 
 /**
  * Static metadata consumed by `gwen prepare` to inject
- * `/// <reference types="@gwen/plugin-html-ui/vite-env" />` into `.gwen/gwen.d.ts`.
+ * `/// <reference types="@djodjonx/gwen-plugin-html-ui/vite-env" />` into `.gwen/gwen.d.ts`.
  */
 export const pluginMeta: GwenPluginMeta = {
-  typeReferences: ['@gwen/plugin-html-ui/vite-env'],
+  typeReferences: ['@djodjonx/gwen-plugin-html-ui/vite-env'],
   serviceTypes: {
-    htmlUI: { from: '@gwen/plugin-html-ui', exportName: 'HtmlUI' },
+    htmlUI: { from: '@djodjonx/gwen-plugin-html-ui', exportName: 'HtmlUI' },
   },
 };
 

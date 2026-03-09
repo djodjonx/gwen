@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { definePrefab } from '@gwen/engine-core';
+ * import { definePrefab } from '@djodjonx/gwen-engine-core';
  *
  * const BulletPrefab = definePrefab({
  *   name: 'Bullet',

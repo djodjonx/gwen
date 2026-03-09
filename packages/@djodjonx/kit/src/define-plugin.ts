@@ -12,7 +12,7 @@
  *
  * @example TS-only plugin
  * ```ts
- * import { definePlugin } from '@gwen/kit';
+ * import { definePlugin } from '@djodjonx/gwen-kit';
  *
  * export const AudioPlugin = definePlugin({
  *   name: 'AudioPlugin',
@@ -35,7 +35,7 @@
  *
  * @example WASM plugin
  * ```ts
- * import { definePlugin, loadWasmPlugin } from '@gwen/kit';
+ * import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
  *
  * export const Physics2DPlugin = definePlugin({
  *   name: 'Physics2D',
@@ -71,8 +71,8 @@ import type {
   WasmBridge,
   MemoryRegion,
   PluginDataBus,
-} from '@gwen/engine-core';
-import type { GwenPluginMeta } from '@gwen/engine-core';
+} from '@djodjonx/gwen-engine-core';
+import type { GwenPluginMeta } from '@djodjonx/gwen-engine-core';
 
 // ── Lifecycle shapes ──────────────────────────────────────────────────────────
 
@@ -332,7 +332,7 @@ export type ConcretePlugin<
  * Use `InstanceType<typeof MyPlugin>` or the `GwenPluginInstance<T>` helper:
  *
  * ```ts
- * import type { GwenPluginInstance } from '@gwen/kit';
+ * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
  *
  * let plugin: InstanceType<typeof AudioPlugin>;
  * // or equivalently:
@@ -358,7 +358,7 @@ export type PluginClass<
  *
  * @example
  * ```ts
- * import type { GwenPluginInstance } from '@gwen/kit';
+ * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
  *
  * // In a test file or another plugin:
  * let plugin: GwenPluginInstance<typeof AudioPlugin>;
@@ -382,7 +382,7 @@ export type GwenPluginInstance<T extends abstract new (...args: any[]) => any> =
  *
  * @example
  * ```ts
- * import { definePlugin } from '@gwen/kit';
+ * import { definePlugin } from '@djodjonx/gwen-kit';
  *
  * // Plugin without options:
  * export const HudPlugin = definePlugin({
@@ -410,7 +410,7 @@ export type GwenPluginInstance<T extends abstract new (...args: any[]) => any> =
  * });
  *
  * // Typing an instance variable:
- * import type { GwenPluginInstance } from '@gwen/kit';
+ * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
  * let plugin: GwenPluginInstance<typeof ScorePlugin>;
  *
  * // gwen.config.ts
@@ -440,7 +440,7 @@ export function definePlugin<
  *
  * @example
  * ```ts
- * import { definePlugin, loadWasmPlugin } from '@gwen/kit';
+ * import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
  *
  * export const Physics2DPlugin = definePlugin({
  *   name: 'Physics2D',
@@ -498,7 +498,7 @@ export function definePlugin<
   class PluginInstance implements GwenPlugin<N, P, H> {
     readonly name: N;
     readonly version: string | undefined;
-    readonly meta: import('@gwen/engine-core').GwenPluginMeta | undefined;
+    readonly meta: import('@djodjonx/gwen-engine-core').GwenPluginMeta | undefined;
     readonly provides: P | undefined;
     readonly providesHooks: H | undefined;
     readonly wasm: GwenPluginWasmContext | undefined;

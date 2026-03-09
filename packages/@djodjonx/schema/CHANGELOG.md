@@ -1,4 +1,4 @@
-# @gwen/schema
+# @djodjonx/gwen-schema
 
 ## 0.3.1
 

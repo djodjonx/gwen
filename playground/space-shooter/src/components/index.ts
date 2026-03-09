@@ -3,7 +3,7 @@
  * Définis avec defineComponent() — typage automatique.
  */
 
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',

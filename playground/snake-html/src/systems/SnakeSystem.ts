@@ -1,4 +1,4 @@
-import { defineSystem } from '@gwen/engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { renderSnakeView } from '../ui/SnakeUI';
 
 const GRID_SIZE = 20;

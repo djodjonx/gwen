@@ -1,5 +1,5 @@
 /**
- * @gwen/cli — vite-config-builder
+ * @djodjonx/gwen-cli — vite-config-builder
  *
  * Génère une InlineConfig Vite complète depuis gwen.config.ts.
  * C'est le cœur de l'offuscation Vite : l'utilisateur ne voit jamais vite.config.ts.
@@ -82,7 +82,7 @@ export async function buildViteConfig(
     },
 
     optimizeDeps: {
-      entries: ['/@gwen/entry'],
+      entries: ['/@djodjonx/gwen-entry'],
     },
 
     assetsInclude: ['**/*.wasm'],
@@ -112,10 +112,10 @@ async function loadGwenVitePlugin(projectDir: string): Promise<Function | null> 
     }
   }
 
-  // Fallback — importer depuis @gwen/vite-plugin (si installé)
+  // Fallback — importer depuis @djodjonx/gwen-vite-plugin (si installé)
   try {
     // @ts-ignore - Prevent tsc from pulling the vite-plugin workspace into the cli compilation scope
-    const mod = await import('@gwen/vite-plugin');
+    const mod = await import('@djodjonx/gwen-vite-plugin');
     const gwenPlugin = (mod as { gwen?: unknown }).gwen;
     return (gwenPlugin && typeof gwenPlugin === 'function' ? gwenPlugin : null) as Function | null;
   } catch {

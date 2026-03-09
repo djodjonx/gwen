@@ -1,17 +1,17 @@
 /**
- * @gwen/cli — Builder (v0.2.0)
+ * @djodjonx/gwen-cli — Builder (v0.2.0)
  *
  * Build orchestration for GWEN projects.
  * Pipeline:
  *  1. Load and validate config
- *  2. Copy pre-compiled WASM from @gwen/engine-core
+ *  2. Copy pre-compiled WASM from @djodjonx/gwen-engine-core
  *  3. Generate manifest JSON
  *  4. Prepare project artifacts
  *  5. Run Vite build
  *
  * @example
  * ```typescript
- * import { build } from '@gwen/cli';
+ * import { build } from '@djodjonx/gwen-cli';
  * const result = await build({ mode: 'release' });
  * if (result.success) {
  *   console.log('Build complete!');

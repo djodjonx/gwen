@@ -4,7 +4,7 @@
  * Core types for the GWEN engine configuration.
  * These types form the Single Source of Truth (SSOT) for all config handling.
  *
- * @module @gwen/schema
+ * @module @djodjonx/gwen-schema
  */
 
 /**

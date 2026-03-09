@@ -1,4 +1,4 @@
-# @gwen/vite-plugin
+# @djodjonx/gwen-vite-plugin
 
 **GWEN Vite Plugin — WASM hot-reload, asset management, and scene auto-discovery**
 
@@ -7,7 +7,7 @@ Integrate GWEN with Vite for seamless development with WASM hot-reloading.
 ## Installation
 
 ```bash
-npm install -D @gwen/vite-plugin
+npm install -D @djodjonx/gwen-vite-plugin
 ```
 
 ## Quick Start
@@ -16,7 +16,7 @@ npm install -D @gwen/vite-plugin
 
 ```typescript
 import { defineConfig } from 'vite';
-import { gwen } from '@gwen/vite-plugin';
+import { gwen } from '@djodjonx/gwen-vite-plugin';
 
 export default defineConfig({
   plugins: [
@@ -33,7 +33,7 @@ export default defineConfig({
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { gwen } from '@gwen/vite-plugin';
+import { gwen } from '@djodjonx/gwen-vite-plugin';
 
 export default defineConfig({
   plugins: [gwen()],
@@ -105,7 +105,7 @@ interface GwenPluginOptions {
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { gwen } from '@gwen/vite-plugin';
+import { gwen } from '@djodjonx/gwen-vite-plugin';
 
 export default defineConfig({
   plugins: [
@@ -138,7 +138,7 @@ export default defineConfig({
 
 ```typescript
 // src/scenes/GameScene.ts
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 
 export const GameScene = defineScene({
   name: 'game',
@@ -197,6 +197,6 @@ console.log(manifest.wasmPath); // Path to WASM binary
 
 ## See Also
 
-- [@gwen/engine-core](../engine-core/) — Core engine
-- [@gwen/cli](../cli/) — Command-line interface
+- [@djodjonx/gwen-engine-core](../engine-core/) — Core engine
+- [@djodjonx/gwen-cli](../cli/) — Command-line interface
 - [Vite Documentation](https://vitejs.dev)

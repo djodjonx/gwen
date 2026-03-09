@@ -1,4 +1,4 @@
-# @gwen/plugin-html-ui
+# @djodjonx/gwen-plugin-html-ui
 
 ## 0.3.1
 

@@ -3,7 +3,7 @@
  *
  * Contains runtime functions that operate on `GwenPlugin` objects.
  * Kept separate from `types/plugin.ts` so that Vite does not tree-shake
- * them when bundling `@gwen/engine-core`.
+ * them when bundling `@djodjonx/gwen-engine-core`.
  */
 
 import type { GwenPlugin, GwenPluginWasmContext } from '../types/plugin';

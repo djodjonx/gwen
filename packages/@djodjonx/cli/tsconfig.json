@@ -12,8 +12,8 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@gwen/vite-plugin": ["../vite-plugin/src/index.ts"],
-      "@gwen/engine-core": ["../engine-core/src/index.ts"]
+      "@djodjonx/gwen-vite-plugin": ["../vite-plugin/src/index.ts"],
+      "@djodjonx/gwen-engine-core": ["../engine-core/src/index.ts"]
     }
   },
   "include": ["src/**/*"],

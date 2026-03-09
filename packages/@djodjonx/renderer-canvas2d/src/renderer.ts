@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
+ * import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
  *
  * export default defineConfig({
  *   plugins: [new Canvas2DRenderer({ canvas: 'game-canvas' })],
@@ -13,8 +13,8 @@
  * ```
  */
 
-import { definePlugin } from '@gwen/kit';
-import type { EngineAPI, EntityId, GwenPluginMeta } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
+import type { EngineAPI, EntityId, GwenPluginMeta } from '@djodjonx/gwen-kit';
 
 // ── Component types ───────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ export interface RendererService {
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    renderer: { from: '@gwen/renderer-canvas2d', exportName: 'Canvas2DRendererService' },
+    renderer: { from: '@djodjonx/gwen-renderer-canvas2d', exportName: 'Canvas2DRendererService' },
   },
 };
 

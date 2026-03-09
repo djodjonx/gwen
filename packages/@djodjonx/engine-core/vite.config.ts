@@ -14,7 +14,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         globals: {
-          '@gwen/engine-core': 'GwenCore',
+          '@djodjonx/gwen-engine-core': 'GwenCore',
         },
       },
     },

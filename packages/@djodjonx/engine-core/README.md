@@ -1,4 +1,4 @@
-# @gwen/engine-core
+# @djodjonx/gwen-engine-core
 
 **TypeScript SDK for GWEN Game Engine**
 
@@ -17,13 +17,13 @@ Complete framework for building web games with a powerful Rust/WASM core and fle
 ### Installation
 
 ```bash
-npm install @gwen/engine-core
+npm install @djodjonx/gwen-engine-core
 ```
 
 ### Basic Usage
 
 ```typescript
-import { Engine, defineConfig } from '@gwen/engine-core';
+import { Engine, defineConfig } from '@djodjonx/gwen-engine-core';
 
 // Define configuration
 const config = defineConfig({
@@ -148,7 +148,7 @@ const engine = new Engine(config);
 ### Example 1: Simple Game
 
 ```typescript
-import { Engine, defineConfig } from '@gwen/engine-core';
+import { Engine, defineConfig } from '@djodjonx/gwen-engine-core';
 
 const engine = new Engine(
   defineConfig({
@@ -204,9 +204,9 @@ engine.on('update', ({ deltaTime }) => {
 ### Example 3: With Plugins
 
 ```typescript
-import { Engine } from '@gwen/engine-core';
-import { PhysicsPlugin } from '@gwen/physics';
-import { InputPlugin } from '@gwen/input';
+import { Engine } from '@djodjonx/gwen-engine-core';
+import { PhysicsPlugin } from '@djodjonx/gwen-physics';
+import { InputPlugin } from '@djodjonx/gwen-input';
 
 const engine = new Engine();
 
@@ -231,7 +231,7 @@ engine.start();
 ### Creating a Plugin
 
 ```typescript
-import type { Plugin } from '@gwen/engine-core';
+import type { Plugin } from '@djodjonx/gwen-engine-core';
 
 export const MyPlugin: Plugin = {
   name: 'my-plugin',
@@ -303,7 +303,7 @@ engine.addComponent(entity, 'velocity', {
 Get the global engine instance:
 
 ```typescript
-import { getEngine, useEngine } from '@gwen/engine-core';
+import { getEngine, useEngine } from '@djodjonx/gwen-engine-core';
 
 // Get or create
 const engine = getEngine();
@@ -381,7 +381,7 @@ interface EngineConfig {
 Full TypeScript support with complete type definitions:
 
 ```typescript
-import type { EngineConfig, Entity, Component, Plugin } from '@gwen/engine-core';
+import type { EngineConfig, Entity, Component, Plugin } from '@djodjonx/gwen-engine-core';
 ```
 
 ## 🐛 Debug Mode

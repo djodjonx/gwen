@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { defaultOptions, resolveConfig, validateResolvedConfig } from '../src';
 
-describe('@gwen/schema - Configuration', () => {
+describe('@djodjonx/gwen-schema - Configuration', () => {
   describe('defaultOptions', () => {
     it('should have all required default properties', () => {
       expect(defaultOptions.engine.maxEntities).toBe(5000);

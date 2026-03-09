@@ -16,12 +16,12 @@
  * TODO: Migrate to unified `plugins: [...]` once validator is updated.
  */
 
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
-import { HtmlUIPlugin } from '@gwen/plugin-html-ui';
-import { Canvas2DRenderer } from '@gwen/renderer-canvas2d';
-import { physics2D } from '@gwen/plugin-physics2d';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
+import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
+import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
 
 export default defineConfig({
   engine: {

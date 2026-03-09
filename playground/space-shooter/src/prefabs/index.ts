@@ -1,5 +1,5 @@
-import { definePrefab, UIComponent } from '@gwen/engine-core';
-import type { EngineAPI } from '@gwen/engine-core';
+import { definePrefab, UIComponent } from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity, Tag, Collider, ShootTimer, Health } from '../components';
 
 // Les prefabs utilisent EngineAPI sans paramètre de services —

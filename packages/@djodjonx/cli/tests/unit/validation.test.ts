@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveConfig, validateResolvedConfig } from '@gwen/schema';
+import { resolveConfig, validateResolvedConfig } from '@djodjonx/gwen-schema';
 
-describe('CLI config validation via @gwen/schema', () => {
+describe('CLI config validation via @djodjonx/gwen-schema', () => {
   it('applies defaults for empty input', () => {
     const conf = resolveConfig({});
     expect(conf.engine.maxEntities).toBe(5000);

@@ -13,7 +13,7 @@ import type { BuildContext } from './context.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Copy pre-compiled WASM artifacts from @gwen/engine-core
+ * Copy pre-compiled WASM artifacts from @djodjonx/gwen-engine-core
  */
 export async function copyWasmArtifacts(ctx: BuildContext): Promise<void> {
   if (ctx.dryRun) return;
@@ -31,18 +31,18 @@ export async function copyWasmArtifacts(ctx: BuildContext): Promise<void> {
 }
 
 /**
- * Copy pre-compiled WASM from @gwen/engine-core/wasm/
+ * Copy pre-compiled WASM from @djodjonx/gwen-engine-core/wasm/
  */
 async function copyPrecompiledWasm(
   destDir: string,
 ): Promise<{ success: boolean; warnings: string[] }> {
   const warnings: string[] = [];
 
-  // Search candidates for @gwen/engine-core/wasm/
+  // Search candidates for @djodjonx/gwen-engine-core/wasm/
   const candidates = [
-    resolve(__dirname, '../../node_modules/@gwen/engine-core/wasm'),
-    resolve(__dirname, '../../../node_modules/@gwen/engine-core/wasm'),
-    resolve(process.cwd(), 'node_modules/@gwen/engine-core/wasm'),
+    resolve(__dirname, '../../node_modules/@djodjonx/gwen-engine-core/wasm'),
+    resolve(__dirname, '../../../node_modules/@djodjonx/gwen-engine-core/wasm'),
+    resolve(process.cwd(), 'node_modules/@djodjonx/gwen-engine-core/wasm'),
     resolve(__dirname, '../../engine-core/wasm'),
   ];
 
@@ -57,8 +57,8 @@ async function copyPrecompiledWasm(
 
   if (!sourceDir) {
     warnings.push(
-      'Pre-compiled WASM not found in @gwen/engine-core/wasm/. ' +
-        'Run: pnpm install @gwen/engine-core',
+      'Pre-compiled WASM not found in @djodjonx/gwen-engine-core/wasm/. ' +
+        'Run: pnpm install @djodjonx/gwen-engine-core',
     );
     return { success: false, warnings };
   }

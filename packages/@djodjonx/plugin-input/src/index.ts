@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { InputPlugin } from '@gwen/plugin-input';
+ * import { InputPlugin } from '@djodjonx/gwen-plugin-input';
  *
  * export default defineConfig({
  *   plugins: [new InputPlugin()],
@@ -16,8 +16,8 @@
  * ```
  */
 
-import { definePlugin } from '@gwen/kit';
-import type { EngineAPI, GwenPluginMeta } from '@gwen/kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
+import type { EngineAPI, GwenPluginMeta } from '@djodjonx/gwen-kit';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
@@ -38,9 +38,9 @@ export interface InputPluginServices {
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    keyboard: { from: '@gwen/plugin-input', exportName: 'KeyboardInput' },
-    mouse: { from: '@gwen/plugin-input', exportName: 'MouseInput' },
-    gamepad: { from: '@gwen/plugin-input', exportName: 'GamepadInput' },
+    keyboard: { from: '@djodjonx/gwen-plugin-input', exportName: 'KeyboardInput' },
+    mouse: { from: '@djodjonx/gwen-plugin-input', exportName: 'MouseInput' },
+    gamepad: { from: '@djodjonx/gwen-plugin-input', exportName: 'GamepadInput' },
   },
 };
 

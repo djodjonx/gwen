@@ -1,11 +1,11 @@
 /**
- * Configuration loader using C12 and @gwen/schema.
+ * Configuration loader using C12 and @djodjonx/gwen-schema.
  */
 
 import { loadConfig } from 'c12';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { resolveConfig, type GwenConfigInput, type GwenOptions } from '@gwen/schema';
+import { resolveConfig, type GwenConfigInput, type GwenOptions } from '@djodjonx/gwen-schema';
 import { logger } from '../utils/logger.js';
 import { CONFIG_FILE_NAMES } from '../utils/constants.js';
 

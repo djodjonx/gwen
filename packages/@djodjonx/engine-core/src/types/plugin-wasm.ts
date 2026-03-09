@@ -2,7 +2,7 @@
  * @file Legacy WASM plugin type alias — kept for backward compatibility.
  *
  * @deprecated Import `GwenPlugin` with a `wasm` sub-object from
- * `@gwen/engine-core` instead.
+ * `@djodjonx/gwen-engine-core` instead.
  *
  * The `GwenWasmPlugin` interface has been merged into the unified `GwenPlugin`
  * type. Declare the WASM runtime context via the `readonly wasm` field:
