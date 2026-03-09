@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-kit",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "GWEN plugin authoring kit — helpers for creating TS and WASM plugins",
   "keywords": [
     "game-engine",
