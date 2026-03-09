@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-engine-core",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "GWEN Core Engine - ECS + WASM",
   "files": [
     "dist",

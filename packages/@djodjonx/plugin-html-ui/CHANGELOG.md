@@ -1,5 +1,12 @@
 #@djodjonx/gwen-plugin-html-ui
 
+## 0.3.6
+
+### Patch Changes
+
+- fix wasm loading
+- Updated dependencies: [object Object], [object Object]
+
 ## 0.3.5
 
 ### Patch Changes

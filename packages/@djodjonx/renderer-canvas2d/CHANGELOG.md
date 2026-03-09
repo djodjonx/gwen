@@ -1,5 +1,12 @@
 #@djodjonx/gwen-renderer-canvas2d
 
+## 0.3.6
+
+### Patch Changes
+
+- fix wasm loading
+- Updated dependencies: [object Object], [object Object]
+
 ## 0.3.5
 
 ### Patch Changes
