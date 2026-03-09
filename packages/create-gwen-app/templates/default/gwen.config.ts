@@ -1,4 +1,6 @@
-import { defineConfig } from '@gwen/kit';
+// Le template est validé dans le monorepo sans dépendances installées du projet généré.
+// @ts-ignore
+import { defineConfig } from '@djodjonx/gwen-kit';
 
 /**
  * Configuration de votre jeu GWEN.

@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/cli",
+  "name": "@djodjonx/gwen-cli",
   "version": "0.2.1",
   "description": "GWEN Engine CLI with Citty and schema-based config validation",
   "bin": {
@@ -31,7 +31,7 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
-    "@gwen/schema": "workspace:*",
+    "@djodjonx/gwen-schema": "workspace:*",
     "c12": "4.0.0-beta.3",
     "citty": "^0.2.1",
     "consola": "^3.4.2",

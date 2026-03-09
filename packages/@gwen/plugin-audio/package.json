@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/plugin-audio",
+  "name": "@djodjonx/gwen-plugin-audio",
   "version": "0.2.1",
   "description": "GWEN Audio Plugin",
   "files": [
@@ -22,8 +22,8 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwen/engine-core": "workspace:*",
-    "@gwen/kit": "workspace:*"
+    "@djodjonx/gwen-engine-core": "workspace:*",
+    "@djodjonx/gwen-kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -34,7 +34,7 @@
   "gwen": {
     "serviceTypes": {
       "audio": {
-        "from": "@gwen/plugin-audio",
+        "from": "@djodjonx/gwen-plugin-audio",
         "exportName": "AudioManager"
       }
     }

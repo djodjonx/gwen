@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/schema",
+  "name": "@djodjonx/gwen-schema",
   "version": "0.2.1",
   "description": "GWEN configuration schema - Single Source of Truth (SSOT) for engine config",
   "keywords": [

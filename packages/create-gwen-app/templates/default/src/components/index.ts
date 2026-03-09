@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@gwen/engine-core';
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 /**
  * Exemples de composants.

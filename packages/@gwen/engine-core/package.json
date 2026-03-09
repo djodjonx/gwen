@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/engine-core",
+  "name": "@djodjonx/gwen-engine-core",
   "version": "0.2.1",
   "description": "GWEN Core Engine - ECS + WASM",
   "files": [
@@ -23,7 +23,7 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwen/schema": "workspace:*",
+    "@djodjonx/gwen-schema": "workspace:*",
     "hookable": "^6.0.1"
   },
   "devDependencies": {

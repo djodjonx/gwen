@@ -32,9 +32,9 @@ npm run preview  # preview production build
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwen/kit';
-import { InputPlugin } from '@gwen/plugin-input';
-import { AudioPlugin } from '@gwen/plugin-audio';
+import { defineConfig } from '@djodjonx/gwen-kit';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 
 export default defineConfig({
   plugins: [new InputPlugin(), new AudioPlugin()],

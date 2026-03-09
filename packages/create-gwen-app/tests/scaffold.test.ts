@@ -63,16 +63,16 @@ describe('create-gwen-app scaffold', () => {
     expect(pkg.name).toBe('my-game');
   });
 
-  it('package.json has @gwen/engine-core dependency', async () => {
+  it('package.json has @djodjonx/gwen-engine-core dependency', async () => {
     const dest = await scaffold('test-proj', tmpDir);
     const pkg = JSON.parse(fs.readFileSync(path.join(dest, 'package.json'), 'utf-8'));
-    expect(pkg.dependencies['@gwen/engine-core']).toBeDefined();
+    expect(pkg.dependencies['@djodjonx/gwen-engine-core']).toBeDefined();
   });
 
-  it('package.json has @gwen/vite-plugin as devDependency', async () => {
+  it('package.json has @djodjonx/gwen-vite-plugin as devDependency', async () => {
     const dest = await scaffold('test-proj', tmpDir);
     const pkg = JSON.parse(fs.readFileSync(path.join(dest, 'package.json'), 'utf-8'));
-    expect(pkg.devDependencies['@gwen/vite-plugin']).toBeDefined();
+    expect(pkg.devDependencies['@djodjonx/gwen-vite-plugin']).toBeDefined();
   });
 
   it('generates vite.config.ts', async () => {
@@ -80,10 +80,10 @@ describe('create-gwen-app scaffold', () => {
     expect(fs.existsSync(path.join(dest, 'vite.config.ts'))).toBe(true);
   });
 
-  it('vite.config.ts imports @gwen/vite-plugin', async () => {
+  it('vite.config.ts imports @djodjonx/gwen-vite-plugin', async () => {
     const dest = await scaffold('my-game', tmpDir);
     const content = fs.readFileSync(path.join(dest, 'vite.config.ts'), 'utf-8');
-    expect(content).toContain("from '@gwen/vite-plugin'");
+    expect(content).toContain("from '@djodjonx/gwen-vite-plugin'");
   });
 
   it('generates gwen.config.ts', async () => {
@@ -108,7 +108,7 @@ describe('create-gwen-app scaffold', () => {
     const dest = await scaffold('my-game', tmpDir);
     const main = fs.readFileSync(path.join(dest, 'src', 'main.ts'), 'utf-8');
     expect(main).toContain('initWasm()');
-    expect(main).toContain('@gwen/engine-core');
+    expect(main).toContain('@djodjonx/gwen-engine-core');
   });
 
   it('main.ts calls initWasm() without arguments (auto-resolve)', async () => {
@@ -124,11 +124,11 @@ describe('create-gwen-app scaffold', () => {
     expect(fs.existsSync(path.join(dest, 'src', 'scenes', 'MainScene.ts'))).toBe(true);
   });
 
-  it('MainScene uses defineScene from @gwen/engine-core', async () => {
+  it('MainScene uses defineScene from @djodjonx/gwen-engine-core', async () => {
     const dest = await scaffold('my-game', tmpDir);
     const scene = fs.readFileSync(path.join(dest, 'src', 'scenes', 'MainScene.ts'), 'utf-8');
     expect(scene).toContain('defineScene');
-    expect(scene).toContain('@gwen/engine-core');
+    expect(scene).toContain('@djodjonx/gwen-engine-core');
     expect(scene).toContain('onEnter');
     expect(scene).toContain('onExit');
   });

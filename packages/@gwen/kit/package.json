@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/kit",
+  "name": "@djodjonx/gwen-kit",
   "version": "0.2.1",
   "description": "GWEN plugin authoring kit — helpers for creating TS and WASM plugins",
   "keywords": [
@@ -33,8 +33,8 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwen/engine-core": "workspace:*",
-    "@gwen/schema": "workspace:*"
+    "@djodjonx/gwen-engine-core": "workspace:*",
+    "@djodjonx/gwen-schema": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

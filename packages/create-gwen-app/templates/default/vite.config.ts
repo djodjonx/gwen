@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { gwen } from '@gwen/vite-plugin';
+import { gwen } from '@djodjonx/gwen-vite-plugin';
 
 export default defineConfig({
   plugins: [

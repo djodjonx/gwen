@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/vite-plugin",
+  "name": "@djodjonx/gwen-vite-plugin",
   "version": "0.1.0",
   "description": "Vite plugin for GWEN — WASM hot-reload, asset copying, manifest injection",
   "files": [

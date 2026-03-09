@@ -1,5 +1,5 @@
 {
-  "name": "@gwen/plugin-physics2d",
+  "name": "@djodjonx/gwen-plugin-physics2d",
   "version": "0.2.1",
   "description": "2D physics plugin for GWEN — Rapier2D via WASM",
   "files": [
@@ -23,8 +23,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@gwen/engine-core": "workspace:*",
-    "@gwen/kit": "workspace:*"
+    "@djodjonx/gwen-engine-core": "workspace:*",
+    "@djodjonx/gwen-kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -41,7 +41,7 @@
     ],
     "serviceTypes": {
       "physics": {
-        "from": "@gwen/plugin-physics2d",
+        "from": "@djodjonx/gwen-plugin-physics2d",
         "exportName": "Physics2DAPI"
       }
     }

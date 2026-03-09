@@ -3,11 +3,11 @@
   "changelog": ["./changelog.cjs", { "repo": "djodjonx/gwen" }],
   "commit": false,
   "fixed": [],
-  "linked": [["@gwen/*"]],
+  "linked": [["@djodjonx/*"]],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@gwen/vite-plugin", "create-gwen-app"],
+  "ignore": ["@djodjonx/gwen-vite-plugin", "@djodjonx/create-gwen-app"],
   "privatePackages": {
     "version": false,
     "publish": false

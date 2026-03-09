@@ -1,4 +1,4 @@
-import { defineScene } from '@gwen/engine-core';
+import { defineScene } from '@djodjonx/gwen-engine-core';
 
 /**
  * MainScene — Scène principale de votre jeu.
