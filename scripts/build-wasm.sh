@@ -65,9 +65,9 @@ build_wasm_crate() {
 
   cd "$crate_dir"
 
-  # Build with wasm-pack (bundler target for npm packages)
+  # Build with wasm-pack (web target for native ESM support)
   wasm-pack build \
-    --target bundler \
+    --target web \
     --release \
     --out-dir pkg \
     --out-name "${crate_name}" \
@@ -89,7 +89,10 @@ build_wasm_crate() {
   mkdir -p "$wasm_dir"
 
   # Copy the generated files
-  cp "pkg/${crate_name}.js" "$wasm_dir/" 2>/dev/null || cp "pkg/${crate_name}_bg.js" "$wasm_dir/" 2>/dev/null || true
+  # Copy both the main JS glue and the _bg.js if it exists (for some targets)
+  [ -f "pkg/${crate_name}.js" ] && cp "pkg/${crate_name}.js" "$wasm_dir/"
+  [ -f "pkg/${crate_name}_bg.js" ] && cp "pkg/${crate_name}_bg.js" "$wasm_dir/"
+  
   cp "pkg/${crate_name}_bg.wasm" "$wasm_dir/"
   cp "pkg/${crate_name}.d.ts" "$wasm_dir/" 2>/dev/null || true
   cp "pkg/${crate_name}_bg.wasm.d.ts" "$wasm_dir/" 2>/dev/null || true

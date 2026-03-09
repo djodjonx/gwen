@@ -42,6 +42,9 @@ importers:
       '@djodjonx/gwen-schema':
         specifier: workspace:*
         version: link:../schema
+      '@djodjonx/gwen-vite-plugin':
+        specifier: workspace:*
+        version: link:../vite-plugin
       c12:
         specifier: 4.0.0-beta.3
         version: 4.0.0-beta.3(dotenv@8.6.0)(jiti@2.6.1)(magicast@0.5.2)

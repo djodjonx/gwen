@@ -224,21 +224,15 @@ function generateEntryModule(hasScenesDir: boolean): string {
  * Returns the full path to the file if found, null otherwise.
  */
 function findWasmPluginFile(root: string, fileName: string): string | null {
-  const nmDirs = [
-    path.resolve(root, 'node_modules/@djodjonx'),
-    path.resolve(root, '../node_modules/@djodjonx'),
-    path.resolve(__dirname, '../../../node_modules/@djodjonx'),
-  ];
+  const nmDir = path.resolve(root, 'node_modules/@djodjonx');
+  if (!fs.existsSync(nmDir)) return null;
 
-  for (const nmDir of nmDirs) {
-    if (!fs.existsSync(nmDir)) continue;
-    for (const entry of fs.readdirSync(nmDir)) {
-      if (!entry.startsWith('gwen-plugin-')) continue;
-      const pkgPath = path.join(nmDir, entry);
-      const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
-      const candidate = path.join(realPkgPath, 'wasm', fileName);
-      if (fs.existsSync(candidate)) return candidate;
-    }
+  for (const entry of fs.readdirSync(nmDir)) {
+    if (!entry.startsWith('gwen-plugin-')) continue;
+    const pkgPath = path.join(nmDir, entry);
+    const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
+    const candidate = path.join(realPkgPath, 'wasm', fileName);
+    if (fs.existsSync(candidate)) return candidate;
   }
   return null;
 }
@@ -249,21 +243,16 @@ function findWasmPluginFile(root: string, fileName: string): string | null {
  */
 function collectWasmPluginDirs(root: string): string[] {
   const dirs: string[] = [];
-  const nmDirs = [
-    path.resolve(root, 'node_modules/@djodjonx'),
-    path.resolve(root, '../node_modules/@djodjonx'),
-  ];
+  const nmDir = path.resolve(root, 'node_modules/@djodjonx');
+  if (!fs.existsSync(nmDir)) return [];
 
-  for (const nmDir of nmDirs) {
-    if (!fs.existsSync(nmDir)) continue;
-    for (const entry of fs.readdirSync(nmDir)) {
-      if (!entry.startsWith('gwen-plugin-')) continue;
-      // Resolve symlink (pnpm workspace uses symlinks to source packages)
-      const pkgPath = path.join(nmDir, entry);
-      const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
-      const wasmDir = path.join(realPkgPath, 'wasm');
-      if (fs.existsSync(wasmDir)) dirs.push(wasmDir);
-    }
+  for (const entry of fs.readdirSync(nmDir)) {
+    if (!entry.startsWith('gwen-plugin-')) continue;
+    // Resolve symlink (pnpm workspace uses symlinks to source packages)
+    const pkgPath = path.join(nmDir, entry);
+    const realPkgPath = fs.existsSync(pkgPath) ? fs.realpathSync(pkgPath) : pkgPath;
+    const wasmDir = path.join(realPkgPath, 'wasm');
+    if (fs.existsSync(wasmDir)) dirs.push(wasmDir);
   }
   return dirs;
 }
@@ -320,18 +309,30 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
   /**
    * Trouve le répertoire contenant les artefacts WASM pré-compilés dans
-   * @djodjonx/gwen-engine-core/wasm/ sans rien copier.
+   * @djodjonx/gwen-engine-core/wasm/ de manière robuste via la résolution de module.
    */
   function findPrecompiledWasmDir(root: string): string | null {
-    const candidates = [
-      path.resolve(root, 'node_modules/@djodjonx/gwen-engine-core/wasm'),
-      path.resolve(root, '../packages/@djodjonx/gwen-engine-core/wasm'),
-      path.resolve(__dirname, '../../engine-core/wasm'),
-      path.resolve(__dirname, '../../../@djodjonx/gwen-engine-core/wasm'),
-    ];
-    for (const c of candidates) {
-      if (fs.existsSync(c)) return c;
+    try {
+      // In Node.js ESM, we can resolve the package location.
+      // We look for the package.json path to find the base directory of the engine-core package.
+      const pkgUrl = import.meta.resolve('@djodjonx/gwen-engine-core/package.json');
+      const pkgPath = fileURLToPath(pkgUrl);
+      const wasmDir = path.join(path.dirname(pkgPath), 'wasm');
+
+      if (fs.existsSync(wasmDir)) {
+        log(`Resolved WASM dir via import.meta.resolve: ${wasmDir}`);
+        return wasmDir;
+      }
+    } catch (e) {
+      // Fallback
     }
+
+    const candidate = path.resolve(root, 'node_modules/@djodjonx/gwen-engine-core/wasm');
+    if (fs.existsSync(candidate)) {
+      log(`Found WASM dir via node_modules: ${candidate}`);
+      return candidate;
+    }
+
     return null;
   }
 

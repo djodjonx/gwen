@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@djodjonx/gwen-schema": "workspace:*",
+    "@djodjonx/gwen-vite-plugin": "workspace:*",
     "c12": "4.0.0-beta.3",
     "citty": "^0.2.1",
     "consola": "^3.4.2",
