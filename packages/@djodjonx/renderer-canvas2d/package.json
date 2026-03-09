@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-renderer-canvas2d",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "GWEN Canvas2D Renderer Plugin",
   "files": [
     "dist"

@@ -1,5 +1,12 @@
 #@djodjonx/gwen-plugin-input
 
+## 0.3.5
+
+### Patch Changes
+
+- fix published packages
+- Updated dependencies: [object Object], [object Object]
+
 ## 0.3.4
 
 ### Patch Changes

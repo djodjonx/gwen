@@ -1,5 +1,12 @@
 #@djodjonx/gwen-engine-core
 
+## 0.3.5
+
+### Patch Changes
+
+- fix published packages
+- Updated dependencies: [object Object]
+
 ## 0.3.4
 
 ### Patch Changes

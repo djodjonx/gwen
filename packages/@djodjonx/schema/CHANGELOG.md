@@ -1,5 +1,11 @@
 #@djodjonx/gwen-schema
 
+## 0.3.5
+
+### Patch Changes
+
+- fix published packages
+
 ## 0.3.4
 
 ### Patch Changes
