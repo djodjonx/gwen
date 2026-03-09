@@ -1,5 +1,12 @@
 # @djodjonx/gwen-plugin-physics2d
 
+## 0.3.2
+
+### Patch Changes
+
+- fix packages versions
+- Updated dependencies: [object Object], [object Object]
+
 ## 0.3.1
 
 ### Patch Changes
