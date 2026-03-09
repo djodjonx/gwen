@@ -39,7 +39,7 @@ importers:
 
   packages/@gwen/cli:
     dependencies:
-      '@gwen/schema':
+      '@djodjonx/gwen-schema':
         specifier: workspace:*
         version: link:../schema
       c12:
@@ -85,7 +85,7 @@ importers:
 
   packages/@gwen/engine-core:
     dependencies:
-      '@gwen/schema':
+      '@djodjonx/gwen-schema':
         specifier: workspace:*
         version: link:../schema
       hookable:
@@ -109,10 +109,10 @@ importers:
 
   packages/@gwen/kit:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/schema':
+      '@djodjonx/gwen-schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
@@ -131,10 +131,10 @@ importers:
 
   packages/@gwen/plugin-audio:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -153,10 +153,10 @@ importers:
 
   packages/@gwen/plugin-debug:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -175,11 +175,11 @@ importers:
 
   packages/@gwen/plugin-html-ui:
     dependencies:
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
       '@types/jsdom':
@@ -203,10 +203,10 @@ importers:
 
   packages/@gwen/plugin-input:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -225,10 +225,10 @@ importers:
 
   packages/@gwen/plugin-physics2d:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -249,10 +249,10 @@ importers:
 
   packages/@gwen/renderer-canvas2d:
     dependencies:
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -317,22 +317,22 @@ importers:
 
   playground/snake-html:
     dependencies:
-      '@gwen/cli':
+      '@djodjonx/gwen-cli':
         specifier: workspace:*
         version: link:../../packages/@gwen/cli
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../../packages/@gwen/engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../../packages/@gwen/kit
-      '@gwen/plugin-html-ui':
+      '@djodjonx/gwen-plugin-html-ui':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-html-ui
-      '@gwen/plugin-input':
+      '@djodjonx/gwen-plugin-input':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-input
-      '@gwen/vite-plugin':
+      '@djodjonx/gwen-vite-plugin':
         specifier: workspace:*
         version: link:../../packages/@gwen/vite-plugin
     devDependencies:
@@ -348,34 +348,34 @@ importers:
 
   playground/space-shooter:
     dependencies:
-      '@gwen/cli':
+      '@djodjonx/gwen-cli':
         specifier: workspace:*
         version: link:../../packages/@gwen/cli
-      '@gwen/engine-core':
+      '@djodjonx/gwen-engine-core':
         specifier: workspace:*
         version: link:../../packages/@gwen/engine-core
-      '@gwen/kit':
+      '@djodjonx/gwen-kit':
         specifier: workspace:*
         version: link:../../packages/@gwen/kit
-      '@gwen/plugin-audio':
+      '@djodjonx/gwen-plugin-audio':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-audio
-      '@gwen/plugin-debug':
+      '@djodjonx/gwen-plugin-debug':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-debug
-      '@gwen/plugin-html-ui':
+      '@djodjonx/gwen-plugin-html-ui':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-html-ui
-      '@gwen/plugin-input':
+      '@djodjonx/gwen-plugin-input':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-input
-      '@gwen/plugin-physics2d':
+      '@djodjonx/gwen-plugin-physics2d':
         specifier: workspace:*
         version: link:../../packages/@gwen/plugin-physics2d
-      '@gwen/renderer-canvas2d':
+      '@djodjonx/gwen-renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/@gwen/renderer-canvas2d
-      '@gwen/vite-plugin':
+      '@djodjonx/gwen-vite-plugin':
         specifier: workspace:*
         version: link:../../packages/@gwen/vite-plugin
     devDependencies:
