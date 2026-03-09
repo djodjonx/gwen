@@ -1,0 +1,9 @@
+# @gwen/plugin-input
+
+## 0.2.1
+
+### Patch Changes
+
+- fix: prevent entity component access race condition
+- First Gwen release
+- Updated dependencies: [object Object], [object Object]

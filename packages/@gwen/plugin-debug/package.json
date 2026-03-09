@@ -1,6 +1,6 @@
 {
   "name": "@gwen/plugin-debug",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "GWEN Debug Plugin — FPS, frame time, entity count, drop detection, overlay",
   "files": [
     "dist"
