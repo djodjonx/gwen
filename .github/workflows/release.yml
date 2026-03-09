@@ -14,50 +14,45 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
+          targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
-        run: cargo install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Build WASM
-        run: ./scripts/build-wasm.sh
-
-      - name: Build TypeScript
-        run: pnpm build:ts
 
       - name: Create Release PR or Publish
         uses: changesets/action@v1
         with:
           version: pnpm changeset:version
+          # pnpm release executes: pnpm build (WASM + TS) -> sync -> verify -> publish
           publish: pnpm release
           title: 'chore: version packages'
           commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

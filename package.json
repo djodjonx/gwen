@@ -33,8 +33,9 @@
     "changeset:status": "changeset status",
     "changeset:version": "changeset version",
     "sync:create-app-versions": "node ./scripts/sync-create-app-versions.mjs",
+    "release:verify": "node ./scripts/verify-release.mjs",
     "release:dry": "pnpm changeset:version --canary",
-    "release": "pnpm sync:create-app-versions && changeset publish",
+    "release": "pnpm build && pnpm sync:create-app-versions && pnpm release:verify && changeset publish",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
