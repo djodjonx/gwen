@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "yourusername/gwen" }],
+  "changelog": ["./changelog.cjs", { "repo": "djodjonx/gwen" }],
   "commit": false,
   "fixed": [],
   "linked": [["@gwen/*"]],

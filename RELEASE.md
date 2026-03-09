@@ -10,6 +10,7 @@ This document outlines the release process for GWEN.
 - Rust toolchain with `wasm32-unknown-unknown` target
 - `wasm-pack` installed (`cargo install wasm-pack`)
 - `NPM_TOKEN` configured in CI/CD environment
+- `GITHUB_TOKEN` optional in local (required in CI for enriched changelog)
 
 ## ⚠️ Important Notes
 
@@ -50,11 +51,11 @@ Run this to generate new versions and CHANGELOG:
 
 ```bash
 pnpm changeset:version
-# This:
-# - Bumps all affected package versions
-# - Updates CHANGELOG.md files
-# - Removes .changeset entries
 ```
+
+Note:
+- In CI (GitHub Actions), `GITHUB_TOKEN` is available and changelogs include PR/author metadata.
+- In local development without `GITHUB_TOKEN`, Changesets now falls back to a simple changelog format.
 
 Review the changes:
 
