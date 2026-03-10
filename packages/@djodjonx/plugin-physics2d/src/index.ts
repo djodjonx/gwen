@@ -254,12 +254,12 @@ export const Physics2DPlugin = definePlugin({
         // ── Prefab extensions ────────────────────────────────────────────
         // Souscription au hook prefab:instantiate — le scopedApi garantit
         // le nettoyage automatique à l'unregister() du plugin.
-        api.hooks.hook('prefab:instantiate' as any, (entityId: any, extensions: any) => {
+        api.hooks.hook('prefab:instantiate', (entityId, extensions) => {
           const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
           if (!ext) return;
 
           const { index: slot } = unpackEntityId(entityId);
-          const pos = (api as any).getComponent?.(entityId, { name: 'position' }) as
+          const pos = api.getComponent?.(entityId, 'position') as
             | { x: number; y: number }
             | null
             | undefined;

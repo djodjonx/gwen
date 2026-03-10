@@ -1,15 +1,14 @@
-import { defineSystem } from '@djodjonx/gwen-engine-core';
-import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { defineSystem, unpackEntityId, type EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem('MovementSystem', () => {
-  const toDestroy: import('@djodjonx/gwen-engine-core').EntityId[] = [];
+  const toDestroy: EntityId[] = [];
   let physics: Physics2DAPI | null = null;
 
   return {
     onInit(api) {
-      physics = api.services.get('physics') as Physics2DAPI | null;
+      physics = api.services.get('physics');
     },
 
     onBeforeUpdate(api, dt) {
