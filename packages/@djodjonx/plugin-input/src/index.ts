@@ -17,7 +17,7 @@
  */
 
 import { definePlugin } from '@djodjonx/gwen-kit';
-import type { EngineAPI, GwenPluginMeta } from '@djodjonx/gwen-kit';
+import type { GwenPluginMeta } from '@djodjonx/gwen-kit';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
@@ -53,50 +53,48 @@ export interface InputPluginConfig {
   gamepadDeadzone?: number;
 }
 
-export const InputPlugin = definePlugin({
-  name: 'InputPlugin',
-  meta: pluginMeta,
-  provides: {
-    keyboard: {} as KeyboardInput,
-    mouse: {} as MouseInput,
-    gamepad: {} as GamepadInput,
-  },
+export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
+  let keyboard: KeyboardInput;
+  let mouse: MouseInput;
+  let gamepad: GamepadInput;
+  let target: EventTarget;
 
-  setup(config: InputPluginConfig = {}) {
-    let keyboard: KeyboardInput;
-    let mouse: MouseInput;
-    let gamepad: GamepadInput;
-    let target: EventTarget;
+  return {
+    name: 'InputPlugin',
+    meta: pluginMeta,
+    provides: {
+      keyboard: {} as KeyboardInput,
+      mouse: {} as MouseInput,
+      gamepad: {} as GamepadInput,
+    },
 
-    return {
-      onInit(api: EngineAPI): void {
-        target =
-          config.eventTarget ??
-          (typeof window !== 'undefined' ? window : (globalThis as unknown as EventTarget));
+    onInit(api): void {
+      target =
+        config.eventTarget ??
+        (typeof window !== 'undefined' ? window : (globalThis as unknown as EventTarget));
 
-        keyboard = new KeyboardInput();
-        mouse = new MouseInput();
-        gamepad = new GamepadInput(config.gamepadDeadzone ?? 0.15);
+      keyboard = new KeyboardInput();
+      mouse = new MouseInput();
+      gamepad = new GamepadInput(config.gamepadDeadzone ?? 0.15);
 
-        keyboard.attach(target);
-        mouse.attach(target, config.canvas);
+      keyboard.attach(target);
+      mouse.attach(target, config.canvas);
 
-        api.services.register('keyboard', keyboard);
-        api.services.register('mouse', mouse);
-        api.services.register('gamepad', gamepad);
-      },
+      api.services.register('keyboard', keyboard);
+      api.services.register('mouse', mouse);
+      api.services.register('gamepad', gamepad);
+    },
 
-      onBeforeUpdate(_api: EngineAPI, _dt: number): void {
-        keyboard.update();
-        mouse.update();
-      },
+    onBeforeUpdate(_api, _dt): void {
+      keyboard.update();
+      mouse.update();
+    },
 
-      onDestroy(): void {
-        keyboard.detach(target);
-        mouse.detach(target);
-        keyboard.reset();
-        mouse.reset();
-      },
-    };
-  },
+    onDestroy(): void {
+      keyboard.detach(target);
+      mouse.detach(target);
+      keyboard.reset();
+      mouse.reset();
+    },
+  };
 });

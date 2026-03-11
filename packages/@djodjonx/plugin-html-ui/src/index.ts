@@ -26,7 +26,7 @@
  */
 
 import { definePlugin } from '@djodjonx/gwen-kit';
-import type { EngineAPI, EntityId, GwenPluginMeta } from '@djodjonx/gwen-kit';
+import type { EntityId, GwenPluginMeta } from '@djodjonx/gwen-kit';
 
 // ── Plugin metadata ───────────────────────────────────────────────────────────
 
@@ -96,98 +96,96 @@ interface DomContext {
 
 // ── HtmlUIPlugin ──────────────────────────────────────────────────────────────
 
-export const HtmlUIPlugin = definePlugin({
-  name: 'HtmlUIPlugin',
-  meta: pluginMeta,
-  provides: { htmlUI: {} as HtmlUI },
+export const HtmlUIPlugin = definePlugin(() => {
+  let container: HTMLElement | null = null;
+  const instances = new Map<EntityId, DomContext>();
 
-  setup() {
-    let container: HTMLElement | null = null;
-    const instances = new Map<EntityId, DomContext>();
+  // ── DOM helpers ──────────────────────────────────────────────────────
 
-    // ── DOM helpers ──────────────────────────────────────────────────────
+  function mount(entityId: EntityId, template: string): void {
+    if (!container) return;
+    if (instances.has(entityId)) {
+      console.warn(`[HtmlUIPlugin] entity ${entityId} already mounted — unmounting first.`);
+      unmount(entityId);
+    }
 
-    function mount(entityId: EntityId, template: string): void {
-      if (!container) return;
-      if (instances.has(entityId)) {
-        console.warn(`[HtmlUIPlugin] entity ${entityId} already mounted — unmounting first.`);
-        unmount(entityId);
+    const styleMatch = template.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    const html = template.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').trim();
+
+    if (styleMatch && typeof document !== 'undefined') {
+      const css = styleMatch[1].trim();
+      const hash = css.length + '_' + css.slice(0, 32).replace(/\s/g, '');
+      if (!document.querySelector(`style[data-gwen-ui="${hash}"]`)) {
+        const tag = document.createElement('style');
+        tag.setAttribute('data-gwen-ui', hash);
+        tag.textContent = css;
+        document.head.appendChild(tag);
       }
+    }
 
-      const styleMatch = template.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-      const html = template.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').trim();
+    const root = document.createElement('div');
+    root.dataset.gwenEntity = String(entityId);
+    root.style.pointerEvents = 'auto';
+    root.innerHTML = html;
+    container.appendChild(root);
 
-      if (styleMatch && typeof document !== 'undefined') {
-        const css = styleMatch[1].trim();
-        const hash = css.length + '_' + css.slice(0, 32).replace(/\s/g, '');
-        if (!document.querySelector(`style[data-gwen-ui="${hash}"]`)) {
-          const tag = document.createElement('style');
-          tag.setAttribute('data-gwen-ui', hash);
-          tag.textContent = css;
-          document.head.appendChild(tag);
+    const elements = new Map<string, HTMLElement>();
+    root.querySelectorAll('[id]').forEach((el) => elements.set(el.id, el as HTMLElement));
+
+    instances.set(entityId, { root, elements });
+  }
+
+  function unmount(entityId: EntityId): void {
+    const ctx = instances.get(entityId);
+    if (!ctx) return;
+    ctx.root.parentNode?.removeChild(ctx.root);
+    instances.delete(entityId);
+  }
+
+  function el(entityId: EntityId, id: string): HTMLElement | undefined {
+    return instances.get(entityId)?.elements.get(id);
+  }
+
+  const service: HtmlUI = {
+    mount,
+    unmount,
+    el,
+    text(entityId, id, value) {
+      const elem = el(entityId, id);
+      if (elem) elem.textContent = value;
+    },
+    style(entityId, id, prop, value) {
+      const elem = el(entityId, id);
+      if (elem) (elem.style as CSSStyleDeclaration & Record<string, string>)[prop] = value;
+    },
+  };
+
+  return {
+    name: 'HtmlUIPlugin',
+    meta: pluginMeta,
+    provides: { htmlUI: {} as HtmlUI },
+
+    onInit(api): void {
+      if (typeof document !== 'undefined') {
+        let elem = document.getElementById('gwen-html-ui');
+        if (!elem) {
+          elem = document.createElement('div');
+          elem.id = 'gwen-html-ui';
+          elem.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:100';
+          document.body.appendChild(elem);
         }
+        container = elem;
       }
+      api.services.register('htmlUI', service);
+    },
 
-      const root = document.createElement('div');
-      root.dataset.gwenEntity = String(entityId);
-      root.style.pointerEvents = 'auto';
-      root.innerHTML = html;
-      container.appendChild(root);
-
-      const elements = new Map<string, HTMLElement>();
-      root.querySelectorAll('[id]').forEach((el) => elements.set(el.id, el as HTMLElement));
-
-      instances.set(entityId, { root, elements });
-    }
-
-    function unmount(entityId: EntityId): void {
-      const ctx = instances.get(entityId);
-      if (!ctx) return;
-      ctx.root.parentNode?.removeChild(ctx.root);
-      instances.delete(entityId);
-    }
-
-    function el(entityId: EntityId, id: string): HTMLElement | undefined {
-      return instances.get(entityId)?.elements.get(id);
-    }
-
-    const service: HtmlUI = {
-      mount,
-      unmount,
-      el,
-      text(entityId, id, value) {
-        const elem = el(entityId, id);
-        if (elem) elem.textContent = value;
-      },
-      style(entityId, id, prop, value) {
-        const elem = el(entityId, id);
-        if (elem) (elem.style as CSSStyleDeclaration & Record<string, string>)[prop] = value;
-      },
-    };
-
-    return {
-      onInit(api: EngineAPI): void {
-        if (typeof document !== 'undefined') {
-          let elem = document.getElementById('gwen-html-ui');
-          if (!elem) {
-            elem = document.createElement('div');
-            elem.id = 'gwen-html-ui';
-            elem.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:100';
-            document.body.appendChild(elem);
-          }
-          container = elem;
-        }
-        api.services.register('htmlUI', service);
-      },
-
-      onDestroy(): void {
-        for (const ctx of instances.values()) {
-          ctx.root.parentNode?.removeChild(ctx.root);
-        }
-        instances.clear();
-        container?.parentNode?.removeChild(container);
-        container = null;
-      },
-    };
-  },
+    onDestroy(): void {
+      for (const ctx of instances.values()) {
+        ctx.root.parentNode?.removeChild(ctx.root);
+      }
+      instances.clear();
+      container?.parentNode?.removeChild(container);
+      container = null;
+    },
+  };
 });

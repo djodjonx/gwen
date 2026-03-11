@@ -19,7 +19,6 @@
  */
 
 import { definePlugin } from '@djodjonx/gwen-kit';
-import type { EngineAPI } from '@djodjonx/gwen-kit';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
 import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';
@@ -69,106 +68,103 @@ function emptyMetrics(): DebugMetrics {
   };
 }
 
-export const DebugPlugin = definePlugin({
-  name: 'DebugPlugin',
-  provides: { debug: {} as DebugService },
+export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
+  const windowSize = config.rollingWindowSize ?? 60;
+  const updateInterval = config.updateInterval ?? 10;
+  const dropThreshold = config.fpsDrop?.threshold ?? 45;
+  const dropGrace = config.fpsDrop?.gracePeriodFrames ?? 3;
+  const dropCallback: FpsDropConfig['onDrop'] = config.fpsDrop?.onDrop;
 
-  setup(config: DebugPluginConfig = {}) {
-    const windowSize = config.rollingWindowSize ?? 60;
-    const updateInterval = config.updateInterval ?? 10;
-    const dropThreshold = config.fpsDrop?.threshold ?? 45;
-    const dropGrace = config.fpsDrop?.gracePeriodFrames ?? 3;
-    const dropCallback: FpsDropConfig['onDrop'] = config.fpsDrop?.onDrop;
+  let overlayConfig: DebugOverlayConfig | false;
+  if (config.overlay === true) {
+    overlayConfig = {};
+  } else if (config.overlay && typeof config.overlay === 'object') {
+    overlayConfig = config.overlay;
+  } else {
+    overlayConfig = false;
+  }
 
-    let overlayConfig: DebugOverlayConfig | false;
-    if (config.overlay === true) {
-      overlayConfig = {};
-    } else if (config.overlay && typeof config.overlay === 'object') {
-      overlayConfig = config.overlay;
-    } else {
-      overlayConfig = false;
-    }
+  let tracker: FpsTracker;
+  let overlay: DebugOverlay | null = null;
+  let metrics: DebugMetrics = emptyMetrics();
+  let consecutiveDropFrames = 0;
+  let lastDropAt = 0;
+  let framesSinceUpdate = 0;
 
-    let tracker: FpsTracker;
-    let overlay: DebugOverlay | null = null;
-    let metrics: DebugMetrics = emptyMetrics();
-    let consecutiveDropFrames = 0;
-    let lastDropAt = 0;
-    let framesSinceUpdate = 0;
+  return {
+    name: 'DebugPlugin',
+    provides: { debug: {} as DebugService },
 
-    return {
-      onInit(api: EngineAPI): void {
-        tracker = new FpsTracker(windowSize);
+    onInit(api): void {
+      tracker = new FpsTracker(windowSize);
 
-        if (overlayConfig !== false && typeof document !== 'undefined') {
-          overlay = new DebugOverlay(overlayConfig);
-        }
+      if (overlayConfig !== false && typeof document !== 'undefined') {
+        overlay = new DebugOverlay(overlayConfig);
+      }
 
-        const service: DebugService = {
-          getMetrics: () => metrics,
-          reset: () => {
-            tracker.reset();
-            consecutiveDropFrames = 0;
-          },
-          setOverlayVisible: (v: boolean) => overlay?.setVisible(v),
-        };
-
-        api.services.register('debug', service);
-      },
-
-      onBeforeUpdate(api: EngineAPI, dt: number): void {
-        tracker.push(dt);
-        framesSinceUpdate++;
-
-        const instant = tracker.instantFps();
-
-        if (instant < dropThreshold) {
-          consecutiveDropFrames++;
-        } else {
+      const service: DebugService = {
+        getMetrics: () => metrics,
+        reset: () => {
+          tracker.reset();
           consecutiveDropFrames = 0;
-        }
+        },
+        setOverlayVisible: (v: boolean) => overlay?.setVisible(v),
+      };
 
-        const isDropping = consecutiveDropFrames >= dropGrace;
+      api.services.register('debug', service);
+    },
 
-        if (isDropping) {
-          lastDropAt = Date.now();
-          dropCallback?.(instant, metrics);
-        }
+    onBeforeUpdate(api, dt): void {
+      tracker.push(dt);
+      framesSinceUpdate++;
 
-        if (framesSinceUpdate >= updateInterval) {
-          framesSinceUpdate = 0;
-          metrics = {
-            fps: instant,
-            rollingFps: tracker.rollingFps(),
-            minFps: tracker.minFps(),
-            maxFps: tracker.maxFps(),
-            jitter: tracker.jitter(),
-            frameTimeMs: dt * 1000,
-            frameCount: api.frameCount,
-            entityCount: (() => {
-              try {
-                return api.query([]).length;
-              } catch {
-                return 0;
-              }
-            })(),
-            memoryMB: (() => {
-              const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } })
-                .memory;
-              return mem ? mem.usedJSHeapSize / (1024 * 1024) : undefined;
-            })(),
-            isDropping,
-            lastDropAt: isDropping ? lastDropAt : metrics.lastDropAt,
-          };
-          overlay?.update(metrics);
-        }
-      },
+      const instant = tracker.instantFps();
 
-      onDestroy(): void {
-        overlay?.destroy();
-        overlay = null;
-        tracker.reset();
-      },
-    };
-  },
+      if (instant < dropThreshold) {
+        consecutiveDropFrames++;
+      } else {
+        consecutiveDropFrames = 0;
+      }
+
+      const isDropping = consecutiveDropFrames >= dropGrace;
+
+      if (isDropping) {
+        lastDropAt = Date.now();
+        dropCallback?.(instant, metrics);
+      }
+
+      if (framesSinceUpdate >= updateInterval) {
+        framesSinceUpdate = 0;
+        metrics = {
+          fps: instant,
+          rollingFps: tracker.rollingFps(),
+          minFps: tracker.minFps(),
+          maxFps: tracker.maxFps(),
+          jitter: tracker.jitter(),
+          frameTimeMs: dt * 1000,
+          frameCount: api.frameCount,
+          entityCount: (() => {
+            try {
+              return api.query([]).length;
+            } catch {
+              return 0;
+            }
+          })(),
+          memoryMB: (() => {
+            const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+            return mem ? mem.usedJSHeapSize / (1024 * 1024) : undefined;
+          })(),
+          isDropping,
+          lastDropAt: isDropping ? lastDropAt : metrics.lastDropAt,
+        };
+        overlay?.update(metrics);
+      }
+    },
+
+    onDestroy(): void {
+      overlay?.destroy();
+      overlay = null;
+      tracker.reset();
+    },
+  };
 });

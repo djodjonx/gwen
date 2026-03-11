@@ -1,66 +1,8 @@
 /**
- * @file definePlugin — unified plugin factory for GWEN.
+ * @file definePlugin — factory API for GWEN plugins.
  *
- * A single `definePlugin()` function covers both plugin families:
- *
- * - **TS-only plugin** — omit the `wasm` key in the definition.
- * - **WASM plugin**    — include a `wasm` key; its presence is detected at
- *   runtime by `isWasmPlugin()` inside `createEngine()`.
- *
- * Both overloads return a **class constructor** so `new MyPlugin(options)`
- * works exactly like a hand-written class, with the same `instanceof` semantics.
- *
- * @example TS-only plugin
- * ```ts
- * import { definePlugin } from '@djodjonx/gwen-kit';
- *
- * export const AudioPlugin = definePlugin({
- *   name: 'AudioPlugin',
- *   provides: { audio: {} as AudioManager },
- *   setup(options: { masterVolume?: number } = {}) {
- *     let ctx: AudioContext;
- *     return {
- *       onInit(api) {
- *         ctx = new AudioContext();
- *         api.services.register('audio', new AudioManager(ctx, options.masterVolume));
- *       },
- *       onDestroy() { ctx.close(); },
- *     };
- *   },
- * });
- *
- * // Usage in gwen.config.ts
- * plugins: [new AudioPlugin({ masterVolume: 0.8 })]
- * ```
- *
- * @example WASM plugin
- * ```ts
- * import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
- *
- * export const Physics2DPlugin = definePlugin({
- *   name: 'Physics2D',
- *   provides: { physics: {} as Physics2DAPI },
- *   wasm: {
- *     id: 'physics2d',
- *     channels: [
- *       { name: 'transform', direction: 'read', strideBytes: 20, bufferType: 'f32' },
- *       { name: 'events',    direction: 'write', bufferType: 'ring', capacityEvents: 256 },
- *     ],
- *   },
- *   setup(options: Physics2DConfig = {}) {
- *     let wasmPlugin: WasmPhysics2D | null = null;
- *     return {
- *       async onWasmInit(_bridge, _region, api, bus) {
- *         const wasm = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js' });
- *         wasmPlugin = new wasm.Physics2DPlugin(options.gravity ?? -9.81);
- *         api.services.register('physics', createAPI(wasmPlugin));
- *       },
- *       onStep(dt) { wasmPlugin?.step(dt); },
- *       onDestroy() { wasmPlugin?.free(); },
- *     };
- *   },
- * });
- * ```
+ * New architecture (single API):
+ * `definePlugin((options?) => ({ ...definitionAndHooks }))`
  */
 
 import type {
@@ -71,295 +13,139 @@ import type {
   WasmBridge,
   MemoryRegion,
   PluginDataBus,
+  GwenHooks,
 } from '@djodjonx/gwen-engine-core';
 import type { GwenPluginMeta } from '@djodjonx/gwen-engine-core';
 
 // ── Lifecycle shapes ──────────────────────────────────────────────────────────
 
 /**
- * Lifecycle callbacks returned by `setup()` for a TS-only plugin.
+ * Hooks de cycle de vie pour un plugin TypeScript.
  *
- * All callbacks are optional — implement only what your plugin needs.
+ * @typeParam M - Map des services disponibles via `api.services`.
+ * @typeParam H - Map des hooks disponibles via `api.hooks`.
  */
-export interface TsPluginLifecycle {
-  /**
-   * Called once when the plugin is registered with the engine.
-   * Register services, subscribe to hooks, and initialize internal state here.
-   *
-   * @param api - The active engine API.
-   */
-  onInit?(api: EngineAPI): void;
-
-  /**
-   * Called at the very start of each frame, before the WASM simulation step.
-   * Use this to read raw inputs and set per-frame state.
-   *
-   * @param api       - The active engine API.
-   * @param deltaTime - Frame delta in seconds (capped at 0.1 s).
-   */
-  onBeforeUpdate?(api: EngineAPI, deltaTime: number): void;
-
-  /**
-   * Called after the WASM step — apply game logic on the updated simulation state.
-   *
-   * @param api       - The active engine API.
-   * @param deltaTime - Frame delta in seconds (capped at 0.1 s).
-   */
-  onUpdate?(api: EngineAPI, deltaTime: number): void;
-
-  /**
-   * Called at the end of each frame for rendering and UI updates.
-   *
-   * @param api - The active engine API.
-   */
-  onRender?(api: EngineAPI): void;
-
-  /**
-   * Called when the plugin is removed or the engine stops.
-   * Cancel animation frames, remove event listeners, free resources.
-   */
+export interface TsPluginLifecycle<M extends object = object, H extends object = object> {
+  /** Appelé une fois lors de l'enregistrement du plugin. */
+  onInit?(api: EngineAPI<M, H>): void;
+  /** Appelé en début de frame, avant la phase WASM. */
+  onBeforeUpdate?(api: EngineAPI<M, H>, deltaTime: number): void;
+  /** Appelé après la phase WASM pour la logique de jeu. */
+  onUpdate?(api: EngineAPI<M, H>, deltaTime: number): void;
+  /** Appelé en fin de frame (rendu/UI). */
+  onRender?(api: EngineAPI<M, H>): void;
+  /** Appelé au démontage du plugin / arrêt moteur. */
   onDestroy?(): void;
 }
 
 /**
- * Lifecycle callbacks returned by `setup()` for a WASM plugin.
+ * Hooks de cycle de vie pour un plugin WASM.
  *
- * Extends `TsPluginLifecycle` with additional WASM-specific hooks.
- * The TS lifecycle callbacks (`onInit`, `onUpdate`…) are also available
- * and run in the normal TS game-loop slot alongside the WASM step.
+ * Étend `TsPluginLifecycle` avec la phase d'initialisation WASM et le step.
  */
-export interface WasmPluginLifecycle extends TsPluginLifecycle {
-  /**
-   * Optional parallel pre-fetch.
-   *
-   * Called concurrently with other plugins' `prefetch()` before the sequential
-   * `onWasmInit` phase. Cache the loaded WASM module internally to avoid a
-   * redundant round-trip inside `onWasmInit`.
-   */
+export interface WasmPluginLifecycle<
+  M extends object = object,
+  H extends object = object,
+> extends TsPluginLifecycle<M, H> {
+  /** Préchargement optionnel, exécuté en parallèle des autres plugins WASM. */
   prefetch?(): Promise<void>;
-
-  /**
-   * Async WASM initialisation — called **once** by `createEngine()` before
-   * `engine.start()`, in declaration order (sequential, not parallel).
-   *
-   * Responsibilities:
-   * 1. Instantiate the `.wasm` binary (use the cached module from `prefetch`).
-   * 2. Build typed-array views over the `bus` buffers.
-   * 3. Register services via `api.services.register()`.
-   *
-   * @param bridge  - Active `WasmBridge` (gwen-core is already initialised).
-   * @param region  - Pre-allocated SAB slice, or `null` when `sharedMemoryBytes === 0`.
-   * @param api     - Engine API — call `api.services.register()` here.
-   * @param bus     - Plugin Data Bus — call `bus.get(id, channelName)` for buffers.
-   */
+  /** Initialisation WASM (instanciation module, bus, enregistrement services). */
   onWasmInit(
     bridge: WasmBridge,
     region: MemoryRegion | null,
-    api: EngineAPI,
+    api: EngineAPI<M, H>,
     bus: PluginDataBus,
   ): Promise<void>;
-
-  /**
-   * Per-frame WASM simulation tick — called **before** `onUpdate`.
-   * Run `this._wasmInstance.step(deltaTime)` here.
-   *
-   * @param deltaTime - Frame delta in seconds (capped at 0.1 s).
-   */
+  /** Step de simulation WASM appelé avant `onUpdate`. */
   onStep?(deltaTime: number): void;
-
-  /**
-   * Memory-grow callback.
-   * Fired when gwen-core's WASM linear memory grows. Recreate any detached
-   * `TypedArray` / `DataView` views that point into the old `ArrayBuffer`.
-   *
-   * @param newMemory - The live `WebAssembly.Memory` after the grow.
-   */
+  /** Callback optionnel déclenché lors d'un `memory.grow()`. */
   onMemoryGrow?(newMemory: WebAssembly.Memory): void;
 }
 
-// ── Definition shapes ─────────────────────────────────────────────────────────
+// ── Definition shapes (factory return value) ─────────────────────────────────
 
 /**
- * Shared fields for both `definePlugin` overloads.
- * @internal
+ * Champs communs aux plugins TS et WASM.
  */
 interface BasePluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
-  // oxlint-disable-next-line no-unused-vars
-  Options,
 > {
-  /** Unique plugin name — literal type, used as the dedup key. */
+  /** Nom unique du plugin. */
   name: N;
-
-  /**
-   * Services this plugin registers in `api.services`.
-   * Phantom type — values are `{} as MyService`, never read at runtime.
-   */
+  /** Services déclarés par le plugin (phantom types). */
   provides?: P;
-
-  /**
-   * Custom hooks this plugin fires.
-   * Phantom type — consumed by `gwen prepare` to enrich `GwenDefaultHooks`.
-   */
+  /** Hooks custom émis par le plugin (phantom types). */
   providesHooks?: H;
-
-  /**
-   * Extension schemas declared by this plugin.
-   *
-   * Consumed **only** by `gwen prepare` to enrich the global
-   * `GwenPrefabExtensions`, `GwenSceneExtensions` and `GwenUIExtensions`
-   * interfaces. Values are **never read at runtime** — use `{} as MyShape`
-   * exactly like `provides`.
-   *
-   * @example
-   * ```ts
-   * extensions: {
-   *   prefab: {} as { mass: number; isStatic: boolean },
-   *   scene:  {} as { gravity: number },
-   * }
-   * ```
-   */
+  /** Extensions de schéma consommées par `gwen prepare`. */
   extensions?: {
-    prefab?: Record<string, unknown>;
-    scene?: Record<string, unknown>;
-    ui?: Record<string, unknown>;
+    prefab?: unknown;
+    scene?: unknown;
+    ui?: unknown;
   };
-
-  /**
-   * Semver-compatible version string (optional, displayed in the debug overlay).
-   */
+  /** Version sémantique optionnelle (debug/overlay). */
   version?: string;
-
-  /**
-   * Static metadata consumed by `gwen prepare` to inject
-   * `/// <reference types="..." />` directives into `.gwen/gwen.d.ts`.
-   *
-   * @example
-   * ```ts
-   * meta: { typeReferences: ['@my-org/my-plugin/vite-env'] }
-   * ```
-   */
+  /** Métadonnées CLI (type references, services, hooks). */
   meta?: GwenPluginMeta;
 }
 
-/**
- * Definition shape for a **TS-only** plugin (no `wasm` key).
- */
+/** Définition d'un plugin TS (sans champ `wasm`). */
 export type TsPluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
-  Options,
-> = BasePluginDefinition<N, P, H, Options> & {
-  wasm?: never;
-  /**
-   * Factory called once per `new MyPlugin(options)` invocation.
-   *
-   * - No options: `setup()` — no parameter.
-   * - With options: `setup(options?: MyConfig)` or `setup(options: MyConfig = {})`.
-   *
-   * TypeScript infers `Options` directly from the parameter type.
-   */
-  setup(options?: Options): TsPluginLifecycle;
-};
+> = BasePluginDefinition<N, P, H> & TsPluginLifecycle<P, H & GwenHooks> & { wasm?: never };
 
-/**
- * WASM runtime metadata declared statically at the definition level.
- * These fields are shared across all instances of the plugin class.
- */
+/** Contexte statique WASM déclaré au niveau plugin. */
 export interface WasmPluginStaticContext {
-  /**
-   * Unique WASM plugin identifier — used as the key for memory-region
-   * allocation and Plugin Data Bus channels.
-   */
+  /** Identifiant unique du plugin WASM. */
   readonly id: string;
-
-  /**
-   * Bytes to reserve in the legacy shared transform buffer (SAB).
-   * Set to `0` (default) to use only the Plugin Data Bus.
-   *
-   * @default 0
-   */
+  /** Taille mémoire partagée legacy (0 pour Data Bus only). */
   readonly sharedMemoryBytes?: number;
-
-  /**
-   * Channel declarations — one `ArrayBuffer` per entry is pre-allocated
-   * by `PluginDataBus` before `onWasmInit` is called.
-   */
+  /** Déclaration des channels du Plugin Data Bus. */
   readonly channels?: PluginChannel[];
 }
 
-/**
- * Definition shape for a **WASM** plugin (has a `wasm` key).
- */
-export interface WasmPluginDefinition<
+/** Définition d'un plugin WASM. */
+export type WasmPluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
-  Options,
-> extends Omit<BasePluginDefinition<N, P, H, Options>, 'setup'> {
-  /**
-   * Static WASM context shared across all instances.
-   * Its presence is the discriminant detected by `isWasmPlugin()`.
-   */
-  wasm: WasmPluginStaticContext;
+> = BasePluginDefinition<N, P, H> &
+  WasmPluginLifecycle<P, H & GwenHooks> & {
+    wasm: WasmPluginStaticContext;
+  };
 
-  /**
-   * Factory returning both WASM and TS lifecycle callbacks.
-   * Called once per `new MyPlugin(options)` invocation.
-   *
-   * - No options: `setup()` — no parameter.
-   * - With options: `setup(options?: MyConfig)` or `setup(options: MyConfig = {})`.
-   *
-   * TypeScript infers `Options` directly from the parameter type.
-   */
-  setup(options?: Options): WasmPluginLifecycle;
-}
+export type AnyPluginDefinition =
+  | TsPluginDefinition<string, Record<string, unknown>, Record<string, any>>
+  | WasmPluginDefinition<string, Record<string, unknown>, Record<string, any>>;
 
 // ── Returned constructor type ─────────────────────────────────────────────────
 
 /**
- * A concrete plugin instance produced by `definePlugin()`.
+ * Instance concrète produite par `definePlugin`.
  *
- * Extends `GwenPlugin` with lifecycle methods guaranteed to be present
- * (non-optional) on every instance, even if the `setup()` closure does not
- * implement them — they safely no-op in that case.
- *
- * This gives plugin authors and test code a precise type:
- * `plugin.onInit(api)` compiles without needing `plugin.onInit!(api)`.
+ * Les hooks sont toujours présents côté type, même si non implémentés
+ * (no-op au runtime), ce qui simplifie l'appel côté moteur/tests.
  */
 export type ConcretePlugin<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
 > = GwenPlugin<N, P, H> & {
-  onInit(api: EngineAPI): void;
-  onBeforeUpdate(api: EngineAPI, deltaTime: number): void;
-  onUpdate(api: EngineAPI, deltaTime: number): void;
-  onRender(api: EngineAPI): void;
+  onInit(api: EngineAPI<P, H>): void;
+  onBeforeUpdate(api: EngineAPI<P, H>, deltaTime: number): void;
+  onUpdate(api: EngineAPI<P, H>, deltaTime: number): void;
+  onRender(api: EngineAPI<P, H>): void;
   onDestroy(): void;
 };
 
 /**
- * The class constructor returned by `definePlugin()`.
+ * Classe plugin retournée par `definePlugin`.
  *
- * Instances are valid `GwenPlugin` objects accepted by `defineConfig({ plugins })`.
- * The generic `Options` is `void` when the plugin takes no options — `new MyPlugin()`.
- *
- * ## Typing an instance variable
- *
- * `definePlugin()` returns a **value** (a constructor), not a named type.
- * Use `InstanceType<typeof MyPlugin>` or the `GwenPluginInstance<T>` helper:
- *
- * ```ts
- * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
- *
- * let plugin: InstanceType<typeof AudioPlugin>;
- * // or equivalently:
- * let plugin: GwenPluginInstance<typeof AudioPlugin>;
- * ```
+ * - sans options: `new Plugin()`
+ * - avec options: `new Plugin(options?)`
  */
 export type PluginClass<
   N extends string,
@@ -370,152 +156,86 @@ export type PluginClass<
   ? { new (): ConcretePlugin<N, P, H> }
   : { new (options?: Options): ConcretePlugin<N, P, H> };
 
-/**
- * Convenience type alias for the **instance** type of a plugin class returned
- * by `definePlugin()`.
- *
- * Because `definePlugin()` returns a constructor (a value, not a named type),
- * you cannot use the plugin const directly as a type annotation. Use this
- * helper instead of writing `InstanceType<typeof MyPlugin>` everywhere.
- *
- * @example
- * ```ts
- * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
- *
- * // In a test file or another plugin:
- * let plugin: GwenPluginInstance<typeof AudioPlugin>;
- * let ui: GwenPluginInstance<typeof HtmlUIPlugin>;
- * ```
- */
+/** Alias utilitaire pour typer une instance de plugin. */
 export type GwenPluginInstance<T extends abstract new (...args: any[]) => any> = InstanceType<T>;
 
-// ── Overload 1 — TS-only plugin ───────────────────────────────────────────────
+type InferPluginProvides<D> = D extends { provides?: infer P }
+  ? P extends Record<string, unknown>
+    ? P
+    : Record<string, never>
+  : Record<string, never>;
+
+type InferPluginHooks<D> = D extends { providesHooks?: infer H }
+  ? H extends Record<string, any>
+    ? H
+    : Record<string, never>
+  : Record<string, never>;
+
+type InferPluginName<D> = D extends { name: infer N extends string } ? N : string;
+
+type InferFactoryOptions<F extends (...args: any[]) => any> =
+  Parameters<F> extends [] ? void : Exclude<Parameters<F>[0], undefined>;
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Define a **TypeScript-only** GWEN plugin.
+ * Déclare un plugin TS via une factory.
  *
- * Returns a class constructor. Instantiate with `new MyPlugin(options)` and
- * pass the instance into `defineConfig({ plugins: [...] })`.
- *
- * All private state lives in the `setup()` closure — no class fields needed.
- *
- * @param definition - Plugin definition without a `wasm` key.
- * @returns A plugin class constructor.
- *
- * @example
- * ```ts
- * import { definePlugin } from '@djodjonx/gwen-kit';
- *
- * // Plugin without options:
- * export const HudPlugin = definePlugin({
- *   name: 'HudPlugin',
- *   setup() {
- *     return { onInit(api) { ... } };
- *   },
- * });
- *
- * // Plugin with options:
- * export const ScorePlugin = definePlugin({
- *   name: 'ScorePlugin',
- *   provides: { score: {} as ScoreService },
- *   setup(opts: { initial?: number } = {}) {
- *     let total = opts.initial ?? 0;
- *     return {
- *       onInit(api) {
- *         api.services.register('score', {
- *           add: (n) => { total += n; },
- *           get: () => total,
- *         });
- *       },
- *     };
- *   },
- * });
- *
- * // Typing an instance variable:
- * import type { GwenPluginInstance } from '@djodjonx/gwen-kit';
- * let plugin: GwenPluginInstance<typeof ScorePlugin>;
- *
- * // gwen.config.ts
- * plugins: [new ScorePlugin({ initial: 0 })]
- * ```
+ * La factory est exécutée à chaque `new Plugin(...)` et doit retourner
+ * un objet contenant les métadonnées (`name`, `provides`, ...) et les hooks.
  */
 export function definePlugin<
-  N extends string,
-  Options,
-  P extends Record<string, unknown> = Record<string, unknown>,
-  H extends Record<string, any> = Record<string, any>,
->(definition: TsPluginDefinition<N, P, H, Options>): PluginClass<N, P, H, Options>;
-
-// ── Overload 2 — WASM plugin ──────────────────────────────────────────────────
+  F extends (
+    options?: any,
+  ) => TsPluginDefinition<string, Record<string, unknown>, Record<string, any>>,
+>(
+  factory: F,
+): PluginClass<
+  InferPluginName<ReturnType<F>>,
+  InferPluginProvides<ReturnType<F>>,
+  InferPluginHooks<ReturnType<F>>,
+  InferFactoryOptions<F>
+>;
 
 /**
- * Define a **WASM-backed** GWEN plugin.
+ * Déclare un plugin WASM via une factory.
  *
- * The `wasm` key in the definition declares the static WASM runtime context
- * (id, channels, sharedMemoryBytes). The `setup()` closure returns both WASM
- * lifecycle hooks (`onWasmInit`, `onStep`) and the standard TS hooks
- * (`onInit`, `onUpdate`, `onRender`, `onDestroy`).
- *
- * @param definition - Plugin definition with a `wasm` key.
- * @returns A plugin class constructor whose instances satisfy
- *          `GwenPlugin & { wasm: GwenPluginWasmContext }`.
- *
- * @example
- * ```ts
- * import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
- *
- * export const Physics2DPlugin = definePlugin({
- *   name: 'Physics2D',
- *   provides: { physics: {} as Physics2DAPI },
- *   wasm: {
- *     id: 'physics2d',
- *     channels: [
- *       { name: 'transform', direction: 'read', strideBytes: 20, bufferType: 'f32' },
- *       { name: 'events',    direction: 'write', bufferType: 'ring', capacityEvents: 256 },
- *     ],
- *   },
- *   setup(config: Physics2DConfig = {}) {
- *     let wasm: WasmPhysics2D | null = null;
- *     return {
- *       async onWasmInit(_bridge, _region, api, bus) {
- *         const mod = await loadWasmPlugin({ jsUrl: '/wasm/gwen_physics2d.js' });
- *         wasm = new mod.Physics2DPlugin(config.gravity ?? -9.81);
- *         api.services.register('physics', buildAPI(wasm));
- *       },
- *       onStep(dt) { wasm?.step(dt); },
- *       onDestroy() { wasm?.free(); },
- *     };
- *   },
- * });
- * ```
+ * Même contrat que la version TS, avec `wasm` + `onWasmInit`.
  */
 export function definePlugin<
-  N extends string,
-  Options,
-  P extends Record<string, unknown> = Record<string, unknown>,
-  H extends Record<string, any> = Record<string, any>,
->(definition: WasmPluginDefinition<N, P, H, Options>): PluginClass<N, P, H, Options>;
+  F extends (
+    options?: any,
+  ) => WasmPluginDefinition<string, Record<string, unknown>, Record<string, any>>,
+>(
+  factory: F,
+): PluginClass<
+  InferPluginName<ReturnType<F>>,
+  InferPluginProvides<ReturnType<F>>,
+  InferPluginHooks<ReturnType<F>>,
+  InferFactoryOptions<F>
+>;
 
 // ── Implementation ────────────────────────────────────────────────────────────
 
-export function definePlugin<
-  N extends string,
-  P extends Record<string, unknown>,
-  H extends Record<string, any>,
-  Options,
->(
-  definition: TsPluginDefinition<N, P, H, Options> | WasmPluginDefinition<N, P, H, Options>,
-): PluginClass<N, P, H, Options> {
-  const isWasm = 'wasm' in definition && definition.wasm !== undefined;
-
-  // Build the wasm context object once — shared across all instances
-  const staticWasm: GwenPluginWasmContext | undefined = isWasm
-    ? buildWasmContext(definition as WasmPluginDefinition<N, P, H, Options>)
-    : undefined;
-
-  // We build the wasm context lazily per-instance so that `onWasmInit` / `onStep`
-  // can close over the per-instance `impl` (which holds the WASM instance pointer).
-  // The static fields (id, sharedMemoryBytes, channels) are shared.
+/**
+ * Implémentation runtime de `definePlugin`.
+ *
+ * Construit une classe compatible `GwenPlugin` à partir de la définition
+ * retournée par la factory et câble le contexte `wasm` quand présent.
+ */
+export function definePlugin<F extends (options?: any) => AnyPluginDefinition>(
+  factory: F,
+): PluginClass<
+  InferPluginName<ReturnType<F>>,
+  InferPluginProvides<ReturnType<F>>,
+  InferPluginHooks<ReturnType<F>>,
+  InferFactoryOptions<F>
+> {
+  type D = ReturnType<F>;
+  type N = InferPluginName<D>;
+  type P = InferPluginProvides<D>;
+  type H = InferPluginHooks<D>;
+  type Options = InferFactoryOptions<F>;
 
   class PluginInstance implements GwenPlugin<N, P, H> {
     readonly name: N;
@@ -525,50 +245,51 @@ export function definePlugin<
     readonly providesHooks: H | undefined;
     readonly wasm: GwenPluginWasmContext | undefined;
 
-    private readonly _impl: TsPluginLifecycle | WasmPluginLifecycle;
+    private readonly _impl: D;
 
     constructor(options?: Options) {
-      this.name = definition.name;
+      const definition = factory(options as Options) as D;
+      const isWasm = 'wasm' in definition && definition.wasm !== undefined;
+
+      this.name = definition.name as N;
       this.version = definition.version;
       this.meta = definition.meta;
-      this.provides = definition.provides;
-      this.providesHooks = definition.providesHooks;
+      this.provides = definition.provides as P | undefined;
+      this.providesHooks = definition.providesHooks as H | undefined;
+      this._impl = definition;
 
-      // Call setup() with the resolved options
-      const resolvedOptions = (options ?? undefined) as Options;
-      this._impl = (definition.setup as (o?: Options) => TsPluginLifecycle | WasmPluginLifecycle)(
-        resolvedOptions,
-      );
-
-      // Build the per-instance wasm context (closes over _impl for callbacks)
-      if (isWasm && staticWasm) {
-        const impl = this._impl as WasmPluginLifecycle;
+      if (isWasm) {
+        const wasmDef = definition as WasmPluginDefinition<
+          string,
+          Record<string, unknown>,
+          Record<string, any>
+        >;
         this.wasm = {
-          id: staticWasm.id,
-          sharedMemoryBytes: staticWasm.sharedMemoryBytes,
-          channels: staticWasm.channels,
-          prefetch: impl.prefetch?.bind(impl),
-          onInit: impl.onWasmInit.bind(impl),
-          onStep: impl.onStep?.bind(impl),
-          onMemoryGrow: impl.onMemoryGrow?.bind(impl),
+          id: wasmDef.wasm.id,
+          sharedMemoryBytes: wasmDef.wasm.sharedMemoryBytes,
+          channels: wasmDef.wasm.channels,
+          prefetch: wasmDef.prefetch?.bind(wasmDef),
+          onInit: wasmDef.onWasmInit.bind(wasmDef),
+          onStep: wasmDef.onStep?.bind(wasmDef),
+          onMemoryGrow: wasmDef.onMemoryGrow?.bind(wasmDef),
         };
       }
     }
 
     onInit(api: EngineAPI): void {
-      this._impl.onInit?.(api);
+      this._impl.onInit?.(api as EngineAPI<any, any>);
     }
 
     onBeforeUpdate(api: EngineAPI, deltaTime: number): void {
-      this._impl.onBeforeUpdate?.(api, deltaTime);
+      this._impl.onBeforeUpdate?.(api as EngineAPI<any, any>, deltaTime);
     }
 
     onUpdate(api: EngineAPI, deltaTime: number): void {
-      this._impl.onUpdate?.(api, deltaTime);
+      this._impl.onUpdate?.(api as EngineAPI<any, any>, deltaTime);
     }
 
     onRender(api: EngineAPI): void {
-      this._impl.onRender?.(api);
+      this._impl.onRender?.(api as EngineAPI<any, any>);
     }
 
     onDestroy(): void {
@@ -576,32 +297,5 @@ export function definePlugin<
     }
   }
 
-  // Set the class name for better debug output (plugin name visible in stack traces)
-  Object.defineProperty(PluginInstance, 'name', { value: definition.name });
-
   return PluginInstance as unknown as PluginClass<N, P, H, Options>;
-}
-
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-/**
- * Extract the static WASM fields (id, sharedMemoryBytes, channels) from a
- * WASM plugin definition. The per-instance callbacks are wired in the
- * constructor where they can close over `_impl`.
- */
-function buildWasmContext<
-  N extends string,
-  P extends Record<string, unknown>,
-  H extends Record<string, any>,
-  Options,
->(def: WasmPluginDefinition<N, P, H, Options>): GwenPluginWasmContext {
-  // Placeholder onInit — replaced per instance in the constructor
-  const placeholder: GwenPluginWasmContext = {
-    id: def.wasm.id,
-    sharedMemoryBytes: def.wasm.sharedMemoryBytes ?? 0,
-    channels: def.wasm.channels,
-    // These are replaced per-instance; this object is only used for static field extraction
-    onInit: () => Promise.resolve(),
-  };
-  return placeholder;
 }
