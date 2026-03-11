@@ -325,10 +325,14 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         }
       });
 
-      // Clean up callbacks when an entity is destroyed.
+      // Clean up callbacks and rigid bodies when an entity is destroyed.
       api.hooks.hook('entity:destroy', (entityId) => {
         const { index: slot } = unpackEntityId(entityId);
         collisionCallbacks.delete(slot);
+        // Important: keep Rapier in sync with ECS lifecycle.
+        // Without this, stale bodies can survive scene transitions and trigger
+        // immediate phantom collisions on next game start.
+        svc.removeBody(slot);
       });
     },
 

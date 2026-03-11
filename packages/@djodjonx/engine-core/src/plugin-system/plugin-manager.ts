@@ -162,10 +162,18 @@ export class PluginManager {
    * @internal Called by createEngine() for the WASM onWasmInit phase
    */
   createScopedApi(plugin: GwenPlugin, api: EngineAPI, hooks: DefaultHookable): EngineAPI {
-    return {
-      ...api,
-      hooks: this._createScopedHooks(plugin, hooks),
-    };
+    // Preserve EngineAPI prototype methods by using `api` as prototype.
+    // Object spread strips prototype methods (getComponent/query/...), which can
+    // break plugin callbacks expecting full EngineAPI inside hooks.
+    const scopedApi = Object.create(api, {
+      hooks: {
+        value: this._createScopedHooks(plugin, hooks),
+        writable: false,
+        enumerable: true,
+        configurable: true,
+      },
+    }) as EngineAPI;
+    return scopedApi;
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -240,11 +248,16 @@ export class PluginManager {
       console.error(`[GWEN:PluginManager] Error in plugin:init hook:`, err);
     }
 
-    // Create scoped API where manual hooks are automatically tracked
-    const scopedApi = {
-      ...api,
-      hooks: this._createScopedHooks(plugin, hooks),
-    };
+    // Create scoped API where manual hooks are automatically tracked.
+    // Keep api as prototype so EngineAPI methods remain available.
+    const scopedApi = Object.create(api, {
+      hooks: {
+        value: this._createScopedHooks(plugin, hooks),
+        writable: false,
+        enumerable: true,
+        configurable: true,
+      },
+    }) as EngineAPI;
 
     // Call plugin's onInit with scoped API
     if (plugin.onInit) {
