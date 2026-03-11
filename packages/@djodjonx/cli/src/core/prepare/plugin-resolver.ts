@@ -18,12 +18,18 @@ export interface CollectedPluginTypingMeta {
   typeReferences: string[];
   serviceTypes: Record<string, GwenTypeRefMeta>;
   hookTypes: Record<string, GwenTypeRefMeta>;
+  prefabExtensionTypes: Record<string, GwenTypeRefMeta>;
+  sceneExtensionTypes: Record<string, GwenTypeRefMeta>;
+  uiExtensionTypes: Record<string, GwenTypeRefMeta>;
 }
 
 interface PluginGwenMeta {
   typeReferences?: string[];
   serviceTypes?: Record<string, GwenTypeRefMeta>;
   hookTypes?: Record<string, GwenTypeRefMeta>;
+  prefabExtensionTypes?: Record<string, GwenTypeRefMeta>;
+  sceneExtensionTypes?: Record<string, GwenTypeRefMeta>;
+  uiExtensionTypes?: Record<string, GwenTypeRefMeta>;
 }
 
 /**
@@ -37,6 +43,9 @@ export async function collectPluginTypingMeta(
   const typeReferences = new Set<string>();
   const serviceTypes: Record<string, GwenTypeRefMeta> = {};
   const hookTypes: Record<string, GwenTypeRefMeta> = {};
+  const prefabExtensionTypes: Record<string, GwenTypeRefMeta> = {};
+  const sceneExtensionTypes: Record<string, GwenTypeRefMeta> = {};
+  const uiExtensionTypes: Record<string, GwenTypeRefMeta> = {};
 
   for (const plugin of config.plugins ?? []) {
     try {
@@ -72,6 +81,25 @@ export async function collectPluginTypingMeta(
         hookTypes[hookName] = ref;
         logger.debug(`📦 ${pluginId} -> hookType: ${hookName} => ${ref.from}#${ref.exportName}`);
       }
+
+      for (const [key, ref] of Object.entries(meta.prefabExtensionTypes ?? {})) {
+        prefabExtensionTypes[key] = ref;
+        logger.debug(
+          `📦 ${pluginId} -> prefabExtensionType: ${key} => ${ref.from}#${ref.exportName}`,
+        );
+      }
+
+      for (const [key, ref] of Object.entries(meta.sceneExtensionTypes ?? {})) {
+        sceneExtensionTypes[key] = ref;
+        logger.debug(
+          `📦 ${pluginId} -> sceneExtensionType: ${key} => ${ref.from}#${ref.exportName}`,
+        );
+      }
+
+      for (const [key, ref] of Object.entries(meta.uiExtensionTypes ?? {})) {
+        uiExtensionTypes[key] = ref;
+        logger.debug(`📦 ${pluginId} -> uiExtensionType: ${key} => ${ref.from}#${ref.exportName}`);
+      }
     } catch {
       logger.trace(
         `Plugin ${'packageName' in plugin ? plugin.packageName : plugin.name} has no gwen metadata`,
@@ -83,6 +111,9 @@ export async function collectPluginTypingMeta(
     typeReferences: Array.from(typeReferences),
     serviceTypes,
     hookTypes,
+    prefabExtensionTypes,
+    sceneExtensionTypes,
+    uiExtensionTypes,
   };
 }
 

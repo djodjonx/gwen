@@ -209,4 +209,34 @@ export interface GwenPluginMeta {
       exportName: string;
     }
   >;
+
+  /**
+   * Optional direct mapping used by `gwen prepare` to augment
+   * `GwenPrefabExtensions` with strict plugin extension types.
+   */
+  prefabExtensionTypes?: Record<
+    string,
+    {
+      from: string;
+      exportName: string;
+    }
+  >;
+
+  /** Optional direct mapping for `GwenSceneExtensions` augmentation. */
+  sceneExtensionTypes?: Record<
+    string,
+    {
+      from: string;
+      exportName: string;
+    }
+  >;
+
+  /** Optional direct mapping for `GwenUIExtensions` augmentation. */
+  uiExtensionTypes?: Record<
+    string,
+    {
+      from: string;
+      exportName: string;
+    }
+  >;
 }

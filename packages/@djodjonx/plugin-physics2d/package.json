@@ -43,6 +43,18 @@
         "from": "@djodjonx/gwen-plugin-physics2d",
         "exportName": "Physics2DAPI"
       }
+    },
+    "hookTypes": {
+      "physics:collision": {
+        "from": "@djodjonx/gwen-plugin-physics2d",
+        "exportName": "Physics2DPluginHooks"
+      }
+    },
+    "prefabExtensionTypes": {
+      "physics": {
+        "from": "@djodjonx/gwen-plugin-physics2d",
+        "exportName": "Physics2DPrefabExtension"
+      }
     }
   }
 }

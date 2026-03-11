@@ -2,10 +2,10 @@ import { defineScene, UIComponent } from '@djodjonx/gwen-engine-core';
 import { PlayerPrefab, EnemyPrefab, PlayerBulletPrefab, EnemyBulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
+import { PhysicsBindingSystem } from '../systems/PhysicsBindingSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
-import { CollisionSystem } from '../systems/CollisionSystem';
 import { BackgroundUI } from '../ui/BackgroundUI';
 import { BulletUI } from '../ui/BulletUI';
 import { EnemyUI } from '../ui/EnemyUI';
@@ -17,7 +17,8 @@ export const GameScene = defineScene('Game', () => ({
 
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
-  systems: [MovementSystem, PlayerSystem, AiSystem, SpawnerSystem, CollisionSystem],
+  // Collision gameplay is handled directly in prefab physics.onCollision callbacks.
+  systems: [PlayerSystem, AiSystem, MovementSystem, PhysicsBindingSystem, SpawnerSystem],
 
   onEnter(api) {
     api.prefabs.register(PlayerPrefab);

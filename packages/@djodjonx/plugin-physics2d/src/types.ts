@@ -3,6 +3,9 @@
  * All types are pure data — no WASM dependency.
  */
 
+import type { EntityId } from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export interface Physics2DConfig {
@@ -84,6 +87,66 @@ export interface CollisionEvent {
   started: boolean;
 }
 
+// ─── Enriched collision contact ───────────────────────────────────────────────
+
+/**
+ * A fully resolved collision contact, emitted via the `physics:collision` hook.
+ *
+ * Unlike the raw `CollisionEvent`, `entityA` and `entityB` are already-resolved
+ * packed `EntityId`s — ready to pass directly to `api.getComponent()` or
+ * `api.destroyEntity()`.
+ *
+ * Emitted once per contact pair per frame (started AND ended).
+ *
+ * @example
+ * ```typescript
+ * api.hooks.hook('physics:collision', (contacts) => {
+ *   for (const { entityA, entityB, started } of contacts) {
+ *     if (!started) continue;
+ *     const tagA = api.getComponent(entityA, Tag);
+ *     const tagB = api.getComponent(entityB, Tag);
+ *   }
+ * });
+ * ```
+ */
+export interface CollisionContact {
+  /** Resolved packed EntityId of the first participant. */
+  entityA: EntityId;
+  /** Resolved packed EntityId of the second participant. */
+  entityB: EntityId;
+  /** Raw slot index of `entityA` (for `physics.removeBody()`). */
+  slotA: number;
+  /** Raw slot index of `entityB`. */
+  slotB: number;
+  /** `true` = contact started this frame, `false` = contact ended. */
+  started: boolean;
+}
+
+// ─── Hooks provided by this plugin ───────────────────────────────────────────
+
+/**
+ * Hooks emitted by the Physics2D plugin.
+ *
+ * Declared as `providesHooks` on the plugin so that `gwen prepare` can
+ * augment `GwenDefaultHooks` — giving full type-safety on
+ * `api.hooks.hook('physics:collision', ...)` without any cast.
+ *
+ * @example
+ * ```typescript
+ * // After gwen prepare — fully typed, no cast needed
+ * api.hooks.hook('physics:collision', (contacts) => { ... });
+ * ```
+ */
+export interface Physics2DPluginHooks {
+  /**
+   * Fired once per frame (during `onUpdate`) with all resolved collision contacts.
+   * Handlers receive a **read-only snapshot** — do not mutate the array.
+   *
+   * @param contacts Array of resolved collision contacts for this frame.
+   */
+  'physics:collision': (contacts: ReadonlyArray<CollisionContact>) => void;
+}
+
 // ─── Prefab extensions ────────────────────────────────────────────────────────
 
 /**
@@ -152,6 +215,43 @@ export interface Physics2DPrefabExtension {
    * Dynamic bodies only.
    */
   initialVelocity?: { vx: number; vy: number };
+
+  // ── Collision callback ────────────────────────────────────────────────────
+  /**
+   * Optional per-entity collision callback, registered when the prefab is instantiated.
+   *
+   * Called by the Physics2D plugin each frame for every contact involving this entity.
+   * Equivalent to Unity's `OnCollisionEnter` / `OnCollisionExit` on a MonoBehaviour.
+   *
+   * - `self`    — the EntityId of the entity that owns this prefab.
+   * - `other`   — the EntityId of the other participant.
+   * - `contact` — the full resolved contact (slots, started flag, etc.).
+   * - `api`     — the EngineAPI (create/destroy entities, read/write components).
+   *
+   * @example
+   * ```ts
+   * export const BulletPrefab = definePrefab({
+   *   name: 'PlayerBullet',
+   *   extensions: {
+   *     physics: {
+   *       bodyType: 'kinematic',
+   *       radius: 5,
+   *       onCollision(self, other, contact, api) {
+   *         if (!contact.started) return;
+   *         api.destroyEntity(self);
+   *       },
+   *     },
+   *   },
+   *   create: (api, x, y, vx, vy) => { ... },
+   * });
+   * ```
+   */
+  onCollision?: (
+    self: EntityId,
+    other: EntityId,
+    contact: CollisionContact,
+    api: EngineAPI,
+  ) => void;
 }
 
 /** Raw JSON shape returned by the Rust `get_collision_events()` export. */

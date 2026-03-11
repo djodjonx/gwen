@@ -8,21 +8,7 @@
  * - Injects typed service/hook properties into GwenDefaultServices/GwenDefaultHooks
  */
 
-import * as path from 'node:path';
-import fs from 'node:fs/promises';
 import type { CollectedPluginTypingMeta } from './plugin-resolver.js';
-
-/**
- * Detect export style of config file (default vs named export)
- */
-function detectConfigExportStyle(
-  source: string,
-): { type: 'default' } | { type: 'named'; name: string } {
-  if (/export\s+default\s+defineConfig\s*\(/.test(source)) return { type: 'default' };
-  const match = source.match(/export\s+const\s+(\w+)\s*=\s*defineConfig\s*\(/);
-  if (match) return { type: 'named', name: match[1] };
-  return { type: 'default' };
-}
 
 interface GeneratedImport {
   from: string;
@@ -82,31 +68,17 @@ function buildTypeImports(entries: Array<{ from: string; exportName: string }>):
  * 3. Interface augmentations with typed properties
  */
 export async function generateDts(
-  projectDir: string,
-  configPath: string,
+  _projectDir: string,
+  _configPath: string,
   pluginTypingMeta: CollectedPluginTypingMeta = {
     typeReferences: [],
     serviceTypes: {},
     hookTypes: {},
+    prefabExtensionTypes: {},
+    sceneExtensionTypes: {},
+    uiExtensionTypes: {},
   },
 ): Promise<string> {
-  const relConfig = path
-    .relative(path.join(projectDir, '.gwen'), configPath)
-    .replace(/\\/g, '/')
-    .replace(/\.ts$/, '');
-
-  const source = await fs.readFile(configPath, 'utf-8');
-  const exportStyle = detectConfigExportStyle(source);
-
-  const configImport =
-    exportStyle.type === 'default'
-      ? `import type _cfg from '${relConfig}';`
-      : `import type { ${exportStyle.name} as _cfg } from '${relConfig}';`;
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // Phase 1.1 — Direct imports from metadata (Nuxt-like approach)
-  // ════════════════════════════════════════════════════════════════════════════
-
   const serviceEntries = Object.entries(pluginTypingMeta.serviceTypes).map(([name, ref]) => ({
     name,
     from: ref.from,
@@ -119,12 +91,34 @@ export async function generateDts(
     exportName: ref.exportName,
   }));
 
+  const prefabEntries = Object.entries(pluginTypingMeta.prefabExtensionTypes).map(
+    ([name, ref]) => ({
+      name,
+      from: ref.from,
+      exportName: ref.exportName,
+    }),
+  );
+
+  const sceneEntries = Object.entries(pluginTypingMeta.sceneExtensionTypes).map(([name, ref]) => ({
+    name,
+    from: ref.from,
+    exportName: ref.exportName,
+  }));
+
+  const uiEntries = Object.entries(pluginTypingMeta.uiExtensionTypes).map(([name, ref]) => ({
+    name,
+    from: ref.from,
+    exportName: ref.exportName,
+  }));
+
   const { imports, aliases } = buildTypeImports([
     ...serviceEntries.map((s) => ({ from: s.from, exportName: s.exportName })),
     ...hookEntries.map((h) => ({ from: h.from, exportName: h.exportName })),
+    ...prefabEntries.map((e) => ({ from: e.from, exportName: e.exportName })),
+    ...sceneEntries.map((e) => ({ from: e.from, exportName: e.exportName })),
+    ...uiEntries.map((e) => ({ from: e.from, exportName: e.exportName })),
   ]);
 
-  // Build service property overrides (direct imports take priority)
   const serviceOverrides = serviceEntries
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((entry) => {
@@ -133,18 +127,35 @@ export async function generateDts(
     })
     .join('\n');
 
-  // Build hook property overrides (direct imports take priority)
-  const hookOverrides = hookEntries
+  const hookExtendsAliases = hookEntries
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((entry) => aliases.get(`${entry.from}::${entry.exportName}`) ?? entry.exportName);
+
+  const prefabOverrides = prefabEntries
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((entry) => {
       const alias = aliases.get(`${entry.from}::${entry.exportName}`) ?? entry.exportName;
-      return `    '${entry.name}': ${alias};`;
+      return `    ${entry.name}: ${alias};`;
     })
     .join('\n');
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Type references (vite-env etc)
-  // ════════════════════════════════════════════════════════════════════════════
+  const sceneOverrides = sceneEntries
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((entry) => {
+      const alias = aliases.get(`${entry.from}::${entry.exportName}`) ?? entry.exportName;
+      return `    ${entry.name}: ${alias};`;
+    })
+    .join('\n');
+
+  const uiOverrides = uiEntries
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((entry) => {
+      const alias = aliases.get(`${entry.from}::${entry.exportName}`) ?? entry.exportName;
+      return `    ${entry.name}: ${alias};`;
+    })
+    .join('\n');
+
+  const uniqueHookExtends = [...new Set(hookExtendsAliases)];
 
   const refBlock =
     pluginTypingMeta.typeReferences.length > 0
@@ -154,76 +165,34 @@ export async function generateDts(
 
   const directImportBlock = imports.length > 0 ? `${imports.join('\n')}\n\n` : '';
   const serviceBody = serviceOverrides ? `\n${serviceOverrides}\n` : '';
-  const hookBody = hookOverrides ? `\n${hookOverrides}\n` : '';
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // Generate final gwen.d.ts with fallback + overrides
-  // ════════════════════════════════════════════════════════════════════════════
+  const prefabBody = prefabOverrides ? `\n${prefabOverrides}\n` : '';
+  const sceneBody = sceneOverrides ? `\n${sceneOverrides}\n` : '';
+  const uiBody = uiOverrides ? `\n${uiOverrides}\n` : '';
+  const hookExtendsClause =
+    uniqueHookExtends.length > 0 ? ` extends ${uniqueHookExtends.join(', ')}` : '';
 
   return `/**
  * GWEN - Global Auto-Generated Types
  * Generated by \`gwen prepare\` - DO NOT MODIFY
  * Source: gwen.config.ts
  *
- * Architecture (Phase 1.1 — Nuxt-like):
- * - Direct imports from plugin metadata when available
- * - Fallback inference via GwenConfigServices<typeof _cfg>
- * - Service/hook overrides take priority over fallback
- *
- * This makes all define* (defineSystem, defineUI, defineScene, definePrefab)
- * automatically typed - no explicit annotation required.
+ * Generated from plugin metadata (services, hooks, extensions).
+ * This avoids circular typing between gwen.config.ts and .gwen/gwen.d.ts.
  */
-${refBlock}${directImportBlock}import type { GwenConfigServices, GwenConfigHooks } from '@djodjonx/gwen-engine-core';
-import type { MergePluginsPrefabExtensions, MergePluginsSceneExtensions, MergePluginsUIExtensions } from '@djodjonx/gwen-kit';
-import type { EngineAPI } from '@djodjonx/gwen-schema';
-${configImport}
-
-type _FallbackServices = GwenConfigServices<typeof _cfg>;
-type _FallbackHooks = GwenConfigHooks<typeof _cfg>;
-type _PrefabExtensions = MergePluginsPrefabExtensions<typeof _cfg['plugins']>;
-type _SceneExtensions = MergePluginsSceneExtensions<typeof _cfg['plugins']>;
-type _UIExtensions = MergePluginsUIExtensions<typeof _cfg['plugins']>;
+${refBlock}${directImportBlock}import type { EngineAPI } from '@djodjonx/gwen-schema';
 
 declare global {
-  /**
-   * Enriches GwenDefaultServices with project services.
-   * Uses direct imports when metadata is available and fallback inference otherwise.
-   * Direct imports (bottom) override fallback (extends).
-   */
-  interface GwenDefaultServices extends _FallbackServices {${serviceBody}  }
+  interface GwenDefaultServices {${serviceBody}  }
 
-  /**
-   * Enriches GwenDefaultHooks with plugin hooks.
-   * Uses direct imports when metadata is available and fallback inference otherwise.
-   */
-  interface GwenDefaultHooks extends _FallbackHooks {${hookBody}  }
+  interface GwenDefaultHooks${hookExtendsClause} {  }
 
-  /**
-   * Enriches GwenPrefabExtensions with each plugin's prefab extension schema.
-   * Used by definePrefab() extensions field.
-   */
-  interface GwenPrefabExtensions extends _PrefabExtensions {}
+  interface GwenPrefabExtensions {${prefabBody}  }
 
-  /**
-   * Enriches GwenSceneExtensions with each plugin's scene extension schema.
-   * Used by defineScene() extensions field.
-   */
-  interface GwenSceneExtensions extends _SceneExtensions {}
+  interface GwenSceneExtensions {${sceneBody}  }
 
-  /**
-   * Enriches GwenUIExtensions with each plugin's UI extension schema.
-   * Used by defineUI() extensions field.
-   */
-  interface GwenUIExtensions extends _UIExtensions {}
+  interface GwenUIExtensions {${uiBody}  }
 
-  /**
-   * Convenience alias for EngineAPI<GwenDefaultServices, GwenDefaultHooks>.
-   */
   type GwenAPI = EngineAPI<GwenDefaultServices, GwenDefaultHooks>;
-
-  /**
-   * @deprecated Use GwenAPI or let TypeScript infer automatically.
-   */
   type GwenServices = GwenDefaultServices;
 
   const __GWEN_VERSION__: string;

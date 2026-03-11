@@ -26,7 +26,7 @@
  */
 
 import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
-import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { unpackEntityId, createEntityId } from '@djodjonx/gwen-engine-core';
 import type { PluginChannel, GwenPluginMeta } from '@djodjonx/gwen-kit';
 
 import type {
@@ -38,6 +38,8 @@ import type {
   ColliderOptions,
   RigidBodyType,
   Physics2DPrefabExtension,
+  CollisionContact,
+  Physics2DPluginHooks,
 } from './types';
 import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
 
@@ -46,9 +48,11 @@ export type {
   Physics2DConfig,
   Physics2DAPI,
   CollisionEvent,
+  CollisionContact,
   ColliderOptions,
   RigidBodyType,
   Physics2DPrefabExtension,
+  Physics2DPluginHooks,
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -60,6 +64,18 @@ const PIXELS_PER_METER = 50;
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
     physics: { from: '@djodjonx/gwen-plugin-physics2d', exportName: 'Physics2DAPI' },
+  },
+  hookTypes: {
+    'physics:collision': {
+      from: '@djodjonx/gwen-plugin-physics2d',
+      exportName: 'Physics2DPluginHooks',
+    },
+  },
+  prefabExtensionTypes: {
+    physics: {
+      from: '@djodjonx/gwen-plugin-physics2d',
+      exportName: 'Physics2DPrefabExtension',
+    },
   },
 };
 
@@ -82,6 +98,16 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
   let eventsBuf: ArrayBuffer | null = null;
   let debugFrameCount = 0;
+  let physicsService: Physics2DAPI | null = null;
+
+  /**
+   * Per-slot collision callbacks registered via prefab extensions.
+   * Key = entity slot index, Value = onCollision handler.
+   */
+  const collisionCallbacks = new Map<
+    number,
+    NonNullable<Physics2DPrefabExtension['onCollision']>
+  >();
 
   // ── Service factory ──────────────────────────────────────────────────
 
@@ -177,6 +203,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     name: 'Physics2D',
     meta: pluginMeta,
     provides: { physics: {} as Physics2DAPI },
+    providesHooks: {} as Physics2DPluginHooks,
     /**
      * Phantom type — consumed by `gwen prepare` to enrich `GwenPrefabExtensions`
      * with `{ physics: Physics2DPrefabExtension }`.
@@ -234,10 +261,13 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         cfg.maxEntities,
       );
 
-      const physicsService = createAPI();
+      physicsService = createAPI();
       api.services.register('physics', physicsService);
 
-      // ── Prefab extensions ────────────────────────────────────────────
+      // Local non-null alias used inside hook closures — TypeScript cannot narrow
+      // the outer `physicsService` variable through a closure boundary.
+      const svc = physicsService;
+
       // Souscription au hook prefab:instantiate — le scopedApi garantit
       // le nettoyage automatique à l'unregister() du plugin.
       api.hooks.hook('prefab:instantiate', (entityId, extensions) => {
@@ -250,7 +280,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           | null
           | undefined;
 
-        const handle = physicsService.addRigidBody(
+        const handle = svc.addRigidBody(
           slot,
           ext.bodyType,
           (pos?.x ?? 0) / PIXELS_PER_METER,
@@ -277,16 +307,65 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         };
 
         if (ext.radius !== undefined) {
-          physicsService.addBallCollider(handle, ext.radius / PIXELS_PER_METER, colliderOpts);
+          svc.addBallCollider(handle, ext.radius / PIXELS_PER_METER, colliderOpts);
         } else if (ext.hw !== undefined && ext.hh !== undefined) {
-          physicsService.addBoxCollider(
+          svc.addBoxCollider(
             handle,
             ext.hw / PIXELS_PER_METER,
             ext.hh / PIXELS_PER_METER,
             colliderOpts,
           );
         }
+
+        // Register the per-entity onCollision callback if declared in the extension.
+        if (ext.onCollision) {
+          collisionCallbacks.set(slot, ext.onCollision);
+        }
       });
+
+      // Clean up callbacks when an entity is destroyed.
+      api.hooks.hook('entity:destroy', (entityId) => {
+        const { index: slot } = unpackEntityId(entityId);
+        collisionCallbacks.delete(slot);
+      });
+    },
+
+    /**
+     * Resolve raw collision events into enriched `CollisionContact`s and emit the
+     * `physics:collision` hook. Also dispatches per-entity `onCollision` callbacks
+     * declared in prefab extensions.
+     *
+     * Called every frame after `onStep`.
+     */
+    onUpdate(api): void {
+      if (!wasmPlugin || !eventsBuf || !physicsService) return;
+
+      const rawEvents = physicsService.getCollisionEvents();
+      if (rawEvents.length === 0) return;
+
+      // Resolve slot indices → packed EntityIds
+      const contacts: CollisionContact[] = [];
+      for (const { slotA, slotB, started } of rawEvents) {
+        const genA = api.getEntityGeneration(slotA);
+        const genB = api.getEntityGeneration(slotB);
+        const entityA = createEntityId(slotA, genA);
+        const entityB = createEntityId(slotB, genB);
+        contacts.push({ entityA, entityB, slotA, slotB, started });
+      }
+
+      const frozenContacts: ReadonlyArray<CollisionContact> = contacts;
+
+      // Emit the enriched hook — any system can subscribe without manual slot lookup.
+      void api.hooks.callHook('physics:collision', frozenContacts);
+
+      // Dispatch per-entity onCollision callbacks declared in prefab extensions.
+      for (const contact of contacts) {
+        const cbA = collisionCallbacks.get(contact.slotA);
+        if (cbA) cbA(contact.entityA, contact.entityB, contact, api);
+
+        const cbB = collisionCallbacks.get(contact.slotB);
+        if (cbB) cbB(contact.entityB, contact.entityA, contact, api);
+      }
     },
 
     /**
@@ -303,6 +382,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       wasmPlugin?.free?.();
       wasmPlugin = null;
       eventsBuf = null;
+      physicsService = null;
+      collisionCallbacks.clear();
     },
   };
 });
