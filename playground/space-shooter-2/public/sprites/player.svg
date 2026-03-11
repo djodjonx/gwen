@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="ship" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8df6ff"/>
+      <stop offset="100%" stop-color="#2fd6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" fill="none"/>
+  <polygon points="16,3 6,25 12,22 16,27 20,22 26,25" fill="url(#ship)"/>
+  <polygon points="16,8 13,18 16,16 19,18" fill="#ffffff" opacity="0.8"/>
+  <polygon points="14,27 16,31 18,27" fill="#ffb347"/>
+</svg>
+

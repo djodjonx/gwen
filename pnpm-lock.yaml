@@ -414,6 +414,52 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@25.3.3)
 
+  playground/space-shooter-2:
+    dependencies:
+      '@djodjonx/gwen-cli':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/cli
+      '@djodjonx/gwen-engine-core':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/engine-core
+      '@djodjonx/gwen-kit':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/kit
+      '@djodjonx/gwen-plugin-audio':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-audio
+      '@djodjonx/gwen-plugin-debug':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-debug
+      '@djodjonx/gwen-plugin-html-ui':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-html-ui
+      '@djodjonx/gwen-plugin-input':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-input
+      '@djodjonx/gwen-plugin-physics2d':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-physics2d
+      '@djodjonx/gwen-plugin-sprite-anim':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/plugin-sprite-anim
+      '@djodjonx/gwen-renderer-canvas2d':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/renderer-canvas2d
+      '@djodjonx/gwen-vite-plugin':
+        specifier: workspace:*
+        version: link:../../packages/@djodjonx/vite-plugin
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@25.3.3)
+
 packages:
 
   '@acemir/cssom@0.9.31':
