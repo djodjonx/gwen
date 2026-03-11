@@ -2,7 +2,7 @@
 
 GWEN provides official plugins for common game features.
 
-##@djodjonx/gwen-plugin-input
+## @djodjonx/gwen-plugin-input
 
 Keyboard, mouse, and gamepad input handling.
 
@@ -26,7 +26,7 @@ if (keyboard.isJustPressed('Enter')) {
 }
 ```
 
-##@djodjonx/gwen-plugin-audio
+## @djodjonx/gwen-plugin-audio
 
 Sound effects and music playback.
 
@@ -45,7 +45,7 @@ audio.play('shoot');
 audio.playMusic('background', { loop: true });
 ```
 
-##@djodjonx/gwen-renderer-canvas2d
+## @djodjonx/gwen-renderer-canvas2d
 
 Canvas 2D rendering.
 
@@ -68,7 +68,29 @@ ctx.fillStyle = '#ff0000';
 ctx.fillRect(x, y, 32, 32);
 ```
 
-##@djodjonx/gwen-plugin-html-ui
+## @djodjonx/gwen-plugin-sprite-anim
+
+Sprite animation runtime with clips, parameters, transitions, and state machine support for `defineUI`.
+
+```typescript
+import { SpriteAnimPlugin } from '@djodjonx/gwen-plugin-sprite-anim';
+
+new SpriteAnimPlugin({
+  autoUpdate: true,
+  fixedDelta: 1 / 60,
+})
+```
+
+**Usage:**
+
+```typescript
+const animator = api.services.get('animator');
+
+animator.setParam(playerId, 'moving', true);
+animator.setTrigger(playerId, 'shoot');
+```
+
+## @djodjonx/gwen-plugin-html-ui
 
 HTML/CSS UI integration.
 
@@ -84,7 +106,7 @@ new HtmlUIPlugin()
 <div id="score">Score: 0</div>
 ```
 
-##@djodjonx/gwen-plugin-debug
+## @djodjonx/gwen-plugin-debug
 
 Performance overlay and debugging tools.
 
@@ -102,4 +124,3 @@ Shows FPS, frame time, entity count.
 
 - [Creating Plugins](/plugins/creating) - Build your own
 - [Configuration](/core/configuration) - Register plugins
-
