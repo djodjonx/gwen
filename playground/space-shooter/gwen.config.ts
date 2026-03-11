@@ -21,7 +21,7 @@ import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
 import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
 import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
-import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
+import { Physics2DPlugin } from '@djodjonx/gwen-plugin-physics2d';
 
 export default defineConfig({
   engine: {
@@ -34,7 +34,7 @@ export default defineConfig({
     background: '#000814',
   },
   plugins: [
-    physics2D({
+    new Physics2DPlugin({
       gravity: 0,
       gravityX: 0,
       maxEntities: 2_000,
