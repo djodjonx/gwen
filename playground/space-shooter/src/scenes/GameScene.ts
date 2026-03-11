@@ -6,13 +6,22 @@ import { MovementSystem } from '../systems/MovementSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
+import { ViewportSystem } from '../systems/ViewportSystem';
 import { BackgroundUI } from '../ui/BackgroundUI';
 import { BulletUI } from '../ui/BulletUI';
 import { EnemyUI } from '../ui/EnemyUI';
 import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
+const INITIAL_ENEMIES = 5;
+const INITIAL_SPAWN_MARGIN_X = 28;
 const PhysicsKinematicSyncSystem = createPhysicsKinematicSyncSystem();
+
+function randomInitialX(width: number): number {
+  const minX = INITIAL_SPAWN_MARGIN_X;
+  const maxX = Math.max(minX + 1, width - INITIAL_SPAWN_MARGIN_X);
+  return minX + Math.random() * (maxX - minX);
+}
 
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true,
@@ -20,7 +29,14 @@ export const GameScene = defineScene('Game', () => ({
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
   // Collision gameplay is handled directly in prefab physics.onCollision callbacks.
-  systems: [PlayerSystem, AiSystem, MovementSystem, PhysicsKinematicSyncSystem, SpawnerSystem],
+  systems: [
+    ViewportSystem,
+    PlayerSystem,
+    AiSystem,
+    MovementSystem,
+    PhysicsKinematicSyncSystem,
+    SpawnerSystem,
+  ],
 
   onEnter(api) {
     api.prefabs.register(PlayerPrefab);
@@ -35,9 +51,12 @@ export const GameScene = defineScene('Game', () => ({
     api.addComponent(scoreId, Score, { value: 0, lives: 3 });
     api.addComponent(scoreId, UIComponent, { uiName: 'ScoreUI' });
 
+    const renderer = api.services.get('renderer');
+    const width = renderer.logicalWidth;
+
     api.prefabs.instantiate('Player');
-    for (let i = 0; i < 5; i++) {
-      api.prefabs.instantiate('Enemy', 60 + i * 90, -30 - i * 15);
+    for (let i = 0; i < INITIAL_ENEMIES; i++) {
+      api.prefabs.instantiate('Enemy', randomInitialX(width), -30 - i * 15);
     }
   },
 

@@ -2,14 +2,15 @@ import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;
-const W = 480,
-  H = 640;
 
 export const PlayerSystem = defineSystem({
   name: 'PlayerSystem' as const,
 
   onUpdate(api, dt) {
     const keyboard = api.services.get('keyboard');
+    const renderer = api.services.get('renderer');
+    const W = renderer.logicalWidth;
+    const H = renderer.logicalHeight;
 
     const players = api.query([Tag.name, Position.name, Velocity.name, ShootTimer.name]);
     for (const id of players) {

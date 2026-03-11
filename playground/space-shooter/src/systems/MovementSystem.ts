@@ -1,18 +1,15 @@
-import { defineSystem, unpackEntityId, type EntityId } from '@djodjonx/gwen-engine-core';
-import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
+import { defineSystem, type EntityId } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem('MovementSystem', () => {
   const toDestroy: EntityId[] = [];
-  let physics: Physics2DAPI | null = null;
 
   return {
-    onInit(api) {
-      physics = api.services.get('physics');
-    },
-
     onBeforeUpdate(api, dt) {
       toDestroy.length = 0;
+      const renderer = api.services.get('renderer');
+      const W = renderer.logicalWidth;
+      const H = renderer.logicalHeight;
 
       const movables = api.query([Position.name, Velocity.name]);
       for (const id of movables) {
@@ -20,12 +17,15 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
         const vel = api.getComponent(id, Velocity);
         if (!pos || !vel) continue;
 
+        const nextX = pos.x + vel.vx * dt;
+        const nextY = pos.y + vel.vy * dt;
+
         api.addComponent(id, Position, {
-          x: pos.x + vel.vx * dt,
-          y: pos.y + vel.vy * dt,
+          x: nextX,
+          y: nextY,
         });
 
-        if (pos.y < -80 || pos.y > 720 || pos.x < -80 || pos.x > 560) {
+        if (nextY < -80 || nextY > H + 80 || nextX < -80 || nextX > W + 80) {
           toDestroy.push(id);
         }
       }
@@ -33,17 +33,12 @@ export const MovementSystem = defineSystem('MovementSystem', () => {
 
     onUpdate(api) {
       for (const id of toDestroy) {
-        if (physics) {
-          const { index } = unpackEntityId(id);
-          physics.removeBody(index);
-        }
         api.destroyEntity(id);
       }
       toDestroy.length = 0;
     },
 
     onDestroy() {
-      physics = null;
       toDestroy.length = 0;
     },
   };
