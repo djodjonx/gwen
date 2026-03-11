@@ -1,8 +1,8 @@
 import { defineScene, UIComponent } from '@djodjonx/gwen-engine-core';
+import { createPhysicsKinematicSyncSystem } from '@djodjonx/gwen-plugin-physics2d';
 import { PlayerPrefab, EnemyPrefab, PlayerBulletPrefab, EnemyBulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';
-import { PhysicsBindingSystem } from '../systems/PhysicsBindingSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { AiSystem } from '../systems/AiSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
@@ -12,13 +12,15 @@ import { EnemyUI } from '../ui/EnemyUI';
 import { PlayerUI } from '../ui/PlayerUI';
 import { ScoreUI } from '../ui/ScoreUI';
 
+const PhysicsKinematicSyncSystem = createPhysicsKinematicSyncSystem();
+
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true,
 
   ui: [BackgroundUI, BulletUI, EnemyUI, PlayerUI, ScoreUI],
 
   // Collision gameplay is handled directly in prefab physics.onCollision callbacks.
-  systems: [PlayerSystem, AiSystem, MovementSystem, PhysicsBindingSystem, SpawnerSystem],
+  systems: [PlayerSystem, AiSystem, MovementSystem, PhysicsKinematicSyncSystem, SpawnerSystem],
 
   onEnter(api) {
     api.prefabs.register(PlayerPrefab);

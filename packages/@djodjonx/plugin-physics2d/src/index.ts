@@ -42,6 +42,8 @@ import type {
   Physics2DPluginHooks,
 } from './types';
 import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
+export { createPhysicsKinematicSyncSystem } from './systems';
+export type { PhysicsKinematicSyncSystemOptions } from './systems';
 
 // Re-export public types
 export type {
