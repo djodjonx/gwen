@@ -250,6 +250,28 @@ importers:
 
   packages/@djodjonx/plugin-physics2d/wasm: {}
 
+  packages/@djodjonx/plugin-sprite-anim:
+    dependencies:
+      '@djodjonx/gwen-engine-core':
+        specifier: workspace:*
+        version: link:../engine-core
+      '@djodjonx/gwen-kit':
+        specifier: workspace:*
+        version: link:../kit
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+
   packages/@djodjonx/renderer-canvas2d:
     dependencies:
       '@djodjonx/gwen-engine-core':
