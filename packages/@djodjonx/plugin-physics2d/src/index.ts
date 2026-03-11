@@ -95,7 +95,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     gravity: config.gravity ?? -9.81,
     gravityX: config.gravityX ?? 0,
     maxEntities: config.maxEntities ?? 10_000,
+    debug: config.debug ?? false,
   };
+  const isDebug = cfg.debug;
 
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
   let eventsBuf: ArrayBuffer | null = null;
@@ -129,14 +131,18 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           opts.initialVelocity?.vx ?? 0.0,
           opts.initialVelocity?.vy ?? 0.0,
         );
-        console.log(
-          `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
-        );
+        if (isDebug) {
+          console.log(
+            `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
+          );
+        }
         return handle;
       },
 
       addBoxCollider(bodyHandle, hw, hh, opts: ColliderOptions = {}) {
-        console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
+        if (isDebug) {
+          console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
+        }
         wasmPlugin?.add_box_collider(
           bodyHandle,
           hw,
@@ -149,7 +155,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       },
 
       addBallCollider(bodyHandle, radius, opts: ColliderOptions = {}) {
-        console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
+        if (isDebug) {
+          console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
+        }
         wasmPlugin?.add_ball_collider(
           bodyHandle,
           radius,
@@ -161,7 +169,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       },
 
       removeBody(entityIndex) {
-        console.log(`[Physics2D] removeBody entity=${entityIndex}`);
+        if (isDebug) {
+          console.log(`[Physics2D] removeBody entity=${entityIndex}`);
+        }
         wasmPlugin?.remove_rigid_body(entityIndex);
       },
 
@@ -180,7 +190,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       getCollisionEvents(): CollisionEvent[] {
         if (!wasmPlugin || !eventsBuf) return [];
         const events = readCollisionEventsFromBuffer(eventsBuf);
-        if (import.meta.env.DEV) {
+        if (isDebug && import.meta.env.DEV) {
           const f = debugFrameCount;
           if (f <= 300 && f % 60 === 0 && f > 0) {
             const stats = wasmPlugin.stats();

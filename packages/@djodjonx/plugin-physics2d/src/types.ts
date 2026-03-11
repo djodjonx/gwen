@@ -24,6 +24,12 @@ export interface Physics2DConfig {
    * @default 10_000
    */
   maxEntities?: number;
+  /**
+   * Enable Physics2D debug logs in the browser console.
+   * When `false` (default), the plugin stays silent.
+   * @default false
+   */
+  debug?: boolean;
 }
 
 // ─── Body & Collider ──────────────────────────────────────────────────────────

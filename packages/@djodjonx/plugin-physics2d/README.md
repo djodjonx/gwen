@@ -39,6 +39,7 @@ export default defineConfig({
 - `gravity?: number` - Y gravity in m/s2 (default `-9.81`)
 - `gravityX?: number` - X gravity in m/s2 (default `0`)
 - `maxEntities?: number` - max ECS slot capacity (default `10_000`)
+- `debug?: boolean` - enable plugin console logs (default `false`)
 
 ## Recommended pattern
 
