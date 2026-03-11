@@ -19,12 +19,14 @@ import { DEFAULT_PORT_DEV } from '../utils/constants.js';
  * @property {number} [port] - Port to listen on (default: 3000)
  * @property {boolean} [open] - Auto-open browser on start
  * @property {boolean} [verbose] - Enable verbose logging
+ * @property {boolean} [debug] - Enable debug mode
  */
 export interface DevOptions {
   projectDir?: string;
   port?: number;
   open?: boolean;
   verbose?: boolean;
+  debug?: boolean;
 }
 
 /**
@@ -59,7 +61,7 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
   }
 
   // 2. Run prepare to generate .gwen/ folder (tsconfig, types, index.html)
-  logger.info('Preparing project artifacts...');
+  logger.debug('Preparing project artifacts...');
   const prepareResult = await prepare({
     projectDir,
     verbose: opts.verbose,
@@ -78,6 +80,7 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
     mode: 'development',
     port,
     open,
+    debug: opts.debug,
   });
 
   // 4. Create and start Vite server
@@ -85,9 +88,9 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
     const server = await createServer(viteConfig);
     await server.listen();
 
-    logger.success(`Dev server is running at: http://localhost:${port}`);
+    logger.success('Dev server is running.');
     if (open) {
-      logger.info('Opening browser...');
+      logger.debug('Opening browser...');
     }
 
     server.printUrls();

@@ -17,6 +17,33 @@ import { GLOBAL_ARGS } from '../utils/args.js';
 import { DEFAULT_PORT_DEV, ExitCode } from '../utils/constants.js';
 import { dev as coreDev } from '../core/dev.js';
 
+const ANSI_VIOLET = '\x1b[95m';
+const ANSI_RESET = '\x1b[0m';
+
+const GWEN_ASCII_COMPACT = [
+  `${ANSI_VIOLET}******************************************`,
+  '*   *****    *     *   ******    *    *  *',
+  '*  *         *  *  *   *         **   *  *',
+  '*  *  ***    * * * *   ****      * *  *  *',
+  '*  *    *    **   **   *         *  * *  *',
+  '*   *****    *     *   ******    *   **  *',
+  `******************************************${ANSI_RESET}`,
+].join('\n');
+
+const GWEN_ASCII_LARGE = [
+  `${ANSI_VIOLET}****************************************************`,
+  '*   ******      *       *    ********    *      *  *',
+  '*  *            *       *    *           **     *  *',
+  '*  *   *****    *   *   *    *****       * *    *  *',
+  '*  *      **    *  * *  *    *           *  *   *  *',
+  '*  *       *    * *   * *    *           *   *  *  *',
+  '*   ******      **     **    ********    *    * *  *',
+  `****************************************************${ANSI_RESET}`,
+].join('\n');
+
+// Switch between banners here.
+const GWEN_ASCII = GWEN_ASCII_COMPACT;
+
 function parsePort(input: unknown): number {
   const port = Number(input);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
@@ -56,11 +83,13 @@ export default defineCommand({
       process.exit(ExitCode.ERROR_VALIDATION);
     }
 
-    logger.info(`Starting dev server on port ${port}...`);
+    // Keep the banner as the very first visible output of `gwen dev`.
+    logger.log(GWEN_ASCII);
 
     await coreDev({
       port,
       open: args.open as boolean,
+      debug: args.debug as boolean,
     });
   },
 });

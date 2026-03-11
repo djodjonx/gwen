@@ -20,6 +20,7 @@ export interface ViteConfigOptions {
   port?: number;
   open?: boolean;
   outDir?: string;
+  debug?: boolean;
 }
 
 export async function buildViteConfig(
@@ -57,7 +58,8 @@ export async function buildViteConfig(
           gwenPlugin({
             watch: options.mode === 'development',
             wasmMode: options.mode === 'development' ? 'debug' : 'release',
-            verbose: true,
+            // gwen-vite internal logs are shown only in CLI debug mode.
+            verbose: options.debug === true,
           }),
         ]
       : [],
