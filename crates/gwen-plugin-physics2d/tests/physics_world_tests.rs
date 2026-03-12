@@ -1,6 +1,6 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_physics2d::components::{BodyType, PhysicsMaterial};
+use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions};
 use gwen_physics2d::world::PhysicsWorld;
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -9,19 +9,12 @@ fn world_with_gravity() -> PhysicsWorld {
     PhysicsWorld::new(0.0, -9.81)
 }
 
-fn default_material() -> PhysicsMaterial {
-    PhysicsMaterial {
-        restitution: 0.0,
-        friction: 0.5,
-    }
-}
-
 // ─── Body management ─────────────────────────────────────────────────────────
 
 #[test]
 fn test_add_dynamic_body() {
     let mut w = world_with_gravity();
-    let handle = w.add_rigid_body(0, 0.0, 10.0, BodyType::Dynamic);
+    let handle = w.add_rigid_body(0, 0.0, 10.0, BodyType::Dynamic, BodyOptions::default());
     assert!(w.entity_to_body.contains_key(&0));
     assert!(w.body_to_entity.values().any(|&e| e == 0));
     // handle is a raw u32 — just assert it's a valid-looking value
@@ -31,21 +24,21 @@ fn test_add_dynamic_body() {
 #[test]
 fn test_add_static_body() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(1, 0.0, 0.0, BodyType::Fixed);
+    w.add_rigid_body(1, 0.0, 0.0, BodyType::Fixed, BodyOptions::default());
     assert!(w.entity_to_body.contains_key(&1));
 }
 
 #[test]
 fn test_add_kinematic_body() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(2, 5.0, 5.0, BodyType::Kinematic);
+    w.add_rigid_body(2, 5.0, 5.0, BodyType::Kinematic, BodyOptions::default());
     assert!(w.entity_to_body.contains_key(&2));
 }
 
 #[test]
 fn test_remove_body_cleans_maps() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(10, 0.0, 0.0, BodyType::Dynamic);
+    w.add_rigid_body(10, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
     assert!(w.entity_to_body.contains_key(&10));
     w.remove_rigid_body(10);
     assert!(!w.entity_to_body.contains_key(&10));
@@ -63,10 +56,10 @@ fn test_remove_nonexistent_body_is_noop() {
 #[test]
 fn test_add_body_replaces_existing() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(5, 0.0, 0.0, BodyType::Dynamic);
+    w.add_rigid_body(5, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
     let body_count_before = w.entity_to_body.len();
-    w.add_rigid_body(5, 1.0, 1.0, BodyType::Fixed); // same entity_index
-                                                    // Must not duplicate
+    w.add_rigid_body(5, 1.0, 1.0, BodyType::Fixed, BodyOptions::default()); // same entity_index
+    // Must not duplicate
     assert_eq!(w.entity_to_body.len(), body_count_before);
 }
 
@@ -75,7 +68,7 @@ fn test_add_body_replaces_existing() {
 #[test]
 fn test_step_moves_dynamic_body_downward() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(0, 0.0, 10.0, BodyType::Dynamic);
+    w.add_rigid_body(0, 0.0, 10.0, BodyType::Dynamic, BodyOptions::default());
 
     let (_, y0, _) = w.get_position(0).unwrap();
     // Step a few frames — gravity should pull it down
@@ -89,7 +82,7 @@ fn test_step_moves_dynamic_body_downward() {
 #[test]
 fn test_static_body_does_not_move() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(0, 0.0, 0.0, BodyType::Fixed);
+    w.add_rigid_body(0, 0.0, 0.0, BodyType::Fixed, BodyOptions::default());
 
     let (x0, y0, r0) = w.get_position(0).unwrap();
     for _ in 0..60 {
@@ -104,7 +97,7 @@ fn test_static_body_does_not_move() {
 #[test]
 fn test_zero_gravity_does_not_move_dynamic_body() {
     let mut w = PhysicsWorld::new(0.0, 0.0);
-    w.add_rigid_body(0, 3.0, 3.0, BodyType::Dynamic);
+    w.add_rigid_body(0, 3.0, 3.0, BodyType::Dynamic, BodyOptions::default());
     let (x0, y0, _) = w.get_position(0).unwrap();
     for _ in 0..30 {
         w.step(1.0 / 60.0);
@@ -124,7 +117,13 @@ fn test_zero_gravity_does_not_move_dynamic_body() {
 fn test_100_bodies_step_no_nan() {
     let mut w = world_with_gravity();
     for i in 0..100u32 {
-        w.add_rigid_body(i, i as f32 * 2.0, 50.0, BodyType::Dynamic);
+        w.add_rigid_body(
+            i,
+            i as f32 * 2.0,
+            50.0,
+            BodyType::Dynamic,
+            BodyOptions::default(),
+        );
     }
     for _ in 0..10 {
         w.step(1.0 / 60.0);
@@ -140,9 +139,9 @@ fn test_100_bodies_step_no_nan() {
 #[test]
 fn test_apply_impulse_changes_velocity() {
     let mut w = PhysicsWorld::new(0.0, 0.0);
-    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic);
+    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
     // A collider is required for Rapier to compute mass and simulate the body
-    w.add_ball_collider(h, 1.0, default_material());
+    w.add_ball_collider(h, 1.0, ColliderOptions::default());
     w.apply_impulse(0, 100.0, 0.0);
     for _ in 0..10 {
         w.step(1.0 / 60.0);
@@ -157,7 +156,7 @@ fn test_apply_impulse_changes_velocity() {
 #[test]
 fn test_apply_impulse_on_fixed_body_is_noop() {
     let mut w = PhysicsWorld::new(0.0, 0.0);
-    w.add_rigid_body(0, 0.0, 0.0, BodyType::Fixed);
+    w.add_rigid_body(0, 0.0, 0.0, BodyType::Fixed, BodyOptions::default());
     w.apply_impulse(0, 100.0, 0.0); // Should not panic
     w.step(1.0 / 60.0);
     let (x, y, _) = w.get_position(0).unwrap();
@@ -178,15 +177,15 @@ fn test_collision_events_empty_initially() {
 #[test]
 fn test_add_box_collider_does_not_panic() {
     let mut w = world_with_gravity();
-    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic);
-    w.add_box_collider(h, 1.0, 1.0, default_material()); // should not panic
+    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
+    w.add_box_collider(h, 1.0, 1.0, ColliderOptions::default()); // should not panic
 }
 
 #[test]
 fn test_add_ball_collider_does_not_panic() {
     let mut w = world_with_gravity();
-    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic);
-    w.add_ball_collider(h, 0.5, default_material());
+    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
+    w.add_ball_collider(h, 0.5, ColliderOptions::default());
 }
 
 // ─── get_position ─────────────────────────────────────────────────────────────
@@ -200,7 +199,7 @@ fn test_get_position_returns_none_for_unknown_entity() {
 #[test]
 fn test_get_position_initial_matches_spawn() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(0, 3.0, 7.0, BodyType::Fixed);
+    w.add_rigid_body(0, 3.0, 7.0, BodyType::Fixed, BodyOptions::default());
     let (x, y, _) = w.get_position(0).unwrap();
     assert!((x - 3.0).abs() < 1e-4, "x mismatch: {x}");
     assert!((y - 7.0).abs() < 1e-4, "y mismatch: {y}");
@@ -211,7 +210,7 @@ fn test_get_position_initial_matches_spawn() {
 #[test]
 fn test_stats_json_valid() {
     let mut w = world_with_gravity();
-    w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic);
+    w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
     let json = w.stats_json();
     assert!(json.contains("bodies"), "json={json}");
     assert!(json.contains("colliders"), "json={json}");
