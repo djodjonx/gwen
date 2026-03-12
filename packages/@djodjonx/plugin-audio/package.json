@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-plugin-audio",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "GWEN Audio Plugin",
   "files": [
     "dist"

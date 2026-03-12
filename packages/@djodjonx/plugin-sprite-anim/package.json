@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-plugin-sprite-anim",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "GWEN Sprite Animation Plugin — Animator runtime for defineUI",
   "files": [
     "dist"

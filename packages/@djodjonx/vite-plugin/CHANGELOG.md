@@ -1,5 +1,11 @@
 # @djodjonx/gwen-vite-plugin
 
+## 0.3.7
+
+### Patch Changes
+
+- new plugin and updates
+
 ## 0.3.6
 
 ### Patch Changes
