@@ -130,7 +130,7 @@ animator.setParam(id, 'accelerating', isMovingUp);
 if (didShoot) animator.setTrigger(id, 'shoot');
 ```
 
-> See [Sprite Animation Troubleshooting](/packages/@djodjonx/plugin-sprite-anim/README) for common visual artefacts like loop jumps.
+> See [Troubleshooting](/TROUBLESHOOTING) for common visual artefacts like loop jumps.
 
 ---
 

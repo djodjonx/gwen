@@ -28,11 +28,11 @@ features:
 
   - icon: ✅
     title: Type-safe by default
-    details: `gwen prepare` generates typed globals so services, hooks, and extensions are auto-completed.
+    details: Run "gwen prepare" once and services, hooks, and extensions are auto-completed everywhere.
 
   - icon: 🚀
     title: Fast onboarding
-    details: Start a new app with `npx @djodjonx/create-gwen-app <app-name>` in seconds.
+    details: Start a new app with npx @djodjonx/create-gwen-app and be coding in under a minute.
 
   - icon: 🎨
     title: Renderer-agnostic UI

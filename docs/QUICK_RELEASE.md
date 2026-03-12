@@ -90,11 +90,11 @@ pnpm changeset:version      # Bump versions
 pnpm release                # Publish to npm
 ```
 
-## Aide
+## Help
 
-- Documentation complète : [`RELEASE.md`](../RELEASE.md)
-- Configuration Changesets : [`.changeset/README.md`](../.changeset/README.md)
-- Déploiement utilisateurs : [`docs/DEPLOYMENT.md`](DEPLOYMENT.md)
+- Full release guide: `RELEASE.md` (repository root)
+- Changesets config: `.changeset/README.md` (repository root)
+- Deployment guide: [DEPLOYMENT.md](/DEPLOYMENT)
 
 ---
 
