@@ -1,301 +1,86 @@
-# 📌 Guide - Déclarer des Hooks Personnalisés dans un Plugin
+# Plugin Hooks Guide
 
-## Vue d'Ensemble
+This guide explains how plugin authors can expose typed hook contracts that end users consume with full TypeScript support.
 
-Les plugins GWEN peuvent maintenant **déclarer et exposer leurs propres hooks** de manière **100% type-safe**.
+## Why plugin hooks?
 
-Le système fonctionne exactement comme les `provides` (services), mais pour les hooks.
+Services are great for pull-style APIs (`api.services.get(...)`).
+Hooks are useful for push-style events (`collision`, `beforeStep`, `afterStep`, etc.).
 
-## Pattern Standard
+## 1) Declare hook types in your plugin
 
-### 1. Déclarer l'Interface des Hooks
-
-Dans `src/types.ts` (ou `src/hooks.ts`) de votre plugin :
-
-```typescript
-/**
- * Hooks exposés par le plugin Physics2D.
- *
- * Les autres plugins peuvent écouter ces événements de manière type-safe.
- */
+```ts
 export interface Physics2DHooks {
-  /**
-   * Appelé quand deux corps entrent en collision
-   * @param event - Détails de la collision
-   */
   'physics:collision': (event: CollisionEvent) => void;
-
-  /**
-   * Appelé avant la simulation physique
-   * @param deltaTime - Temps écoulé en millisecondes
-   */
   'physics:beforeStep': (deltaTime: number) => void;
-
-  /**
-   * Appelé après la simulation physique
-   */
   'physics:afterStep': () => void;
 }
 ```
 
-### 2. Déclarer le Plugin avec ses Hooks
+## 2) Expose hook typing metadata
 
-Dans `src/index.ts` :
+In your plugin class:
 
-```typescript
+```ts
 import type { GwenPlugin } from '@djodjonx/gwen-engine-core';
-import type { Physics2DHooks } from './types';
 
-/**
- * Services exposés par Physics2D
- */
-export interface Physics2DServices {
-  physics: Physics2DManager;
-}
-
-/**
- * Physics2D Plugin — avec hooks custom
- */
 export class Physics2DPlugin
   implements GwenPlugin<'Physics2D', Physics2DServices, Physics2DHooks>
 {
   readonly name = 'Physics2D' as const;
-
-  /**
-   * Services fournis par ce plugin
-   */
-  readonly provides = {
-    physics: {} as Physics2DManager,
-  };
-
-  /**
-   * Hooks fournis par ce plugin (phantom type pour l'inférence)
-   */
+  readonly provides = { physics: {} as Physics2DManager };
   readonly providesHooks = {} as Physics2DHooks;
-
-  onInit(api: EngineAPI) {
-    const physics = new Physics2DManager();
-    api.services.register('physics', physics);
-  }
-
-  onUpdate(api: EngineAPI, dt: number) {
-    const physics = api.services.get('physics');
-
-    // Avant la simulation
-    api.hooks.callHook('physics:beforeStep' as any, dt * 1000);
-
-    // Simulation...
-    physics.step(dt);
-
-    // Après la simulation
-    api.hooks.callHook('physics:afterStep' as any);
-
-    // Détecter les collisions et émettre l'événement
-    const collisions = physics.getCollisions();
-    for (const collision of collisions) {
-      api.hooks.callHook('physics:collision' as any, collision);
-    }
-  }
 }
 ```
 
-### 3. Exporter dans package.json (pour CLI)
+## 3) Emit hooks from plugin runtime
 
-Dans `package.json` du plugin :
+```ts
+api.hooks.callHook('physics:beforeStep' as any, dt);
+api.hooks.callHook('physics:afterStep' as any);
+api.hooks.callHook('physics:collision' as any, event);
+```
+
+## 4) Consume hooks in app/game code
+
+```ts
+export const CollisionSystem = defineSystem({
+  name: 'CollisionSystem',
+  onInit(api) {
+    api.hooks.hook('physics:collision' as any, (event) => {
+      // typed event once metadata is resolved
+    });
+  },
+});
+```
+
+## 5) Package metadata for discovery
+
+When needed, expose metadata in your package so tooling can discover type contracts.
 
 ```json
 {
   "name": "@djodjonx/gwen-plugin-physics2d",
-  "version": "0.1.0",
-  "description": "Physics2D Plugin for GWEN",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "gwenHooks": "./src/types.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  }
+  "gwenHooks": "./src/types.ts"
 }
 ```
 
-La CLI utilisera `gwenHooks` pour découvrir et extraire les interfaces de hooks.
+## Naming convention
 
-## Utiliser les Hooks du Plugin
+Use namespaced hook ids:
 
-### Dans un Autre Plugin
+- `physics:collision`
+- `input:keyDown`
+- `audio:play`
 
-```typescript
-export const CollisionHandler = defineSystem({
-  name: 'CollisionHandler',
+Avoid generic names like `event`, `init`, `update`.
 
-  onInit(api: EngineAPI) {
-    // Écouter les collisions du Physics2D plugin
-    api.hooks.hook('physics:collision' as any, (event) => {
-      console.log('Collision:', event.bodyA, event.bodyB);
+## End-user DX
 
-      // Faire quelque chose...
-      const entityA = api.getComponent(event.bodyA.id, 'Health');
-      if (entityA) {
-        entityA.hp -= event.impulse * 10;
-      }
-    });
-  }
-});
-```
+After `gwen prepare`, generated types augment global hook typing so users get auto-complete and static checks in systems and scenes.
 
-### Type-Safety après `gwen prepare`
+## Related docs
 
-Après avoir exécuté `gwen prepare`, la CLI génère `.gwen/gwen.d.ts` :
-
-```typescript
-declare global {
-  interface GwenDefaultHooks extends
-    GwenHooks,           // Hooks système
-    Physics2DHooks,      // Hooks du plugin Physics2D
-    InputHooks,          // Hooks du plugin Input
-    AudioHooks           // Hooks du plugin Audio
-  {}
-}
-```
-
-Cela signifie que **tout est type-safe sans annotation** :
-
-```typescript
-// ✅ APRÈS gwen prepare — type-safe complet
-export const CollisionHandler = defineSystem({
-  name: 'CollisionHandler',
-
-  onInit(api) {
-    // ✅ Intellisense et type-checking automatiques
-    api.hooks.hook('physics:collision' as any, (event) => {
-      // event est typé comme CollisionEvent ✅
-    });
-
-    api.hooks.hook('entity:create', (id) => {
-      // id est typé comme EntityId ✅
-    });
-  }
-});
-```
-
-## Nommage des Hooks
-
-### Convention de Nommage
-
-Utilisez le pattern `namespace:event` :
-
-```typescript
-// ✅ BON
-export interface MyPluginHooks {
-  'myplugin:event': () => void;
-  'myplugin:initialized': () => void;
-  'myplugin:error': (err: Error) => void;
-}
-
-// ❌ MAUVAIS — pas de namespace
-export interface MyPluginHooks {
-  'event': () => void;        // Conflits potentiels
-  'init': () => void;
-  'error': (err: Error) => void;
-}
-```
-
-### Exemples
-
-```typescript
-// Physics plugin
-'physics:collision': (event: CollisionEvent) => void;
-'physics:beforeStep': (dt: number) => void;
-
-// Input plugin
-'input:keyDown': (key: string) => void;
-'input:mouseMove': (x: number, y: number) => void;
-
-// Audio plugin
-'audio:play': (soundId: string) => void;
-'audio:stop': (soundId: string) => void;
-
-// UI plugin
-'ui:buttonClicked': (buttonId: string) => void;
-'ui:dialogClosed': (dialogId: string) => void;
-```
-
-## Ordre d'Exécution des Hooks
-
-Les hooks d'un même événement sont exécutés **dans l'ordre d'enregistrement** :
-
-```typescript
-// Ordre d'exécution : 1 → 2 → 3
-api.hooks.hook('physics:collision', () => console.log('1'));
-api.hooks.hook('physics:collision', () => console.log('2'));
-api.hooks.hook('physics:collision', () => console.log('3'));
-
-// Output:
-// 1
-// 2
-// 3
-```
-
-Cela permet aux plugins de se coordonner facilement.
-
-## Erreurs et Gestion
-
-Les erreurs dans un handler ne crashent pas le moteur :
-
-```typescript
-api.hooks.hook('physics:collision', (event) => {
-  throw new Error('Oops!'); // Erreur loggée mais engine continue
-});
-
-// Les autres handlers sont toujours appelés
-api.hooks.hook('physics:collision', (event) => {
-  console.log('This still runs'); // ✅ Appelé
-});
-```
-
-## Tester les Hooks
-
-```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { createGwenHooks } from '@djodjonx/gwen-engine-core';
-
-describe('Physics2D Hooks', () => {
-  it('should emit collision event', async () => {
-    const hooks = createGwenHooks();
-    const callback = vi.fn();
-
-    hooks.hook('physics:collision' as any, callback);
-
-    await hooks.callHook('physics:collision' as any, {
-      bodyA: { id: 1 },
-      bodyB: { id: 2 },
-      impulse: 10,
-    });
-
-    expect(callback).toHaveBeenCalledOnce();
-    expect(callback).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bodyA: { id: 1 },
-        bodyB: { id: 2 },
-      })
-    );
-  });
-});
-```
-
-## Résumé
-
-| Aspect | Comment |
-|--------|---------|
-| **Déclarer** | `interface PluginHooks { 'ns:event': (...) => void }` |
-| **Exposer** | `implements GwenPlugin<Name, Services, Hooks>` |
-| **Émettre** | `api.hooks.callHook('ns:event' as any, data)` |
-| **Écouter** | `api.hooks.hook('ns:event' as any, (data) => {})` |
-| **Type-safe** | Automatique après `gwen prepare` |
-
----
-
-**Next:** Exécutez `gwen prepare` pour enrichir `.gwen/gwen.d.ts` avec tous vos hooks plugins !
-
+- [API Overview](/api/overview)
+- [Helpers](/api/helpers)
+- [Creating Plugins](/plugins/creating)

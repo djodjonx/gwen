@@ -1,27 +1,24 @@
 # CLI Commands
 
-GWEN uses two CLIs:
+GWEN exposes two end-user CLI entry points:
 
-1. `create-gwen-app` for project scaffolding
-2. `gwen` for development/build commands
+1. **Scaffold CLI**: `@djodjonx/create-gwen-app`
+2. **Project CLI**: `gwen` (provided by `@djodjonx/gwen-cli`)
 
-## Scaffold
-
-```bash
-pnpm create gwen-app my-game
-```
-
-Alternatives:
+## Scaffold a project
 
 ```bash
-npm create gwen-app my-game
-npx create-gwen-app my-game
+npx @djodjonx/create-gwen-app my-game
+cd my-game
+pnpm install
+pnpm dev
 ```
 
-## `gwen` Commands
+## `gwen` commands
 
 ### `gwen prepare`
-Generate `.gwen/` files.
+
+Generate `.gwen/` artifacts (types + helper metadata).
 
 ```bash
 gwen prepare
@@ -29,7 +26,8 @@ gwen prepare --verbose
 ```
 
 ### `gwen dev`
-Start development server.
+
+Run development server.
 
 ```bash
 gwen dev
@@ -44,18 +42,20 @@ Flags:
 - `--verbose`
 
 ### `gwen build`
-Build project.
+
+Build production output.
 
 ```bash
 gwen build
-gwen build --debug
 gwen build --out-dir dist
+gwen build --debug
 gwen build --dry-run
 gwen build --verbose
 ```
 
 ### `gwen preview`
-Preview production output.
+
+Preview production build.
 
 ```bash
 gwen build
@@ -74,6 +74,7 @@ Preview prints the resolved listening URL:
 ```
 
 ### `gwen lint`
+
 Run linting.
 
 ```bash
@@ -82,7 +83,8 @@ gwen lint --fix
 ```
 
 ### `gwen format`
-Run formatter.
+
+Run formatting.
 
 ```bash
 gwen format
@@ -90,17 +92,20 @@ gwen format --check
 ```
 
 ### `gwen info`
-Print parsed config.
+
+Print resolved `gwen.config.ts` information.
 
 ```bash
 gwen info
 ```
 
-## Notes
-
-Supported global flags by command are implemented in `@djodjonx/gwen-cli`.
-If in doubt, run:
+## Help
 
 ```bash
 gwen --help
 ```
+
+## Related pages
+
+- [Quick Start](/guide/quick-start)
+- [CLI Guide](/CLI)

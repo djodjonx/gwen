@@ -203,9 +203,89 @@ export const GameScene = defineScene('Game', () => ({
 - **Faster iteration** (no compile step)
 - **Web-first** (no WebAssembly export headaches)
 
+## Extending `define*` via Plugins
+
+GWEN is built to stay lightweight at its core and grow through **plugin extensions** — not by bloating the engine itself.
+
+Plugins can contribute typed properties to any `define*` helper via an `extensions` key.
+This keeps game code clean, avoids magic globals, and ensures each capability is opt-in.
+
+### How it works
+
+A plugin declares the extension shape it provides:
+
+```typescript
+// @djodjonx/gwen-plugin-physics2d — provides extensions.physics
+export class Physics2DPlugin implements GwenPlugin {
+  readonly name = 'Physics2D';
+  readonly provides = { physics: physicsManager };
+}
+```
+
+Your game code then uses `extensions` directly inside `definePrefab`, `defineScene`, or `defineUI`:
+
+```typescript
+export const PlayerPrefab = definePrefab({
+  name: 'Player',
+  extensions: {
+    physics: {
+      bodyType: 'kinematic',
+      radius: 20,
+    },
+  },
+  create: (api) => {
+    const id = api.createEntity();
+    api.addComponent(id, Position, { x: 240, y: 560 });
+    return id;
+  },
+});
+```
+
+```typescript
+export const EnemyScene = defineScene('Enemy', () => ({
+  extensions: {
+    physics: { gravity: 0 },
+  },
+  systems: [AiSystem, MovementSystem],
+  onEnter(api) {},
+  onExit(api) {},
+}));
+```
+
+```typescript
+export const PlayerUI = defineUI({
+  name: 'PlayerUI',
+  extensions: {
+    spriteAnim: {
+      atlas: '/sprites/player.png',
+      frame: { width: 32, height: 32, columns: 4 },
+      clips: {
+        idle: { frames: [0, 1, 2, 3], fps: 8, loop: true },
+      },
+    },
+  },
+  render(api, id) {
+    const pos = api.getComponent(id, Position);
+    if (!pos) return;
+    const animator = api.services.get('animator');
+    animator.draw(api.services.get('renderer').ctx, id, pos.x, pos.y);
+  },
+});
+```
+
+### Why this design?
+
+- **Core stays minimal**: the engine ships without physics, sprite animation, or audio baked in.
+- **No global config sprawl**: each feature lives next to the entity/scene that uses it.
+- **Type-safe**: after `gwen prepare`, extension shapes are fully typed and auto-completed.
+- **Composable**: combine multiple plugin extensions on a single `define*` without conflicts.
+- **Discoverability**: a developer reads one `definePrefab` and immediately sees all behaviours attached to it.
+
+This is what makes GWEN **lightweight and extensible** at the same time.
+
 ## Design Goals
 
-1. **Fast to start** - `pnpm create` and you're coding in 30 seconds
+1. **Fast to start** - `npx @djodjonx/create-gwen-app my-game` and you're coding in under a minute
 2. **Hard to break** - TypeScript prevents most bugs
 3. **Easy to understand** - clear folder structure, no magic
 4. **Scalable** - from jam games to production apps

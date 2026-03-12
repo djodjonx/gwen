@@ -4,132 +4,88 @@ Get your first GWEN game running in under 5 minutes.
 
 ## Prerequisites
 
-- Node.js 18+ ([download](https://nodejs.org/))
-- pnpm ([install](https://pnpm.io/installation))
+- Node.js 18+
+- pnpm (recommended)
 
-No Rust, no Vite config, no WASM setup needed. Everything is handled for you.
+You do **not** need to configure Rust/WASM manually for standard app development.
 
-## Create a New Project
+## 1) Create a project
 
 ```bash
-pnpm create gwen-app my-game
+npx @djodjonx/create-gwen-app my-game
 cd my-game
 ```
 
-This scaffolds a complete game project with:
-- Pre-configured `gwen.config.ts`
-- Example components, scenes, systems
-- TypeScript setup
-- Development server ready
+## 2) Install dependencies
 
-## Start Development
+```bash
+pnpm install
+```
+
+## 3) Start dev server
 
 ```bash
 pnpm dev
 ```
 
-Open `http://localhost:3000` in your browser. You should see your game running.
+Open the local URL shown in the terminal (usually `http://localhost:3000`).
 
-## Project Structure
+## 4) Understand generated files
 
-Your generated project is ready to go with a standardized layout. 
+A scaffolded app typically contains:
 
-[**Learn more about the generated Project Structure →**](/guide/project-structure)
-
-## What's Next?
-
-### 1. Explore the Code
-
-Open `src/scenes/GameScene.ts` to see how a scene is defined:
-
-```typescript
-export const GameScene = defineScene('Game', () => ({
-  systems: [MovementSystem, PlayerSystem, CollisionSystem],
-  onEnter(api) {
-    // Create initial entities
-  },
-  onExit() {},
-}));
+```text
+src/
+  components/
+  prefabs/
+  scenes/
+  systems/
+  ui/
+gwen.config.ts
+package.json
+tsconfig.json
 ```
 
-### 2. Modify a Component
+Read [Project Structure](/guide/project-structure) for details.
 
-Edit `src/components/Position.ts`:
+## 5) Add your first gameplay logic
 
-```typescript
-export const Position = defineComponent({
-  name: 'position',
-  schema: {
-    x: Types.f32,
-    y: Types.f32,
-    z: Types.f32  // Add a third dimension
-  }
-});
-```
+Example system:
 
-Save and watch the hot-reload in action.
-
-### 3. Create a System
-
-Add `src/systems/GravitySystem.ts`:
-
-```typescript
+```ts
 import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { Position, Velocity } from '../components';
 
-export const GravitySystem = defineSystem({
-  name: 'GravitySystem',
+export const MovementSystem = defineSystem({
+  name: 'MovementSystem',
   onUpdate(api, dt) {
-    const entities = api.query(['position', 'velocity']);
+    const entities = api.query([Position, Velocity]);
     for (const id of entities) {
+      const pos = api.getComponent(id, Position);
       const vel = api.getComponent(id, Velocity);
-      api.addComponent(id, Velocity, {
-        vx: vel.vx,
-        vy: vel.vy + 980 * dt  // Apply gravity
+      if (!pos || !vel) continue;
+      api.addComponent(id, Position, {
+        x: pos.x + vel.vx * dt,
+        y: pos.y + vel.vy * dt,
       });
     }
-  }
+  },
 });
 ```
 
-Register it in your scene:
-
-```typescript
-export const GameScene = defineScene('Game', () => ({
-  systems: [MovementSystem, GravitySystem], // Add here
-  // ...
-}));
-```
-
-## Build for Production
+## Common commands
 
 ```bash
-pnpm build
-```
-
-Your game is compiled to `dist/` and ready to deploy anywhere (Netlify, Vercel, GitHub Pages, etc.).
-
-## Common Commands
-
-```bash
-# Development
 pnpm dev
-
-# Production build
 pnpm build
-
-# Preview production build
 pnpm preview
-
-# Lint code
 pnpm lint
-
-# Format code
 pnpm format
 ```
 
-## Next Steps
+## Next steps
 
-- [Understand the Philosophy](/guide/philosophy) - Why GWEN works this way
-- [Learn Core Concepts](/core/components) - Deep dive into components, scenes, systems
-- [Explore Examples](/examples/space-shooter) - Walk through a complete Space Shooter
+- [Philosophy](/guide/philosophy)
+- [Core Concepts](/core/components)
+- [API Overview](/api/overview)
+- [CLI Commands](/cli/commands)

@@ -9,17 +9,19 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Guide', link: '/guide/quick-start' },
+      { text: 'Get Started', link: '/guide/quick-start' },
       { text: 'Core Concepts', link: '/core/components' },
-      { text: 'API', link: '/api/helpers' },
+      { text: 'API', link: '/api/overview' },
+      { text: 'CLI', link: '/cli/commands' },
       { text: 'GitHub', link: 'https://github.com/djodjonx/gwen' },
     ],
 
     sidebar: [
       {
-        text: 'Guide',
+        text: 'Introduction',
         items: [
           { text: 'What is GWEN?', link: '/' },
+          { text: 'Philosophy', link: '/guide/philosophy' },
           { text: 'Quick Start', link: '/guide/quick-start' },
           { text: 'Project Structure', link: '/guide/project-structure' },
         ],
@@ -32,15 +34,23 @@ export default defineConfig({
           { text: 'Systems', link: '/core/systems' },
           { text: 'Prefabs', link: '/core/prefabs' },
           { text: 'UI Rendering', link: '/core/ui' },
+          { text: 'Configuration', link: '/core/configuration' },
         ],
       },
       {
-        text: 'API Reference',
+        text: 'API',
         items: [
+          { text: 'Overview', link: '/api/overview' },
           { text: 'Helpers (define*)', link: '/api/helpers' },
-          { text: 'Configuration', link: '/core/configuration' },
           { text: 'Engine API (api.*)', link: '/api/engine-api' },
-          { text: 'CLI Commands', link: '/cli/commands' },
+          { text: 'Types', link: '/api/types' },
+        ],
+      },
+      {
+        text: 'CLI',
+        items: [
+          { text: 'Commands', link: '/cli/commands' },
+          { text: 'CLI Guide', link: '/CLI' },
         ],
       },
       {
@@ -48,6 +58,9 @@ export default defineConfig({
         items: [
           { text: 'Official Plugins', link: '/plugins/official' },
           { text: 'Using & Creating Plugins', link: '/plugins/creating' },
+          { text: 'Plugin Hooks Guide', link: '/PLUGIN_HOOKS_GUIDE' },
+          { text: 'WASM Plugins', link: '/plugins/wasm-plugins' },
+          { text: 'WASM Best Practices', link: '/plugins/wasm-plugin-best-practices' },
         ],
       },
       {
@@ -58,19 +71,8 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Advanced',
-        collapsed: true,
-        items: [
-          { text: 'Philosophy', link: '/guide/philosophy' },
-          { text: 'Types Reference', link: '/api/types' },
-          {
-            text: 'WASM Plugins (Rust)',
-            items: [
-              { text: 'Guide & API Reference', link: '/plugins/wasm-plugins' },
-              { text: 'Best Practices', link: '/plugins/wasm-plugin-best-practices' },
-            ],
-          },
-        ],
+        text: 'Troubleshooting',
+        items: [{ text: 'Troubleshooting', link: '/TROUBLESHOOTING' }],
       },
     ],
 
