@@ -124,3 +124,46 @@ Quick interpretation:
 - `docs/API.md`
 - `docs/hooks.md`
 - `docs/systems.md`
+
+## Troubleshooting Sprite Playback
+
+### Symptom: "I see left-to-right scrolling instead of animation"
+
+This is usually not a runtime bug. It often comes from clip layout and loop boundaries.
+
+When you define a clip like this:
+
+```ts
+idle: { row: 0, from: 0, to: 7, fps: 10, loop: true }
+```
+
+the runtime plays frames in this exact order:
+
+```text
+0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 0 -> ...
+```
+
+If frame `0` and frame `7` are visually far apart, the `7 -> 0` loop reset can look like horizontal scrolling.
+
+### Recommended fix
+
+Use explicit `frames` sequences and avoid abrupt loop jumps:
+
+```ts
+idle: { frames: [1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2], fps: 9, loop: true }
+```
+
+This ping-pong pattern removes the hard wrap from the last frame back to the first frame.
+
+### Quick diagnosis checklist
+
+1. Verify atlas frame size and `columns` are correct.
+2. Temporarily force a single frame clip (`frames: [N]`).
+3. If single-frame is stable, the issue is sequence/loop perception, not sampling.
+4. Reduce FPS and/or use explicit frame arrays for smoother perceived motion.
+
+### Practical notes
+
+- Large source frames rendered very small can amplify visual jitter.
+- Frame `0` is sometimes a setup/transition frame; excluding it can improve loops.
+- Use `next: 'idle'` for one-shot clips (`shoot`, `hit`) to avoid accidental wrap artifacts.

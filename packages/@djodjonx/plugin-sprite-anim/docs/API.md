@@ -27,9 +27,18 @@
 - `initial` - fallback clip if no controller.
 - `controller` - optional state machine (parameters, states, transitions).
 
+### Clip declaration note
+
+You can define clips using:
+
+- row/range syntax: `{ row, from, to }`
+- explicit frame list: `{ frames: number[] }`
+
+Row/range loops may produce visible wrap jumps (`last -> first`) depending on art layout.
+For full control over playback order, prefer explicit `frames` arrays (for example ping-pong patterns).
+
 ## Performance knobs
 
 - Plugin config `fixedDelta`, `maxSubSteps`, `maxFrameAdvancesPerEntity`.
 - Draw option `cullRect` to skip off-screen draws.
 - Draw option `pixelSnap` for stable pixel art rendering.
-
