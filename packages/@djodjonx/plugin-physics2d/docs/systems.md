@@ -10,11 +10,7 @@ import { createPhysicsKinematicSyncSystem } from '@djodjonx/gwen-plugin-physics2
 const PhysicsKinematicSyncSystem = createPhysicsKinematicSyncSystem();
 
 export const GameScene = defineScene('Game', () => ({
-  systems: [
-    PlayerSystem,
-    MovementSystem,
-    PhysicsKinematicSyncSystem,
-  ],
+  systems: [PlayerSystem, MovementSystem, PhysicsKinematicSyncSystem],
 }));
 ```
 
@@ -22,7 +18,7 @@ export const GameScene = defineScene('Game', () => ({
 
 ```ts
 interface PhysicsKinematicSyncSystemOptions {
-  pixelsPerMeter?: number;    // default 50
+  pixelsPerMeter?: number; // default 50
   positionComponent?: string; // default 'position'
 }
 ```
