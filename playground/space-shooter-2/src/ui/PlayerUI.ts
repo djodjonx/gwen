@@ -6,31 +6,12 @@ export const PlayerUI = defineUI({
 
   extensions: {
     spriteAnim: {
-      atlas: '/sprites/player.svg',
-      frame: { width: 32, height: 32, columns: 1 },
+      atlas: '/sprites/8.png',
+      frame: { width: 114, height: 114, columns: 1 },
       clips: {
-        idle: { frames: [0], fps: 8, loop: true },
-        run: { frames: [0], fps: 12, loop: true },
-        shoot: { frames: [0], fps: 18, loop: false, next: 'idle' },
+        idle: { frames: [0], fps: 1, loop: true },
       },
-      controller: {
-        initial: 'idle',
-        parameters: {
-          moving: { type: 'bool', default: false },
-          shoot: { type: 'trigger' },
-        },
-        states: {
-          idle: { clip: 'idle' },
-          run: { clip: 'run' },
-          shoot: { clip: 'shoot' },
-        },
-        transitions: [
-          { from: 'idle', to: 'run', conditions: [{ param: 'moving', op: '==', value: true }] },
-          { from: 'run', to: 'idle', conditions: [{ param: 'moving', op: '==', value: false }] },
-          { from: '*', to: 'shoot', priority: 1, conditions: [{ param: 'shoot' }] },
-          { from: 'shoot', to: 'idle', hasExitTime: true, exitTime: 0.95 },
-        ],
-      },
+      initial: 'idle',
       anchor: 'center',
       visible: true,
     },
@@ -42,9 +23,10 @@ export const PlayerUI = defineUI({
 
     const renderer = api.services.get('renderer');
     const animator = api.services.get('animator');
+
     animator.draw(renderer.ctx, id, pos.x, pos.y, {
-      width: 34,
-      height: 34,
+      width: 100,
+      height: 100,
       pixelSnap: true,
       cullRect: {
         x: 0,
