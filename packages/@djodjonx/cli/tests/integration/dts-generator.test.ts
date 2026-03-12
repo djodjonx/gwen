@@ -31,22 +31,25 @@ describe('dts generator', () => {
           exportName: 'CollisionHook',
         },
       },
+      prefabExtensionTypes: {},
+      sceneExtensionTypes: {},
+      uiExtensionTypes: {},
     };
 
     const out = await generateDts(tmpDir, configPath, meta);
 
     expect(out).toContain("import type { KeyboardInput } from '@djodjonx/gwen-plugin-input';");
     expect(out).toContain("import type { CollisionHook } from '@djodjonx/gwen-plugin-physics2d';");
-    expect(out).toContain('interface GwenDefaultServices extends _FallbackServices');
+    expect(out).toContain('interface GwenDefaultServices {');
     expect(out).toContain('keyboard: KeyboardInput;');
-    expect(out).toContain("'physics:collision': CollisionHook;");
+    expect(out).toContain('interface GwenDefaultHooks extends CollisionHook');
     expect(out).not.toContain('[key: string]');
   });
 
-  it('keeps fallback inference when no metadata is provided', async () => {
+  it('generates empty defaults when no metadata is provided', async () => {
     const out = await generateDts(tmpDir, configPath);
-    expect(out).toContain('type _FallbackServices = GwenConfigServices<typeof _cfg>;');
-    expect(out).toContain('interface GwenDefaultServices extends _FallbackServices');
+    expect(out).toContain('interface GwenDefaultServices {  }');
+    expect(out).toContain('interface GwenDefaultHooks {  }');
     expect(out).toContain('type GwenServices = GwenDefaultServices;');
   });
 });
