@@ -29,4 +29,3 @@ Signature:
 ```
 
 Called on successful controller transition.
-

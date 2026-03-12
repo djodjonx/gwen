@@ -22,4 +22,3 @@ const SpriteAnimSystem = createSpriteAnimSystem({
 ```
 
 Use this when plugin `autoUpdate` is set to `false` and you want explicit system ordering.
-

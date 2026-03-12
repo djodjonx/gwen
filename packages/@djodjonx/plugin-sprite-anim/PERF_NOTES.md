@@ -127,10 +127,12 @@ Current maximum validated cost is around **1.06 ms/frame** on `controller x10k`.
 ### Why state cache is stored on `Instance`
 
 **Rejected**: cache/versioning spread across multiple global `Map`s
+
 - extra lookup overhead in hot path
 - measurable benchmark regressions
 
 **Adopted**: cache/version fields directly on `Instance`
+
 - single object touch point
 - no extra `Map` lookups in tick
 - better balance between speed and maintainability
@@ -172,6 +174,7 @@ A full struct-of-arrays migration is deferred for now.
 TypeScript is currently sufficient for the target range (2k-10k) and remains viable up to ~15k in benchmarked conditions.
 
 Re-evaluate Rust/WASM if any of the following become true:
+
 1. real workload exceeds ~15k active animated entities,
 2. controller-heavy cost stabilizes above ~2.5 ms/frame,
 3. profiling shows `tick()` consuming >5% of frame budget.
