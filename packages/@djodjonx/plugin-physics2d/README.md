@@ -103,4 +103,3 @@ export const BulletPrefab = definePrefab({
 - Tilemap: `docs/TILEMAP.md`
 - Hooks: `docs/hooks.md`
 - Systems: `docs/systems.md`
-- Release QA checklist: `docs/RELEASE_QA.md`

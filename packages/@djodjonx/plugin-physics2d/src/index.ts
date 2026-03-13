@@ -8,10 +8,10 @@
  * ## Usage
  * ```typescript
  * // gwen.config.ts
- * import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
+ * import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
  *
  * export default defineConfig({
- *   plugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
+ *   plugins: [new Physics2D({ gravity: -9.81, maxEntities: 10_000 })],
  * });
  * ```
  *
@@ -1042,16 +1042,21 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
 // ─── Helper factory ───────────────────────────────────────────────────────────
 
+/** Preferred constructor-style alias for config usage: `new Physics2D({...})`. */
+export const Physics2D = Physics2DPlugin;
+
 /**
  * Create a `Physics2DPlugin` instance.
  *
  * ```typescript
- * import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
+ * import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
  *
  * export default defineConfig({
- *   plugins: [physics2D({ gravity: -9.81 })],
+ *   plugins: [new Physics2D({ gravity: -9.81 })],
  * });
  * ```
+ *
+ * @deprecated Use `new Physics2D(config)` instead.
  */
 export function physics2D(config: Physics2DConfig = {}): InstanceType<typeof Physics2DPlugin> {
   return new Physics2DPlugin(config);

@@ -1,13 +1,13 @@
 # API Reference
 
-## `physics2D(config)`
+## `new Physics2D(config)`
 
 ```ts
-import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
+import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
 
 export default defineConfig({
   plugins: [
-    physics2D({
+    new Physics2D({
       gravity: -9.81,
       qualityPreset: 'medium',
       eventMode: 'pull',
@@ -19,6 +19,8 @@ export default defineConfig({
   ],
 });
 ```
+
+`physics2D(config)` remains available for compatibility but is deprecated.
 
 ### `Physics2DConfig`
 
@@ -73,7 +75,7 @@ Returns: `bodyHandle: number`.
 CCD precedence rule:
 
 1. `addRigidBody(..., { ccdEnabled })` / `extensions.physics.ccdEnabled`
-2. global `physics2D({ ccdEnabled })`
+2. global `new Physics2D({ ccdEnabled })`
 3. derived default from `qualityPreset`
 
 Solver-iterations rule:
