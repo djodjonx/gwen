@@ -24,6 +24,7 @@ function makeMockWasmPlugin() {
     set_kinematic_position: vi.fn(),
     set_event_coalescing: vi.fn(),
     set_quality_preset: vi.fn(),
+    set_global_ccd_enabled: vi.fn(),
     consume_event_metrics: vi.fn().mockReturnValue([1, 0, 0, 1]),
     get_linear_velocity: vi.fn().mockReturnValue([]),
     step: vi.fn(),
@@ -240,12 +241,19 @@ describe('Physics2DPlugin', () => {
     expect(mockAPI._registered['physics']).toBeDefined();
     expect(mockWasmPlugin.set_event_coalescing).toHaveBeenCalledWith(1);
     expect(mockWasmPlugin.set_quality_preset).toHaveBeenCalledWith(1);
+    expect(mockWasmPlugin.set_global_ccd_enabled).toHaveBeenCalledWith(0);
   });
 
-  it('wasm.onInit applique le preset qualityPreset configure', async () => {
+  it('wasm.onInit active le CCD global pour qualityPreset=high', async () => {
     const plugin = new Physics2DPlugin({ qualityPreset: 'high' });
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
-    expect(mockWasmPlugin.set_quality_preset).toHaveBeenCalledWith(2);
+    expect(mockWasmPlugin.set_global_ccd_enabled).toHaveBeenCalledWith(1);
+  });
+
+  it('wasm.onInit respecte le override ccdEnabled explicite', async () => {
+    const plugin = new Physics2DPlugin({ qualityPreset: 'high', ccdEnabled: false });
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    expect(mockWasmPlugin.set_global_ccd_enabled).toHaveBeenCalledWith(0);
   });
 
   it('wasm.onInit rejects a bridge version mismatch with an actionable error', async () => {

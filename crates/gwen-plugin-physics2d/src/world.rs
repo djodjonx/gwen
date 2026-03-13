@@ -233,6 +233,7 @@ pub struct PhysicsWorld {
     /// Persistent sensor contact states keyed by (entity_index, sensor_id).
     sensor_states: HashMap<SensorKey, SensorState>,
     quality_preset: PhysicsQualityPreset,
+    global_ccd_enabled: bool,
 }
 
 impl PhysicsWorld {
@@ -262,6 +263,7 @@ impl PhysicsWorld {
             dropped_noncritical_since_read: 0,
             sensor_states: HashMap::new(),
             quality_preset: PhysicsQualityPreset::Medium,
+            global_ccd_enabled: false,
         };
         world.set_quality_preset(PhysicsQualityPreset::Medium);
         world
@@ -279,6 +281,14 @@ impl PhysicsWorld {
 
     pub fn quality_preset(&self) -> PhysicsQualityPreset {
         self.quality_preset
+    }
+
+    pub fn set_global_ccd_enabled(&mut self, enabled: bool) {
+        self.global_ccd_enabled = enabled;
+    }
+
+    pub fn global_ccd_enabled(&self) -> bool {
+        self.global_ccd_enabled
     }
 
     // ── Body management ───────────────────────────────────────────────────
@@ -309,6 +319,8 @@ impl PhysicsWorld {
 
         let mut rb = builder.build();
         rb.wake_up(true);
+        let ccd_enabled = opts.ccd_enabled.unwrap_or(self.global_ccd_enabled);
+        rb.enable_ccd(ccd_enabled);
 
         if body_type == BodyType::Dynamic {
             let (vx, vy) = opts.initial_velocity;
@@ -710,6 +722,13 @@ impl PhysicsWorld {
     #[doc(hidden)]
     pub fn debug_staged_events_capacity(&self) -> usize {
         self.staged_events_capacity
+    }
+
+    #[doc(hidden)]
+    pub fn debug_is_body_ccd_enabled(&self, entity_index: u32) -> Option<bool> {
+        let handle = self.entity_to_body.get(&entity_index)?;
+        let body = self.rigid_body_set.get(*handle)?;
+        Some(body.is_ccd_enabled())
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────

@@ -90,6 +90,8 @@ pub struct BodyOptions {
     pub angular_damping: f32,
     /// Initial linear velocity (vx, vy) in m/s. @default (0, 0)
     pub initial_velocity: (f32, f32),
+    /// Optional per-body CCD override. `None` means use global world setting.
+    pub ccd_enabled: Option<bool>,
 }
 
 impl Default for BodyOptions {
@@ -100,6 +102,7 @@ impl Default for BodyOptions {
             linear_damping: 0.0,
             angular_damping: 0.0,
             initial_velocity: (0.0, 0.0),
+            ccd_enabled: None,
         }
     }
 }

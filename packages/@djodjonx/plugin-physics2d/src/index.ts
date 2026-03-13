@@ -131,6 +131,7 @@ type NormalizedPhysics2DConfig = {
   compat: Required<PhysicsCompatFlags>;
   debug: boolean;
   coalesceEvents: boolean;
+  ccdEnabled?: boolean;
   layers: Record<string, number>;
 };
 
@@ -158,8 +159,14 @@ function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
     },
     debug: config.debug ?? false,
     coalesceEvents: config.coalesceEvents ?? true,
+    ccdEnabled: config.ccdEnabled,
     layers,
   };
+}
+
+function resolveGlobalCcdEnabled(cfg: NormalizedPhysics2DConfig): boolean {
+  if (cfg.ccdEnabled !== undefined) return cfg.ccdEnabled;
+  return cfg.qualityPreset === 'high' || cfg.qualityPreset === 'esport';
 }
 
 // ─── Layer registry ───────────────────────────────────────────────────────────
@@ -486,18 +493,34 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     return {
       addRigidBody(entityIndex, type, x, y, opts = {}) {
         if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
-        const handle = wasmPlugin.add_rigid_body(
-          entityIndex,
-          x,
-          y,
-          BODY_TYPE[type],
-          opts.mass ?? 1.0,
-          opts.gravityScale ?? 1.0,
-          opts.linearDamping ?? 0.0,
-          opts.angularDamping ?? 0.0,
-          opts.initialVelocity?.vx ?? 0.0,
-          opts.initialVelocity?.vy ?? 0.0,
-        );
+        const ccd = opts.ccdEnabled;
+        const handle =
+          ccd === undefined
+            ? wasmPlugin.add_rigid_body(
+                entityIndex,
+                x,
+                y,
+                BODY_TYPE[type],
+                opts.mass ?? 1.0,
+                opts.gravityScale ?? 1.0,
+                opts.linearDamping ?? 0.0,
+                opts.angularDamping ?? 0.0,
+                opts.initialVelocity?.vx ?? 0.0,
+                opts.initialVelocity?.vy ?? 0.0,
+              )
+            : wasmPlugin.add_rigid_body(
+                entityIndex,
+                x,
+                y,
+                BODY_TYPE[type],
+                opts.mass ?? 1.0,
+                opts.gravityScale ?? 1.0,
+                opts.linearDamping ?? 0.0,
+                opts.angularDamping ?? 0.0,
+                opts.initialVelocity?.vx ?? 0.0,
+                opts.initialVelocity?.vy ?? 0.0,
+                ccd ? 1 : 0,
+              );
         if (isDebug) {
           console.log(
             `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
@@ -845,6 +868,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       wasmPlugin = instantiatedPlugin;
       wasmPlugin.set_event_coalescing?.(cfg.coalesceEvents ? 1 : 0);
       wasmPlugin.set_quality_preset?.(PHYSICS_QUALITY_PRESET_CODE[cfg.qualityPreset]);
+      wasmPlugin.set_global_ccd_enabled?.(resolveGlobalCcdEnabled(cfg) ? 1 : 0);
 
       physicsService = createAPI();
       api.services.register('physics', physicsService);
@@ -882,6 +906,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
                   vy: ext.initialVelocity.vy / PIXELS_PER_METER,
                 }
               : undefined,
+            ccdEnabled: ext.ccdEnabled,
           },
         );
 

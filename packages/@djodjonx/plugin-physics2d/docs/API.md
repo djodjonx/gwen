@@ -29,6 +29,7 @@ export default defineConfig({
 - `eventMode?: 'pull' | 'hybrid'` - `pull` is the first-class path. `hybrid` also dispatches convenience hooks during `onUpdate`. Default `"pull"`.
 - `compat?: { legacyPrefabColliderProps?: boolean; legacyCollisionJsonParser?: boolean }` - transitional compatibility flags. Both default to `true`.
 - `debug?: boolean` - enable debug logs. Default `false`.
+- `ccdEnabled?: boolean` - global CCD fallback for bodies without local override. If omitted, derived from quality preset (`high`/`esport` => enabled).
 
 #### Quality preset matrix (Sprint 7)
 
@@ -64,8 +65,15 @@ Creates a rigid body.
   - `linearDamping?: number`
   - `angularDamping?: number`
   - `initialVelocity?: { vx: number; vy: number }` (m/s)
+  - `ccdEnabled?: boolean` (per-body override)
 
 Returns: `bodyHandle: number`.
+
+CCD precedence rule:
+
+1. `addRigidBody(..., { ccdEnabled })` / `extensions.physics.ccdEnabled`
+2. global `physics2D({ ccdEnabled })`
+3. derived default from `qualityPreset`
 
 ### `addBoxCollider(bodyHandle, hw, hh, opts?)`
 
@@ -150,6 +158,7 @@ Replaces one previously loaded chunk with a freshly patched bake.
 extensions: {
   physics: {
     bodyType: 'dynamic',
+    ccdEnabled: true,
     material: 'default',
     colliders: [
       { shape: 'box', hw: 10, hh: 14, material: 'ice' },

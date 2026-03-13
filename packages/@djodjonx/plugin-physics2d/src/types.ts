@@ -74,6 +74,12 @@ export interface Physics2DConfig {
   coalesceEvents?: boolean;
 
   /**
+   * Global CCD fallback for bodies without local override.
+   * If omitted, the plugin derives a default from `qualityPreset`.
+   */
+  ccdEnabled?: boolean;
+
+  /**
    * Named collision layer definitions.
    * Each key maps to a bit index (0-based). Maximum 32 layers.
    *
@@ -416,6 +422,9 @@ export interface Physics2DPrefabExtension {
   /** Built-in material preset name or custom material object. */
   material?: PhysicsMaterialPresetName | PhysicsMaterialPreset;
 
+  /** Optional per-body CCD override. */
+  ccdEnabled?: boolean;
+
   /**
    * Preferred vNext collider schema.
    * If omitted, legacy top-level collider props are adapted automatically.
@@ -588,6 +597,7 @@ export interface Physics2DAPI {
       linearDamping?: number;
       angularDamping?: number;
       initialVelocity?: { vx: number; vy: number };
+      ccdEnabled?: boolean;
     },
   ): number;
 
@@ -714,6 +724,7 @@ export interface WasmPhysics2DPlugin {
     angularDamping: number,
     vx: number,
     vy: number,
+    ccdEnabled?: number,
   ): number;
   add_box_collider(
     bodyHandle: number,
@@ -756,6 +767,8 @@ export interface WasmPhysics2DPlugin {
   set_event_coalescing?(enabled: number): void;
   /** Apply global solver quality preset (0=low, 1=medium, 2=high, 3=esport). */
   set_quality_preset?(preset: number): void;
+  /** Apply global CCD fallback (1=enabled, 0=disabled). */
+  set_global_ccd_enabled?(enabled: number): void;
   /** Bridge schema version for TS/WASM compatibility checks. */
   bridge_schema_version?(): number;
   /** Read sensor state: [contactCount, isActive(0|1)]. */

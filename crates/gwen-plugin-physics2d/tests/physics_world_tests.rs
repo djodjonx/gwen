@@ -456,3 +456,38 @@ fn test_quality_preset_updates_solver_and_ccd_parameters() {
     assert!(esport_stats.contains("\"solverIterations\":10"));
     assert!(esport_stats.contains("\"ccdSubsteps\":4"));
 }
+
+#[test]
+fn test_global_ccd_default_is_disabled() {
+    let w = world_with_gravity();
+    assert!(!w.global_ccd_enabled());
+}
+
+#[test]
+fn test_global_ccd_applies_to_new_bodies_without_override() {
+    let mut w = world_with_gravity();
+    w.set_global_ccd_enabled(true);
+
+    w.add_rigid_body(77, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
+    assert_eq!(w.debug_is_body_ccd_enabled(77), Some(true));
+}
+
+#[test]
+fn test_per_body_ccd_override_has_priority_over_global() {
+    let mut w = world_with_gravity();
+    w.set_global_ccd_enabled(true);
+
+    w.add_rigid_body(
+        78,
+        0.0,
+        0.0,
+        BodyType::Dynamic,
+        BodyOptions {
+            ccd_enabled: Some(false),
+            ..BodyOptions::default()
+        },
+    );
+
+    assert_eq!(w.debug_is_body_ccd_enabled(78), Some(false));
+}
+
