@@ -92,6 +92,9 @@ pub struct BodyOptions {
     pub initial_velocity: (f32, f32),
     /// Optional per-body CCD override. `None` means use global world setting.
     pub ccd_enabled: Option<bool>,
+    /// Optional per-body additional solver iterations.
+    /// `None` means no body-specific boost.
+    pub additional_solver_iterations: Option<usize>,
 }
 
 impl Default for BodyOptions {
@@ -103,6 +106,7 @@ impl Default for BodyOptions {
             angular_damping: 0.0,
             initial_velocity: (0.0, 0.0),
             ccd_enabled: None,
+            additional_solver_iterations: None,
         }
     }
 }

@@ -806,6 +806,48 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
+  it('ccdEnabled per-body override est transmis à add_rigid_body', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', radius: 10, ccdEnabled: true },
+    });
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1,
+      undefined,
+    );
+  });
+
+  it('additionalSolverIterations est transmis à add_rigid_body', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: { bodyType: 'dynamic', radius: 10, additionalSolverIterations: 6 },
+    });
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      undefined,
+      6,
+    );
+  });
+
   it('linearDamping et angularDamping sont transmis', async () => {
     const { api } = await boot({ x: 0, y: 0 });
     await api.hooks._trigger('prefab:instantiate', entityId, {

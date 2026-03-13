@@ -82,6 +82,8 @@ impl Physics2DPlugin {
     /// * `linear_damping`   — linear velocity damping. @default 0.0
     /// * `angular_damping`  — angular velocity damping. @default 0.0
     /// * `vx` / `vy`        — initial linear velocity in m/s (dynamic only). @default 0.0
+    /// * `ccd_enabled`      — optional per-body CCD override (0/1). absent => global setting.
+    /// * `additional_solver_iterations` — optional per-body additional solver iterations.
     ///
     /// Returns an opaque `body_handle` to use when adding colliders.
     #[allow(clippy::too_many_arguments)]
@@ -97,6 +99,8 @@ impl Physics2DPlugin {
         angular_damping: f32,
         vx: f32,
         vy: f32,
+        ccd_enabled: Option<u8>,
+        additional_solver_iterations: Option<u32>,
     ) -> u32 {
         if !x.is_finite()
             || !y.is_finite()
@@ -138,6 +142,8 @@ impl Physics2DPlugin {
                 linear_damping,
                 angular_damping,
                 initial_velocity: (vx, vy),
+                ccd_enabled: ccd_enabled.map(|v| v != 0),
+                additional_solver_iterations: additional_solver_iterations.map(|v| v as usize),
             },
         )
     }
@@ -405,6 +411,15 @@ impl Physics2DPlugin {
 
         if let Ok(mut slot) = self.world.try_borrow_mut() {
             *slot = Some(world);
+        }
+    }
+
+    /// Apply global CCD setting used as fallback for bodies without local override.
+    pub fn set_global_ccd_enabled(&self, enabled: u8) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.set_global_ccd_enabled(enabled != 0);
+            }
         }
     }
 

@@ -491,3 +491,36 @@ fn test_per_body_ccd_override_has_priority_over_global() {
     assert_eq!(w.debug_is_body_ccd_enabled(78), Some(false));
 }
 
+#[test]
+fn test_additional_solver_iterations_applies_per_body() {
+    let mut w = world_with_gravity();
+    w.add_rigid_body(
+        90,
+        0.0,
+        0.0,
+        BodyType::Dynamic,
+        BodyOptions {
+            additional_solver_iterations: Some(6),
+            ..BodyOptions::default()
+        },
+    );
+
+    assert_eq!(w.debug_body_additional_solver_iterations(90), Some(6));
+}
+
+#[test]
+fn test_additional_solver_iterations_is_clamped_by_guardrail() {
+    let mut w = world_with_gravity();
+    w.add_rigid_body(
+        91,
+        0.0,
+        0.0,
+        BodyType::Dynamic,
+        BodyOptions {
+            additional_solver_iterations: Some(99),
+            ..BodyOptions::default()
+        },
+    );
+
+    assert_eq!(w.debug_body_additional_solver_iterations(91), Some(16));
+}

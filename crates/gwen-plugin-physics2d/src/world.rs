@@ -15,6 +15,7 @@ use std::num::NonZeroUsize;
 const MIN_STAGED_EVENTS_CAPACITY: usize = 64;
 const MAX_STAGED_EVENTS_CAPACITY: usize = 4_096;
 const COLLIDER_ID_ABSENT: u32 = u32::MAX;
+const MAX_BODY_ADDITIONAL_SOLVER_ITERATIONS: usize = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -321,6 +322,9 @@ impl PhysicsWorld {
         rb.wake_up(true);
         let ccd_enabled = opts.ccd_enabled.unwrap_or(self.global_ccd_enabled);
         rb.enable_ccd(ccd_enabled);
+        if let Some(extra) = opts.additional_solver_iterations {
+            rb.set_additional_solver_iterations(extra.min(MAX_BODY_ADDITIONAL_SOLVER_ITERATIONS));
+        }
 
         if body_type == BodyType::Dynamic {
             let (vx, vy) = opts.initial_velocity;
@@ -729,6 +733,13 @@ impl PhysicsWorld {
         let handle = self.entity_to_body.get(&entity_index)?;
         let body = self.rigid_body_set.get(*handle)?;
         Some(body.is_ccd_enabled())
+    }
+
+    #[doc(hidden)]
+    pub fn debug_body_additional_solver_iterations(&self, entity_index: u32) -> Option<usize> {
+        let handle = self.entity_to_body.get(&entity_index)?;
+        let body = self.rigid_body_set.get(*handle)?;
+        Some(body.additional_solver_iterations())
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────

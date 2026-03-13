@@ -494,8 +494,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       addRigidBody(entityIndex, type, x, y, opts = {}) {
         if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
         const ccd = opts.ccdEnabled;
+        const additionalSolverIterations = opts.additionalSolverIterations;
         const handle =
-          ccd === undefined
+          ccd === undefined && additionalSolverIterations === undefined
             ? wasmPlugin.add_rigid_body(
                 entityIndex,
                 x,
@@ -519,7 +520,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
                 opts.angularDamping ?? 0.0,
                 opts.initialVelocity?.vx ?? 0.0,
                 opts.initialVelocity?.vy ?? 0.0,
-                ccd ? 1 : 0,
+                ccd === undefined ? undefined : ccd ? 1 : 0,
+                additionalSolverIterations,
               );
         if (isDebug) {
           console.log(
@@ -907,6 +909,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
                 }
               : undefined,
             ccdEnabled: ext.ccdEnabled,
+            additionalSolverIterations: ext.additionalSolverIterations,
           },
         );
 

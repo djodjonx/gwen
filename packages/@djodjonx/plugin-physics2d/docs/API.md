@@ -66,6 +66,7 @@ Creates a rigid body.
   - `angularDamping?: number`
   - `initialVelocity?: { vx: number; vy: number }` (m/s)
   - `ccdEnabled?: boolean` (per-body override)
+  - `additionalSolverIterations?: number` (per-body local boost, clamped by Rust)
 
 Returns: `bodyHandle: number`.
 
@@ -74,6 +75,11 @@ CCD precedence rule:
 1. `addRigidBody(..., { ccdEnabled })` / `extensions.physics.ccdEnabled`
 2. global `physics2D({ ccdEnabled })`
 3. derived default from `qualityPreset`
+
+Solver-iterations rule:
+
+- `additionalSolverIterations` is a local additive boost for one body only.
+- Guardrail: Rust clamps this value to `16` max to avoid abusive per-body costs.
 
 ### `addBoxCollider(bodyHandle, hw, hh, opts?)`
 
@@ -159,6 +165,7 @@ extensions: {
   physics: {
     bodyType: 'dynamic',
     ccdEnabled: true,
+    additionalSolverIterations: 4,
     material: 'default',
     colliders: [
       { shape: 'box', hw: 10, hh: 14, material: 'ice' },

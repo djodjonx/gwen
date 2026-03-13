@@ -424,6 +424,8 @@ export interface Physics2DPrefabExtension {
 
   /** Optional per-body CCD override. */
   ccdEnabled?: boolean;
+  /** Optional per-body additional solver iterations (clamped on Rust side). */
+  additionalSolverIterations?: number;
 
   /**
    * Preferred vNext collider schema.
@@ -598,6 +600,7 @@ export interface Physics2DAPI {
       angularDamping?: number;
       initialVelocity?: { vx: number; vy: number };
       ccdEnabled?: boolean;
+      additionalSolverIterations?: number;
     },
   ): number;
 
@@ -725,6 +728,7 @@ export interface WasmPhysics2DPlugin {
     vx: number,
     vy: number,
     ccdEnabled?: number,
+    additionalSolverIterations?: number,
   ): number;
   add_box_collider(
     bodyHandle: number,
