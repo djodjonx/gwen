@@ -19,9 +19,12 @@ import { physics2D } from '@djodjonx/gwen-plugin-physics2d';
 export default defineConfig({
   plugins: [
     physics2D({
-      gravity: 0,
+      gravity: -9.81,
       gravityX: 0,
-      maxEntities: 2000,
+      maxEntities: 10000,
+      qualityPreset: 'medium',
+      eventMode: 'pull',
+      coalesceEvents: true,
     }),
   ],
 });
@@ -29,28 +32,45 @@ export default defineConfig({
 
 ## What the plugin provides
 
-- `physics` service (runtime API): add/remove bodies, colliders, velocities, read collision events, and stream tilemap chunks.
-- Global `physics:collision` hook (enriched contacts with `EntityId`).
-- Prefab extension `extensions.physics` (body/collider declaration + `onCollision` callback).
-- Material presets on colliders: `default`, `ice`, `rubber` (+ custom overrides).
-- Helpers: `buildTilemapPhysicsChunks(...)` and `patchTilemapPhysicsChunk(...)`.
-- Composable system `createPhysicsKinematicSyncSystem()` to sync ECS -> physics.
+- `physics` service (runtime API): bodies, colliders, velocity, impulses, collision batches.
+- Global hooks: `physics:collision`, `physics:collision:batch`, `physics:sensor:changed`.
+- Prefab extension `extensions.physics` with legacy bridge + vNext `colliders[]`.
+- Material presets: `default`, `ice`, `rubber`.
+- Tilemap helpers and chunk streaming runtime.
+- Systems: `createPhysicsKinematicSyncSystem()` and `createPlatformerGroundedSystem()`.
 
-## Config (`physics2D(options)`)
+## Tree-shakable imports (Sprint 8)
 
-- `gravity?: number` - Y gravity in m/s2 (default `-9.81`)
-- `gravityX?: number` - X gravity in m/s2 (default `0`)
-- `maxEntities?: number` - max ECS slot capacity (default `10_000`)
-- `debug?: boolean` - enable plugin console logs (default `false`)
+```ts
+import { physics2D } from '@djodjonx/gwen-plugin-physics2d/core';
+import { buildTilemapPhysicsChunks } from '@djodjonx/gwen-plugin-physics2d/tilemap';
+import { PHYSICS_MATERIAL_PRESETS } from '@djodjonx/gwen-plugin-physics2d/debug';
+```
 
-## Recommended pattern
+Available entry points:
 
-1. Declare physics in prefabs with `extensions.physics`.
-2. Put collision gameplay logic inside prefab `onCollision(...)`.
-3. Add `createPhysicsKinematicSyncSystem()` to the scene when entities are kinematic and driven by ECS `position`.
-4. Use the global `physics:collision` hook only for debug/analytics/cross-cutting rules.
+- `@djodjonx/gwen-plugin-physics2d` (full)
+- `@djodjonx/gwen-plugin-physics2d/core`
+- `@djodjonx/gwen-plugin-physics2d/helpers`
+- `@djodjonx/gwen-plugin-physics2d/tilemap`
+- `@djodjonx/gwen-plugin-physics2d/debug`
 
-## Prefab example
+## Key config options
+
+- `qualityPreset?: 'low' | 'medium' | 'high' | 'esport'`
+- `ccdEnabled?: boolean` (global fallback)
+- `coalesceEvents?: boolean`
+- `eventMode?: 'pull' | 'hybrid'`
+- `compat?: { legacyPrefabColliderProps?: boolean; legacyCollisionJsonParser?: boolean }`
+
+## Recommended runtime pattern
+
+1. Declare physics in prefabs with `extensions.physics.colliders[]`.
+2. Use `physics.getCollisionEventsBatch()` in gameplay systems.
+3. Keep `getCollisionEvents()` only for legacy compatibility.
+4. Use tilemap chunk helpers for large maps; patch chunks incrementally.
+
+## Prefab example (vNext)
 
 ```ts
 import { definePrefab } from '@djodjonx/gwen-engine-core';
@@ -59,9 +79,10 @@ export const BulletPrefab = definePrefab({
   name: 'Bullet',
   extensions: {
     physics: {
-      bodyType: 'kinematic',
-      radius: 4,
-      onCollision(self, other, contact, api) {
+      bodyType: 'dynamic',
+      ccdEnabled: true,
+      colliders: [{ shape: 'ball', radius: 4 }],
+      onCollision(self, _other, contact, api) {
         if (!contact.started) return;
         api.destroyEntity(self);
       },
@@ -75,10 +96,11 @@ export const BulletPrefab = definePrefab({
 });
 ```
 
-## Detailed index
+## Documentation index
 
 - API: `docs/API.md`
-- Tilemap chunks and streaming: `docs/TILEMAP.md`
-- Migration notes: `docs/MIGRATION.md`
-- Hooks and extensions: `docs/hooks.md`
-- Composable systems: `docs/systems.md`
+- Migration: `docs/MIGRATION.md`
+- Tilemap: `docs/TILEMAP.md`
+- Hooks: `docs/hooks.md`
+- Systems: `docs/systems.md`
+- Release QA checklist: `docs/RELEASE_QA.md`
