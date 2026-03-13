@@ -12,6 +12,7 @@
 //! These buffers are completely independent of gwen-core's linear memory,
 //! so `memory.grow()` events in gwen-core have zero effect on them.
 
+use std::cell::RefCell;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -28,7 +29,7 @@ use crate::world::PhysicsWorld;
 /// 5. After `step()`: TS reads `events_buf` directly (binary format, no JSON)
 #[wasm_bindgen]
 pub struct Physics2DPlugin {
-    world: PhysicsWorld,
+    world: RefCell<Option<PhysicsWorld>>,
     /// Canal "transform" — JS-native ArrayBuffer from PluginDataBus.
     /// Layout: maxEntities × 20 bytes (pos_x f32, pos_y f32, rot f32, scale_x f32, scale_y f32)
     transform_buf: Uint8Array,
@@ -55,8 +56,11 @@ impl Physics2DPlugin {
         events_buf: Uint8Array,
         max_entities: u32,
     ) -> Self {
+        // Surface Rust panic messages in browser console instead of opaque `unreachable` traps.
+        console_error_panic_hook::set_once();
+
         Physics2DPlugin {
-            world: PhysicsWorld::new(gravity_x, gravity_y),
+            world: RefCell::new(Some(PhysicsWorld::new(gravity_x, gravity_y))),
             transform_buf,
             events_buf,
             max_entities,
@@ -79,7 +83,7 @@ impl Physics2DPlugin {
     /// Returns an opaque `body_handle` to use when adding colliders.
     #[allow(clippy::too_many_arguments)]
     pub fn add_rigid_body(
-        &mut self,
+        &self,
         entity_index: u32,
         x: f32,
         y: f32,
@@ -91,6 +95,18 @@ impl Physics2DPlugin {
         vx: f32,
         vy: f32,
     ) -> u32 {
+        if !x.is_finite()
+            || !y.is_finite()
+            || !mass.is_finite()
+            || !gravity_scale.is_finite()
+            || !linear_damping.is_finite()
+            || !angular_damping.is_finite()
+            || !vx.is_finite()
+            || !vy.is_finite()
+        {
+            js_sys::eval("console.warn('[Physics2D] add_rigid_body rejected: non-finite input')").ok();
+            return u32::MAX;
+        }
         if entity_index >= self.max_entities {
             js_sys::eval(&format!(
                 "console.warn('[Physics2D] add_rigid_body: entity_index {} >= max_entities {} — \
@@ -100,7 +116,15 @@ impl Physics2DPlugin {
             .ok();
             return u32::MAX;
         }
-        self.world.add_rigid_body(
+        let Ok(mut slot) = self.world.try_borrow_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_rigid_body skipped: world lock busy')").ok();
+            return u32::MAX;
+        };
+        let Some(world) = slot.as_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_rigid_body skipped: world unavailable')").ok();
+            return u32::MAX;
+        };
+        world.add_rigid_body(
             entity_index,
             x,
             y,
@@ -121,7 +145,7 @@ impl Physics2DPlugin {
     /// * `density`   — kg/m² (used when mass = 0). @default 1.0
     #[allow(clippy::too_many_arguments)]
     pub fn add_box_collider(
-        &mut self,
+        &self,
         body_handle: u32,
         hw: f32,
         hh: f32,
@@ -130,7 +154,19 @@ impl Physics2DPlugin {
         is_sensor: u8,
         density: f32,
     ) {
-        self.world.add_box_collider(
+        if !hw.is_finite() || !hh.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
+            js_sys::eval("console.warn('[Physics2D] add_box_collider rejected: non-finite input')").ok();
+            return;
+        }
+        let Ok(mut slot) = self.world.try_borrow_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_box_collider skipped: world lock busy')").ok();
+            return;
+        };
+        let Some(world) = slot.as_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_box_collider skipped: world unavailable')").ok();
+            return;
+        };
+        world.add_box_collider(
             body_handle,
             hw,
             hh,
@@ -147,7 +183,7 @@ impl Physics2DPlugin {
     /// * `is_sensor` — if `1`, generates events but no physical response.
     /// * `density`   — kg/m² (used when mass = 0). @default 1.0
     pub fn add_ball_collider(
-        &mut self,
+        &self,
         body_handle: u32,
         radius: f32,
         restitution: f32,
@@ -155,7 +191,19 @@ impl Physics2DPlugin {
         is_sensor: u8,
         density: f32,
     ) {
-        self.world.add_ball_collider(
+        if !radius.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
+            js_sys::eval("console.warn('[Physics2D] add_ball_collider rejected: non-finite input')").ok();
+            return;
+        }
+        let Ok(mut slot) = self.world.try_borrow_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_ball_collider skipped: world lock busy')").ok();
+            return;
+        };
+        let Some(world) = slot.as_mut() else {
+            js_sys::eval("console.warn('[Physics2D] add_ball_collider skipped: world unavailable')").ok();
+            return;
+        };
+        world.add_ball_collider(
             body_handle,
             radius,
             ColliderOptions {
@@ -169,23 +217,63 @@ impl Physics2DPlugin {
     /// Remove the rigid body (and all its colliders) for an entity.
     /// Does NOT touch any shared buffer — the PluginDataBus buffers are
     /// managed entirely by the engine lifecycle.
-    pub fn remove_rigid_body(&mut self, entity_index: u32) {
-        self.world.remove_rigid_body(entity_index);
+    pub fn remove_rigid_body(&self, entity_index: u32) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.remove_rigid_body(entity_index);
+            }
+        }
     }
 
     /// Directly set the next kinematic position for an entity.
-    pub fn set_kinematic_position(&mut self, entity_index: u32, x: f32, y: f32) {
-        self.world.set_kinematic_position(entity_index, x, y);
+    pub fn set_kinematic_position(&self, entity_index: u32, x: f32, y: f32) {
+        if !x.is_finite() || !y.is_finite() {
+            return;
+        }
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.set_kinematic_position(entity_index, x, y);
+            }
+        }
     }
 
     /// Apply a linear impulse to an entity's rigid body.
-    pub fn apply_impulse(&mut self, entity_index: u32, x: f32, y: f32) {
-        self.world.apply_impulse(entity_index, x, y);
+    pub fn apply_impulse(&self, entity_index: u32, x: f32, y: f32) {
+        if !x.is_finite() || !y.is_finite() {
+            return;
+        }
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.apply_impulse(entity_index, x, y);
+            }
+        }
     }
 
     /// Set the linear velocity of an entity's rigid body directly (m/s).
-    pub fn set_linear_velocity(&mut self, entity_index: u32, vx: f32, vy: f32) {
-        self.world.set_linear_velocity(entity_index, vx, vy);
+    pub fn set_linear_velocity(&self, entity_index: u32, vx: f32, vy: f32) {
+        if !vx.is_finite() || !vy.is_finite() {
+            return;
+        }
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.set_linear_velocity(entity_index, vx, vy);
+            }
+        }
+    }
+
+    /// Return the current linear velocity of an entity as `[vx, vy]`.
+    /// Returns an empty Vec if entity/body is missing.
+    pub fn get_linear_velocity(&self, entity_index: u32) -> Vec<f32> {
+        let Ok(slot) = self.world.try_borrow() else {
+            return Vec::new();
+        };
+        let Some(world) = slot.as_ref() else {
+            return Vec::new();
+        };
+        match world.get_linear_velocity(entity_index) {
+            Some((vx, vy)) => vec![vx, vy],
+            None => Vec::new(),
+        }
     }
 
     // ── Simulation ────────────────────────────────────────────────────────
@@ -196,16 +284,39 @@ impl Physics2DPlugin {
     /// - `events_buf` contains the collision events for this frame (ring buffer).
     /// - For dynamic bodies: `transform_buf` is updated with new positions.
     ///   (Currently all bodies are kinematic in space-shooter, so this is a no-op.)
-    pub fn step(&mut self, delta: f32) {
-        self.world.step(delta);
+    pub fn step(&self, delta: f32) {
+        // First RAF tick can produce a zero (or tiny negative) delta on some runtimes.
+        // This is harmless: skip this frame silently.
+        if delta <= 0.0 {
+            return;
+        }
+        if !delta.is_finite() || delta > 1.0 {
+            js_sys::eval("console.warn('[Physics2D] step skipped: invalid delta')").ok();
+            return;
+        }
 
-        // Write collision events to the binary ring buffer (TS reads them after step)
-        self.world.write_events_to_buffer(&self.events_buf);
+        // Take ownership out of RefCell to avoid keeping a mutable borrow flag
+        // set if a panic/trap happens inside world.step().
+        let mut world = {
+            let Ok(mut slot) = self.world.try_borrow_mut() else {
+                js_sys::eval("console.warn('[Physics2D] step skipped: world lock busy')").ok();
+                return;
+            };
+            let Some(world) = slot.take() else {
+                js_sys::eval("console.warn('[Physics2D] step skipped: world unavailable after previous trap')").ok();
+                return;
+            };
+            world
+        };
 
-        // Write positions for dynamic bodies only (kinematic = TS drives them)
-        if self.world.has_dynamic_bodies() {
-            self.world
-                .write_dynamic_positions_to_buffer(&self.transform_buf, self.max_entities);
+        world.step(delta);
+        world.write_events_to_buffer(&self.events_buf);
+        if world.has_dynamic_bodies() {
+            world.write_dynamic_positions_to_buffer(&self.transform_buf, self.max_entities);
+        }
+
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            *slot = Some(world);
         }
     }
 
@@ -214,7 +325,13 @@ impl Physics2DPlugin {
     /// Return the current position of an entity as `[x, y, rotation]`.
     /// Returns an empty `Vec` if the entity has no rigid body.
     pub fn get_position(&self, entity_index: u32) -> Vec<f32> {
-        match self.world.get_position(entity_index) {
+        let Ok(slot) = self.world.try_borrow() else {
+            return Vec::new();
+        };
+        let Some(world) = slot.as_ref() else {
+            return Vec::new();
+        };
+        match world.get_position(entity_index) {
             Some((x, y, rot)) => vec![x, y, rot],
             None => Vec::new(),
         }
@@ -222,7 +339,12 @@ impl Physics2DPlugin {
 
     /// Return simulation statistics as a JSON string (for debug overlay).
     pub fn stats(&self) -> String {
-        self.world.stats_json()
+        if let Ok(slot) = self.world.try_borrow() {
+            if let Some(world) = slot.as_ref() {
+                return world.stats_json();
+            }
+        }
+        String::from(r#"{"bodies":0,"colliders":0}"#)
     }
 
     /// Number of entity slots reserved by this plugin instance.

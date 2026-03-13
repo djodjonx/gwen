@@ -386,6 +386,9 @@ export interface Physics2DAPI {
   /** Set the linear velocity of a body directly (m/s). */
   setLinearVelocity(entityIndex: number, vx: number, vy: number): void;
 
+  /** Read current linear velocity (m/s). */
+  getLinearVelocity(entityIndex: number): { x: number; y: number } | null;
+
   /** Return the collision events produced during the last `step()`. */
   getCollisionEvents(): CollisionEvent[];
 
@@ -448,6 +451,7 @@ export interface WasmPhysics2DPlugin {
   set_kinematic_position(entityIndex: number, x: number, y: number): void;
   apply_impulse(entityIndex: number, x: number, y: number): void;
   set_linear_velocity(entityIndex: number, vx: number, vy: number): void;
+  get_linear_velocity(entityIndex: number): number[];
   step(delta: number): void;
   get_position(entityIndex: number): number[];
   stats(): string;

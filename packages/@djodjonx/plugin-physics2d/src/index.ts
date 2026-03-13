@@ -187,6 +187,12 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         wasmPlugin?.set_linear_velocity(entityIndex, vx, vy);
       },
 
+      getLinearVelocity(entityIndex) {
+        const result = wasmPlugin?.get_linear_velocity(entityIndex);
+        if (!result || result.length < 2) return null;
+        return { x: result[0], y: result[1] };
+      },
+
       getCollisionEvents(): CollisionEvent[] {
         if (!wasmPlugin || !eventsBuf) return [];
         const events = readCollisionEventsFromBuffer(eventsBuf);
@@ -259,6 +265,16 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       const resolvedEventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
       eventsBuf = resolvedEventsBuf;
 
+      // DataBus allocates channels with engine.maxEntities. Keep the WASM plugin
+      // in sync with the actual channel capacity to avoid Uint8Array.copy_from panics.
+      const channelMaxEntities = Math.floor(transformBuf.byteLength / 20);
+      const runtimeMaxEntities = channelMaxEntities > 0 ? channelMaxEntities : cfg.maxEntities;
+      if (runtimeMaxEntities !== cfg.maxEntities) {
+        console.warn(
+          `[Physics2D] maxEntities mismatch: plugin=${cfg.maxEntities}, channel=${runtimeMaxEntities}. Using channel capacity.`,
+        );
+      }
+
       const wasm = await loadWasmPlugin<Physics2DWasmModule>({
         jsUrl: '/wasm/gwen_physics2d.js',
         wasmUrl: '/wasm/gwen_physics2d_bg.wasm',
@@ -270,7 +286,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         cfg.gravity,
         new Uint8Array(transformBuf),
         new Uint8Array(resolvedEventsBuf),
-        cfg.maxEntities,
+        runtimeMaxEntities,
       );
 
       physicsService = createAPI();

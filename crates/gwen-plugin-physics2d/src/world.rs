@@ -323,6 +323,14 @@ impl PhysicsWorld {
         }
     }
 
+    /// Read the current linear velocity of an entity's rigid body (m/s).
+    pub fn get_linear_velocity(&self, entity_index: u32) -> Option<(f32, f32)> {
+        let handle = self.entity_to_body.get(&entity_index)?;
+        let body = self.rigid_body_set.get(*handle)?;
+        let v = body.linvel();
+        Some((v.x, v.y))
+    }
+
     /// Directly set the next kinematic position for an entity (in metres).
     /// More reliable than SAB sync — use this from TS every frame.
     pub fn set_kinematic_position(&mut self, entity_index: u32, x: f32, y: f32) {

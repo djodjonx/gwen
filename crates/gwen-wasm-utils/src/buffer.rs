@@ -59,5 +59,23 @@ pub fn read_u16(buf: &Uint8Array, byte_offset: usize) -> u16 {
 /// then flush in one shot. Reduces WASM→JS crossings from O(N) to O(1).
 #[inline]
 pub fn flush_local_to_js(buf: &Uint8Array, local: &[u8]) {
-    buf.copy_from(local);
+    let dst_len = buf.length() as usize;
+    let src_len = local.len();
+
+    if dst_len == src_len {
+        buf.copy_from(local);
+        return;
+    }
+
+    // Some runtimes can expose slightly larger channel views (padding/alignment).
+    // Copy only the meaningful source payload instead of panicking on copy_from assert.
+    if dst_len > src_len {
+        let view = buf.subarray(0, src_len as u32);
+        view.copy_from(local);
+        return;
+    }
+
+    // Defensive fallback: destination smaller than source, truncate to avoid trap.
+    let prefix = &local[..dst_len];
+    buf.copy_from(prefix);
 }
