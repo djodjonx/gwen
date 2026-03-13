@@ -11,6 +11,20 @@ export interface EngineLifecycleHooks {
   'engine:start': () => void;
   'engine:stop': () => void;
   'engine:tick': (deltaTime: number) => void;
+  'engine:runtimeError': (error: RuntimeErrorRecord) => void;
+}
+
+/**
+ * Structured runtime error payload emitted by the engine when a plugin phase fails.
+ * This contract is designed for monitoring/alerting pipelines.
+ */
+export interface RuntimeErrorRecord {
+  phase: 'plugin:beforeUpdate' | 'plugin:update' | 'plugin:render' | 'wasm:onStep';
+  plugin: string;
+  message: string;
+  stack?: string;
+  timestamp: number;
+  frame: number;
 }
 
 /** Plugin lifecycle hooks fired by the plugin manager. */

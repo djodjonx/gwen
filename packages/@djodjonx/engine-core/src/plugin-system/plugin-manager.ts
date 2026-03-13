@@ -18,6 +18,15 @@ import type { GwenPlugin, EngineAPI } from '../types';
 import { isWasmPlugin } from './plugin-utils';
 import type { GwenHookable } from '../hooks';
 
+interface RuntimeErrorPayload {
+  phase: 'plugin:beforeUpdate' | 'plugin:update' | 'plugin:render' | 'wasm:onStep';
+  plugin: string;
+  message: string;
+  stack?: string;
+  timestamp: number;
+  frame: number;
+}
+
 /**
  * Convenience alias for the hooks instance enriched by the CLI.
  * `GwenDefaultHooks` is a global interface extended by `gwen prepare`
@@ -62,6 +71,35 @@ export class PluginManager {
    * @internal Used by _track() and _cleanup()
    */
   private readonly _unsubscribers = new WeakMap<GwenPlugin, Array<() => void>>();
+
+  private _reportRuntimeError(
+    phase: RuntimeErrorPayload['phase'],
+    plugin: string,
+    err: unknown,
+    api: EngineAPI,
+    hooks: DefaultHookable,
+  ): void {
+    const payload: RuntimeErrorPayload = {
+      phase,
+      plugin,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      timestamp: Date.now(),
+      frame: api.frameCount,
+    };
+
+    console.error(`[GWEN:PluginManager] ${phase} failed for '${plugin}':`, payload.message, err);
+
+    try {
+      void hooks.callHook('engine:runtimeError', payload);
+    } catch (hookErr) {
+      console.error('[GWEN:PluginManager] Error in engine:runtimeError hook:', hookErr);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('gwen:runtime-error', { detail: payload }));
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // Hook Tracking & Cleanup (P0-1 v2)
@@ -435,7 +473,7 @@ export class PluginManager {
     try {
       await hooks.callHook('plugin:beforeUpdate', api, deltaTime);
     } catch (err) {
-      console.error('[GWEN:PluginManager] Error in plugin:beforeUpdate:', err);
+      this._reportRuntimeError('plugin:beforeUpdate', 'hook-dispatch', err, api, hooks);
     }
   }
 
@@ -455,7 +493,7 @@ export class PluginManager {
     try {
       await hooks.callHook('plugin:update', api, deltaTime);
     } catch (err) {
-      console.error('[GWEN:PluginManager] Error in plugin:update:', err);
+      this._reportRuntimeError('plugin:update', 'hook-dispatch', err, api, hooks);
     }
   }
 
@@ -474,7 +512,7 @@ export class PluginManager {
     try {
       await hooks.callHook('plugin:render', api);
     } catch (err) {
-      console.error('[GWEN:PluginManager] Error in plugin:render:', err);
+      this._reportRuntimeError('plugin:render', 'hook-dispatch', err, api, hooks);
     }
   }
 
@@ -596,13 +634,17 @@ export class PluginManager {
    *
    * @internal Called by Engine._tick()
    */
-  dispatchWasmStep(deltaTime: number): void {
+  dispatchWasmStep(deltaTime: number, api?: EngineAPI, hooks?: DefaultHookable): void {
     for (const plugin of this.wasmPlugins) {
       try {
         plugin.wasm?.onStep?.(deltaTime);
       } catch (err) {
         const id = isWasmPlugin(plugin) ? plugin.wasm.id : plugin.name;
-        console.error(`[GWEN:PluginManager] Error in WASM plugin '${id}' onStep:`, err);
+        if (api && hooks) {
+          this._reportRuntimeError('wasm:onStep', id, err, api, hooks);
+        } else {
+          console.error(`[GWEN:PluginManager] Error in WASM plugin '${id}' onStep:`, err);
+        }
       }
     }
   }
