@@ -20,7 +20,7 @@ use wasm_bindgen::prelude::*;
 use crate::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial};
 use crate::world::PhysicsWorld;
 
-const BRIDGE_SCHEMA_VERSION: u32 = 1;
+const BRIDGE_SCHEMA_VERSION: u32 = 2;
 
 /// 2D physics plugin exposed to JavaScript via wasm-bindgen.
 ///
@@ -148,6 +148,7 @@ impl Physics2DPlugin {
     /// * `density`     — kg/m² (used when mass = 0). @default 1.0
     /// * `membership`  — layer bitset this collider belongs to. @default 0xFFFFFFFF (all)
     /// * `filter`      — layer bitset this collider can collide with. @default 0xFFFFFFFF (all)
+    /// * `collider_id` — stable collider id propagated in collision events. @default u32::MAX
     #[allow(clippy::too_many_arguments)]
     pub fn add_box_collider(
         &self,
@@ -160,6 +161,7 @@ impl Physics2DPlugin {
         density: f32,
         membership: u32,
         filter: u32,
+        collider_id: Option<u32>,
     ) {
         if !hw.is_finite() || !hh.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
             js_sys::eval("console.warn('[Physics2D] add_box_collider rejected: non-finite input')").ok();
@@ -182,6 +184,7 @@ impl Physics2DPlugin {
                 is_sensor: is_sensor != 0,
                 density,
                 groups: CollisionGroups { membership, filter },
+                collider_id: collider_id.unwrap_or(u32::MAX),
             },
         );
     }
@@ -192,6 +195,7 @@ impl Physics2DPlugin {
     /// * `density`     — kg/m² (used when mass = 0). @default 1.0
     /// * `membership`  — layer bitset this collider belongs to. @default 0xFFFFFFFF (all)
     /// * `filter`      — layer bitset this collider can collide with. @default 0xFFFFFFFF (all)
+    /// * `collider_id` — stable collider id propagated in collision events. @default u32::MAX
     pub fn add_ball_collider(
         &self,
         body_handle: u32,
@@ -202,6 +206,7 @@ impl Physics2DPlugin {
         density: f32,
         membership: u32,
         filter: u32,
+        collider_id: Option<u32>,
     ) {
         if !radius.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
             js_sys::eval("console.warn('[Physics2D] add_ball_collider rejected: non-finite input')").ok();
@@ -223,6 +228,7 @@ impl Physics2DPlugin {
                 is_sensor: is_sensor != 0,
                 density,
                 groups: CollisionGroups { membership, filter },
+                collider_id: collider_id.unwrap_or(u32::MAX),
             },
         );
     }

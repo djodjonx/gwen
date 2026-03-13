@@ -80,7 +80,9 @@ export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 
 const PIXELS_PER_METER = 50;
 const EVENT_HEADER_BYTES = 8;
-const EVENT_STRIDE = 11;
+const EVENT_STRIDE = 19;
+const LEGACY_EVENT_STRIDE = 11;
+const COLLIDER_ID_ABSENT = 0xffffffff;
 const LAYER_ALL = 0xffffffff;
 const MAX_LAYERS = 32;
 
@@ -179,6 +181,7 @@ function addPrefabCollider(
   bodyHandle: number,
   collider: PhysicsColliderDef,
   registry: LayerRegistry,
+  colliderId?: number,
 ): void {
   const colliderOpts: ColliderOptions = {
     restitution: collider.restitution ?? 0,
@@ -187,21 +190,37 @@ function addPrefabCollider(
     density: collider.density ?? 1.0,
     membershipLayers: registry.resolve(collider.membershipLayers, 'membership'),
     filterLayers: registry.resolve(collider.filterLayers, 'filter'),
+    colliderId,
   };
 
-  if (collider.shape === 'ball' && collider.radius !== undefined) {
+  if (collider.shape === 'ball') {
+    if (collider.radius === undefined) {
+      throw new Error(
+        `[Physics2D] Invalid collider config: shape="ball" requires \`radius\` (collider id: ${collider.id ?? '<unnamed>'}).`,
+      );
+    }
     service.addBallCollider(bodyHandle, collider.radius / PIXELS_PER_METER, colliderOpts);
     return;
   }
 
-  if (collider.shape === 'box' && collider.hw !== undefined && collider.hh !== undefined) {
+  if (collider.shape === 'box') {
+    if (collider.hw === undefined || collider.hh === undefined) {
+      throw new Error(
+        `[Physics2D] Invalid collider config: shape="box" requires both \`hw\` and \`hh\` (collider id: ${collider.id ?? '<unnamed>'}).`,
+      );
+    }
     service.addBoxCollider(
       bodyHandle,
       collider.hw / PIXELS_PER_METER,
       collider.hh / PIXELS_PER_METER,
       colliderOpts,
     );
+    return;
   }
+
+  throw new Error(
+    `[Physics2D] Invalid collider shape \`${String((collider as { shape?: unknown }).shape)}\` (collider id: ${collider.id ?? '<unnamed>'}).`,
+  );
 }
 
 function addLegacyPrefabCollider(
@@ -332,19 +351,37 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       if (!cachedCollisionBatch) {
         const writeHead = eventsView.getUint32(0, true);
         const readHead = eventsView.getUint32(4, true);
-        const capacity = Math.floor((eventsView.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
+        const payloadBytes = eventsView.byteLength - EVENT_HEADER_BYTES;
+        const stride = payloadBytes % EVENT_STRIDE === 0 ? EVENT_STRIDE : LEGACY_EVENT_STRIDE;
+        const capacity = Math.floor(payloadBytes / stride);
 
         let idx = readHead;
         let eventCount = 0;
 
         while (capacity > 0 && idx !== writeHead) {
-          const offset = EVENT_HEADER_BYTES + idx * EVENT_STRIDE;
+          const offset = EVENT_HEADER_BYTES + idx * stride;
           const event =
             pooledCollisionEvents[eventCount] ??
-            (pooledCollisionEvents[eventCount] = { slotA: 0, slotB: 0, started: false });
+            (pooledCollisionEvents[eventCount] = {
+              slotA: 0,
+              slotB: 0,
+              aColliderId: undefined,
+              bColliderId: undefined,
+              started: false,
+            });
           event.slotA = eventsView.getUint32(offset + 2, true);
           event.slotB = eventsView.getUint32(offset + 6, true);
-          event.started = (eventsView.getUint8(offset + 10) & 1) === 1;
+          if (stride === EVENT_STRIDE) {
+            const rawA = eventsView.getUint32(offset + 10, true);
+            const rawB = eventsView.getUint32(offset + 14, true);
+            event.aColliderId = rawA === COLLIDER_ID_ABSENT ? undefined : rawA;
+            event.bColliderId = rawB === COLLIDER_ID_ABSENT ? undefined : rawB;
+            event.started = (eventsView.getUint8(offset + 18) & 1) === 1;
+          } else {
+            event.aColliderId = undefined;
+            event.bColliderId = undefined;
+            event.started = (eventsView.getUint8(offset + 10) & 1) === 1;
+          }
           eventCount++;
           idx = (idx + 1) % capacity;
         }
@@ -411,41 +448,80 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         if (isDebug) {
           console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
         }
-        wasmPlugin?.add_box_collider(
-          bodyHandle,
-          hw,
-          hh,
-          opts.restitution ?? 0,
-          opts.friction ?? 0.5,
-          opts.isSensor ? 1 : 0,
-          opts.density ?? 1.0,
+        const membership =
           typeof opts.membershipLayers === 'number'
             ? opts.membershipLayers >>> 0
-            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership');
+        const filter =
           typeof opts.filterLayers === 'number'
             ? opts.filterLayers >>> 0
-            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
-        );
+            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
+
+        if (opts.colliderId === undefined) {
+          wasmPlugin?.add_box_collider(
+            bodyHandle,
+            hw,
+            hh,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+          );
+        } else {
+          wasmPlugin?.add_box_collider(
+            bodyHandle,
+            hw,
+            hh,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+            opts.colliderId,
+          );
+        }
       },
 
       addBallCollider(bodyHandle, radius, opts: ColliderOptions = {}) {
         if (isDebug) {
           console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
         }
-        wasmPlugin?.add_ball_collider(
-          bodyHandle,
-          radius,
-          opts.restitution ?? 0,
-          opts.friction ?? 0.5,
-          opts.isSensor ? 1 : 0,
-          opts.density ?? 1.0,
+        const membership =
           typeof opts.membershipLayers === 'number'
             ? opts.membershipLayers >>> 0
-            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership');
+        const filter =
           typeof opts.filterLayers === 'number'
             ? opts.filterLayers >>> 0
-            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
-        );
+            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
+
+        if (opts.colliderId === undefined) {
+          wasmPlugin?.add_ball_collider(
+            bodyHandle,
+            radius,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+          );
+        } else {
+          wasmPlugin?.add_ball_collider(
+            bodyHandle,
+            radius,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+            opts.colliderId,
+          );
+        }
       },
 
       removeBody(entityIndex) {
@@ -544,7 +620,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       const transformBuf: ArrayBuffer =
         transformChannel?.buffer ?? new ArrayBuffer(cfg.maxEntities * 20);
-      const resolvedEventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
+      const resolvedEventsBuf: ArrayBuffer =
+        eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * EVENT_STRIDE);
       eventsView = new DataView(resolvedEventsBuf);
       cachedCollisionBatch = null;
       cachedCollisionEventCount = 0;
@@ -625,8 +702,18 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
         const hasNextColliders = Array.isArray(ext.colliders) && ext.colliders.length > 0;
         if (hasNextColliders) {
-          for (const collider of ext.colliders!) {
-            addPrefabCollider(svc, handle, collider, layerRegistry);
+          const seenIds = new Set<string>();
+          for (const [colliderIndex, collider] of ext.colliders!.entries()) {
+            if (collider.id) {
+              if (seenIds.has(collider.id)) {
+                throw new Error(
+                  `[Physics2D] Duplicate collider id \`${collider.id}\` in prefab entity slot=${slot}. ` +
+                    'Collider ids must be unique per prefab declaration.',
+                );
+              }
+              seenIds.add(collider.id);
+            }
+            addPrefabCollider(svc, handle, collider, layerRegistry, colliderIndex);
           }
         } else {
           addLegacyPrefabCollider(svc, handle, ext, cfg.compat, layerRegistry);
@@ -685,14 +772,22 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         }
       }
 
-      // Resolve slot indices → packed EntityIds
+      // Resolve slot indices -> packed EntityIds
       const contacts: CollisionContact[] = [];
-      for (const { slotA, slotB, started } of batch.events) {
+      for (const { slotA, slotB, aColliderId, bColliderId, started } of batch.events) {
         const genA = api.getEntityGeneration(slotA);
         const genB = api.getEntityGeneration(slotB);
         const entityA = createEntityId(slotA, genA);
         const entityB = createEntityId(slotB, genB);
-        contacts.push({ entityA, entityB, slotA, slotB, started });
+        contacts.push({
+          entityA,
+          entityB,
+          slotA,
+          slotB,
+          aColliderId,
+          bColliderId,
+          started,
+        });
       }
 
       const frozenContacts: ReadonlyArray<CollisionContact> = contacts;

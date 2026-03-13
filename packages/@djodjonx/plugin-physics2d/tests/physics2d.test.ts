@@ -907,6 +907,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       1.0,
       0xffffffff,
       0xffffffff,
+      0,
     );
     expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
       42,
@@ -917,6 +918,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       1.0,
       0xffffffff,
       0xffffffff,
+      1,
     );
   });
 
@@ -1180,6 +1182,7 @@ describe('LayerRegistry — layer resolution', () => {
       1.0,
       2, // membership
       8, // filter
+      0,
     );
   });
 });

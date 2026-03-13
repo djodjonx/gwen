@@ -9,6 +9,16 @@ fn world_with_gravity() -> PhysicsWorld {
     PhysicsWorld::new(0.0, -9.81)
 }
 
+fn ev(entity_a: u32, entity_b: u32, started: bool) -> PhysicsCollisionEvent {
+    PhysicsCollisionEvent {
+        entity_a,
+        entity_b,
+        collider_a_id: None,
+        collider_b_id: None,
+        started,
+    }
+}
+
 // ─── Body management ─────────────────────────────────────────────────────────
 
 #[test]
@@ -175,23 +185,7 @@ fn test_collision_events_empty_initially() {
 #[test]
 fn test_event_coalescing_normalizes_pair_order_and_dedups() {
     let mut w = world_with_gravity();
-    w.debug_ingest_collision_events(vec![
-        PhysicsCollisionEvent {
-            entity_a: 9,
-            entity_b: 3,
-            started: true,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 3,
-            entity_b: 9,
-            started: true,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 9,
-            entity_b: 3,
-            started: false,
-        },
-    ]);
+    w.debug_ingest_collision_events(vec![ev(9, 3, true), ev(3, 9, true), ev(9, 3, false)]);
 
     assert_eq!(w.collision_events.len(), 2);
     assert_eq!(w.collision_events[0].entity_a, 3);
@@ -204,18 +198,7 @@ fn test_event_coalescing_normalizes_pair_order_and_dedups() {
 fn test_event_coalescing_can_be_disabled() {
     let mut w = world_with_gravity();
     w.set_event_coalescing(false);
-    w.debug_ingest_collision_events(vec![
-        PhysicsCollisionEvent {
-            entity_a: 9,
-            entity_b: 3,
-            started: true,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 3,
-            entity_b: 9,
-            started: true,
-        },
-    ]);
+    w.debug_ingest_collision_events(vec![ev(9, 3, true), ev(3, 9, true)]);
 
     assert_eq!(w.collision_events.len(), 2);
 }
@@ -223,28 +206,7 @@ fn test_event_coalescing_can_be_disabled() {
 #[test]
 fn test_critical_events_are_prioritized_under_capacity_pressure() {
     let mut w = world_with_gravity();
-    w.debug_ingest_collision_events(vec![
-        PhysicsCollisionEvent {
-            entity_a: 1,
-            entity_b: 2,
-            started: false,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 5,
-            entity_b: 6,
-            started: true,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 7,
-            entity_b: 8,
-            started: false,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 3,
-            entity_b: 4,
-            started: true,
-        },
-    ]);
+    w.debug_ingest_collision_events(vec![ev(1, 2, false), ev(5, 6, true), ev(7, 8, false), ev(3, 4, true)]);
 
     let (selected, dropped_critical, dropped_noncritical) = w.debug_select_events_for_capacity(2);
     assert_eq!(selected.len(), 2);
@@ -261,23 +223,7 @@ fn test_consume_event_metrics_reports_and_resets_drops() {
     //   1. select helper returns correct drop counts without side effects.
     //   2. consume_event_metrics returns correct state and resets on second call.
     let mut w = world_with_gravity();
-    w.debug_ingest_collision_events(vec![
-        PhysicsCollisionEvent {
-            entity_a: 1,
-            entity_b: 2,
-            started: false,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 3,
-            entity_b: 4,
-            started: true,
-        },
-        PhysicsCollisionEvent {
-            entity_a: 5,
-            entity_b: 6,
-            started: false,
-        },
-    ]);
+    w.debug_ingest_collision_events(vec![ev(1, 2, false), ev(3, 4, true), ev(5, 6, false)]);
 
     // Pure helper — capacity of 1 keeps the 1 critical, drops 1 critical-none (none here) and 2 non-critical.
     // With 3 events: 1 started, 2 not-started. capacity=1 → select 1 critical, drop 0 critical + 2 non-critical.
@@ -306,21 +252,13 @@ fn test_event_buffer_capacity_grows_and_can_shrink() {
     let initial_capacity = w.debug_staged_events_capacity();
 
     let many_events = (0..512u32)
-        .map(|i| PhysicsCollisionEvent {
-            entity_a: i,
-            entity_b: i + 1,
-            started: i % 2 == 0,
-        })
+        .map(|i| ev(i, i + 1, i % 2 == 0))
         .collect();
     w.debug_ingest_collision_events(many_events);
     let grown_capacity = w.debug_staged_events_capacity();
     assert!(grown_capacity >= initial_capacity);
 
-    w.debug_ingest_collision_events(vec![PhysicsCollisionEvent {
-        entity_a: 1,
-        entity_b: 2,
-        started: true,
-    }]);
+    w.debug_ingest_collision_events(vec![ev(1, 2, true)]);
     let shrunk_capacity = w.debug_staged_events_capacity();
     assert!(shrunk_capacity <= grown_capacity);
 }

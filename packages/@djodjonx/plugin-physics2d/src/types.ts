@@ -116,6 +116,11 @@ export interface ColliderOptions {
    * @default 0xFFFFFFFF (all layers)
    */
   filterLayers?: string[] | number;
+  /**
+   * Stable collider id propagated to collision events.
+   * `undefined` means absent (legacy mono-collider fallback).
+   */
+  colliderId?: number;
 }
 
 // ─── Collision events ─────────────────────────────────────────────────────────
@@ -147,6 +152,10 @@ export interface CollisionEvent {
   slotA: number;
   /** Raw ECS slot index of the second participant. NOT a packed EntityId. */
   slotB: number;
+  /** Numeric collider id on A side (stable within a prefab declaration). */
+  aColliderId?: number;
+  /** Numeric collider id on B side (stable within a prefab declaration). */
+  bColliderId?: number;
   /** `true` = contact started this frame, `false` = contact ended. */
   started: boolean;
 }
@@ -208,6 +217,10 @@ export interface CollisionContact {
   slotA: number;
   /** Raw slot index of `entityB`. */
   slotB: number;
+  /** Collider id on A side when available (multi-colliders path). */
+  aColliderId?: number;
+  /** Collider id on B side when available (multi-colliders path). */
+  bColliderId?: number;
   /** `true` = contact started this frame, `false` = contact ended. */
   started: boolean;
 }
@@ -239,34 +252,23 @@ export interface SensorState {
  * Declared as `providesHooks` on the plugin so that `gwen prepare` can
  * augment `GwenDefaultHooks` — giving full type-safety on
  * `api.hooks.hook('physics:collision', ...)` without any cast.
- *
- * @example
- * ```typescript
- * // After gwen prepare — fully typed, no cast needed
- * api.hooks.hook('physics:collision', (contacts) => { ... });
- * ```
  */
 export interface Physics2DPluginHooks {
   /**
    * Fired once per frame (during `onUpdate`) with all resolved collision contacts.
-   * Handlers receive a **read-only snapshot** — do not mutate the array.
-   *
-   * @param contacts Array of resolved collision contacts for this frame.
-export interface Physics2DPluginHooks {
+   * Handlers receive a read-only snapshot.
+   */
   'physics:collision': (contacts: ReadonlyArray<CollisionContact>) => void;
+
   /**
    * Optional convenience hook emitted at most once per frame when `eventMode` is `hybrid`.
    * Prefer the pull API in gameplay hot paths.
    */
   'physics:collision:batch': (batch: Readonly<CollisionEventsBatch>) => void;
+
   /**
-   * Emitted once per sensor state *transition* (inactive→active or active→inactive).
-   * Never spammed on "stay" — only on edge changes.
-   * Subscribe only when you need reactive behavior; prefer `getSensorState()` in hot paths.
-   *
-   * @param entityIndex  Raw ECS slot index.
-   * @param sensorId     Opaque sensor identifier (e.g. layer bit index).
-   * @param state        New sensor state after the transition.
+   * Emitted once per sensor state transition (inactive -> active or active -> inactive).
+   * Never emitted on stable "stay" frames.
    */
   'physics:sensor:changed': (entityIndex: number, sensorId: number, state: SensorState) => void;
 }
@@ -301,15 +303,29 @@ export interface PhysicsMaterialPreset {
 
 export type PhysicsColliderShape = 'box' | 'ball';
 
+/**
+ * Semantic role for platformer-style grounded derivation.
+ * This remains gameplay-facing metadata on the TS side and is not hardcoded in Rust.
+ */
+export type PhysicsGroundedRole = 'none' | 'head' | 'body' | 'foot';
+
 export interface PhysicsColliderDef extends PhysicsMaterialPreset {
+  /** Optional stable collider id (string key) for gameplay mapping. */
   id?: string;
   shape: PhysicsColliderShape;
+  /** Half-width in pixels for `shape: 'box'`. */
   hw?: number;
+  /** Half-height in pixels for `shape: 'box'`. */
   hh?: number;
+  /** Radius in pixels for `shape: 'ball'`. */
   radius?: number;
+  /** Local collider offset X in pixels (reserved for runtime support). */
   offsetX?: number;
+  /** Local collider offset Y in pixels (reserved for runtime support). */
   offsetY?: number;
   isSensor?: boolean;
+  /** Optional gameplay semantic role (e.g. foot sensor). */
+  groundedRole?: PhysicsGroundedRole;
   /** Named layers this collider belongs to. */
   membershipLayers?: string[] | number;
   /** Named layers this collider can collide with. */
@@ -374,9 +390,9 @@ export interface Physics2DPrefabExtension {
 }
 
 /** Bridge schema version shared by TS and Rust wasm-bindgen exports. */
-export const PHYSICS2D_BRIDGE_SCHEMA_VERSION = 1;
+export const PHYSICS2D_BRIDGE_SCHEMA_VERSION = 2;
 /** Binary ring format version for the `events` channel. */
-export const PHYSICS2D_EVENTS_RING_FORMAT_VERSION = 1;
+export const PHYSICS2D_EVENTS_RING_FORMAT_VERSION = 2;
 
 /** Raw JSON shape returned by the legacy Rust `get_collision_events()` export. */
 interface RawCollisionEvent {
@@ -396,15 +412,19 @@ export function parseCollisionEvents(json: string): CollisionEvent[] {
 // ─── Binary event reader ──────────────────────────────────────────────────────
 
 const EVENT_HEADER_BYTES = 8;
-const EVENT_STRIDE = 11;
+const EVENT_STRIDE = 19;
+const LEGACY_EVENT_STRIDE = 11;
+const COLLIDER_ID_ABSENT = 0xffffffff;
 
 /**
  * Read all pending collision events from a ring-buffer channel buffer.
  *
  * Format:
  * - Header 8 bytes: [write_head u32 LE][read_head u32 LE]
- * - Each event (11 bytes): [type u16][slotA u32][slotB u32][flags u8]
+ * - Each event (19 bytes):
+ *   [type u16][slotA u32][slotB u32][aColliderId u32][bColliderId u32][flags u8]
  *   - flags bit 0: 1 = started, 0 = ended
+ *   - collider id = 0xFFFFFFFF means absent
  *
  * Advances `read_head` to `write_head` (marks the buffer as consumed).
  */
@@ -413,7 +433,9 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
   const view = bufOrView instanceof DataView ? bufOrView : new DataView(bufOrView);
   const writeHead = view.getUint32(0, true);
   const readHead = view.getUint32(4, true);
-  const capacity = Math.floor((view.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
+  const payloadBytes = view.byteLength - EVENT_HEADER_BYTES;
+  const stride = payloadBytes % EVENT_STRIDE === 0 ? EVENT_STRIDE : LEGACY_EVENT_STRIDE;
+  const capacity = Math.floor(payloadBytes / stride);
 
   if (capacity <= 0 || writeHead === readHead) return [];
 
@@ -421,11 +443,24 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
   let idx = readHead;
 
   while (idx !== writeHead) {
-    const offset = EVENT_HEADER_BYTES + idx * EVENT_STRIDE;
+    const offset = EVENT_HEADER_BYTES + idx * stride;
     const slotA = view.getUint32(offset + 2, true);
     const slotB = view.getUint32(offset + 6, true);
-    const flags = view.getUint8(offset + 10);
-    events.push({ slotA, slotB, started: (flags & 1) === 1 });
+    if (stride === EVENT_STRIDE) {
+      const rawA = view.getUint32(offset + 10, true);
+      const rawB = view.getUint32(offset + 14, true);
+      const flags = view.getUint8(offset + 18);
+      events.push({
+        slotA,
+        slotB,
+        aColliderId: rawA === COLLIDER_ID_ABSENT ? undefined : rawA,
+        bColliderId: rawB === COLLIDER_ID_ABSENT ? undefined : rawB,
+        started: (flags & 1) === 1,
+      });
+    } else {
+      const flags = view.getUint8(offset + 10);
+      events.push({ slotA, slotB, started: (flags & 1) === 1 });
+    }
     idx = (idx + 1) % capacity;
   }
 
@@ -591,6 +626,7 @@ export interface WasmPhysics2DPlugin {
     density: number,
     membership: number,
     filter: number,
+    colliderId?: number,
   ): void;
   add_ball_collider(
     bodyHandle: number,
@@ -601,6 +637,7 @@ export interface WasmPhysics2DPlugin {
     density: number,
     membership: number,
     filter: number,
+    colliderId?: number,
   ): void;
   remove_rigid_body(entityIndex: number): void;
   set_kinematic_position(entityIndex: number, x: number, y: number): void;

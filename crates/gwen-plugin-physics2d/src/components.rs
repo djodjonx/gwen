@@ -103,6 +103,9 @@ pub struct ColliderOptions {
     pub density: f32,
     /// Collision layer/mask filtering. @default `CollisionGroups::ALL`
     pub groups: CollisionGroups,
+    /// Stable collider id propagated in collision events.
+    /// `u32::MAX` means "absent" (legacy mono-collider fallback).
+    pub collider_id: u32,
 }
 
 impl Default for ColliderOptions {
@@ -112,6 +115,7 @@ impl Default for ColliderOptions {
             is_sensor: false,
             density: 1.0,
             groups: CollisionGroups::ALL,
+            collider_id: u32::MAX,
         }
     }
 }

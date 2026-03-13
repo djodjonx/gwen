@@ -13,6 +13,24 @@ use std::collections::{HashMap, HashSet};
 
 const MIN_STAGED_EVENTS_CAPACITY: usize = 64;
 const MAX_STAGED_EVENTS_CAPACITY: usize = 4_096;
+const COLLIDER_ID_ABSENT: u32 = u32::MAX;
+
+#[inline]
+fn pack_collider_user_data(entity_index: u32, collider_id: u32) -> u128 {
+    ((entity_index as u128) << 32) | (collider_id as u128)
+}
+
+#[inline]
+fn unpack_collider_user_data(user_data: u128) -> (u32, Option<u32>) {
+    let entity_index = (user_data >> 32) as u32;
+    let collider_id = (user_data & 0xffff_ffff) as u32;
+    let resolved = if collider_id == COLLIDER_ID_ABSENT {
+        None
+    } else {
+        Some(collider_id)
+    };
+    (entity_index, resolved)
+}
 
 // ─── Sensor state ─────────────────────────────────────────────────────────────
 
@@ -45,6 +63,8 @@ type SensorKey = (u32, u32);
 pub struct PhysicsCollisionEvent {
     pub entity_a: u32,
     pub entity_b: u32,
+    pub collider_a_id: Option<u32>,
+    pub collider_b_id: Option<u32>,
     /// `true` = contact started, `false` = contact stopped.
     pub started: bool,
 }
@@ -92,14 +112,14 @@ impl EventHandler for EventCollector {
         // Read entity_index from the collider's user_data (set in add_*_collider).
         // Do NOT use event.collider1().0.into_raw_parts() — that is the collider
         // slot index, not the entity index.
-        let ea = colliders
+        let (ea, ca) = colliders
             .get(event.collider1())
-            .map(|c| c.user_data as u32)
-            .unwrap_or(u32::MAX);
-        let eb = colliders
+            .map(|c| unpack_collider_user_data(c.user_data))
+            .unwrap_or((u32::MAX, None));
+        let (eb, cb) = colliders
             .get(event.collider2())
-            .map(|c| c.user_data as u32)
-            .unwrap_or(u32::MAX);
+            .map(|c| unpack_collider_user_data(c.user_data))
+            .unwrap_or((u32::MAX, None));
 
         if ea == u32::MAX || eb == u32::MAX {
             return; // collider not found — skip
@@ -110,6 +130,8 @@ impl EventHandler for EventCollector {
             (*self.collisions.get()).push(PhysicsCollisionEvent {
                 entity_a: ea,
                 entity_b: eb,
+                collider_a_id: ca,
+                collider_b_id: cb,
                 started: event.started(),
             });
         }
@@ -254,7 +276,7 @@ impl PhysicsWorld {
                 .density(opts.density)
                 .sensor(opts.is_sensor)
                 .collision_groups(rapier2d::geometry::InteractionGroups::new(groups, filter))
-                .user_data(entity_index as u128)
+                .user_data(pack_collider_user_data(entity_index, opts.collider_id))
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
@@ -290,7 +312,7 @@ impl PhysicsWorld {
                 .density(opts.density)
                 .sensor(opts.is_sensor)
                 .collision_groups(rapier2d::geometry::InteractionGroups::new(groups, filter))
-                .user_data(entity_index as u128)
+                .user_data(pack_collider_user_data(entity_index, opts.collider_id))
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
@@ -493,9 +515,9 @@ impl PhysicsWorld {
 
     /// Write collision events from the last `step()` into the ring-buffer `buf`.
     ///
-    /// Format per event (11 bytes):
+    /// Format per event (19 bytes):
     /// ```text
-    /// [type u16 = 0][slotA u32][slotB u32][flags u8 — bit 0: started]
+    /// [type u16 = 0][slotA u32][slotB u32][aColliderId u32][bColliderId u32][flags u8]
     /// ```
     ///
     /// The TypeScript engine resets both heads to 0 at the start of each frame
@@ -505,7 +527,7 @@ impl PhysicsWorld {
             return;
         }
 
-        let writer = RingWriter::new(buf, 11);
+        let writer = RingWriter::new(buf, 19);
         let (selected_events, dropped_critical, dropped_noncritical) =
             self.select_events_for_capacity(writer.capacity());
 
@@ -521,7 +543,17 @@ impl PhysicsWorld {
                 write_u16(buf, offset, 0u16); // type = 0 (collision)
                 write_u32(buf, offset + 2, ev.entity_a);
                 write_u32(buf, offset + 6, ev.entity_b);
-                write_u8(buf, offset + 10, if ev.started { 1 } else { 0 });
+                write_u32(
+                    buf,
+                    offset + 10,
+                    ev.collider_a_id.unwrap_or(COLLIDER_ID_ABSENT),
+                );
+                write_u32(
+                    buf,
+                    offset + 14,
+                    ev.collider_b_id.unwrap_or(COLLIDER_ID_ABSENT),
+                );
+                write_u8(buf, offset + 18, if ev.started { 1 } else { 0 });
                 writer.advance();
             }
         }
@@ -593,9 +625,18 @@ impl PhysicsWorld {
         for mut event in raw_events {
             if event.entity_a > event.entity_b {
                 std::mem::swap(&mut event.entity_a, &mut event.entity_b);
+                std::mem::swap(&mut event.collider_a_id, &mut event.collider_b_id);
             }
 
-            if self.coalesce_events && !seen.insert((event.entity_a, event.entity_b, event.started)) {
+            if self.coalesce_events
+                && !seen.insert((
+                    event.entity_a,
+                    event.entity_b,
+                    event.collider_a_id,
+                    event.collider_b_id,
+                    event.started,
+                ))
+            {
                 continue;
             }
 
