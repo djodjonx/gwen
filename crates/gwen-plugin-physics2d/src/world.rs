@@ -9,17 +9,28 @@ use gwen_wasm_utils::buffer::{flush_local_to_js, write_u16, write_u32, write_u8}
 use gwen_wasm_utils::ring::RingWriter;
 use js_sys::Uint8Array;
 use rapier2d::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+const MIN_STAGED_EVENTS_CAPACITY: usize = 64;
+const MAX_STAGED_EVENTS_CAPACITY: usize = 4_096;
 
 // ─── Collision event ─────────────────────────────────────────────────────────
 
 /// A contact event produced during `step()`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhysicsCollisionEvent {
     pub entity_a: u32,
     pub entity_b: u32,
     /// `true` = contact started, `false` = contact stopped.
     pub started: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EventPipelineMetrics {
+    pub frame: u32,
+    pub dropped_critical: u32,
+    pub dropped_noncritical: u32,
+    pub coalesced: bool,
 }
 
 // ─── Event collector (Send + Sync safe) ──────────────────────────────────────
@@ -113,6 +124,11 @@ pub struct PhysicsWorld {
     /// Avoids O(n) scan and generation aliasing in find_handle.
     handle_by_raw: HashMap<u32, RigidBodyHandle>,
     pub collision_events: Vec<PhysicsCollisionEvent>,
+    frame_index: u32,
+    coalesce_events: bool,
+    staged_events_capacity: usize,
+    dropped_critical_since_read: u32,
+    dropped_noncritical_since_read: u32,
 }
 
 impl PhysicsWorld {
@@ -133,7 +149,12 @@ impl PhysicsWorld {
             entity_to_body: HashMap::new(),
             body_to_entity: HashMap::new(),
             handle_by_raw: HashMap::new(),
-            collision_events: Vec::new(),
+            collision_events: Vec::with_capacity(MIN_STAGED_EVENTS_CAPACITY),
+            frame_index: 0,
+            coalesce_events: true,
+            staged_events_capacity: MIN_STAGED_EVENTS_CAPACITY,
+            dropped_critical_since_read: 0,
+            dropped_noncritical_since_read: 0,
         }
     }
 
@@ -292,7 +313,9 @@ impl PhysicsWorld {
             &collector, // EventHandler
         );
 
-        self.collision_events = collector.take();
+        self.frame_index = self.frame_index.saturating_add(1);
+        self.collision_events = self.normalize_collision_events(collector.take());
+        self.rebalance_event_capacity();
     }
 
     // ── Queries ───────────────────────────────────────────────────────────
@@ -399,38 +422,164 @@ impl PhysicsWorld {
     ///
     /// The TypeScript engine resets both heads to 0 at the start of each frame
     /// (before `step()`) — this function only appends.
-    pub fn write_events_to_buffer(&self, buf: &Uint8Array) {
+    pub fn write_events_to_buffer(&mut self, buf: &Uint8Array) {
         if self.collision_events.is_empty() {
             return;
         }
 
         let writer = RingWriter::new(buf, 11);
-        for ev in &self.collision_events {
+        let (selected_events, dropped_critical, dropped_noncritical) =
+            self.select_events_for_capacity(writer.capacity());
+
+        self.dropped_critical_since_read = self
+            .dropped_critical_since_read
+            .saturating_add(dropped_critical);
+        self.dropped_noncritical_since_read = self
+            .dropped_noncritical_since_read
+            .saturating_add(dropped_noncritical);
+
+        for ev in &selected_events {
             if let Some(offset) = writer.next_write_offset() {
                 write_u16(buf, offset, 0u16); // type = 0 (collision)
                 write_u32(buf, offset + 2, ev.entity_a);
                 write_u32(buf, offset + 6, ev.entity_b);
                 write_u8(buf, offset + 10, if ev.started { 1 } else { 0 });
                 writer.advance();
-            } else {
-                #[cfg(debug_assertions)]
-                js_sys::eval("console.warn('[Physics2D] events ring buffer overflow')").ok();
-                break;
             }
         }
+    }
+
+    pub fn set_event_coalescing(&mut self, enabled: bool) {
+        self.coalesce_events = enabled;
+    }
+
+    pub fn consume_event_metrics(&mut self) -> EventPipelineMetrics {
+        let metrics = EventPipelineMetrics {
+            frame: self.frame_index,
+            dropped_critical: self.dropped_critical_since_read,
+            dropped_noncritical: self.dropped_noncritical_since_read,
+            coalesced: self.coalesce_events,
+        };
+        self.dropped_critical_since_read = 0;
+        self.dropped_noncritical_since_read = 0;
+        metrics
+    }
+
+    #[doc(hidden)]
+    pub fn debug_ingest_collision_events(&mut self, events: Vec<PhysicsCollisionEvent>) {
+        self.collision_events = self.normalize_collision_events(events);
+        self.rebalance_event_capacity();
+    }
+
+    #[doc(hidden)]
+    pub fn debug_select_events_for_capacity(
+        &self,
+        capacity_events: usize,
+    ) -> (Vec<PhysicsCollisionEvent>, u32, u32) {
+        self.select_events_for_capacity(capacity_events)
+    }
+
+    #[doc(hidden)]
+    pub fn debug_staged_events_capacity(&self) -> usize {
+        self.staged_events_capacity
     }
 
     // ── JSON helpers ──────────────────────────────────────────────────────
 
     pub fn stats_json(&self) -> String {
         format!(
-            r#"{{"bodies":{},"colliders":{}}}"#,
+            r#"{{"bodies":{},"colliders":{},"eventFrame":{},"coalesced":{},"eventBufferCapacity":{},"droppedCritical":{},"droppedNonCritical":{}}}"#,
             self.rigid_body_set.len(),
             self.collider_set.len(),
+            self.frame_index,
+            self.coalesce_events,
+            self.staged_events_capacity,
+            self.dropped_critical_since_read,
+            self.dropped_noncritical_since_read,
         )
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────
+
+    fn normalize_collision_events(
+        &self,
+        raw_events: Vec<PhysicsCollisionEvent>,
+    ) -> Vec<PhysicsCollisionEvent> {
+        if raw_events.is_empty() {
+            return Vec::new();
+        }
+
+        let mut normalized = Vec::with_capacity(raw_events.len());
+        let mut seen = HashSet::with_capacity(raw_events.len());
+
+        for mut event in raw_events {
+            if event.entity_a > event.entity_b {
+                std::mem::swap(&mut event.entity_a, &mut event.entity_b);
+            }
+
+            if self.coalesce_events && !seen.insert((event.entity_a, event.entity_b, event.started)) {
+                continue;
+            }
+
+            normalized.push(event);
+        }
+
+        normalized
+    }
+
+    fn rebalance_event_capacity(&mut self) {
+        let len = self.collision_events.len();
+        let mut target = self.collision_events.capacity().max(MIN_STAGED_EVENTS_CAPACITY);
+
+        while len > target && target < MAX_STAGED_EVENTS_CAPACITY {
+            target = (target * 2).min(MAX_STAGED_EVENTS_CAPACITY);
+        }
+
+        while len.saturating_mul(4) < target && target > MIN_STAGED_EVENTS_CAPACITY {
+            target = (target / 2).max(MIN_STAGED_EVENTS_CAPACITY);
+        }
+
+        let current = self.collision_events.capacity();
+        if target > current {
+            self.collision_events.reserve(target - current);
+        } else if target < current {
+            self.collision_events.shrink_to(target);
+        }
+
+        self.staged_events_capacity = self.collision_events.capacity().max(MIN_STAGED_EVENTS_CAPACITY);
+    }
+
+    fn select_events_for_capacity(
+        &self,
+        capacity_events: usize,
+    ) -> (Vec<PhysicsCollisionEvent>, u32, u32) {
+        if capacity_events == 0 {
+            let dropped_critical = self.collision_events.iter().filter(|event| event.started).count() as u32;
+            let dropped_noncritical = self.collision_events.len() as u32 - dropped_critical;
+            return (Vec::new(), dropped_critical, dropped_noncritical);
+        }
+
+        let mut selected = Vec::with_capacity(self.collision_events.len().min(capacity_events));
+        let mut dropped_critical = 0u32;
+        let mut dropped_noncritical = 0u32;
+
+        for event in self
+            .collision_events
+            .iter()
+            .filter(|event| event.started)
+            .chain(self.collision_events.iter().filter(|event| !event.started))
+        {
+            if selected.len() < capacity_events {
+                selected.push(event.clone());
+            } else if event.started {
+                dropped_critical = dropped_critical.saturating_add(1);
+            } else {
+                dropped_noncritical = dropped_noncritical.saturating_add(1);
+            }
+        }
+
+        (selected, dropped_critical, dropped_noncritical)
+    }
 
     /// Find a RigidBodyHandle from its raw slot index (as returned by `add_rigid_body`).
     /// O(1) — direct map lookup, no generation aliasing.

@@ -1,7 +1,7 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
 use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions};
-use gwen_physics2d::world::PhysicsWorld;
+use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsWorld};
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -170,6 +170,159 @@ fn test_apply_impulse_on_fixed_body_is_noop() {
 fn test_collision_events_empty_initially() {
     let w = world_with_gravity();
     assert!(w.collision_events.is_empty());
+}
+
+#[test]
+fn test_event_coalescing_normalizes_pair_order_and_dedups() {
+    let mut w = world_with_gravity();
+    w.debug_ingest_collision_events(vec![
+        PhysicsCollisionEvent {
+            entity_a: 9,
+            entity_b: 3,
+            started: true,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 3,
+            entity_b: 9,
+            started: true,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 9,
+            entity_b: 3,
+            started: false,
+        },
+    ]);
+
+    assert_eq!(w.collision_events.len(), 2);
+    assert_eq!(w.collision_events[0].entity_a, 3);
+    assert_eq!(w.collision_events[0].entity_b, 9);
+    assert!(w.collision_events[0].started);
+    assert!(!w.collision_events[1].started);
+}
+
+#[test]
+fn test_event_coalescing_can_be_disabled() {
+    let mut w = world_with_gravity();
+    w.set_event_coalescing(false);
+    w.debug_ingest_collision_events(vec![
+        PhysicsCollisionEvent {
+            entity_a: 9,
+            entity_b: 3,
+            started: true,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 3,
+            entity_b: 9,
+            started: true,
+        },
+    ]);
+
+    assert_eq!(w.collision_events.len(), 2);
+}
+
+#[test]
+fn test_critical_events_are_prioritized_under_capacity_pressure() {
+    let mut w = world_with_gravity();
+    w.debug_ingest_collision_events(vec![
+        PhysicsCollisionEvent {
+            entity_a: 1,
+            entity_b: 2,
+            started: false,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 5,
+            entity_b: 6,
+            started: true,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 7,
+            entity_b: 8,
+            started: false,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 3,
+            entity_b: 4,
+            started: true,
+        },
+    ]);
+
+    let (selected, dropped_critical, dropped_noncritical) = w.debug_select_events_for_capacity(2);
+    assert_eq!(selected.len(), 2);
+    assert!(selected.iter().all(|event| event.started));
+    assert_eq!(dropped_critical, 0);
+    assert_eq!(dropped_noncritical, 2);
+}
+
+#[test]
+fn test_consume_event_metrics_reports_and_resets_drops() {
+    // debug_select_events_for_capacity is a pure read helper — it does NOT mutate
+    // the internal drop counters. Only write_events_to_buffer updates them.
+    // This test verifies:
+    //   1. select helper returns correct drop counts without side effects.
+    //   2. consume_event_metrics returns correct state and resets on second call.
+    let mut w = world_with_gravity();
+    w.debug_ingest_collision_events(vec![
+        PhysicsCollisionEvent {
+            entity_a: 1,
+            entity_b: 2,
+            started: false,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 3,
+            entity_b: 4,
+            started: true,
+        },
+        PhysicsCollisionEvent {
+            entity_a: 5,
+            entity_b: 6,
+            started: false,
+        },
+    ]);
+
+    // Pure helper — capacity of 1 keeps the 1 critical, drops 1 critical-none (none here) and 2 non-critical.
+    // With 3 events: 1 started, 2 not-started. capacity=1 → select 1 critical, drop 0 critical + 2 non-critical.
+    let (selected, dropped_critical, dropped_noncritical) = w.debug_select_events_for_capacity(1);
+    assert_eq!(selected.len(), 1);
+    assert!(selected[0].started, "selected event must be the critical (started) one");
+    assert_eq!(dropped_critical, 0, "no critical events should be dropped");
+    assert_eq!(dropped_noncritical, 2, "two non-critical events should be dropped");
+
+    // Internal counters are NOT mutated by the debug helper.
+    let metrics = w.consume_event_metrics();
+    assert_eq!(metrics.dropped_critical, 0, "debug helper must not mutate metrics state");
+    assert_eq!(metrics.dropped_noncritical, 0, "debug helper must not mutate metrics state");
+    assert!(metrics.coalesced, "coalescing should be enabled by default");
+    assert_eq!(metrics.frame, 0, "frame counter starts at 0");
+
+    // Second call after consume_event_metrics always returns zeroed counters.
+    let metrics_after_reset = w.consume_event_metrics();
+    assert_eq!(metrics_after_reset.dropped_critical, 0);
+    assert_eq!(metrics_after_reset.dropped_noncritical, 0);
+}
+
+#[test]
+fn test_event_buffer_capacity_grows_and_can_shrink() {
+    let mut w = world_with_gravity();
+    let initial_capacity = w.debug_staged_events_capacity();
+
+    let many_events = (0..512u32)
+        .map(|i| PhysicsCollisionEvent {
+            entity_a: i,
+            entity_b: i + 1,
+            started: i % 2 == 0,
+        })
+        .collect();
+    w.debug_ingest_collision_events(many_events);
+    let grown_capacity = w.debug_staged_events_capacity();
+    assert!(grown_capacity >= initial_capacity);
+
+    w.debug_ingest_collision_events(vec![PhysicsCollisionEvent {
+        entity_a: 1,
+        entity_b: 2,
+        started: true,
+    }]);
+    let shrunk_capacity = w.debug_staged_events_capacity();
+    assert!(shrunk_capacity <= grown_capacity);
 }
 
 // ─── Colliders ────────────────────────────────────────────────────────────────

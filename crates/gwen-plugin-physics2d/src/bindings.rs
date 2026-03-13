@@ -323,6 +323,32 @@ impl Physics2DPlugin {
         }
     }
 
+    /// Enable or disable same-frame event coalescing.
+    pub fn set_event_coalescing(&self, enabled: u8) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.set_event_coalescing(enabled != 0);
+            }
+        }
+    }
+
+    /// Consume frame-local event telemetry as `[frame, droppedCritical, droppedNonCritical, coalescedFlag]`.
+    pub fn consume_event_metrics(&self) -> Vec<u32> {
+        let Ok(mut slot) = self.world.try_borrow_mut() else {
+            return vec![0, 0, 0, 0];
+        };
+        let Some(world) = slot.as_mut() else {
+            return vec![0, 0, 0, 0];
+        };
+        let metrics = world.consume_event_metrics();
+        vec![
+            metrics.frame,
+            metrics.dropped_critical,
+            metrics.dropped_noncritical,
+            if metrics.coalesced { 1 } else { 0 },
+        ]
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     /// Return the current position of an entity as `[x, y, rotation]`.

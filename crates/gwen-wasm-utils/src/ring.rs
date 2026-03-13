@@ -46,6 +46,11 @@ impl<'a> RingWriter<'a> {
         }
     }
 
+    /// Number of writable event slots in this ring buffer.
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
     /// Returns the byte offset at which to write the **next** event.
     ///
     /// Returns `None` if the ring is full (overflow — the Rust plugin should

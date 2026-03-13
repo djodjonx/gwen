@@ -20,6 +20,8 @@ function makeMockWasmPlugin() {
     apply_impulse: vi.fn(),
     set_linear_velocity: vi.fn(),
     set_kinematic_position: vi.fn(),
+    set_event_coalescing: vi.fn(),
+    consume_event_metrics: vi.fn().mockReturnValue([1, 0, 0, 1]),
     get_linear_velocity: vi.fn().mockReturnValue([]),
     step: vi.fn(),
     get_position: vi.fn().mockReturnValue([]),
@@ -233,6 +235,13 @@ describe('Physics2DPlugin', () => {
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
     expect(mockAPI.services.register).toHaveBeenCalledWith('physics', expect.any(Object));
     expect(mockAPI._registered['physics']).toBeDefined();
+    expect(mockWasmPlugin.set_event_coalescing).toHaveBeenCalledWith(1);
+  });
+
+  it('wasm.onInit can disable coalescing from config', async () => {
+    const plugin = new Physics2DPlugin({ coalesceEvents: false });
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    expect(mockWasmPlugin.set_event_coalescing).toHaveBeenCalledWith(0);
   });
 
   it('wasm.onInit rejects a bridge version mismatch with an actionable error', async () => {
@@ -381,13 +390,19 @@ describe('Physics2DPlugin', () => {
 
   // ── Physics2DAPI — getCollisionEvents ─────────────────────────────────────
 
-  it('getCollisionEventsBatch returns empty array when ring buffer is empty', async () => {
+  it('getCollisionEventsBatch returns an empty batch when ring buffer is empty', async () => {
     const plugin = new Physics2DPlugin();
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
     const physics = mockAPI._registered['physics'] as {
-      getCollisionEventsBatch: () => unknown[];
+      getCollisionEventsBatch: () => {
+        count: number;
+        droppedSinceLastRead: number;
+        events: unknown[];
+      };
     };
-    expect(physics.getCollisionEventsBatch()).toEqual([]);
+    expect(physics.getCollisionEventsBatch()).toEqual(
+      expect.objectContaining({ count: 0, droppedSinceLastRead: 0, events: [] }),
+    );
   });
 
   it('getCollisionEvents reads events from binary ring buffer', async () => {
@@ -413,7 +428,7 @@ describe('Physics2DPlugin', () => {
     expect(events[1]).toEqual({ slotA: 3, slotB: 4, started: false });
   });
 
-  it('getCollisionEventsBatch reuses the same decoded batch within a frame', async () => {
+  it('getCollisionEventsBatch reuses the same decoded batch object within a frame', async () => {
     const eb = mockBus._eventsBuf;
     const view = new DataView(eb);
     view.setUint32(0, 1, true);
@@ -425,12 +440,16 @@ describe('Physics2DPlugin', () => {
     const plugin = new Physics2DPlugin();
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
     const physics = mockAPI._registered['physics'] as {
-      getCollisionEventsBatch: (...args: unknown[]) => unknown[];
+      getCollisionEventsBatch: (...args: unknown[]) => {
+        events: unknown[];
+        count: number;
+      };
     };
 
     const first = physics.getCollisionEventsBatch();
     const second = physics.getCollisionEventsBatch();
     expect(second).toBe(first);
+    expect(second.events).toBe(first.events);
   });
 
   it('getCollisionEventsBatch supports a max option without re-draining the buffer', async () => {
@@ -448,11 +467,16 @@ describe('Physics2DPlugin', () => {
     const plugin = new Physics2DPlugin();
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
     const physics = mockAPI._registered['physics'] as {
-      getCollisionEventsBatch: (opts?: { max?: number }) => unknown[];
+      getCollisionEventsBatch: (opts?: { max?: number }) => {
+        count: number;
+        events: unknown[];
+      };
     };
 
-    expect(physics.getCollisionEventsBatch({ max: 1 })).toHaveLength(1);
-    expect(physics.getCollisionEventsBatch()).toHaveLength(2);
+    expect(physics.getCollisionEventsBatch({ max: 1 }).count).toBe(1);
+    expect(physics.getCollisionEventsBatch({ max: 1 }).events).toHaveLength(1);
+    expect(physics.getCollisionEventsBatch().count).toBe(2);
+    expect(physics.getCollisionEventsBatch().events).toHaveLength(2);
   });
 
   // ── Physics2DAPI — getPosition ────────────────────────────────────────────
@@ -876,10 +900,21 @@ describe('Physics2DPlugin — onUpdate policy', () => {
     const plugin = new Physics2DPlugin({ eventMode: 'hybrid' });
     const api = makeMockAPI();
     seedSingleCollisionEvent(mockBus._eventsBuf, 7, 8);
+    mockWasmPlugin.consume_event_metrics.mockReturnValue([33, 1, 2, 1]);
 
     await initPlugin(plugin, mockBridge, api, mockBus);
     plugin.onUpdate!(api as never, 0.016);
 
+    expect(api.hooks.callHook).toHaveBeenCalledWith(
+      'physics:collision:batch',
+      expect.objectContaining({
+        frame: 33,
+        droppedCritical: 1,
+        droppedNonCritical: 2,
+        droppedSinceLastRead: 3,
+        count: 1,
+      }),
+    );
     expect(api.hooks.callHook).toHaveBeenCalledWith(
       'physics:collision',
       expect.arrayContaining([expect.objectContaining({ slotA: 7, slotB: 8, started: true })]),

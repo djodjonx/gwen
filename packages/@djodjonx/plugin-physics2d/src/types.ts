@@ -57,6 +57,13 @@ export interface Physics2DConfig {
    * @default false
    */
   debug?: boolean;
+
+  /**
+   * Enable collision event coalescing on the Rust side.
+   * Keeps the event stream quieter by deduplicating same-frame duplicates per pair.
+   * @default true
+   */
+  coalesceEvents?: boolean;
 }
 
 // ─── Body & Collider ──────────────────────────────────────────────────────────
@@ -120,6 +127,32 @@ export interface CollisionEvent {
   started: boolean;
 }
 
+/**
+ * Pull-first batch returned by `getCollisionEventsBatch()`.
+ *
+ * The `events` array is frame-local and may be pooled/reused by the plugin.
+ * Read it synchronously and do not retain it across frames.
+ */
+export interface CollisionEventsBatch {
+  /** Monotonic physics frame index produced by the WASM world. */
+  frame: number;
+  /** Number of readable events in `events`. */
+  count: number;
+  /** Total dropped events since the previous successful read. */
+  droppedSinceLastRead: number;
+  /** Dropped critical events since the previous successful read. */
+  droppedCritical: number;
+  /** Dropped non-critical events since the previous successful read. */
+  droppedNonCritical: number;
+  /** Whether same-frame contact coalescing was enabled when this batch was produced. */
+  coalesced: boolean;
+  /**
+   * Reused event view for the current frame.
+   * Treat as read-only and ephemeral.
+   */
+  events: ReadonlyArray<CollisionEvent>;
+}
+
 // ─── Enriched collision contact ───────────────────────────────────────────────
 
 /**
@@ -178,6 +211,11 @@ export interface Physics2DPluginHooks {
    * @param contacts Array of resolved collision contacts for this frame.
    */
   'physics:collision': (contacts: ReadonlyArray<CollisionContact>) => void;
+  /**
+   * Optional convenience hook emitted at most once per frame when `eventMode` is `hybrid`.
+   * Prefer the pull API in gameplay hot paths.
+   */
+  'physics:collision:batch': (batch: Readonly<CollisionEventsBatch>) => void;
 }
 
 // ─── Prefab extensions ────────────────────────────────────────────────────────
@@ -418,10 +456,10 @@ export interface Physics2DAPI {
    *
    * `coalesced` is reserved for future behavior and currently ignored.
    */
-  getCollisionEventsBatch(opts?: { max?: number; coalesced?: boolean }): CollisionEvent[];
+  getCollisionEventsBatch(opts?: { max?: number; coalesced?: boolean }): CollisionEventsBatch;
 
   /**
-   * @deprecated Since 0.4.0. Use `getCollisionEventsBatch()` instead. Removal planned in 1.0.0.
+   * @deprecated Since 0.4.0. Use `getCollisionEventsBatch().events` instead. Removal planned in 1.0.0.
    */
   getCollisionEvents(): CollisionEvent[];
 
@@ -488,6 +526,10 @@ export interface WasmPhysics2DPlugin {
   step(delta: number): void;
   get_position(entityIndex: number): number[];
   stats(): string;
+  /** Consume frame-local event pipeline telemetry: [frame, droppedCritical, droppedNonCritical, coalescedFlag]. */
+  consume_event_metrics?(): number[];
+  /** Enable or disable same-frame event coalescing on the Rust side. */
+  set_event_coalescing?(enabled: number): void;
   /** Bridge schema version for TS/WASM compatibility checks. */
   bridge_schema_version?(): number;
   free?(): void;

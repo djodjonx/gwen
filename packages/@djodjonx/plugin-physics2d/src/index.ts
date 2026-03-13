@@ -35,6 +35,7 @@ import type {
   Physics2DWasmModule,
   WasmPhysics2DPlugin,
   CollisionEvent,
+  CollisionEventsBatch,
   ColliderOptions,
   RigidBodyType,
   Physics2DPrefabExtension,
@@ -46,7 +47,7 @@ import type {
   PhysicsQualityPreset,
   PhysicsColliderShape,
 } from './types';
-import { BODY_TYPE, readCollisionEventsFromBuffer, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
+import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 export { createPhysicsKinematicSyncSystem } from './systems';
 export type { PhysicsKinematicSyncSystemOptions } from './systems';
 
@@ -55,6 +56,7 @@ export type {
   Physics2DConfig,
   Physics2DAPI,
   CollisionEvent,
+  CollisionEventsBatch,
   CollisionContact,
   ColliderOptions,
   RigidBodyType,
@@ -71,7 +73,8 @@ export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PIXELS_PER_METER = 50;
-const EMPTY_COLLISION_EVENTS: CollisionEvent[] = [];
+const EVENT_HEADER_BYTES = 8;
+const EVENT_STRIDE = 11;
 
 type NormalizedPhysics2DConfig = {
   gravity: number;
@@ -81,6 +84,7 @@ type NormalizedPhysics2DConfig = {
   eventMode: PhysicsEventMode;
   compat: Required<PhysicsCompatFlags>;
   debug: boolean;
+  coalesceEvents: boolean;
 };
 
 function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
@@ -95,6 +99,7 @@ function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
       legacyCollisionJsonParser: config.compat?.legacyCollisionJsonParser ?? true,
     },
     debug: config.debug ?? false,
+    coalesceEvents: config.coalesceEvents ?? true,
   };
 }
 
@@ -183,6 +188,10 @@ export const pluginMeta: GwenPluginMeta = {
       from: '@djodjonx/gwen-plugin-physics2d',
       exportName: 'Physics2DPluginHooks',
     },
+    'physics:collision:batch': {
+      from: '@djodjonx/gwen-plugin-physics2d',
+      exportName: 'Physics2DPluginHooks',
+    },
   },
   prefabExtensionTypes: {
     physics: {
@@ -207,9 +216,20 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
   let eventsView: DataView | null = null;
-  let cachedCollisionEvents: CollisionEvent[] | null = null;
+  let cachedCollisionBatch: CollisionEventsBatch | null = null;
+  let cachedCollisionEventCount = 0;
   let debugFrameCount = 0;
   let physicsService: Physics2DAPI | null = null;
+  const pooledCollisionEvents: CollisionEvent[] = [];
+  const pooledCollisionBatch: CollisionEventsBatch = {
+    frame: 0,
+    count: 0,
+    droppedSinceLastRead: 0,
+    droppedCritical: 0,
+    droppedNonCritical: 0,
+    coalesced: cfg.coalesceEvents,
+    events: pooledCollisionEvents,
+  };
 
   /**
    * Per-slot collision callbacks registered via prefab extensions.
@@ -223,27 +243,69 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   // ── Service factory ──────────────────────────────────────────────────
 
   function createAPI(): Physics2DAPI {
-    function readCollisionEventsOnce(): CollisionEvent[] {
-      if (!wasmPlugin || !eventsView) return EMPTY_COLLISION_EVENTS;
-      if (cachedCollisionEvents) return cachedCollisionEvents;
+    function materializeCollisionBatch(max?: number): CollisionEventsBatch {
+      if (!eventsView) {
+        pooledCollisionEvents.length = 0;
+        pooledCollisionBatch.count = 0;
+        pooledCollisionBatch.events = pooledCollisionEvents;
+        cachedCollisionEventCount = 0;
+        cachedCollisionBatch = pooledCollisionBatch;
+        return pooledCollisionBatch;
+      }
 
-      const events = readCollisionEventsFromBuffer(eventsView);
-      cachedCollisionEvents = events;
+      if (!cachedCollisionBatch) {
+        const writeHead = eventsView.getUint32(0, true);
+        const readHead = eventsView.getUint32(4, true);
+        const capacity = Math.floor((eventsView.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
+
+        let idx = readHead;
+        let eventCount = 0;
+
+        while (capacity > 0 && idx !== writeHead) {
+          const offset = EVENT_HEADER_BYTES + idx * EVENT_STRIDE;
+          const event =
+            pooledCollisionEvents[eventCount] ??
+            (pooledCollisionEvents[eventCount] = { slotA: 0, slotB: 0, started: false });
+          event.slotA = eventsView.getUint32(offset + 2, true);
+          event.slotB = eventsView.getUint32(offset + 6, true);
+          event.started = (eventsView.getUint8(offset + 10) & 1) === 1;
+          eventCount++;
+          idx = (idx + 1) % capacity;
+        }
+
+        eventsView.setUint32(4, writeHead, true);
+        cachedCollisionEventCount = eventCount;
+
+        const [frame, droppedCritical, droppedNonCritical, coalescedFlag] =
+          wasmPlugin?.consume_event_metrics?.() ?? [0, 0, 0, cfg.coalesceEvents ? 1 : 0];
+
+        pooledCollisionBatch.frame = frame;
+        pooledCollisionBatch.droppedCritical = droppedCritical;
+        pooledCollisionBatch.droppedNonCritical = droppedNonCritical;
+        pooledCollisionBatch.droppedSinceLastRead = droppedCritical + droppedNonCritical;
+        pooledCollisionBatch.coalesced = coalescedFlag === 1;
+        pooledCollisionBatch.events = pooledCollisionEvents;
+        cachedCollisionBatch = pooledCollisionBatch;
+      }
+
+      const visibleCount =
+        max === undefined || max < 0
+          ? cachedCollisionEventCount
+          : Math.min(max, cachedCollisionEventCount);
+      pooledCollisionEvents.length = visibleCount;
+      pooledCollisionBatch.count = visibleCount;
 
       if (isDebug && import.meta.env.DEV) {
         const f = debugFrameCount;
-        if (f <= 300 && f % 60 === 0 && f > 0) {
+        if (f <= 300 && f % 60 === 0 && f > 0 && wasmPlugin) {
           const stats = wasmPlugin.stats();
           console.log(
-            `[Physics2D] frame=${f} stats=${stats} events=${events.length} preset=${cfg.qualityPreset} mode=${cfg.eventMode}`,
+            `[Physics2D] frame=${f} stats=${stats} events=${visibleCount} dropped=${pooledCollisionBatch.droppedSinceLastRead} preset=${cfg.qualityPreset} mode=${cfg.eventMode}`,
           );
-        }
-        if (events.length > 0) {
-          console.log(`[Physics2D] 🎯 COLLISION EVENTS (pull-first):`, events);
         }
       }
 
-      return events;
+      return pooledCollisionBatch;
     }
 
     return {
@@ -324,16 +386,11 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       },
 
       getCollisionEventsBatch(opts = {}) {
-        const events = readCollisionEventsOnce();
-        const max = opts.max;
-        if (max === undefined || max < 0 || max >= events.length) {
-          return events;
-        }
-        return events.slice(0, max);
+        return materializeCollisionBatch(opts.max);
       },
 
       getCollisionEvents(): CollisionEvent[] {
-        return this.getCollisionEventsBatch();
+        return this.getCollisionEventsBatch().events as CollisionEvent[];
       },
 
       getPosition(entityIndex) {
@@ -391,7 +448,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         transformChannel?.buffer ?? new ArrayBuffer(cfg.maxEntities * 20);
       const resolvedEventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
       eventsView = new DataView(resolvedEventsBuf);
-      cachedCollisionEvents = null;
+      cachedCollisionBatch = null;
+      cachedCollisionEventCount = 0;
 
       // DataBus allocates channels with engine.maxEntities. Keep the WASM plugin
       // in sync with the actual channel capacity to avoid Uint8Array.copy_from panics.
@@ -426,6 +484,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       }
 
       wasmPlugin = instantiatedPlugin;
+      wasmPlugin.set_event_coalescing?.(cfg.coalesceEvents ? 1 : 0);
 
       physicsService = createAPI();
       api.services.register('physics', physicsService);
@@ -503,12 +562,15 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       if (!wasmPlugin || !physicsService) return;
       if (cfg.eventMode !== 'hybrid' && collisionCallbacks.size === 0) return;
 
-      const rawEvents = physicsService.getCollisionEventsBatch();
-      if (rawEvents.length === 0) return;
+      const batch = physicsService.getCollisionEventsBatch();
+      if (batch.count === 0) return;
+      if (cfg.eventMode === 'hybrid') {
+        void api.hooks.callHook('physics:collision:batch', batch);
+      }
 
       // Resolve slot indices → packed EntityIds
       const contacts: CollisionContact[] = [];
-      for (const { slotA, slotB, started } of rawEvents) {
+      for (const { slotA, slotB, started } of batch.events) {
         const genA = api.getEntityGeneration(slotA);
         const genB = api.getEntityGeneration(slotB);
         const entityA = createEntityId(slotA, genA);
@@ -536,7 +598,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
      * Called each frame before `onUpdate`.
      */
     onStep(deltaTime: number): void {
-      cachedCollisionEvents = null;
+      cachedCollisionBatch = null;
+      cachedCollisionEventCount = 0;
       wasmPlugin?.step(deltaTime);
       debugFrameCount++;
     },
@@ -546,7 +609,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       wasmPlugin?.free?.();
       wasmPlugin = null;
       eventsView = null;
-      cachedCollisionEvents = null;
+      cachedCollisionBatch = null;
+      cachedCollisionEventCount = 0;
       physicsService = null;
       collisionCallbacks.clear();
     },
