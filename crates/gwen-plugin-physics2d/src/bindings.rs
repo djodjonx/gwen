@@ -289,6 +289,38 @@ impl Physics2DPlugin {
         }
     }
 
+    // ── Sensor state ──────────────────────────────────────────────────────
+
+    /// Read the sensor contact state for (entity_index, sensor_id).
+    ///
+    /// Returns `[contact_count, is_active]` where `is_active` is 0 or 1.
+    /// Returns `[0, 0]` if the sensor has never been seen.
+    pub fn get_sensor_state(&self, entity_index: u32, sensor_id: u32) -> Vec<u32> {
+        let Ok(slot) = self.world.try_borrow() else {
+            return vec![0, 0];
+        };
+        let Some(world) = slot.as_ref() else {
+            return vec![0, 0];
+        };
+        let state = world.get_sensor_state(entity_index, sensor_id);
+        vec![state.contact_count, if state.is_active { 1 } else { 0 }]
+    }
+
+    /// Manually update a sensor contact state from the TS side.
+    ///
+    /// Useful when the game drives sensor transitions from collision events
+    /// without waiting for Rust to compute them (zero-latency path).
+    ///
+    /// * `started = 1` → increment contact count (sensor activated)
+    /// * `started = 0` → decrement contact count (sensor deactivated)
+    pub fn update_sensor_state(&self, entity_index: u32, sensor_id: u32, started: u8) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.update_sensor_state(entity_index, sensor_id, started != 0);
+            }
+        }
+    }
+
     // ── Simulation ────────────────────────────────────────────────────────
 
     /// Advance the simulation by `delta` seconds.

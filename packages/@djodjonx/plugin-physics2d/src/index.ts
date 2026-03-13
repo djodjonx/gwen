@@ -46,10 +46,15 @@ import type {
   PhysicsEventMode,
   PhysicsQualityPreset,
   PhysicsColliderShape,
+  SensorState,
 } from './types';
 import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
-export { createPhysicsKinematicSyncSystem } from './systems';
-export type { PhysicsKinematicSyncSystemOptions } from './systems';
+export {
+  createPhysicsKinematicSyncSystem,
+  createPlatformerGroundedSystem,
+  SENSOR_ID_FOOT,
+} from './systems';
+export type { PhysicsKinematicSyncSystemOptions, PlatformerGroundedSystemOptions } from './systems';
 
 // Re-export public types
 export type {
@@ -67,6 +72,7 @@ export type {
   PhysicsEventMode,
   PhysicsQualityPreset,
   PhysicsColliderShape,
+  SensorState,
 };
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 
@@ -254,6 +260,10 @@ export const pluginMeta: GwenPluginMeta = {
       exportName: 'Physics2DPluginHooks',
     },
     'physics:collision:batch': {
+      from: '@djodjonx/gwen-plugin-physics2d',
+      exportName: 'Physics2DPluginHooks',
+    },
+    'physics:sensor:changed': {
       from: '@djodjonx/gwen-plugin-physics2d',
       exportName: 'Physics2DPluginHooks',
     },
@@ -476,6 +486,16 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         if (!result || result.length < 3) return null;
         return { x: result[0], y: result[1], rotation: result[2] };
       },
+
+      getSensorState(entityIndex, sensorId): SensorState {
+        const result = wasmPlugin?.get_sensor_state?.(entityIndex, sensorId);
+        if (!result || result.length < 2) return { contactCount: 0, isActive: false };
+        return { contactCount: result[0], isActive: result[1] !== 0 };
+      },
+
+      updateSensorState(entityIndex, sensorId, started) {
+        wasmPlugin?.update_sensor_state?.(entityIndex, sensorId, started ? 1 : 0);
+      },
     };
   }
 
@@ -642,8 +662,27 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       const batch = physicsService.getCollisionEventsBatch();
       if (batch.count === 0) return;
+
       if (cfg.eventMode === 'hybrid') {
         void api.hooks.callHook('physics:collision:batch', batch);
+      }
+
+      // Update sensor states from events, emitting physics:sensor:changed on transitions.
+      for (const { slotA, slotB, started } of batch.events) {
+        // We track sensors by checking both sides of each contact.
+        // Only emit the hook when the is_active flag actually changes.
+        for (const [slot, other] of [
+          [slotA, slotB],
+          [slotB, slotA],
+        ] as [number, number][]) {
+          // sensor_id = other slot (simplest agnostic key; callers can use layer bits instead)
+          const prevState = physicsService.getSensorState(slot, other);
+          physicsService.updateSensorState(slot, other, started);
+          const nextState = physicsService.getSensorState(slot, other);
+          if (prevState.isActive !== nextState.isActive) {
+            void api.hooks.callHook('physics:sensor:changed', slot, other, nextState);
+          }
+        }
       }
 
       // Resolve slot indices → packed EntityIds
@@ -657,11 +696,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       }
 
       const frozenContacts: ReadonlyArray<CollisionContact> = contacts;
-
-      // Emit the enriched hook — any system can subscribe without manual slot lookup.
       void api.hooks.callHook('physics:collision', frozenContacts);
 
-      // Dispatch per-entity onCollision callbacks declared in prefab extensions.
       for (const contact of contacts) {
         const cbA = collisionCallbacks.get(contact.slotA);
         if (cbA) cbA(contact.entityA, contact.entityB, contact, api);

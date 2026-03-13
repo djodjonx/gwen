@@ -14,6 +14,30 @@ use std::collections::{HashMap, HashSet};
 const MIN_STAGED_EVENTS_CAPACITY: usize = 64;
 const MAX_STAGED_EVENTS_CAPACITY: usize = 4_096;
 
+// ─── Sensor state ─────────────────────────────────────────────────────────────
+
+/// Persistent sensor contact state tracked per (entity, sensor_id) pair.
+///
+/// `sensor_id` is an opaque u32 assigned by the caller (typically a bit index
+/// matching a physics layer, or an arbitrary identifier for named sensors).
+/// The core never interprets the id — the mapping is entirely up to the caller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SensorState {
+    /// Number of distinct overlapping contacts in the current frame.
+    pub contact_count: u32,
+    /// Whether at least one contact is active *right now*.
+    pub is_active: bool,
+}
+
+impl Default for SensorState {
+    fn default() -> Self {
+        SensorState { contact_count: 0, is_active: false }
+    }
+}
+
+/// Compact key: (entity_index, sensor_id).
+type SensorKey = (u32, u32);
+
 // ─── Collision event ─────────────────────────────────────────────────────────
 
 /// A contact event produced during `step()`.
@@ -129,6 +153,8 @@ pub struct PhysicsWorld {
     staged_events_capacity: usize,
     dropped_critical_since_read: u32,
     dropped_noncritical_since_read: u32,
+    /// Persistent sensor contact states keyed by (entity_index, sensor_id).
+    sensor_states: HashMap<SensorKey, SensorState>,
 }
 
 impl PhysicsWorld {
@@ -155,6 +181,7 @@ impl PhysicsWorld {
             staged_events_capacity: MIN_STAGED_EVENTS_CAPACITY,
             dropped_critical_since_read: 0,
             dropped_noncritical_since_read: 0,
+            sensor_states: HashMap::new(),
         }
     }
 
@@ -221,7 +248,7 @@ impl PhysicsWorld {
                 .into();
             let filter = rapier2d::geometry::Group::from_bits_truncate(opts.groups.filter)
                 .into();
-            let mut builder = ColliderBuilder::cuboid(hw, hh)
+            let builder = ColliderBuilder::cuboid(hw, hh)
                 .restitution(opts.material.restitution)
                 .friction(opts.material.friction)
                 .density(opts.density)
@@ -291,6 +318,7 @@ impl PhysicsWorld {
                 &mut self.multibody_joint_set,
                 true,
             );
+            self.clear_sensor_states_for_entity(entity_index);
         }
     }
 
@@ -298,6 +326,46 @@ impl PhysicsWorld {
     /// Does NOT touch any shared buffer — managed by the PluginDataBus lifecycle.
     pub fn remove_rigid_body(&mut self, entity_index: u32) {
         self.remove_body_internal(entity_index);
+    }
+
+    // ── Sensor state ──────────────────────────────────────────────────────
+
+    /// Record a contact event for a sensor identified by `sensor_id`.
+    ///
+    /// Call this after normalizing collision events, once per started/stopped
+    /// contact pair where at least one side is a sensor. The caller decides
+    /// which entity owns the sensor and which id to use.
+    ///
+    /// `started = true` increments the contact count; `started = false` decrements it.
+    /// The `is_active` flag is kept consistent automatically.
+    pub fn update_sensor_state(&mut self, entity_index: u32, sensor_id: u32, started: bool) {
+        let entry = self.sensor_states.entry((entity_index, sensor_id)).or_default();
+        if started {
+            entry.contact_count = entry.contact_count.saturating_add(1);
+        } else {
+            entry.contact_count = entry.contact_count.saturating_sub(1);
+        }
+        entry.is_active = entry.contact_count > 0;
+    }
+
+    /// Read the current sensor state for (entity_index, sensor_id).
+    /// Returns `SensorState::default()` (inactive, 0 contacts) if not found.
+    pub fn get_sensor_state(&self, entity_index: u32, sensor_id: u32) -> SensorState {
+        self.sensor_states
+            .get(&(entity_index, sensor_id))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Remove all sensor states associated with a given entity.
+    /// Call this when the entity is destroyed to avoid stale entries.
+    pub fn clear_sensor_states_for_entity(&mut self, entity_index: u32) {
+        self.sensor_states.retain(|(entity, _), _| *entity != entity_index);
+    }
+
+    /// Remove a single sensor state entry.
+    pub fn remove_sensor_state(&mut self, entity_index: u32, sensor_id: u32) {
+        self.sensor_states.remove(&(entity_index, sensor_id));
     }
 
     // ── Simulation ────────────────────────────────────────────────────────

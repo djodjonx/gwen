@@ -1,6 +1,6 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial};
+use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups};
 use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsWorld};
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
