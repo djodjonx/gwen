@@ -1,6 +1,6 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions};
+use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial};
 use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsWorld};
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -367,4 +367,101 @@ fn test_stats_json_valid() {
     let json = w.stats_json();
     assert!(json.contains("bodies"), "json={json}");
     assert!(json.contains("colliders"), "json={json}");
+}
+
+// ─── Collision layers / masks (Sprint 3) ─────────────────────────────────────
+
+#[test]
+fn test_collision_groups_default_is_all() {
+    let g = CollisionGroups::default();
+    assert_eq!(g.membership, u32::MAX);
+    assert_eq!(g.filter, u32::MAX);
+}
+
+#[test]
+fn test_collision_groups_none_is_zero() {
+    assert_eq!(CollisionGroups::NONE.membership, 0);
+    assert_eq!(CollisionGroups::NONE.filter, 0);
+}
+
+#[test]
+fn test_collision_groups_all_is_max() {
+    assert_eq!(CollisionGroups::ALL.membership, u32::MAX);
+    assert_eq!(CollisionGroups::ALL.filter, u32::MAX);
+}
+
+#[test]
+fn test_add_box_collider_with_custom_groups_does_not_panic() {
+    let mut w = world_with_gravity();
+    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
+    w.add_box_collider(
+        h,
+        1.0,
+        1.0,
+        ColliderOptions {
+            groups: CollisionGroups {
+                membership: 0b0001, // layer 0 only
+                filter: 0b0110,     // collides with layers 1 and 2
+            },
+            ..ColliderOptions::default()
+        },
+    );
+    // If we get here without panic, the Rapier InteractionGroups conversion worked.
+    assert!(w.entity_to_body.contains_key(&0));
+}
+
+#[test]
+fn test_add_ball_collider_with_custom_groups_does_not_panic() {
+    let mut w = world_with_gravity();
+    let h = w.add_rigid_body(0, 0.0, 0.0, BodyType::Dynamic, BodyOptions::default());
+    w.add_ball_collider(
+        h,
+        0.5,
+        ColliderOptions {
+            groups: CollisionGroups {
+                membership: 0b1000_0000_0000_0000_0000_0000_0000_0000, // bit 31
+                filter: u32::MAX,
+            },
+            ..ColliderOptions::default()
+        },
+    );
+    assert!(w.entity_to_body.contains_key(&0));
+}
+
+#[test]
+fn test_collision_groups_membership_filter_matrix() {
+    // Verify the bitwise intersection semantics expected by the TS registry.
+    let player_layer = 1u32 << 1; // bit 1
+    let enemy_layer = 1u32 << 2;  // bit 2
+    let ground_layer = 1u32 << 3; // bit 3
+
+    // Player: member of player_layer, collides with enemy + ground
+    let player = CollisionGroups {
+        membership: player_layer,
+        filter: enemy_layer | ground_layer,
+    };
+
+    // Ground: member of ground_layer, collides with everything
+    let ground = CollisionGroups {
+        membership: ground_layer,
+        filter: u32::MAX,
+    };
+
+    // Enemy: member of enemy_layer, collides with player only
+    let enemy = CollisionGroups {
+        membership: enemy_layer,
+        filter: player_layer,
+    };
+
+    // player ↔ ground: both directions satisfied
+    assert_ne!(player.membership & ground.filter, 0);
+    assert_ne!(ground.membership & player.filter, 0);
+
+    // player ↔ enemy: both directions satisfied
+    assert_ne!(player.membership & enemy.filter, 0);
+    assert_ne!(enemy.membership & player.filter, 0);
+
+    // enemy ↔ ground: enemy does NOT want to collide with ground
+    assert_eq!(enemy.membership & ground.filter, enemy.membership); // ground accepts enemy
+    assert_eq!(ground.membership & enemy.filter, 0); // enemy's filter excludes ground
 }

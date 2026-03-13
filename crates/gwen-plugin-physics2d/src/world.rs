@@ -217,11 +217,16 @@ impl PhysicsWorld {
                 .get(&handle)
                 .copied()
                 .unwrap_or(u32::MAX);
+            let groups = rapier2d::geometry::Group::from_bits_truncate(opts.groups.membership)
+                .into();
+            let filter = rapier2d::geometry::Group::from_bits_truncate(opts.groups.filter)
+                .into();
             let mut builder = ColliderBuilder::cuboid(hw, hh)
                 .restitution(opts.material.restitution)
                 .friction(opts.material.friction)
                 .density(opts.density)
                 .sensor(opts.is_sensor)
+                .collision_groups(rapier2d::geometry::InteractionGroups::new(groups, filter))
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(
@@ -248,11 +253,16 @@ impl PhysicsWorld {
                 .get(&handle)
                 .copied()
                 .unwrap_or(u32::MAX);
+            let groups = rapier2d::geometry::Group::from_bits_truncate(opts.groups.membership)
+                .into();
+            let filter = rapier2d::geometry::Group::from_bits_truncate(opts.groups.filter)
+                .into();
             let collider = ColliderBuilder::ball(radius)
                 .restitution(opts.material.restitution)
                 .friction(opts.material.friction)
                 .density(opts.density)
                 .sensor(opts.is_sensor)
+                .collision_groups(rapier2d::geometry::InteractionGroups::new(groups, filter))
                 .user_data(entity_index as u128)
                 .active_events(ActiveEvents::COLLISION_EVENTS)
                 .active_collision_types(

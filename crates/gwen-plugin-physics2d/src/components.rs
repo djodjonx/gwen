@@ -101,6 +101,8 @@ pub struct ColliderOptions {
     pub is_sensor: bool,
     /// Density in kg/m². Used only when mass is 0.0. @default 1.0
     pub density: f32,
+    /// Collision layer/mask filtering. @default `CollisionGroups::ALL`
+    pub groups: CollisionGroups,
 }
 
 impl Default for ColliderOptions {
@@ -109,7 +111,51 @@ impl Default for ColliderOptions {
             material: PhysicsMaterial::default(),
             is_sensor: false,
             density: 1.0,
+            groups: CollisionGroups::ALL,
         }
     }
 }
 
+// ─── Collision layers / masks ─────────────────────────────────────────────────
+
+/// Maximum number of named layers supported (one bit per layer in a u32).
+pub const MAX_COLLISION_LAYERS: u32 = 32;
+
+/// Collision filtering for a collider.
+///
+/// A collision is processed if and only if:
+/// - `collider_A.membership & collider_B.filter != 0`  AND
+/// - `collider_B.membership & collider_A.filter != 0`
+///
+/// Defaults: membership = ALL (0xFFFF_FFFF), filter = ALL — everything collides
+/// with everything, matching Rapier's out-of-the-box behaviour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CollisionGroups {
+    /// Bitmask of layers this collider *belongs to* (which groups it is in).
+    pub membership: u32,
+    /// Bitmask of layers this collider *can collide with* (which groups it sees).
+    pub filter: u32,
+}
+
+impl Default for CollisionGroups {
+    fn default() -> Self {
+        CollisionGroups {
+            membership: u32::MAX,
+            filter: u32::MAX,
+        }
+    }
+}
+
+impl CollisionGroups {
+    /// `CollisionGroups` that collide with nothing (useful for ghost / trigger-only bodies).
+    pub const NONE: Self = CollisionGroups {
+        membership: 0,
+        filter: 0,
+    };
+
+    /// `CollisionGroups` that collide with everything (default).
+    pub const ALL: Self = CollisionGroups {
+        membership: u32::MAX,
+        filter: u32::MAX,
+    };
+}

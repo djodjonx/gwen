@@ -355,7 +355,17 @@ describe('Physics2DPlugin', () => {
       addBoxCollider: (...a: unknown[]) => unknown;
     };
     physics.addBoxCollider(0, 1.0, 2.0);
-    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(0, 1.0, 2.0, 0, 0.5, 0, 1.0);
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      0,
+      1.0,
+      2.0,
+      0,
+      0.5,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('addBallCollider delegates with custom options', async () => {
@@ -365,7 +375,16 @@ describe('Physics2DPlugin', () => {
       addBallCollider: (...a: unknown[]) => unknown;
     };
     physics.addBallCollider(0, 0.5, { restitution: 0.8, friction: 0.1 });
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(0, 0.5, 0.8, 0.1, 0, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      0,
+      0.5,
+      0.8,
+      0.1,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   // ── Physics2DAPI — removeBody & applyImpulse ──────────────────────────────
@@ -644,7 +663,16 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledTimes(1);
     expect(mockWasmPlugin.add_box_collider).not.toHaveBeenCalled();
     // radius converti : 14 / 50 = 0.28, defaults: restitution=0, friction=0, isSensor=0, density=1
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 14 / 50, 0, 0, 0, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      14 / 50,
+      0,
+      0,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('crée un box collider si hw + hh sont fournis', async () => {
@@ -665,6 +693,8 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       0,
       0,
       1.0,
+      0xffffffff,
+      0xffffffff,
     );
   });
 
@@ -697,7 +727,16 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'dynamic', radius: 8, restitution: 0.5, friction: 0.3 },
     });
 
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0.5, 0.3, 0, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      8 / 50,
+      0.5,
+      0.3,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('utilise restitution=0 et friction=0 par défaut', async () => {
@@ -707,7 +746,16 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'kinematic', radius: 6 },
     });
 
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 6 / 50, 0, 0, 0, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      6 / 50,
+      0,
+      0,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('ne crée pas de collider si ni radius ni hw/hh ne sont fournis', async () => {
@@ -789,7 +837,16 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     await api.hooks._trigger('prefab:instantiate', entityId, {
       physics: { bodyType: 'kinematic', radius: 8, isSensor: true },
     });
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 1, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      8 / 50,
+      0,
+      0,
+      1,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('isSensor absent → 0 par défaut', async () => {
@@ -797,7 +854,16 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     await api.hooks._trigger('prefab:instantiate', entityId, {
       physics: { bodyType: 'kinematic', radius: 8 },
     });
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 0, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      8 / 50,
+      0,
+      0,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('density est transmise au collider box', async () => {
@@ -805,7 +871,17 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     await api.hooks._trigger('prefab:instantiate', entityId, {
       physics: { bodyType: 'dynamic', hw: 10, hh: 5, density: 2.5 },
     });
-    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(42, 10 / 50, 5 / 50, 0, 0, 0, 2.5);
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      42,
+      10 / 50,
+      5 / 50,
+      0,
+      0,
+      0,
+      2.5,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('crée des colliders vNext depuis colliders[]', async () => {
@@ -829,8 +905,19 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       0.3,
       0,
       1.0,
+      0xffffffff,
+      0xffffffff,
     );
-    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 1, 1.0);
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      8 / 50,
+      0,
+      0,
+      1,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
   });
 
   it('utilise bodyType=dynamic par défaut sur le schema vNext', async () => {
@@ -943,5 +1030,156 @@ describe('Physics2DPlugin — onUpdate policy', () => {
       expect.arrayContaining([expect.objectContaining({ slotA: 7, slotB: 8, started: true })]),
     );
     expect(onCollision).toHaveBeenCalled();
+  });
+});
+
+// ─── LayerRegistry / layers & masks (Sprint 3) ───────────────────────────────
+
+describe('LayerRegistry — layer resolution', () => {
+  // We test LayerRegistry indirectly via the plugin's addBoxCollider /
+  // addBallCollider bridge calls, which now forward membership + filter.
+
+  let mockWasmPlugin: ReturnType<typeof makeMockWasmPlugin>;
+  let mockBridge: ReturnType<typeof makeMockBridge>;
+  let mockBus: ReturnType<typeof makeMockBus>;
+
+  beforeEach(() => {
+    mockWasmPlugin = makeMockWasmPlugin();
+    mockBridge = makeMockBridge();
+    mockBus = makeMockBus();
+    (loadWasmPlugin as Mock).mockResolvedValue({
+      Physics2DPlugin: makeConstructibleCtorMock(mockWasmPlugin),
+    });
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('no layers config → membership and filter default to 0xFFFFFFFF', async () => {
+    const freshAPI = makeMockAPI();
+    await initPlugin(new Physics2DPlugin(), mockBridge, freshAPI, mockBus);
+    const freshPhysics = freshAPI._registered['physics'] as {
+      addBoxCollider: (...a: unknown[]) => void;
+    };
+    freshPhysics.addBoxCollider(0, 1.0, 1.0);
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      0,
+      1.0,
+      1.0,
+      0,
+      0.5,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+    );
+  });
+
+  it('named layers resolve to correct bitmask', async () => {
+    const plugin = new Physics2DPlugin({
+      layers: { default: 0, player: 1, enemy: 2, ground: 3 },
+    });
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as {
+      addBallCollider: (...a: unknown[]) => void;
+    };
+    physics.addBallCollider(0, 0.5, {
+      membershipLayers: ['player'], // bit 1 → 0b10 = 2
+      filterLayers: ['enemy', 'ground'], // bit 2 + bit 3 → 0b1100 = 12
+    });
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      0,
+      0.5,
+      0,
+      0.5,
+      0,
+      1.0,
+      2, // membership: 1 << 1
+      12, // filter: (1<<2)|(1<<3)
+    );
+  });
+
+  it('raw number bitmask is passed through as-is', async () => {
+    const plugin = new Physics2DPlugin({ layers: { default: 0 } });
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as {
+      addBoxCollider: (...a: unknown[]) => void;
+    };
+    physics.addBoxCollider(0, 1.0, 1.0, {
+      membershipLayers: 0b0101,
+      filterLayers: 0b1010,
+    });
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      0,
+      1.0,
+      1.0,
+      0,
+      0.5,
+      0,
+      1.0,
+      5,
+      10,
+    );
+  });
+
+  it('unknown layer name throws a descriptive error', async () => {
+    const plugin = new Physics2DPlugin({
+      layers: { player: 0, ground: 1 },
+    });
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as {
+      addBallCollider: (...a: unknown[]) => void;
+    };
+    expect(() => physics.addBallCollider(0, 0.5, { membershipLayers: ['unknown_layer'] })).toThrow(
+      /Unknown layer "unknown_layer"/,
+    );
+    expect(() => physics.addBallCollider(0, 0.5, { membershipLayers: ['unknown_layer'] })).toThrow(
+      /player/,
+    ); // hint lists known layers
+  });
+
+  it('throws on layer bit index out of range', () => {
+    expect(() => new Physics2DPlugin({ layers: { bad: 32 } })).toThrow(/invalid bit index/);
+    expect(() => new Physics2DPlugin({ layers: { bad: -1 } })).toThrow(/invalid bit index/);
+  });
+
+  it('throws when more than 32 layers are declared', () => {
+    const tooMany: Record<string, number> = {};
+    for (let i = 0; i < 33; i++) tooMany[`l${i}`] = i % 32; // reuse bits to avoid range error
+    // The registry checks count, not unique bits
+    expect(() => new Physics2DPlugin({ layers: tooMany })).toThrow(/Too many layers/);
+  });
+
+  it('colliders[] with membershipLayers resolves correctly via prefab instantiation', async () => {
+    const plugin = new Physics2DPlugin({
+      layers: { player: 1, ground: 3 },
+    });
+    const api = makeMockAPI({ x: 0, y: 0 });
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const entityId = createEntityId(1, 0);
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [
+          {
+            shape: 'ball',
+            radius: 8,
+            membershipLayers: ['player'], // bit 1 → 2
+            filterLayers: ['ground'], // bit 3 → 8
+          },
+        ],
+      },
+    });
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      expect.any(Number),
+      8 / 50,
+      0,
+      0,
+      0,
+      1.0,
+      2, // membership
+      8, // filter
+    );
   });
 });

@@ -64,6 +64,17 @@ export interface Physics2DConfig {
    * @default true
    */
   coalesceEvents?: boolean;
+
+  /**
+   * Named collision layer definitions.
+   * Each key maps to a bit index (0-based). Maximum 32 layers.
+   *
+   * @example
+   * ```ts
+   * layers: { default: 0, player: 1, enemy: 2, ground: 3, trigger: 4 }
+   * ```
+   */
+  layers?: Record<string, number>;
 }
 
 // ─── Body & Collider ──────────────────────────────────────────────────────────
@@ -92,6 +103,19 @@ export interface ColliderOptions {
   isSensor?: boolean;
   /** Collider density in kg/m². Used when mass is 0. @default 1.0 */
   density?: number;
+  /**
+   * Named layer this collider belongs to. Resolved to a bitmask via the
+   * layer registry initialized from `Physics2DConfig.layers`.
+   * Accepts either a layer name or a raw bitmask `number`.
+   * @default 0xFFFFFFFF (all layers)
+   */
+  membershipLayers?: string[] | number;
+  /**
+   * Named layers this collider can collide with. Resolved to a bitmask.
+   * Accepts either an array of layer names or a raw bitmask `number`.
+   * @default 0xFFFFFFFF (all layers)
+   */
+  filterLayers?: string[] | number;
 }
 
 // ─── Collision events ─────────────────────────────────────────────────────────
@@ -257,6 +281,10 @@ export interface PhysicsColliderDef extends PhysicsMaterialPreset {
   offsetX?: number;
   offsetY?: number;
   isSensor?: boolean;
+  /** Named layers this collider belongs to. */
+  membershipLayers?: string[] | number;
+  /** Named layers this collider can collide with. */
+  filterLayers?: string[] | number;
 }
 
 export interface Physics2DPrefabExtension {
@@ -509,6 +537,8 @@ export interface WasmPhysics2DPlugin {
     friction: number,
     isSensor: number,
     density: number,
+    membership: number,
+    filter: number,
   ): void;
   add_ball_collider(
     bodyHandle: number,
@@ -517,6 +547,8 @@ export interface WasmPhysics2DPlugin {
     friction: number,
     isSensor: number,
     density: number,
+    membership: number,
+    filter: number,
   ): void;
   remove_rigid_body(entityIndex: number): void;
   set_kinematic_position(entityIndex: number, x: number, y: number): void;

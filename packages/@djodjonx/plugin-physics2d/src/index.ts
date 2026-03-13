@@ -75,6 +75,8 @@ export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 const PIXELS_PER_METER = 50;
 const EVENT_HEADER_BYTES = 8;
 const EVENT_STRIDE = 11;
+const LAYER_ALL = 0xffffffff;
+const MAX_LAYERS = 32;
 
 type NormalizedPhysics2DConfig = {
   gravity: number;
@@ -85,9 +87,21 @@ type NormalizedPhysics2DConfig = {
   compat: Required<PhysicsCompatFlags>;
   debug: boolean;
   coalesceEvents: boolean;
+  layers: Record<string, number>;
 };
 
 function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
+  const layers: Record<string, number> = {};
+  if (config.layers) {
+    for (const [name, bit] of Object.entries(config.layers)) {
+      if (bit < 0 || bit >= MAX_LAYERS || !Number.isInteger(bit)) {
+        throw new Error(
+          `[Physics2D] Layer "${name}" has invalid bit index ${bit}. Must be an integer in [0, ${MAX_LAYERS - 1}].`,
+        );
+      }
+      layers[name] = bit;
+    }
+  }
   return {
     gravity: config.gravity ?? -9.81,
     gravityX: config.gravityX ?? 0,
@@ -100,7 +114,52 @@ function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
     },
     debug: config.debug ?? false,
     coalesceEvents: config.coalesceEvents ?? true,
+    layers,
   };
+}
+
+// ─── Layer registry ───────────────────────────────────────────────────────────
+
+/**
+ * Resolves named layers to a u32 bitmask.
+ * Created once per plugin instance at init time.
+ */
+class LayerRegistry {
+  private readonly bits: Record<string, number>;
+
+  constructor(layers: Record<string, number>) {
+    if (Object.keys(layers).length > MAX_LAYERS) {
+      throw new Error(
+        `[Physics2D] Too many layers declared: ${Object.keys(layers).length}. Maximum is ${MAX_LAYERS}.`,
+      );
+    }
+    this.bits = layers;
+  }
+
+  /**
+   * Resolve a `membershipLayers` or `filterLayers` value to a raw u32 bitmask.
+   * - `undefined` → all layers (0xFFFFFFFF)
+   * - `number` → used as-is (raw bitmask)
+   * - `string[]` → each name resolved; throws on unknown name
+   */
+  resolve(value: string[] | number | undefined, role: 'membership' | 'filter'): number {
+    if (value === undefined) return LAYER_ALL;
+    if (typeof value === 'number') return value >>> 0;
+
+    let mask = 0;
+    for (const name of value) {
+      const bit = this.bits[name];
+      if (bit === undefined) {
+        const known = Object.keys(this.bits).join(', ');
+        throw new Error(
+          `[Physics2D] Unknown layer "${name}" in ${role}. Declared layers: [${known}]. ` +
+            `Add it to Physics2DConfig.layers or fix the typo.`,
+        );
+      }
+      mask |= 1 << bit;
+    }
+    return mask >>> 0;
+  }
 }
 
 function warnDeprecation(message: string) {
@@ -113,12 +172,15 @@ function addPrefabCollider(
   service: Physics2DAPI,
   bodyHandle: number,
   collider: PhysicsColliderDef,
+  registry: LayerRegistry,
 ): void {
   const colliderOpts: ColliderOptions = {
     restitution: collider.restitution ?? 0,
     friction: collider.friction ?? 0,
     isSensor: collider.isSensor ?? false,
     density: collider.density ?? 1.0,
+    membershipLayers: registry.resolve(collider.membershipLayers, 'membership'),
+    filterLayers: registry.resolve(collider.filterLayers, 'filter'),
   };
 
   if (collider.shape === 'ball' && collider.radius !== undefined) {
@@ -141,6 +203,7 @@ function addLegacyPrefabCollider(
   bodyHandle: number,
   ext: Physics2DPrefabExtension,
   compat: Required<PhysicsCompatFlags>,
+  registry: LayerRegistry,
 ): void {
   if (!compat.legacyPrefabColliderProps) {
     return;
@@ -160,6 +223,8 @@ function addLegacyPrefabCollider(
     friction: ext.friction ?? 0,
     isSensor: ext.isSensor ?? false,
     density: ext.density ?? 1.0,
+    membershipLayers: registry.resolve(undefined, 'membership'),
+    filterLayers: registry.resolve(undefined, 'filter'),
   };
 
   if (ext.radius !== undefined) {
@@ -213,6 +278,7 @@ export const pluginMeta: GwenPluginMeta = {
 export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   const cfg = normalizeConfig(config);
   const isDebug = cfg.debug;
+  const layerRegistry = new LayerRegistry(cfg.layers);
 
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
   let eventsView: DataView | null = null;
@@ -343,6 +409,12 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           opts.friction ?? 0.5,
           opts.isSensor ? 1 : 0,
           opts.density ?? 1.0,
+          typeof opts.membershipLayers === 'number'
+            ? opts.membershipLayers >>> 0
+            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+          typeof opts.filterLayers === 'number'
+            ? opts.filterLayers >>> 0
+            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
         );
       },
 
@@ -357,6 +429,12 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           opts.friction ?? 0.5,
           opts.isSensor ? 1 : 0,
           opts.density ?? 1.0,
+          typeof opts.membershipLayers === 'number'
+            ? opts.membershipLayers >>> 0
+            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+          typeof opts.filterLayers === 'number'
+            ? opts.filterLayers >>> 0
+            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
         );
       },
 
@@ -528,10 +606,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         const hasNextColliders = Array.isArray(ext.colliders) && ext.colliders.length > 0;
         if (hasNextColliders) {
           for (const collider of ext.colliders!) {
-            addPrefabCollider(svc, handle, collider);
+            addPrefabCollider(svc, handle, collider, layerRegistry);
           }
         } else {
-          addLegacyPrefabCollider(svc, handle, ext, cfg.compat);
+          addLegacyPrefabCollider(svc, handle, ext, cfg.compat, layerRegistry);
         }
 
         // Register the per-entity onCollision callback if declared in the extension.
