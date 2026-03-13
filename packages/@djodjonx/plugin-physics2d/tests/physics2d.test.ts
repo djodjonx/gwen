@@ -23,6 +23,7 @@ function makeMockWasmPlugin() {
     set_linear_velocity: vi.fn(),
     set_kinematic_position: vi.fn(),
     set_event_coalescing: vi.fn(),
+    set_quality_preset: vi.fn(),
     consume_event_metrics: vi.fn().mockReturnValue([1, 0, 0, 1]),
     get_linear_velocity: vi.fn().mockReturnValue([]),
     step: vi.fn(),
@@ -238,12 +239,13 @@ describe('Physics2DPlugin', () => {
     expect(mockAPI.services.register).toHaveBeenCalledWith('physics', expect.any(Object));
     expect(mockAPI._registered['physics']).toBeDefined();
     expect(mockWasmPlugin.set_event_coalescing).toHaveBeenCalledWith(1);
+    expect(mockWasmPlugin.set_quality_preset).toHaveBeenCalledWith(1);
   });
 
-  it('wasm.onInit can disable coalescing from config', async () => {
-    const plugin = new Physics2DPlugin({ coalesceEvents: false });
+  it('wasm.onInit applique le preset qualityPreset configure', async () => {
+    const plugin = new Physics2DPlugin({ qualityPreset: 'high' });
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
-    expect(mockWasmPlugin.set_event_coalescing).toHaveBeenCalledWith(0);
+    expect(mockWasmPlugin.set_quality_preset).toHaveBeenCalledWith(2);
   });
 
   it('wasm.onInit rejects a bridge version mismatch with an actionable error', async () => {

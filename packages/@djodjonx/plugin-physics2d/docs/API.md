@@ -25,10 +25,21 @@ export default defineConfig({
 - `gravity?: number` - gravity Y in m/s². Default `-9.81`.
 - `gravityX?: number` - gravity X in m/s². Default `0`.
 - `maxEntities?: number` - max ECS slots. Default `10_000`.
-- `qualityPreset?: 'low' | 'medium' | 'high' | 'esport'` - quality contract reserved for upcoming solver tuning. Default `"medium"`.
+- `qualityPreset?: 'low' | 'medium' | 'high' | 'esport'` - solver/CCD quality preset. Default `"medium"`.
 - `eventMode?: 'pull' | 'hybrid'` - `pull` is the first-class path. `hybrid` also dispatches convenience hooks during `onUpdate`. Default `"pull"`.
 - `compat?: { legacyPrefabColliderProps?: boolean; legacyCollisionJsonParser?: boolean }` - transitional compatibility flags. Both default to `true`.
 - `debug?: boolean` - enable debug logs. Default `false`.
+
+#### Quality preset matrix (Sprint 7)
+
+| Preset | Solver iterations | CCD substeps | Typical usage |
+| --- | ---: | ---: | --- |
+| `low` | `2` | `1` | mobile/CPU budget strict |
+| `medium` | `4` | `1` | default balanced profile |
+| `high` | `8` | `2` | precision-heavy gameplay |
+| `esport` | `10` | `4` | maximum stability / competitive tuning |
+
+Trade-off rule: higher presets reduce instability/tunneling risk, but increase CPU cost.
 
 ## `physics` Service (`Physics2DAPI`)
 

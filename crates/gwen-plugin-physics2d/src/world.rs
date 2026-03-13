@@ -10,10 +10,63 @@ use gwen_wasm_utils::ring::RingWriter;
 use js_sys::Uint8Array;
 use rapier2d::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 
 const MIN_STAGED_EVENTS_CAPACITY: usize = 64;
 const MAX_STAGED_EVENTS_CAPACITY: usize = 4_096;
 const COLLIDER_ID_ABSENT: u32 = u32::MAX;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PhysicsQualityPreset {
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Esport = 3,
+}
+
+impl PhysicsQualityPreset {
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            0 => PhysicsQualityPreset::Low,
+            2 => PhysicsQualityPreset::High,
+            3 => PhysicsQualityPreset::Esport,
+            _ => PhysicsQualityPreset::Medium,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct QualitySolverConfig {
+    num_solver_iterations: usize,
+    num_internal_stabilization_iterations: usize,
+    max_ccd_substeps: usize,
+}
+
+fn quality_solver_config(preset: PhysicsQualityPreset) -> QualitySolverConfig {
+    match preset {
+        PhysicsQualityPreset::Low => QualitySolverConfig {
+            num_solver_iterations: 2,
+            num_internal_stabilization_iterations: 1,
+            max_ccd_substeps: 1,
+        },
+        PhysicsQualityPreset::Medium => QualitySolverConfig {
+            num_solver_iterations: 4,
+            num_internal_stabilization_iterations: 2,
+            max_ccd_substeps: 1,
+        },
+        PhysicsQualityPreset::High => QualitySolverConfig {
+            num_solver_iterations: 8,
+            num_internal_stabilization_iterations: 3,
+            max_ccd_substeps: 2,
+        },
+        PhysicsQualityPreset::Esport => QualitySolverConfig {
+            num_solver_iterations: 10,
+            num_internal_stabilization_iterations: 4,
+            max_ccd_substeps: 4,
+        },
+    }
+}
 
 #[inline]
 fn pack_collider_user_data(entity_index: u32, collider_id: u32) -> u128 {
@@ -179,11 +232,12 @@ pub struct PhysicsWorld {
     dropped_noncritical_since_read: u32,
     /// Persistent sensor contact states keyed by (entity_index, sensor_id).
     sensor_states: HashMap<SensorKey, SensorState>,
+    quality_preset: PhysicsQualityPreset,
 }
 
 impl PhysicsWorld {
     pub fn new(gravity_x: f32, gravity_y: f32) -> Self {
-        PhysicsWorld {
+        let mut world = PhysicsWorld {
             pipeline: PhysicsPipeline::new(),
             gravity: vector![gravity_x, gravity_y],
             integration_params: IntegrationParameters::default(),
@@ -207,7 +261,24 @@ impl PhysicsWorld {
             dropped_critical_since_read: 0,
             dropped_noncritical_since_read: 0,
             sensor_states: HashMap::new(),
-        }
+            quality_preset: PhysicsQualityPreset::Medium,
+        };
+        world.set_quality_preset(PhysicsQualityPreset::Medium);
+        world
+    }
+
+    pub fn set_quality_preset(&mut self, preset: PhysicsQualityPreset) {
+        self.quality_preset = preset;
+        let cfg = quality_solver_config(preset);
+        self.integration_params.num_solver_iterations =
+            NonZeroUsize::new(cfg.num_solver_iterations).unwrap_or(NonZeroUsize::MIN);
+        self.integration_params.num_internal_stabilization_iterations =
+            cfg.num_internal_stabilization_iterations;
+        self.integration_params.max_ccd_substeps = cfg.max_ccd_substeps;
+    }
+
+    pub fn quality_preset(&self) -> PhysicsQualityPreset {
+        self.quality_preset
     }
 
     // ── Body management ───────────────────────────────────────────────────
@@ -645,7 +716,7 @@ impl PhysicsWorld {
 
     pub fn stats_json(&self) -> String {
         format!(
-            r#"{{"bodies":{},"colliders":{},"eventFrame":{},"coalesced":{},"eventBufferCapacity":{},"droppedCritical":{},"droppedNonCritical":{}}}"#,
+            r#"{{"bodies":{},"colliders":{},"eventFrame":{},"coalesced":{},"eventBufferCapacity":{},"droppedCritical":{},"droppedNonCritical":{},"qualityPreset":{},"solverIterations":{},"ccdSubsteps":{}}}"#,
             self.rigid_body_set.len(),
             self.collider_set.len(),
             self.frame_index,
@@ -653,6 +724,9 @@ impl PhysicsWorld {
             self.staged_events_capacity,
             self.dropped_critical_since_read,
             self.dropped_noncritical_since_read,
+            self.quality_preset as u8,
+            self.integration_params.num_solver_iterations,
+            self.integration_params.max_ccd_substeps,
         )
     }
 

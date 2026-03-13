@@ -11,6 +11,14 @@ import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 export type PhysicsQualityPreset = 'low' | 'medium' | 'high' | 'esport';
 export type PhysicsEventMode = 'pull' | 'hybrid';
 
+/** Numeric bridge mapping for solver quality presets (TS -> WASM). */
+export const PHYSICS_QUALITY_PRESET_CODE: Record<PhysicsQualityPreset, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  esport: 3,
+} as const;
+
 export interface PhysicsCompatFlags {
   /** Keep legacy top-level prefab collider props (`hw/hh/radius`) enabled. @default true */
   legacyPrefabColliderProps?: boolean;
@@ -746,6 +754,8 @@ export interface WasmPhysics2DPlugin {
   consume_event_metrics?(): number[];
   /** Enable or disable same-frame event coalescing on the Rust side. */
   set_event_coalescing?(enabled: number): void;
+  /** Apply global solver quality preset (0=low, 1=medium, 2=high, 3=esport). */
+  set_quality_preset?(preset: number): void;
   /** Bridge schema version for TS/WASM compatibility checks. */
   bridge_schema_version?(): number;
   /** Read sensor state: [contactCount, isActive(0|1)]. */

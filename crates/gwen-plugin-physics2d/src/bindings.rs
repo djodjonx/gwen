@@ -18,7 +18,7 @@ use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial};
-use crate::world::PhysicsWorld;
+use crate::world::{PhysicsQualityPreset, PhysicsWorld};
 
 const BRIDGE_SCHEMA_VERSION: u32 = 2;
 
@@ -405,6 +405,21 @@ impl Physics2DPlugin {
 
         if let Ok(mut slot) = self.world.try_borrow_mut() {
             *slot = Some(world);
+        }
+    }
+
+    /// Apply global physics quality preset.
+    ///
+    /// Mapping:
+    /// - 0: low
+    /// - 1: medium
+    /// - 2: high
+    /// - 3: esport
+    pub fn set_quality_preset(&self, preset: u8) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.set_quality_preset(PhysicsQualityPreset::from_u8(preset));
+            }
         }
     }
 

@@ -53,7 +53,12 @@ import type {
   TilemapPhysicsChunkMap,
   TilemapChunkRect,
 } from './types';
-import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_MATERIAL_PRESETS } from './types';
+import {
+  BODY_TYPE,
+  PHYSICS2D_BRIDGE_SCHEMA_VERSION,
+  PHYSICS_MATERIAL_PRESETS,
+  PHYSICS_QUALITY_PRESET_CODE,
+} from './types';
 export {
   createPhysicsKinematicSyncSystem,
   createPlatformerGroundedSystem,
@@ -86,6 +91,7 @@ export type {
   TilemapChunkRect,
 };
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
+export { PHYSICS_QUALITY_PRESET_CODE } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -838,6 +844,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       wasmPlugin = instantiatedPlugin;
       wasmPlugin.set_event_coalescing?.(cfg.coalesceEvents ? 1 : 0);
+      wasmPlugin.set_quality_preset?.(PHYSICS_QUALITY_PRESET_CODE[cfg.qualityPreset]);
 
       physicsService = createAPI();
       api.services.register('physics', physicsService);

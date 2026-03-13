@@ -3,7 +3,7 @@
 use gwen_physics2d::components::{
     BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial,
 };
-use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsWorld};
+use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsQualityPreset, PhysicsWorld};
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -440,3 +440,19 @@ fn test_physics_material_presets_are_stable() {
     assert_eq!(PhysicsMaterial::RUBBER.restitution, 0.85);
 }
 
+#[test]
+fn test_quality_preset_updates_solver_and_ccd_parameters() {
+    let mut w = world_with_gravity();
+
+    w.set_quality_preset(PhysicsQualityPreset::Low);
+    let low_stats = w.stats_json();
+    assert!(low_stats.contains("\"qualityPreset\":0"));
+    assert!(low_stats.contains("\"solverIterations\":2"));
+    assert!(low_stats.contains("\"ccdSubsteps\":1"));
+
+    w.set_quality_preset(PhysicsQualityPreset::Esport);
+    let esport_stats = w.stats_json();
+    assert!(esport_stats.contains("\"qualityPreset\":3"));
+    assert!(esport_stats.contains("\"solverIterations\":10"));
+    assert!(esport_stats.contains("\"ccdSubsteps\":4"));
+}
