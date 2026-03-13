@@ -124,6 +124,7 @@ Garantir qu aucune feature n entre sans:
 - [ ] unit tests rust pass.
 - [ ] unit/integration tests ts pass.
 - [ ] benchmark smoke pass (seuils minimaux).
+- [ ] perf score gate pass (`pnpm test:bench:physics:score`).
 - [ ] docs references API non cassees.
 - [ ] rapport perf mis a jour pour lots impactants.
 - [ ] verification deprecations: tout symbole legacy est tagge (`@deprecated` TS ou `#[deprecated(...)]` Rust).
@@ -146,3 +147,27 @@ Garantir qu aucune feature n entre sans:
 - [ ] au moins 1 scenario gameplay de non-regression mis a jour.
 - [ ] artefacts perf archives (csv/json/md).
 - [ ] tests de compat legacy maintenus tant qu une deprecation est active.
+
+## Perf score gate (Sprint 8 minimal)
+
+Un score agrege minimal est calcule a partir des benches deja stables:
+
+- solver preset bench: `stepP95Ms` (`high`, `esport`) + `tunnelRate` (`high`)
+- tilemap bench: `buildMs` + `patchMs`
+
+Artefacts:
+
+- config seuils: `scripts/physics-perf-thresholds.json`
+- agregateur: `scripts/physics-perf-score.mjs`
+- smoke test + regression simulee: `scripts/check-physics-perf-score.test.mjs`
+
+Contraintes actuelles:
+
+- `allocations` et `dropped events` restent reserves / non mesures de facon bloqueuse dans ce premier increment
+- le verdict est `fail` si une metrique mesuree depasse son seuil
+- le score numerique permet un suivi progressif, mais seul le verdict bloque CI
+
+Commandes:
+
+- `pnpm bench:physics:score`
+- `pnpm test:bench:physics:score`
