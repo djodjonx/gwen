@@ -3,7 +3,12 @@ import { unpackEntityId } from '@djodjonx/gwen-engine-core';
 import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import type { HtmlUI } from '@djodjonx/gwen-plugin-html-ui';
-import { PlayerPrefab, FootSensorPrefab, PLAYER_HH } from '../prefabs/PlayerPrefab.ts';
+import {
+  PlayerPrefab,
+  FootSensorPrefab,
+  HeadSensorPrefab,
+  PLAYER_HH,
+} from '../prefabs/PlayerPrefab.ts';
 import {
   createFloorPrefab,
   createPipePrefab,
@@ -23,6 +28,7 @@ import '../style.css';
 const SPAWN_X = 80;
 const SPAWN_Y = GROUND_Y - PLAYER_HH - 4;
 const FOOT_OFFSET_PX = PLAYER_HH + 6; // > PLAYER_HH + sensor_hh pour eviter l'overlap avec le joueur
+const HEAD_OFFSET_PX = PLAYER_HH + 6;
 
 export const MainScene = defineScene('MainScene', () => {
   let viewport: HTMLDivElement | null = null;
@@ -31,6 +37,7 @@ export const MainScene = defineScene('MainScene', () => {
 
   let playerEntity: EntityId | null = null;
   let footEntity: EntityId | null = null;
+  let headEntity: EntityId | null = null;
   let hudEntityId: EntityId | null = null;
   let hudUI: HtmlUI | null = null;
 
@@ -74,10 +81,14 @@ export const MainScene = defineScene('MainScene', () => {
     footEntity = api.prefabs.instantiate('FootSensor', SPAWN_X, SPAWN_Y + FOOT_OFFSET_PX);
     const { index: fSlot } = unpackEntityId(footEntity!);
 
-    collisionSys.setSlots(fSlot, pSlot, playerEntity!);
+    headEntity = api.prefabs.instantiate('HeadSensor', SPAWN_X, SPAWN_Y - HEAD_OFFSET_PX);
+    const { index: hSlot } = unpackEntityId(headEntity!);
+
+    collisionSys.setSlots(fSlot, hSlot, pSlot, playerEntity!);
     playerSys.setup({
       playerSlot: pSlot,
       footSlot: fSlot,
+      headSlot: hSlot,
       playerEntityId: playerEntity!,
       onRespawn: () => respawnPlayer(api),
       onLevelComplete: () => showLevelComplete(),
@@ -90,18 +101,21 @@ export const MainScene = defineScene('MainScene', () => {
   }
 
   function respawnPlayer(api: any) {
-    if (!playerEntity || !footEntity) return;
+    if (!playerEntity || !footEntity || !headEntity) return;
 
     // Evite destroy/recreate (qui déclenche des hooks async et peut inverser
     // dynamic/kinematic sur des slots réutilisés en boucle).
     const physics = api.services.get('physics') as Physics2DAPI;
     const { index: pSlot } = unpackEntityId(playerEntity);
     const { index: fSlot } = unpackEntityId(footEntity);
+    const { index: hSlot } = unpackEntityId(headEntity);
 
     physics.removeBody(pSlot);
     physics.removeBody(fSlot);
+    physics.removeBody(hSlot);
 
     const playerHandle = physics.addRigidBody(pSlot, 'dynamic', SPAWN_X / 50, SPAWN_Y / 50, {
+      ccdEnabled: true,
       linearDamping: 0.0,
       angularDamping: 999.0,
       gravityScale: 1.0,
@@ -123,6 +137,18 @@ export const MainScene = defineScene('MainScene', () => {
       isSensor: true,
     });
 
+    const headHandle = physics.addRigidBody(
+      hSlot,
+      'kinematic',
+      SPAWN_X / 50,
+      (SPAWN_Y - HEAD_OFFSET_PX) / 50,
+    );
+    physics.addBoxCollider(headHandle, 8 / 50, 3 / 50, {
+      friction: 0,
+      restitution: 0,
+      isSensor: true,
+    });
+
     // Reset explicite de l'etat gameplay du joueur apres respawn
     api.addComponent(playerEntity, PlayerState, {
       grounded: false,
@@ -135,7 +161,7 @@ export const MainScene = defineScene('MainScene', () => {
     });
 
     collisionSys.reset();
-    collisionSys.setSlots(fSlot, pSlot, playerEntity!);
+    collisionSys.setSlots(fSlot, hSlot, pSlot, playerEntity!);
     cameraSys.setup({
       playerSlot: pSlot,
       worldEl: world!,
@@ -145,6 +171,7 @@ export const MainScene = defineScene('MainScene', () => {
     playerSys.setup({
       playerSlot: pSlot,
       footSlot: fSlot,
+      headSlot: hSlot,
       playerEntityId: playerEntity!,
       onRespawn: () => respawnPlayer(api),
       onLevelComplete: () => showLevelComplete(),
@@ -170,6 +197,7 @@ export const MainScene = defineScene('MainScene', () => {
 
       api.prefabs.register(PlayerPrefab);
       api.prefabs.register(FootSensorPrefab);
+      api.prefabs.register(HeadSensorPrefab);
       api.prefabs.register(BoxPrefab);
       api.prefabs.register(FlagPrefab);
 
@@ -217,6 +245,7 @@ export const MainScene = defineScene('MainScene', () => {
       parallaxClouds = null;
       playerEntity = null;
       footEntity = null;
+      headEntity = null;
       hudEntityId = null;
       hudUI = null;
       floorPrefabBySize.clear();

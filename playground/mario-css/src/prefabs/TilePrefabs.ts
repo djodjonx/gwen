@@ -22,10 +22,17 @@ export function createFloorPrefab(
     extensions: {
       physics: {
         bodyType: 'fixed',
-        hw,
-        hh,
-        friction: 0.5,
-        restitution: 0.0,
+        colliders: [
+          {
+            shape: 'box',
+            hw,
+            hh,
+            friction: 0.5,
+            restitution: 0.0,
+            membershipLayers: ['world'],
+            filterLayers: ['player', 'sensor'],
+          },
+        ],
       },
     },
     create(api, cx: number, cy: number): EntityId {
@@ -54,10 +61,17 @@ export function createPipePrefab(
     extensions: {
       physics: {
         bodyType: 'fixed',
-        hw,
-        hh,
-        friction: 0.0,
-        restitution: 0.0,
+        colliders: [
+          {
+            shape: 'box',
+            hw,
+            hh,
+            friction: 0.0,
+            restitution: 0.0,
+            membershipLayers: ['world'],
+            filterLayers: ['player', 'sensor'],
+          },
+        ],
       },
     },
     create(api, cx: number, cy: number): EntityId {
@@ -79,10 +93,17 @@ export const BoxPrefab = definePrefab({
   extensions: {
     physics: {
       bodyType: 'fixed',
-      hw: 16,
-      hh: 16,
-      friction: 0.0,
-      restitution: 0.0,
+      colliders: [
+        {
+          shape: 'box',
+          hw: 16,
+          hh: 16,
+          friction: 0.0,
+          restitution: 0.0,
+          membershipLayers: ['box'],
+          filterLayers: ['player', 'sensor'],
+        },
+      ],
     },
   },
   create(api, x: number, y: number): EntityId {
@@ -105,11 +126,18 @@ export const FlagPrefab = definePrefab({
   extensions: {
     physics: {
       bodyType: 'fixed',
-      hw: 12,
-      hh: 176,
-      isSensor: true,
-      friction: 0,
-      restitution: 0,
+      colliders: [
+        {
+          shape: 'box',
+          hw: 12,
+          hh: 176,
+          isSensor: true,
+          friction: 0,
+          restitution: 0,
+          membershipLayers: ['world'],
+          filterLayers: ['player'],
+        },
+      ],
     },
   },
   create(api, x: number, y: number, _w: number, h: number): EntityId {

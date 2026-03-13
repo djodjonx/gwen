@@ -16,13 +16,22 @@ export const PlayerPrefab = definePrefab({
   extensions: {
     physics: {
       bodyType: 'dynamic',
-      hw: PLAYER_HW,
-      hh: PLAYER_HH,
-      friction: 0.0,
-      restitution: 0.0,
+      ccdEnabled: true,
       linearDamping: 0.0,
       angularDamping: 999.0,
       gravityScale: 1.0,
+      colliders: [
+        {
+          id: 'body',
+          shape: 'box',
+          hw: PLAYER_HW,
+          hh: PLAYER_HH,
+          friction: 0.0,
+          restitution: 0.0,
+          membershipLayers: ['player'],
+          filterLayers: ['world', 'box'],
+        },
+      ],
     },
   },
   create(api, x: number, y: number) {
@@ -52,17 +61,57 @@ export const FootSensorPrefab = definePrefab({
   extensions: {
     physics: {
       bodyType: 'kinematic',
-      hw: PLAYER_HW - 2,
-      hh: 4,
-      isSensor: true,
-      friction: 0,
-      restitution: 0,
+      colliders: [
+        {
+          id: 'foot',
+          shape: 'box',
+          hw: PLAYER_HW - 2,
+          hh: 4,
+          isSensor: true,
+          friction: 0,
+          restitution: 0,
+          membershipLayers: ['sensor'],
+          filterLayers: ['world', 'box'],
+        },
+      ],
     },
   },
   create(api, x: number, y: number) {
     const id = api.createEntity();
     api.addComponent(id, Position, { x, y });
     api.addComponent(id, Tag, { value: 'player-foot' });
+    return id;
+  },
+});
+
+/**
+ * HeadSensorPrefab — sensor kinematic au-dessus de Mario.
+ * Sert à détecter les impacts sous les mystery boxes.
+ */
+export const HeadSensorPrefab = definePrefab({
+  name: 'HeadSensor',
+  extensions: {
+    physics: {
+      bodyType: 'kinematic',
+      colliders: [
+        {
+          id: 'head',
+          shape: 'box',
+          hw: PLAYER_HW - 4,
+          hh: 3,
+          isSensor: true,
+          friction: 0,
+          restitution: 0,
+          membershipLayers: ['sensor'],
+          filterLayers: ['box'],
+        },
+      ],
+    },
+  },
+  create(api, x: number, y: number) {
+    const id = api.createEntity();
+    api.addComponent(id, Position, { x, y });
+    api.addComponent(id, Tag, { value: 'player-head' });
     return id;
   },
 });

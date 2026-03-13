@@ -16,11 +16,13 @@ const MAX_FALL_SPEED = 10.0; // m/s
 const BUFFER_MS = 110;
 const PIXELS_PER_METER = 50;
 const FOOT_OFFSET_METERS = 21 / PIXELS_PER_METER; // sync avec FOOT_OFFSET_PX de MainScene
+const HEAD_OFFSET_METERS = 21 / PIXELS_PER_METER;
 const OUT_OF_BOUNDS_PX = 3000;
 
 export function createPlayerSystem() {
   let playerSlot = -1;
   let footSlot = -1;
+  let headSlot = -1;
   let playerEntityId: EntityId | null = null;
   let onRespawn: (() => void) | null = null;
   let onLevelComplete: (() => void) | null = null;
@@ -151,6 +153,9 @@ export function createPlayerSystem() {
       if (footSlot >= 0) {
         physics.setKinematicPosition(footSlot, pos.x, pos.y + FOOT_OFFSET_METERS);
       }
+      if (headSlot >= 0) {
+        physics.setKinematicPosition(headSlot, pos.x, pos.y - HEAD_OFFSET_METERS);
+      }
 
       // Flip visuel
       if (newVx < -0.1) facingLeft = true;
@@ -173,12 +178,14 @@ export function createPlayerSystem() {
     setup(opts: {
       playerSlot: number;
       footSlot: number;
+      headSlot: number;
       playerEntityId: EntityId;
       onRespawn: () => void;
       onLevelComplete: () => void;
     }) {
       playerSlot = opts.playerSlot;
       footSlot = opts.footSlot;
+      headSlot = opts.headSlot;
       playerEntityId = opts.playerEntityId;
       onRespawn = opts.onRespawn;
       onLevelComplete = opts.onLevelComplete;
@@ -188,6 +195,7 @@ export function createPlayerSystem() {
     reset() {
       playerSlot = -1;
       footSlot = -1;
+      headSlot = -1;
       playerEntityId = null;
       onRespawn = null;
       onLevelComplete = null;
