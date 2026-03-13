@@ -672,7 +672,7 @@ export class Engine {
     this.pluginDataBus?.resetEventChannels();
 
     // 3 — WASM step (physics, AI…)
-    this.pluginManager.dispatchWasmStep(this._deltaTime);
+    this.pluginManager.dispatchWasmStep(this._deltaTime, this.api, this.hooks);
 
     // 4 — Sentinel integrity check (debug only)
     if (this.config.debug && this.sharedMemoryManager !== null) {
