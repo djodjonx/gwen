@@ -524,3 +524,20 @@ fn test_additional_solver_iterations_is_clamped_by_guardrail() {
 
     assert_eq!(w.debug_body_additional_solver_iterations(91), Some(16));
 }
+
+#[test]
+fn test_dynamic_body_collides_with_fixed_ground() {
+    let mut w = world_with_gravity();
+    let ground = w.add_rigid_body(400, 0.0, -0.75, BodyType::Fixed, BodyOptions::default());
+    w.add_box_collider(ground, 4.0, 0.5, ColliderOptions::default());
+
+    let body = w.add_rigid_body(401, 0.0, 3.0, BodyType::Dynamic, BodyOptions::default());
+    w.add_box_collider(body, 0.5, 0.5, ColliderOptions::default());
+
+    for _ in 0..180 {
+        w.step(1.0 / 60.0);
+    }
+
+    let (_, y, _) = w.get_position(401).unwrap();
+    assert!(y > -0.2, "dynamic body should rest on the fixed ground instead of tunneling through: y={y}");
+}

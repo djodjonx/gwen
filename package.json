@@ -26,6 +26,8 @@
     "bench": "cargo bench",
     "bench:physics:tilemap": "pnpm --filter @djodjonx/gwen-plugin-physics2d build && node ./scripts/bench-physics2d-tilemap.mjs",
     "test:bench:physics:tilemap": "node ./scripts/check-physics-tilemap-bench.test.mjs",
+    "bench:physics:solver": "node ./scripts/bench-physics2d-solver.mjs",
+    "test:bench:physics:solver": "node ./scripts/check-physics-solver-bench.test.mjs",
     "clean": "./scripts/clean-cargo.sh clean && pnpm -r clean",
     "lint": "oxlint --config oxlint.json packages/",
     "lint:fix": "oxlint --config oxlint.json --fix packages/",

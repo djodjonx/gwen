@@ -373,6 +373,7 @@ impl PhysicsWorld {
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
                         | ActiveCollisionTypes::KINEMATIC_KINEMATIC
                         | ActiveCollisionTypes::KINEMATIC_FIXED
+                        | ActiveCollisionTypes::DYNAMIC_FIXED
                         | ActiveCollisionTypes::DYNAMIC_DYNAMIC,
                 );
             let collider = builder.build();
@@ -410,6 +411,7 @@ impl PhysicsWorld {
                     ActiveCollisionTypes::DYNAMIC_KINEMATIC
                         | ActiveCollisionTypes::KINEMATIC_KINEMATIC
                         | ActiveCollisionTypes::KINEMATIC_FIXED
+                        | ActiveCollisionTypes::DYNAMIC_FIXED
                         | ActiveCollisionTypes::DYNAMIC_DYNAMIC,
                 )
                 .build();
