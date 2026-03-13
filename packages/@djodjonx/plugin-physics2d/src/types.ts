@@ -8,6 +8,16 @@ import type { EngineAPI } from '@djodjonx/gwen-engine-core';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+export type PhysicsQualityPreset = 'low' | 'medium' | 'high' | 'esport';
+export type PhysicsEventMode = 'pull' | 'hybrid';
+
+export interface PhysicsCompatFlags {
+  /** Keep legacy top-level prefab collider props (`hw/hh/radius`) enabled. @default true */
+  legacyPrefabColliderProps?: boolean;
+  /** Keep legacy JSON collision parser helper enabled. @default true */
+  legacyCollisionJsonParser?: boolean;
+}
+
 export interface Physics2DConfig {
   /**
    * Gravity on the Y axis in m/s². Negative = downward.
@@ -24,6 +34,23 @@ export interface Physics2DConfig {
    * @default 10_000
    */
   maxEntities?: number;
+  /**
+   * Physics quality preset.
+   * @default 'medium'
+   */
+  qualityPreset?: PhysicsQualityPreset;
+  /**
+   * Collision event delivery mode.
+   * - `pull`: first-class path via `getCollisionEventsBatch()`
+   * - `hybrid`: pull + convenience hook dispatch in `onUpdate`
+   * @default 'pull'
+   */
+  eventMode?: PhysicsEventMode;
+  /**
+   * Compatibility switches for transitional releases.
+   * @default { legacyPrefabColliderProps: true, legacyCollisionJsonParser: true }
+   */
+  compat?: PhysicsCompatFlags;
   /**
    * Enable Physics2D debug logs in the browser console.
    * When `false` (default), the plugin stays silent.
@@ -66,7 +93,7 @@ export interface ColliderOptions {
  * A contact event emitted by the physics simulation each frame.
  * Retrieved via `api.services.get('physics').getCollisionEvents()`.
  *
- * ## ⚠️ IMPORTANT — slotA/slotB are raw slot indices, NOT packed EntityIds
+ * ## ⚠️ IMPORTANT — slotA/slotB are raw slot indices, NOT packed EntityId
  *
  * Rapier stores and returns raw ECS slot indices (0–maxEntities), not the
  * 64-bit `EntityId` (bigint) used by the GWEN TypeScript ECS.
@@ -175,30 +202,50 @@ export interface Physics2DPluginHooks {
  * });
  * ```
  */
+export interface PhysicsMaterialPreset {
+  friction?: number;
+  restitution?: number;
+  density?: number;
+}
+
+export type PhysicsColliderShape = 'box' | 'ball';
+
+export interface PhysicsColliderDef extends PhysicsMaterialPreset {
+  id?: string;
+  shape: PhysicsColliderShape;
+  hw?: number;
+  hh?: number;
+  radius?: number;
+  offsetX?: number;
+  offsetY?: number;
+  isSensor?: boolean;
+}
+
 export interface Physics2DPrefabExtension {
   /** How the body participates in the simulation. */
-  bodyType: RigidBodyType;
+  bodyType?: RigidBodyType;
 
-  // ── Collider shape (l'un ou l'autre) ──────────────────────────────────
-  /** Ball collider radius in pixels. Mutually exclusive with `hw`/`hh`. */
+  /**
+   * Preferred vNext collider schema.
+   * If omitted, legacy top-level collider props are adapted automatically.
+   */
+  colliders?: PhysicsColliderDef[];
+
+  // ── Legacy mono-collider props (deprecated, TS compatibility only) ──
+  /** @deprecated Since 0.4.0. Use `colliders[0].radius`. Removal planned in 1.0.0. */
   radius?: number;
-  /** Box collider half-width in pixels. Requires `hh`. */
+  /** @deprecated Since 0.4.0. Use `colliders[0].hw`. Removal planned in 1.0.0. */
   hw?: number;
-  /** Box collider half-height in pixels. Requires `hw`. */
+  /** @deprecated Since 0.4.0. Use `colliders[0].hh`. Removal planned in 1.0.0. */
   hh?: number;
 
-  // ── Collider material ─────────────────────────────────────────────────
-  /** Bounciness [0, 1]. @default 0 */
+  /** @deprecated Since 0.4.0. Use `colliders[].restitution`. Removal planned in 1.0.0. */
   restitution?: number;
-  /** Friction coefficient ≥ 0. @default 0 */
+  /** @deprecated Since 0.4.0. Use `colliders[].friction`. Removal planned in 1.0.0. */
   friction?: number;
-  /**
-   * If true, the collider generates collision events but applies no physical
-   * response (trigger / sensor zone).
-   * @default false
-   */
+  /** @deprecated Since 0.4.0. Use `colliders[].isSensor`. Removal planned in 1.0.0. */
   isSensor?: boolean;
-  /** Collider density in kg/m². Used when `mass` is 0. @default 1.0 */
+  /** @deprecated Since 0.4.0. Use `colliders[].density`. Removal planned in 1.0.0. */
   density?: number;
 
   // ── Rigid body properties ─────────────────────────────────────────────
@@ -223,35 +270,6 @@ export interface Physics2DPrefabExtension {
   initialVelocity?: { vx: number; vy: number };
 
   // ── Collision callback ────────────────────────────────────────────────────
-  /**
-   * Optional per-entity collision callback, registered when the prefab is instantiated.
-   *
-   * Called by the Physics2D plugin each frame for every contact involving this entity.
-   * Equivalent to Unity's `OnCollisionEnter` / `OnCollisionExit` on a MonoBehaviour.
-   *
-   * - `self`    — the EntityId of the entity that owns this prefab.
-   * - `other`   — the EntityId of the other participant.
-   * - `contact` — the full resolved contact (slots, started flag, etc.).
-   * - `api`     — the EngineAPI (create/destroy entities, read/write components).
-   *
-   * @example
-   * ```ts
-   * export const BulletPrefab = definePrefab({
-   *   name: 'PlayerBullet',
-   *   extensions: {
-   *     physics: {
-   *       bodyType: 'kinematic',
-   *       radius: 5,
-   *       onCollision(self, other, contact, api) {
-   *         if (!contact.started) return;
-   *         api.destroyEntity(self);
-   *       },
-   *     },
-   *   },
-   *   create: (api, x, y, vx, vy) => { ... },
-   * });
-   * ```
-   */
   onCollision?: (
     self: EntityId,
     other: EntityId,
@@ -260,14 +278,21 @@ export interface Physics2DPrefabExtension {
   ) => void;
 }
 
-/** Raw JSON shape returned by the Rust `get_collision_events()` export. */
+/** Bridge schema version shared by TS and Rust wasm-bindgen exports. */
+export const PHYSICS2D_BRIDGE_SCHEMA_VERSION = 1;
+/** Binary ring format version for the `events` channel. */
+export const PHYSICS2D_EVENTS_RING_FORMAT_VERSION = 1;
+
+/** Raw JSON shape returned by the legacy Rust `get_collision_events()` export. */
 interface RawCollisionEvent {
   a: number;
   b: number;
   started: boolean;
 }
 
-/** @deprecated Use readCollisionEventsFromBuffer instead. */
+// ─── Collision event parsing ─────────────────────────────────────────────────
+
+/** @deprecated Since 0.4.0. Use `readCollisionEventsFromBuffer` with typed views. Removal planned in 1.0.0. */
 export function parseCollisionEvents(json: string): CollisionEvent[] {
   const raw: RawCollisionEvent[] = JSON.parse(json);
   return raw.map((e) => ({ slotA: e.a, slotB: e.b, started: e.started }));
@@ -288,20 +313,20 @@ const EVENT_STRIDE = 11;
  *
  * Advances `read_head` to `write_head` (marks the buffer as consumed).
  */
-export function readCollisionEventsFromBuffer(buf: ArrayBuffer): CollisionEvent[] {
-  const view = new DataView(buf);
+export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView): CollisionEvent[] {
+  void PHYSICS2D_EVENTS_RING_FORMAT_VERSION;
+  const view = bufOrView instanceof DataView ? bufOrView : new DataView(bufOrView);
   const writeHead = view.getUint32(0, true);
   const readHead = view.getUint32(4, true);
-  const capacity = Math.floor((buf.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
+  const capacity = Math.floor((view.byteLength - EVENT_HEADER_BYTES) / EVENT_STRIDE);
 
-  if (writeHead === readHead) return [];
+  if (capacity <= 0 || writeHead === readHead) return [];
 
   const events: CollisionEvent[] = [];
   let idx = readHead;
 
   while (idx !== writeHead) {
     const offset = EVENT_HEADER_BYTES + idx * EVENT_STRIDE;
-    // type (u16) at offset+0 — ignored for collision events (always 0)
     const slotA = view.getUint32(offset + 2, true);
     const slotB = view.getUint32(offset + 6, true);
     const flags = view.getUint8(offset + 10);
@@ -309,7 +334,6 @@ export function readCollisionEventsFromBuffer(buf: ArrayBuffer): CollisionEvent[
     idx = (idx + 1) % capacity;
   }
 
-  // Mark buffer as consumed — advance read_head to write_head
   view.setUint32(4, writeHead, true);
   return events;
 }
@@ -389,7 +413,16 @@ export interface Physics2DAPI {
   /** Read current linear velocity (m/s). */
   getLinearVelocity(entityIndex: number): { x: number; y: number } | null;
 
-  /** Return the collision events produced during the last `step()`. */
+  /**
+   * Pull-first collision API. Equivalent to `getCollisionEvents()` but explicit.
+   *
+   * `coalesced` is reserved for future behavior and currently ignored.
+   */
+  getCollisionEventsBatch(opts?: { max?: number; coalesced?: boolean }): CollisionEvent[];
+
+  /**
+   * @deprecated Since 0.4.0. Use `getCollisionEventsBatch()` instead. Removal planned in 1.0.0.
+   */
   getCollisionEvents(): CollisionEvent[];
 
   /** Return the current world position and rotation of an entity. */
@@ -455,5 +488,7 @@ export interface WasmPhysics2DPlugin {
   step(delta: number): void;
   get_position(entityIndex: number): number[];
   stats(): string;
+  /** Bridge schema version for TS/WASM compatibility checks. */
+  bridge_schema_version?(): number;
   free?(): void;
 }

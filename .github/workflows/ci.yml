@@ -18,6 +18,10 @@ jobs:
           pnpm-version: '10'
       - run: pnpm lint
       - run: pnpm format:check
+      - name: Test deprecation gate
+        run: pnpm test:deprecations
+      - name: Verify deprecation inventory
+        run: pnpm check:deprecations
 
   # ── Rust + WASM ───────────────────────────────────────────────────────────
   rust:

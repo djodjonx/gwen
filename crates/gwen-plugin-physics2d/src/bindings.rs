@@ -13,11 +13,14 @@
 //! so `memory.grow()` events in gwen-core have zero effect on them.
 
 use std::cell::RefCell;
+use console_error_panic_hook as panic_hook;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
 use crate::components::{BodyOptions, BodyType, ColliderOptions, PhysicsMaterial};
 use crate::world::PhysicsWorld;
+
+const BRIDGE_SCHEMA_VERSION: u32 = 1;
 
 /// 2D physics plugin exposed to JavaScript via wasm-bindgen.
 ///
@@ -57,7 +60,7 @@ impl Physics2DPlugin {
         max_entities: u32,
     ) -> Self {
         // Surface Rust panic messages in browser console instead of opaque `unreachable` traps.
-        console_error_panic_hook::set_once();
+        panic_hook::set_once();
 
         Physics2DPlugin {
             world: RefCell::new(Some(PhysicsWorld::new(gravity_x, gravity_y))),
@@ -350,5 +353,10 @@ impl Physics2DPlugin {
     /// Number of entity slots reserved by this plugin instance.
     pub fn max_entities(&self) -> u32 {
         self.max_entities
+    }
+
+    /// Bridge schema version used by the TS glue layer.
+    pub fn bridge_schema_version(&self) -> u32 {
+        BRIDGE_SCHEMA_VERSION
     }
 }

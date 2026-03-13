@@ -20,9 +20,11 @@ function makeMockWasmPlugin() {
     apply_impulse: vi.fn(),
     set_linear_velocity: vi.fn(),
     set_kinematic_position: vi.fn(),
+    get_linear_velocity: vi.fn().mockReturnValue([]),
     step: vi.fn(),
     get_position: vi.fn().mockReturnValue([]),
     stats: vi.fn().mockReturnValue('{"bodies":0,"colliders":0}'),
+    bridge_schema_version: vi.fn().mockReturnValue(PHYSICS2D_BRIDGE_SCHEMA_VERSION),
     free: vi.fn(),
   };
 }
@@ -42,12 +44,14 @@ function makeMockAPI(positionOverride?: { x: number; y: number }) {
         hookHandlers[name] = hookHandlers[name] ?? [];
         hookHandlers[name].push(handler);
       }),
+      callHook: vi.fn(async (_name: string, ..._args: any[]) => undefined),
       // Helper pour déclencher un hook depuis les tests
       _trigger: async (name: string, ...args: any[]) => {
         for (const h of hookHandlers[name] ?? []) await h(...args);
       },
     },
     getComponent: vi.fn((_id: any, _schema: any) => positionOverride ?? { x: 100, y: 200 }),
+    getEntityGeneration: vi.fn((_slot: number) => 0),
     _registered: registered,
     _hookHandlers: hookHandlers,
   };
@@ -94,8 +98,13 @@ vi.mock('@djodjonx/gwen-kit', async (importOriginal) => {
 
 import { loadWasmPlugin } from '@djodjonx/gwen-kit';
 import { createEntityId } from '@djodjonx/gwen-engine-core';
-import { Physics2DPlugin, physics2D } from '../src/index';
-import { BODY_TYPE, parseCollisionEvents, readCollisionEventsFromBuffer } from '../src/types';
+import { Physics2DPlugin, physics2D } from '../src';
+import {
+  BODY_TYPE,
+  parseCollisionEvents,
+  readCollisionEventsFromBuffer,
+  PHYSICS2D_BRIDGE_SCHEMA_VERSION,
+} from '../src/types';
 
 // ── Helpers: access wasm context & lifecycle via GwenPlugin interface ──────────
 
@@ -224,6 +233,15 @@ describe('Physics2DPlugin', () => {
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
     expect(mockAPI.services.register).toHaveBeenCalledWith('physics', expect.any(Object));
     expect(mockAPI._registered['physics']).toBeDefined();
+  });
+
+  it('wasm.onInit rejects a bridge version mismatch with an actionable error', async () => {
+    const plugin = new Physics2DPlugin();
+    mockWasmPlugin.bridge_schema_version.mockReturnValue(PHYSICS2D_BRIDGE_SCHEMA_VERSION + 1);
+
+    await expect(initPlugin(plugin, mockBridge, mockAPI, mockBus)).rejects.toThrow(
+      /Bridge schema mismatch/,
+    );
   });
 
   // ── wasm.onStep ───────────────────────────────────────────────────────────
@@ -363,11 +381,13 @@ describe('Physics2DPlugin', () => {
 
   // ── Physics2DAPI — getCollisionEvents ─────────────────────────────────────
 
-  it('getCollisionEvents returns empty array when ring buffer is empty', async () => {
+  it('getCollisionEventsBatch returns empty array when ring buffer is empty', async () => {
     const plugin = new Physics2DPlugin();
     await initPlugin(plugin, mockBridge, mockAPI, mockBus);
-    const physics = mockAPI._registered['physics'] as { getCollisionEvents: () => unknown[] };
-    expect(physics.getCollisionEvents()).toEqual([]);
+    const physics = mockAPI._registered['physics'] as {
+      getCollisionEventsBatch: () => unknown[];
+    };
+    expect(physics.getCollisionEventsBatch()).toEqual([]);
   });
 
   it('getCollisionEvents reads events from binary ring buffer', async () => {
@@ -393,9 +413,46 @@ describe('Physics2DPlugin', () => {
     expect(events[1]).toEqual({ slotA: 3, slotB: 4, started: false });
   });
 
-  it('getCollisionEvents returns [] before wasm.onInit', () => {
-    const plugin = asGwenPlugin(new Physics2DPlugin());
-    expect(() => plugin.wasm!.onStep!(0.016)).not.toThrow();
+  it('getCollisionEventsBatch reuses the same decoded batch within a frame', async () => {
+    const eb = mockBus._eventsBuf;
+    const view = new DataView(eb);
+    view.setUint32(0, 1, true);
+    view.setUint32(4, 0, true);
+    view.setUint32(8 + 2, 11, true);
+    view.setUint32(8 + 6, 22, true);
+    view.setUint8(8 + 10, 1);
+
+    const plugin = new Physics2DPlugin();
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    const physics = mockAPI._registered['physics'] as {
+      getCollisionEventsBatch: (...args: unknown[]) => unknown[];
+    };
+
+    const first = physics.getCollisionEventsBatch();
+    const second = physics.getCollisionEventsBatch();
+    expect(second).toBe(first);
+  });
+
+  it('getCollisionEventsBatch supports a max option without re-draining the buffer', async () => {
+    const eb = mockBus._eventsBuf;
+    const view = new DataView(eb);
+    view.setUint32(0, 2, true);
+    view.setUint32(4, 0, true);
+    view.setUint32(8 + 2, 1, true);
+    view.setUint32(8 + 6, 2, true);
+    view.setUint8(8 + 10, 1);
+    view.setUint32(8 + 11 + 2, 3, true);
+    view.setUint32(8 + 11 + 6, 4, true);
+    view.setUint8(8 + 11 + 10, 0);
+
+    const plugin = new Physics2DPlugin();
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    const physics = mockAPI._registered['physics'] as {
+      getCollisionEventsBatch: (opts?: { max?: number }) => unknown[];
+    };
+
+    expect(physics.getCollisionEventsBatch({ max: 1 })).toHaveLength(1);
+    expect(physics.getCollisionEventsBatch()).toHaveLength(2);
   });
 
   // ── Physics2DAPI — getPosition ────────────────────────────────────────────
@@ -725,5 +782,131 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       physics: { bodyType: 'dynamic', hw: 10, hh: 5, density: 2.5 },
     });
     expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(42, 10 / 50, 5 / 50, 0, 0, 0, 2.5);
+  });
+
+  it('crée des colliders vNext depuis colliders[]', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        bodyType: 'dynamic',
+        colliders: [
+          { shape: 'box', hw: 20, hh: 10, friction: 0.3 },
+          { shape: 'ball', radius: 8, isSensor: true },
+        ],
+      },
+    });
+
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      42,
+      20 / 50,
+      10 / 50,
+      0,
+      0.3,
+      0,
+      1.0,
+    );
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(42, 8 / 50, 0, 0, 1, 1.0);
+  });
+
+  it('utilise bodyType=dynamic par défaut sur le schema vNext', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [{ shape: 'ball', radius: 6 }],
+      },
+    });
+
+    expect(mockWasmPlugin.add_rigid_body).toHaveBeenCalledWith(
+      1,
+      0,
+      0,
+      BODY_TYPE.dynamic,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    );
+  });
+});
+
+// ─── Physics2DPlugin — onUpdate policy ───────────────────────────────────────
+
+describe('Physics2DPlugin — onUpdate policy', () => {
+  let mockWasmPlugin: ReturnType<typeof makeMockWasmPlugin>;
+  let mockBridge: ReturnType<typeof makeMockBridge>;
+  let mockBus: ReturnType<typeof makeMockBus>;
+
+  beforeEach(() => {
+    mockWasmPlugin = makeMockWasmPlugin();
+    mockBridge = makeMockBridge();
+    mockBus = makeMockBus();
+
+    (loadWasmPlugin as Mock).mockResolvedValue({
+      Physics2DPlugin: makeConstructibleCtorMock(mockWasmPlugin),
+    });
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  function seedSingleCollisionEvent(eventsBuf: ArrayBuffer, slotA = 1, slotB = 2) {
+    const view = new DataView(eventsBuf);
+    view.setUint32(0, 1, true);
+    view.setUint32(4, 0, true);
+    view.setUint32(8 + 2, slotA, true);
+    view.setUint32(8 + 6, slotB, true);
+    view.setUint8(8 + 10, 1);
+  }
+
+  it('ne dispatch pas de hook en mode pull sans callback opt-in', async () => {
+    const plugin = new Physics2DPlugin({ eventMode: 'pull' });
+    const api = makeMockAPI();
+    seedSingleCollisionEvent(mockBus._eventsBuf, 3, 4);
+
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    plugin.onUpdate!(api as never, 0.016);
+
+    expect(api.hooks.callHook).not.toHaveBeenCalled();
+  });
+
+  it('dispatch le hook enrichi en mode hybrid', async () => {
+    const plugin = new Physics2DPlugin({ eventMode: 'hybrid' });
+    const api = makeMockAPI();
+    seedSingleCollisionEvent(mockBus._eventsBuf, 7, 8);
+
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    plugin.onUpdate!(api as never, 0.016);
+
+    expect(api.hooks.callHook).toHaveBeenCalledWith(
+      'physics:collision',
+      expect.arrayContaining([expect.objectContaining({ slotA: 7, slotB: 8, started: true })]),
+    );
+  });
+
+  it('dispatch aussi quand un callback prefab onCollision est enregistre', async () => {
+    const plugin = new Physics2DPlugin({ eventMode: 'pull' });
+    const api = makeMockAPI({ x: 0, y: 0 });
+    const entityId = createEntityId(7, 0);
+    const onCollision = vi.fn();
+    seedSingleCollisionEvent(mockBus._eventsBuf, 7, 8);
+
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [{ shape: 'ball', radius: 6 }],
+        onCollision,
+      },
+    });
+
+    plugin.onUpdate!(api as never, 0.016);
+
+    expect(api.hooks.callHook).toHaveBeenCalledWith(
+      'physics:collision',
+      expect.arrayContaining([expect.objectContaining({ slotA: 7, slotB: 8, started: true })]),
+    );
+    expect(onCollision).toHaveBeenCalled();
   });
 });

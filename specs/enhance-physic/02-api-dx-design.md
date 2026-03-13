@@ -1,5 +1,17 @@
 # Physics2D Enhancement - API et DX design
 
+## Statut implementation Sprint 1
+
+Le contrat de base est maintenant materialise par:
+
+- `Physics2DConfig.qualityPreset`, `eventMode` et `compat`,
+- `extensions.physics.colliders[]` comme forme recommandee,
+- un adaptateur TS pour les props legacy mono-collider,
+- `getCollisionEventsBatch()` comme voie principale,
+- un handshake TS/WASM versionne via `PHYSICS2D_BRIDGE_SCHEMA_VERSION` <-> `bridge_schema_version()`.
+
+Le hot path events reste sans JSON et lit le canal binaire via vues typees (`DataView` / `ArrayBuffer`).
+
 ## Objectif DX
 
 API cible:
@@ -109,6 +121,7 @@ Les helpers n encapsulent pas la simulation, ils encapsulent le glue code.
 - Hooks pour lifecycle et integration (`prefab:instantiate`, `entity:destroy`).
 - Pull API pour contacts haute frequence (`getCollisionEventsBatch`).
 - Hook batch optionnel pour convenience (`physics:collision:batch`).
+- En implementation Sprint 1, le hook enrichi `physics:collision` n est declenche automatiquement qu en mode `hybrid` ou quand une extension `onCollision` est enregistree.
 
 ## Pourquoi
 
@@ -147,9 +160,10 @@ interface CollisionBatch {
 
 ## Compat et deprecations
 
-- si `hw/hh` top-level present -> auto adapt vers `colliders[0]`.
+- si `hw/hh` top-level present -> auto adapt vers `colliders[0]` cote TS.
 - warning deprecation non bloquant.
 - suppression legacy apres cycle mineur defini.
+- ne pas reintroduire de logique legacy cote Rust: l adaptation reste dans la glue TS.
 
 ## Politique obligatoire de tagging deprecations (Rust + TS)
 

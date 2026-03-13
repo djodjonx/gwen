@@ -1,5 +1,13 @@
 # Physics2D Enhancement - Test and benchmark strategy
 
+## Sprint 1 artefacts obligatoires
+
+- type tests TS pour `Physics2DConfig` vNext et `Physics2DPrefabExtension` legacy/vNext,
+- integration tests TS pour `getCollisionEventsBatch()` et le cache frame-local,
+- integration minimale TS/WASM pour le handshake `PHYSICS2D_BRIDGE_SCHEMA_VERSION`,
+- script CI de verification deprecations + test faux positif/faux negatif minimal,
+- note perf `no-impact` ou mesure allocation avant/apres sur la lecture du buffer via typed views.
+
 ## Objectif
 
 Garantir qu aucune feature n entre sans:
@@ -120,6 +128,7 @@ Garantir qu aucune feature n entre sans:
 - [ ] rapport perf mis a jour pour lots impactants.
 - [ ] verification deprecations: tout symbole legacy est tagge (`@deprecated` TS ou `#[deprecated(...)]` Rust).
 - [ ] verification inventaire: la table deprecations migration est synchronisee avec les symboles deprecies.
+- [ ] pour Sprint 1: le bridge TS/WASM refuse explicitement un mismatch de version.
 
 ## Reporting standard pour chaque PR
 

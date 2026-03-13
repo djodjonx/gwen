@@ -40,8 +40,13 @@ import type {
   Physics2DPrefabExtension,
   CollisionContact,
   Physics2DPluginHooks,
+  PhysicsCompatFlags,
+  PhysicsColliderDef,
+  PhysicsEventMode,
+  PhysicsQualityPreset,
+  PhysicsColliderShape,
 } from './types';
-import { BODY_TYPE, readCollisionEventsFromBuffer } from './types';
+import { BODY_TYPE, readCollisionEventsFromBuffer, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 export { createPhysicsKinematicSyncSystem } from './systems';
 export type { PhysicsKinematicSyncSystemOptions } from './systems';
 
@@ -55,11 +60,117 @@ export type {
   RigidBodyType,
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
+  PhysicsCompatFlags,
+  PhysicsColliderDef,
+  PhysicsEventMode,
+  PhysicsQualityPreset,
+  PhysicsColliderShape,
 };
+export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PIXELS_PER_METER = 50;
+const EMPTY_COLLISION_EVENTS: CollisionEvent[] = [];
+
+type NormalizedPhysics2DConfig = {
+  gravity: number;
+  gravityX: number;
+  maxEntities: number;
+  qualityPreset: PhysicsQualityPreset;
+  eventMode: PhysicsEventMode;
+  compat: Required<PhysicsCompatFlags>;
+  debug: boolean;
+};
+
+function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
+  return {
+    gravity: config.gravity ?? -9.81,
+    gravityX: config.gravityX ?? 0,
+    maxEntities: config.maxEntities ?? 10_000,
+    qualityPreset: config.qualityPreset ?? 'medium',
+    eventMode: config.eventMode ?? 'pull',
+    compat: {
+      legacyPrefabColliderProps: config.compat?.legacyPrefabColliderProps ?? true,
+      legacyCollisionJsonParser: config.compat?.legacyCollisionJsonParser ?? true,
+    },
+    debug: config.debug ?? false,
+  };
+}
+
+function warnDeprecation(message: string) {
+  if (import.meta.env.DEV) {
+    console.warn(`[Physics2D][deprecated] ${message}`);
+  }
+}
+
+function addPrefabCollider(
+  service: Physics2DAPI,
+  bodyHandle: number,
+  collider: PhysicsColliderDef,
+): void {
+  const colliderOpts: ColliderOptions = {
+    restitution: collider.restitution ?? 0,
+    friction: collider.friction ?? 0,
+    isSensor: collider.isSensor ?? false,
+    density: collider.density ?? 1.0,
+  };
+
+  if (collider.shape === 'ball' && collider.radius !== undefined) {
+    service.addBallCollider(bodyHandle, collider.radius / PIXELS_PER_METER, colliderOpts);
+    return;
+  }
+
+  if (collider.shape === 'box' && collider.hw !== undefined && collider.hh !== undefined) {
+    service.addBoxCollider(
+      bodyHandle,
+      collider.hw / PIXELS_PER_METER,
+      collider.hh / PIXELS_PER_METER,
+      colliderOpts,
+    );
+  }
+}
+
+function addLegacyPrefabCollider(
+  service: Physics2DAPI,
+  bodyHandle: number,
+  ext: Physics2DPrefabExtension,
+  compat: Required<PhysicsCompatFlags>,
+): void {
+  if (!compat.legacyPrefabColliderProps) {
+    return;
+  }
+
+  const hasLegacyShape = ext.radius !== undefined || ext.hw !== undefined || ext.hh !== undefined;
+  if (!hasLegacyShape) {
+    return;
+  }
+
+  warnDeprecation(
+    'Top-level `extensions.physics.radius/hw/hh` is legacy since 0.4.0. Use `extensions.physics.colliders[]`. Removal planned in 1.0.0.',
+  );
+
+  const colliderOpts: ColliderOptions = {
+    restitution: ext.restitution ?? 0,
+    friction: ext.friction ?? 0,
+    isSensor: ext.isSensor ?? false,
+    density: ext.density ?? 1.0,
+  };
+
+  if (ext.radius !== undefined) {
+    service.addBallCollider(bodyHandle, ext.radius / PIXELS_PER_METER, colliderOpts);
+    return;
+  }
+
+  if (ext.hw !== undefined && ext.hh !== undefined) {
+    service.addBoxCollider(
+      bodyHandle,
+      ext.hw / PIXELS_PER_METER,
+      ext.hh / PIXELS_PER_METER,
+      colliderOpts,
+    );
+  }
+}
 
 // ─── Plugin metadata ───────────────────────────────────────────────────────────
 
@@ -91,16 +202,12 @@ export const pluginMeta: GwenPluginMeta = {
  * - "events"    channel: Rapier → TS (collision events, binary ring buffer)
  */
 export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
-  const cfg: Required<Physics2DConfig> = {
-    gravity: config.gravity ?? -9.81,
-    gravityX: config.gravityX ?? 0,
-    maxEntities: config.maxEntities ?? 10_000,
-    debug: config.debug ?? false,
-  };
+  const cfg = normalizeConfig(config);
   const isDebug = cfg.debug;
 
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
-  let eventsBuf: ArrayBuffer | null = null;
+  let eventsView: DataView | null = null;
+  let cachedCollisionEvents: CollisionEvent[] | null = null;
   let debugFrameCount = 0;
   let physicsService: Physics2DAPI | null = null;
 
@@ -116,6 +223,29 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   // ── Service factory ──────────────────────────────────────────────────
 
   function createAPI(): Physics2DAPI {
+    function readCollisionEventsOnce(): CollisionEvent[] {
+      if (!wasmPlugin || !eventsView) return EMPTY_COLLISION_EVENTS;
+      if (cachedCollisionEvents) return cachedCollisionEvents;
+
+      const events = readCollisionEventsFromBuffer(eventsView);
+      cachedCollisionEvents = events;
+
+      if (isDebug && import.meta.env.DEV) {
+        const f = debugFrameCount;
+        if (f <= 300 && f % 60 === 0 && f > 0) {
+          const stats = wasmPlugin.stats();
+          console.log(
+            `[Physics2D] frame=${f} stats=${stats} events=${events.length} preset=${cfg.qualityPreset} mode=${cfg.eventMode}`,
+          );
+        }
+        if (events.length > 0) {
+          console.log(`[Physics2D] 🎯 COLLISION EVENTS (pull-first):`, events);
+        }
+      }
+
+      return events;
+    }
+
     return {
       addRigidBody(entityIndex, type, x, y, opts = {}) {
         if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
@@ -193,20 +323,17 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         return { x: result[0], y: result[1] };
       },
 
-      getCollisionEvents(): CollisionEvent[] {
-        if (!wasmPlugin || !eventsBuf) return [];
-        const events = readCollisionEventsFromBuffer(eventsBuf);
-        if (isDebug && import.meta.env.DEV) {
-          const f = debugFrameCount;
-          if (f <= 300 && f % 60 === 0 && f > 0) {
-            const stats = wasmPlugin.stats();
-            console.log(`[Physics2D] frame=${f} stats=${stats} events=${events.length}`);
-          }
-          if (events.length > 0) {
-            console.log(`[Physics2D] 🎯 COLLISION EVENTS:`, events);
-          }
+      getCollisionEventsBatch(opts = {}) {
+        const events = readCollisionEventsOnce();
+        const max = opts.max;
+        if (max === undefined || max < 0 || max >= events.length) {
+          return events;
         }
-        return events;
+        return events.slice(0, max);
+      },
+
+      getCollisionEvents(): CollisionEvent[] {
+        return this.getCollisionEventsBatch();
       },
 
       getPosition(entityIndex) {
@@ -263,7 +390,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       const transformBuf: ArrayBuffer =
         transformChannel?.buffer ?? new ArrayBuffer(cfg.maxEntities * 20);
       const resolvedEventsBuf: ArrayBuffer = eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * 11);
-      eventsBuf = resolvedEventsBuf;
+      eventsView = new DataView(resolvedEventsBuf);
+      cachedCollisionEvents = null;
 
       // DataBus allocates channels with engine.maxEntities. Keep the WASM plugin
       // in sync with the actual channel capacity to avoid Uint8Array.copy_from panics.
@@ -281,13 +409,23 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         name: 'Physics2D',
       });
 
-      wasmPlugin = new wasm.Physics2DPlugin(
+      const instantiatedPlugin = new wasm.Physics2DPlugin(
         cfg.gravityX,
         cfg.gravity,
         new Uint8Array(transformBuf),
         new Uint8Array(resolvedEventsBuf),
         runtimeMaxEntities,
       );
+
+      const bridgeVersion = instantiatedPlugin.bridge_schema_version?.();
+      if (bridgeVersion !== undefined && bridgeVersion !== PHYSICS2D_BRIDGE_SCHEMA_VERSION) {
+        instantiatedPlugin.free?.();
+        throw new Error(
+          `[Physics2D] Bridge schema mismatch: TS=${PHYSICS2D_BRIDGE_SCHEMA_VERSION}, WASM=${bridgeVersion}. Rebuild the physics wasm package before running this build.`,
+        );
+      }
+
+      wasmPlugin = instantiatedPlugin;
 
       physicsService = createAPI();
       api.services.register('physics', physicsService);
@@ -302,6 +440,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
         if (!ext) return;
 
+        const bodyType = ext.bodyType ?? 'dynamic';
         const { index: slot } = unpackEntityId(entityId);
         const pos = api.getComponent?.(entityId, 'position') as
           | { x: number; y: number }
@@ -310,7 +449,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
         const handle = svc.addRigidBody(
           slot,
-          ext.bodyType,
+          bodyType,
           (pos?.x ?? 0) / PIXELS_PER_METER,
           (pos?.y ?? 0) / PIXELS_PER_METER,
           {
@@ -327,22 +466,13 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           },
         );
 
-        const colliderOpts: ColliderOptions = {
-          restitution: ext.restitution ?? 0,
-          friction: ext.friction ?? 0,
-          isSensor: ext.isSensor ?? false,
-          density: ext.density ?? 1.0,
-        };
-
-        if (ext.radius !== undefined) {
-          svc.addBallCollider(handle, ext.radius / PIXELS_PER_METER, colliderOpts);
-        } else if (ext.hw !== undefined && ext.hh !== undefined) {
-          svc.addBoxCollider(
-            handle,
-            ext.hw / PIXELS_PER_METER,
-            ext.hh / PIXELS_PER_METER,
-            colliderOpts,
-          );
+        const hasNextColliders = Array.isArray(ext.colliders) && ext.colliders.length > 0;
+        if (hasNextColliders) {
+          for (const collider of ext.colliders!) {
+            addPrefabCollider(svc, handle, collider);
+          }
+        } else {
+          addLegacyPrefabCollider(svc, handle, ext, cfg.compat);
         }
 
         // Register the per-entity onCollision callback if declared in the extension.
@@ -370,9 +500,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
      * Called every frame after `onStep`.
      */
     onUpdate(api): void {
-      if (!wasmPlugin || !eventsBuf || !physicsService) return;
+      if (!wasmPlugin || !physicsService) return;
+      if (cfg.eventMode !== 'hybrid' && collisionCallbacks.size === 0) return;
 
-      const rawEvents = physicsService.getCollisionEvents();
+      const rawEvents = physicsService.getCollisionEventsBatch();
       if (rawEvents.length === 0) return;
 
       // Resolve slot indices → packed EntityIds
@@ -405,6 +536,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
      * Called each frame before `onUpdate`.
      */
     onStep(deltaTime: number): void {
+      cachedCollisionEvents = null;
       wasmPlugin?.step(deltaTime);
       debugFrameCount++;
     },
@@ -413,7 +545,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     onDestroy(): void {
       wasmPlugin?.free?.();
       wasmPlugin = null;
-      eventsBuf = null;
+      eventsView = null;
+      cachedCollisionEvents = null;
       physicsService = null;
       collisionCallbacks.clear();
     },
