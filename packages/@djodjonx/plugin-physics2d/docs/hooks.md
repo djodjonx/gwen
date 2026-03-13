@@ -36,7 +36,8 @@ interface Physics2DPluginHooks {
 ```ts
 onUpdate(api) {
   const physics = api.services.get('physics');
-  for (const event of physics.getCollisionEventsBatch()) {
+  const batch = physics.getCollisionEventsBatch();
+  for (const event of batch.events) {
     // hot-path gameplay logic here
   }
 }

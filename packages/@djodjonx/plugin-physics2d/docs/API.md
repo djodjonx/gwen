@@ -114,6 +114,23 @@ Legacy alias kept for compatibility.
 
 Returns `{ x, y, rotation } | null` in meters/radians.
 
+### `loadTilemapPhysicsChunk(chunk, x, y, opts?)`
+
+Loads or replaces one baked tilemap chunk.
+
+- `chunk: TilemapPhysicsChunk`
+- `x, y: number` - world origin of the chunk body in meters
+- `opts?: { debugNaive?: boolean }`
+  - `debugNaive: true` forces one collider per baked rect instead of trusting `chunk.colliders[]`
+
+### `unloadTilemapPhysicsChunk(key)`
+
+Removes one loaded tilemap chunk by stable key.
+
+### `patchTilemapPhysicsChunk(chunk, x, y, opts?)`
+
+Replaces one previously loaded chunk with a freshly patched bake.
+
 ## Prefab extension `extensions.physics`
 
 ### Recommended vNext shape
@@ -122,9 +139,10 @@ Returns `{ x, y, rotation } | null` in meters/radians.
 extensions: {
   physics: {
     bodyType: 'dynamic',
+    material: 'default',
     colliders: [
-      { shape: 'box', hw: 10, hh: 14, friction: 0.2 },
-      { shape: 'ball', radius: 4, isSensor: true },
+      { shape: 'box', hw: 10, hh: 14, material: 'ice' },
+      { shape: 'ball', radius: 4, isSensor: true, material: 'rubber' },
     ],
   },
 }
@@ -174,19 +192,41 @@ interface ColliderOptions {
   friction?: number;
   isSensor?: boolean;
   density?: number;
+  membershipLayers?: string[] | number;
+  filterLayers?: string[] | number;
+  colliderId?: number;
+  offsetX?: number;
+  offsetY?: number;
 }
 ```
 
-### `CollisionContact` (enriched)
-
-Type used by `physics:collision` hook:
+### `PhysicsMaterialPresetName`
 
 ```ts
-interface CollisionContact {
-  entityA: EntityId;
-  entityB: EntityId;
-  slotA: number;
-  slotB: number;
-  started: boolean;
+type PhysicsMaterialPresetName = 'default' | 'ice' | 'rubber';
+```
+
+### `PHYSICS_MATERIAL_PRESETS`
+
+```ts
+const PHYSICS_MATERIAL_PRESETS = {
+  default: { friction: 0.5, restitution: 0, density: 1.0 },
+  ice: { friction: 0.02, restitution: 0, density: 1.0 },
+  rubber: { friction: 1.2, restitution: 0.85, density: 1.0 },
+};
+```
+
+### `TilemapPhysicsChunk`
+
+```ts
+interface TilemapPhysicsChunk {
+  key: string;
+  chunkX: number;
+  chunkY: number;
+  checksum: string;
+  rects: ReadonlyArray<{ x: number; y: number; w: number; h: number }>;
+  colliders: ReadonlyArray<PhysicsColliderDef>;
 }
 ```
+
+See also: `./TILEMAP.md`

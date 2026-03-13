@@ -1,13 +1,15 @@
 # Migration Guide
 
-## Sprint 1 status
+## Current migration status
 
-Sprint 1 keeps compatibility active while introducing the vNext contract:
+The plugin currently keeps legacy compatibility active while rolling out the newer contracts.
 
-- `Physics2DConfig` now exposes `qualityPreset`, `eventMode` and `compat` flags.
-- `extensions.physics.colliders[]` is the recommended schema.
-- legacy mono-collider props are still supported through the TS adapter.
-- `getCollisionEventsBatch()` is now the primary collision-event API.
+### Already migrated / recommended
+
+- `extensions.physics.colliders[]` instead of top-level `radius` / `hw` / `hh`
+- `getCollisionEventsBatch()` instead of `getCollisionEvents()`
+- tilemap chunk baking/loading through `buildTilemapPhysicsChunks(...)` and `loadTilemapPhysicsChunk(...)`
+- `material: 'default' | 'ice' | 'rubber'` for reusable terrain/body material presets
 
 ## Before / after
 
@@ -35,6 +37,17 @@ extensions: {
 }
 ```
 
+### vNext prefab with material preset
+
+```ts
+extensions: {
+  physics: {
+    bodyType: 'dynamic',
+    colliders: [{ shape: 'box', hw: 10, hh: 14, material: 'ice' }],
+  },
+}
+```
+
 ### Legacy collision reads
 
 ```ts
@@ -44,8 +57,65 @@ const events = physics.getCollisionEvents();
 ### vNext collision reads
 
 ```ts
-const events = physics.getCollisionEventsBatch();
+const batch = physics.getCollisionEventsBatch();
+for (const ev of batch.events) {
+  // ...
+}
 ```
+
+### Tilemap chunk workflow
+
+```ts
+const baked = buildTilemapPhysicsChunks({
+  tiles,
+  mapWidthTiles: 128,
+  mapHeightTiles: 64,
+  chunkSizeTiles: 16,
+  tileSizePx: 16,
+});
+
+for (const chunk of baked.chunks) {
+  physics.loadTilemapPhysicsChunk(chunk, worldX, worldY);
+}
+```
+
+### Incremental patch of one chunk
+
+```ts
+const nextBake = patchTilemapPhysicsChunk({
+  source: {
+    tiles: updatedTiles,
+    mapWidthTiles: 128,
+    mapHeightTiles: 64,
+    chunkSizeTiles: 16,
+    tileSizePx: 16,
+  },
+  chunkX: 3,
+  chunkY: 2,
+  previous: baked,
+});
+
+const chunk = nextBake.chunks.find((c) => c.key === '3:2');
+if (chunk) physics.patchTilemapPhysicsChunk(chunk, worldX, worldY);
+```
+
+## Material migration notes
+
+- `material: 'default' | 'ice' | 'rubber'` is optional
+- explicit `friction`, `restitution`, and `density` still win over the preset
+- custom material objects remain supported:
+
+```ts
+{ material: { friction: 0.9, restitution: 0.1, density: 2.0 }, friction: 0.7 }
+```
+
+## Perf / rollout tips
+
+- keep chunk keys stable as `${chunkX}:${chunkY}`
+- prefer chunk patching over full rebakes for destructible terrain
+- skip runtime reloads when `checksum` is unchanged
+- use `debugNaive: true` only to diagnose bake mismatches
+- prefer chunk sizes between `16` and `32` tiles for platformer maps
 
 ## Deprecation inventory
 
@@ -64,8 +134,7 @@ const events = physics.getCollisionEventsBatch();
 ## Checklist per PR touching legacy APIs
 
 - [ ] code symbol tagged with `@deprecated`
-- [ ] this inventory updated
+- [ ] inventory updated
 - [ ] compat path tested
 - [ ] replacement path tested
 - [ ] docs examples updated
-

@@ -29,9 +29,11 @@ export default defineConfig({
 
 ## What the plugin provides
 
-- `physics` service (runtime API): add/remove bodies, colliders, velocities, and read collision events.
+- `physics` service (runtime API): add/remove bodies, colliders, velocities, read collision events, and stream tilemap chunks.
 - Global `physics:collision` hook (enriched contacts with `EntityId`).
 - Prefab extension `extensions.physics` (body/collider declaration + `onCollision` callback).
+- Material presets on colliders: `default`, `ice`, `rubber` (+ custom overrides).
+- Helpers: `buildTilemapPhysicsChunks(...)` and `patchTilemapPhysicsChunk(...)`.
 - Composable system `createPhysicsKinematicSyncSystem()` to sync ECS -> physics.
 
 ## Config (`physics2D(options)`)
@@ -76,5 +78,7 @@ export const BulletPrefab = definePrefab({
 ## Detailed index
 
 - API: `docs/API.md`
+- Tilemap chunks and streaming: `docs/TILEMAP.md`
+- Migration notes: `docs/MIGRATION.md`
 - Hooks and extensions: `docs/hooks.md`
 - Composable systems: `docs/systems.md`
