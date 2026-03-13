@@ -1,0 +1,34 @@
+{
+  "name": "mario-css",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "gwen dev",
+    "build": "gwen build",
+    "preview": "gwen preview",
+    "prepare": "gwen prepare",
+    "lint": "gwen lint",
+    "lint:fix": "gwen lint --fix",
+    "format": "gwen format",
+    "format:check": "gwen format --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@djodjonx/gwen-engine-core": "workspace:*",
+    "@djodjonx/gwen-kit": "workspace:*",
+    "@djodjonx/gwen-plugin-audio": "workspace:*",
+    "@djodjonx/gwen-plugin-html-ui": "workspace:*",
+    "@djodjonx/gwen-plugin-input": "workspace:*",
+    "@djodjonx/gwen-plugin-physics2d": "workspace:*",
+    "@djodjonx/gwen-plugin-sprite-anim": "workspace:*",
+    "@djodjonx/gwen-renderer-canvas2d": "workspace:*"
+  },
+  "devDependencies": {
+    "@djodjonx/gwen-cli": "workspace:*",
+    "@djodjonx/gwen-vite-plugin": "workspace:*",
+    "oxlint": "^1.51.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
