@@ -53,7 +53,7 @@ import type {
   TilemapPhysicsChunkMap,
   TilemapChunkRect,
 } from './types';
-import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
+import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_MATERIAL_PRESETS } from './types';
 export {
   createPhysicsKinematicSyncSystem,
   createPlatformerGroundedSystem,
@@ -206,6 +206,21 @@ function warnDeprecation(message: string) {
   }
 }
 
+function resolveMaterial(
+  material: PhysicsColliderDef['material'] | Physics2DPrefabExtension['material'] | undefined,
+  overrides: Pick<PhysicsColliderDef, 'friction' | 'restitution' | 'density'>,
+  fallback: { friction: number; restitution: number; density: number },
+) {
+  const base =
+    typeof material === 'string' ? PHYSICS_MATERIAL_PRESETS[material] : (material ?? fallback);
+
+  return {
+    friction: overrides.friction ?? base.friction ?? fallback.friction,
+    restitution: overrides.restitution ?? base.restitution ?? fallback.restitution,
+    density: overrides.density ?? base.density ?? fallback.density,
+  };
+}
+
 function addPrefabCollider(
   service: Physics2DAPI,
   bodyHandle: number,
@@ -213,11 +228,16 @@ function addPrefabCollider(
   registry: LayerRegistry,
   colliderId?: number,
 ): void {
+  const material = resolveMaterial(collider.material, collider, {
+    friction: 0,
+    restitution: 0,
+    density: 1.0,
+  });
   const colliderOpts: ColliderOptions = {
-    restitution: collider.restitution ?? 0,
-    friction: collider.friction ?? 0,
+    restitution: material.restitution,
+    friction: material.friction,
     isSensor: collider.isSensor ?? false,
-    density: collider.density ?? 1.0,
+    density: material.density,
     membershipLayers: registry.resolve(collider.membershipLayers, 'membership'),
     filterLayers: registry.resolve(collider.filterLayers, 'filter'),
     colliderId,
@@ -273,11 +293,16 @@ function addLegacyPrefabCollider(
     'Top-level `extensions.physics.radius/hw/hh` is legacy since 0.4.0. Use `extensions.physics.colliders[]`. Removal planned in 1.0.0.',
   );
 
+  const material = resolveMaterial(ext.material, ext, {
+    friction: 0,
+    restitution: 0,
+    density: 1.0,
+  });
   const colliderOpts: ColliderOptions = {
-    restitution: ext.restitution ?? 0,
-    friction: ext.friction ?? 0,
+    restitution: material.restitution,
+    friction: material.friction,
     isSensor: ext.isSensor ?? false,
-    density: ext.density ?? 1.0,
+    density: material.density,
     membershipLayers: registry.resolve(undefined, 'membership'),
     filterLayers: registry.resolve(undefined, 'filter'),
   };
@@ -664,11 +689,16 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           : chunk.colliders;
 
         for (const [colliderIndex, collider] of source.entries()) {
+          const material = resolveMaterial(collider.material, collider, {
+            friction: 0.5,
+            restitution: 0,
+            density: 1.0,
+          });
           const runtimeOpts: ColliderOptions = {
-            restitution: collider.restitution ?? 0,
-            friction: collider.friction ?? 0.5,
+            restitution: material.restitution,
+            friction: material.friction,
             isSensor: collider.isSensor ?? false,
-            density: collider.density ?? 1.0,
+            density: material.density,
             membershipLayers:
               typeof collider.membershipLayers === 'number'
                 ? collider.membershipLayers >>> 0
@@ -678,8 +708,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
                 ? collider.filterLayers >>> 0
                 : layerRegistry.resolve(collider.filterLayers, 'filter'),
             colliderId: colliderIndex,
-            offsetX: (collider.offsetX ?? 0) / PIXELS_PER_METER,
-            offsetY: (collider.offsetY ?? 0) / PIXELS_PER_METER,
+            offsetX:
+              collider.offsetX === undefined ? undefined : collider.offsetX / PIXELS_PER_METER,
+            offsetY:
+              collider.offsetY === undefined ? undefined : collider.offsetY / PIXELS_PER_METER,
           };
 
           if (collider.shape === 'box') {

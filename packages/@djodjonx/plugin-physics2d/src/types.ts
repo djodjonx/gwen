@@ -305,6 +305,17 @@ export interface PhysicsMaterialPreset {
   density?: number;
 }
 
+export type PhysicsMaterialPresetName = 'default' | 'ice' | 'rubber';
+
+export const PHYSICS_MATERIAL_PRESETS: Record<
+  PhysicsMaterialPresetName,
+  Required<PhysicsMaterialPreset>
+> = {
+  default: { friction: 0.5, restitution: 0, density: 1.0 },
+  ice: { friction: 0.02, restitution: 0, density: 1.0 },
+  rubber: { friction: 1.2, restitution: 0.85, density: 1.0 },
+};
+
 export type PhysicsColliderShape = 'box' | 'ball';
 
 /**
@@ -369,6 +380,8 @@ export interface PhysicsColliderDef extends PhysicsMaterialPreset {
   /** Optional stable collider id (string key) for gameplay mapping. */
   id?: string;
   shape: PhysicsColliderShape;
+  /** Built-in material preset name or custom material object. */
+  material?: PhysicsMaterialPresetName | PhysicsMaterialPreset;
   /** Half-width in pixels for `shape: 'box'`. */
   hw?: number;
   /** Half-height in pixels for `shape: 'box'`. */
@@ -391,6 +404,9 @@ export interface PhysicsColliderDef extends PhysicsMaterialPreset {
 export interface Physics2DPrefabExtension {
   /** How the body participates in the simulation. */
   bodyType?: RigidBodyType;
+
+  /** Built-in material preset name or custom material object. */
+  material?: PhysicsMaterialPresetName | PhysicsMaterialPreset;
 
   /**
    * Preferred vNext collider schema.

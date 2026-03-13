@@ -52,12 +52,26 @@ pub struct PhysicsMaterial {
     pub friction: f32,
 }
 
+impl PhysicsMaterial {
+    pub const DEFAULT: Self = PhysicsMaterial {
+        restitution: 0.0,
+        friction: 0.5,
+    };
+
+    pub const ICE: Self = PhysicsMaterial {
+        restitution: 0.0,
+        friction: 0.02,
+    };
+
+    pub const RUBBER: Self = PhysicsMaterial {
+        restitution: 0.85,
+        friction: 1.2,
+    };
+}
+
 impl Default for PhysicsMaterial {
     fn default() -> Self {
-        PhysicsMaterial {
-            restitution: 0.0,
-            friction: 0.5,
-        }
+        PhysicsMaterial::DEFAULT
     }
 }
 

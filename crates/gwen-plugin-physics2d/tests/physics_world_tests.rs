@@ -1,6 +1,8 @@
 //! Unit tests for PhysicsWorld — no wasm-bindgen, pure Rust.
 
-use gwen_physics2d::components::{BodyOptions, BodyType, ColliderOptions, CollisionGroups};
+use gwen_physics2d::components::{
+    BodyOptions, BodyType, ColliderOptions, CollisionGroups, PhysicsMaterial,
+};
 use gwen_physics2d::world::{PhysicsCollisionEvent, PhysicsWorld};
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -425,3 +427,16 @@ fn test_tilemap_chunk_body_can_load_and_unload() {
     w.unload_tilemap_chunk_body(123);
     assert!(!w.body_to_entity.values().any(|&entity| entity == 0x8000_007b));
 }
+
+#[test]
+fn test_physics_material_presets_are_stable() {
+    assert_eq!(PhysicsMaterial::DEFAULT.friction, 0.5);
+    assert_eq!(PhysicsMaterial::DEFAULT.restitution, 0.0);
+
+    assert_eq!(PhysicsMaterial::ICE.friction, 0.02);
+    assert_eq!(PhysicsMaterial::ICE.restitution, 0.0);
+
+    assert_eq!(PhysicsMaterial::RUBBER.friction, 1.2);
+    assert_eq!(PhysicsMaterial::RUBBER.restitution, 0.85);
+}
+

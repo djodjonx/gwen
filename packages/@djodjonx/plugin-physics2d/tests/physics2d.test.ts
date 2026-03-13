@@ -946,6 +946,59 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
       0.0,
     );
   });
+
+  it('material preset `ice` est resolu pour le schema vNext', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [{ shape: 'ball', radius: 8, material: 'ice' }],
+      },
+    });
+
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      42,
+      8 / 50,
+      0,
+      0.02,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+      0,
+    );
+  });
+
+  it('material custom object est resolu et les overrides explicites restent prioritaires', async () => {
+    const { api } = await boot({ x: 0, y: 0 });
+
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [
+          {
+            shape: 'box',
+            hw: 10,
+            hh: 5,
+            material: { friction: 0.9, restitution: 0.1, density: 2.0 },
+            friction: 0.7,
+          },
+        ],
+      },
+    });
+
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      42,
+      10 / 50,
+      5 / 50,
+      0.1,
+      0.7,
+      0,
+      2.0,
+      0xffffffff,
+      0xffffffff,
+      0,
+    );
+  });
 });
 
 // ─── Physics2DPlugin — onUpdate policy ───────────────────────────────────────
@@ -1268,5 +1321,37 @@ describe('Physics2DPlugin — tilemap chunk runtime', () => {
 
     expect(mockWasmPlugin.unload_tilemap_chunk_body).toHaveBeenCalled();
     expect(mockWasmPlugin.load_tilemap_chunk_body).toHaveBeenCalledTimes(2);
+  });
+
+  it('loadTilemapPhysicsChunk applique aussi les presets materiaux', async () => {
+    const plugin = new Physics2DPlugin();
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as import('../src').Physics2DAPI;
+
+    physics.loadTilemapPhysicsChunk(
+      {
+        key: '2:0',
+        chunkX: 2,
+        chunkY: 0,
+        checksum: 'rubber',
+        rects: [],
+        colliders: [{ shape: 'ball', radius: 12, material: 'rubber' }],
+      },
+      0,
+      0,
+    );
+
+    expect(mockWasmPlugin.add_ball_collider).toHaveBeenCalledWith(
+      777,
+      12 / 50,
+      0.85,
+      1.2,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+      0,
+    );
   });
 });
