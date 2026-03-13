@@ -106,6 +106,10 @@ pub struct ColliderOptions {
     /// Stable collider id propagated in collision events.
     /// `u32::MAX` means "absent" (legacy mono-collider fallback).
     pub collider_id: u32,
+    /// Local collider offset in metres.
+    pub offset_x: f32,
+    /// Local collider offset in metres.
+    pub offset_y: f32,
 }
 
 impl Default for ColliderOptions {
@@ -116,6 +120,8 @@ impl Default for ColliderOptions {
             density: 1.0,
             groups: CollisionGroups::ALL,
             collider_id: u32::MAX,
+            offset_x: 0.0,
+            offset_y: 0.0,
         }
     }
 }

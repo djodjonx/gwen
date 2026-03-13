@@ -166,6 +166,8 @@ pub struct PhysicsWorld {
 
     pub entity_to_body: HashMap<u32, RigidBodyHandle>,
     pub body_to_entity: HashMap<RigidBodyHandle, u32>,
+    /// Internal tilemap chunk bodies keyed by hashed chunk id.
+    chunk_to_body: HashMap<u32, RigidBodyHandle>,
     /// Direct lookup: raw slot index (as returned by add_rigid_body) → full handle.
     /// Avoids O(n) scan and generation aliasing in find_handle.
     handle_by_raw: HashMap<u32, RigidBodyHandle>,
@@ -196,6 +198,7 @@ impl PhysicsWorld {
             query_pipeline: QueryPipeline::new(),
             entity_to_body: HashMap::new(),
             body_to_entity: HashMap::new(),
+            chunk_to_body: HashMap::new(),
             handle_by_raw: HashMap::new(),
             collision_events: Vec::with_capacity(MIN_STAGED_EVENTS_CAPACITY),
             frame_index: 0,
@@ -271,6 +274,7 @@ impl PhysicsWorld {
             let filter = rapier2d::geometry::Group::from_bits_truncate(opts.groups.filter)
                 .into();
             let builder = ColliderBuilder::cuboid(hw, hh)
+                .translation(vector![opts.offset_x, opts.offset_y])
                 .restitution(opts.material.restitution)
                 .friction(opts.material.friction)
                 .density(opts.density)
@@ -307,6 +311,7 @@ impl PhysicsWorld {
             let filter = rapier2d::geometry::Group::from_bits_truncate(opts.groups.filter)
                 .into();
             let collider = ColliderBuilder::ball(radius)
+                .translation(vector![opts.offset_x, opts.offset_y])
                 .restitution(opts.material.restitution)
                 .friction(opts.material.friction)
                 .density(opts.density)
@@ -348,6 +353,48 @@ impl PhysicsWorld {
     /// Does NOT touch any shared buffer — managed by the PluginDataBus lifecycle.
     pub fn remove_rigid_body(&mut self, entity_index: u32) {
         self.remove_body_internal(entity_index);
+    }
+
+    /// Create or replace a fixed body used to host one tilemap chunk.
+    ///
+    /// `pseudo_entity_index` is stored in collider user_data so collision events
+    /// can identify the static chunk side without colliding with real ECS slots.
+    pub fn load_tilemap_chunk_body(
+        &mut self,
+        chunk_id: u32,
+        pseudo_entity_index: u32,
+        x: f32,
+        y: f32,
+    ) -> u32 {
+        self.unload_tilemap_chunk_body(chunk_id);
+
+        let handle = self
+            .rigid_body_set
+            .insert(RigidBodyBuilder::fixed().translation(vector![x, y]).build());
+        let raw = handle.0.into_raw_parts().0;
+
+        self.chunk_to_body.insert(chunk_id, handle);
+        self.body_to_entity.insert(handle, pseudo_entity_index);
+        self.handle_by_raw.insert(raw, handle);
+
+        raw
+    }
+
+    /// Remove a previously loaded tilemap chunk body and all attached colliders.
+    pub fn unload_tilemap_chunk_body(&mut self, chunk_id: u32) {
+        if let Some(handle) = self.chunk_to_body.remove(&chunk_id) {
+            self.body_to_entity.remove(&handle);
+            let raw = handle.0.into_raw_parts().0;
+            self.handle_by_raw.remove(&raw);
+            self.rigid_body_set.remove(
+                handle,
+                &mut self.island_manager,
+                &mut self.collider_set,
+                &mut self.impulse_joint_set,
+                &mut self.multibody_joint_set,
+                true,
+            );
+        }
     }
 
     // ── Sensor state ──────────────────────────────────────────────────────

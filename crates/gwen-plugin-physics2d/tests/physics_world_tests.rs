@@ -403,3 +403,25 @@ fn test_collision_groups_membership_filter_matrix() {
     assert_eq!(enemy.membership & ground.filter, enemy.membership); // ground accepts enemy
     assert_eq!(ground.membership & enemy.filter, 0); // enemy's filter excludes ground
 }
+
+#[test]
+fn test_tilemap_chunk_body_can_load_and_unload() {
+    let mut w = world_with_gravity();
+    let raw = w.load_tilemap_chunk_body(123, 0x8000_007b, 3.0, 4.0);
+    assert_ne!(raw, u32::MAX);
+
+    w.add_box_collider(
+        raw,
+        0.5,
+        0.25,
+        ColliderOptions {
+            offset_x: 1.0,
+            offset_y: 2.0,
+            ..ColliderOptions::default()
+        },
+    );
+    assert!(w.body_to_entity.values().any(|&entity| entity == 0x8000_007b));
+
+    w.unload_tilemap_chunk_body(123);
+    assert!(!w.body_to_entity.values().any(|&entity| entity == 0x8000_007b));
+}

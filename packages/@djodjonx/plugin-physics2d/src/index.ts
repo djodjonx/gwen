@@ -97,6 +97,25 @@ const COLLIDER_ID_ABSENT = 0xffffffff;
 const LAYER_ALL = 0xffffffff;
 const MAX_LAYERS = 32;
 
+function fnv1a32(input: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+function tilemapChunkIdFromKey(key: string): number {
+  return fnv1a32(`tilemap:${key}`);
+}
+
+function tilemapPseudoEntityFromChunkId(chunkId: number): number {
+  return (chunkId | 0x80000000) >>> 0;
+}
+
+// ─── Configuration normalization ───────────────────────────────────────────────
+
 type NormalizedPhysics2DConfig = {
   gravity: number;
   gravityX: number;
@@ -345,6 +364,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     number,
     NonNullable<Physics2DPrefabExtension['onCollision']>
   >();
+  const loadedTilemapChunks = new Map<string, { chunkId: number; checksum: string }>();
 
   // ── Service factory ──────────────────────────────────────────────────
 
@@ -467,8 +487,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           typeof opts.filterLayers === 'number'
             ? opts.filterLayers >>> 0
             : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
+        const hasOffset = opts.offsetX !== undefined || opts.offsetY !== undefined;
 
-        if (opts.colliderId === undefined) {
+        if (opts.colliderId === undefined && !hasOffset) {
           wasmPlugin?.add_box_collider(
             bodyHandle,
             hw,
@@ -479,6 +500,21 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
             opts.density ?? 1.0,
             membership,
             filter,
+          );
+        } else if (hasOffset) {
+          wasmPlugin?.add_box_collider(
+            bodyHandle,
+            hw,
+            hh,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+            opts.colliderId,
+            opts.offsetX,
+            opts.offsetY,
           );
         } else {
           wasmPlugin?.add_box_collider(
@@ -508,8 +544,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           typeof opts.filterLayers === 'number'
             ? opts.filterLayers >>> 0
             : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
+        const hasOffset = opts.offsetX !== undefined || opts.offsetY !== undefined;
 
-        if (opts.colliderId === undefined) {
+        if (opts.colliderId === undefined && !hasOffset) {
           wasmPlugin?.add_ball_collider(
             bodyHandle,
             radius,
@@ -519,6 +556,20 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
             opts.density ?? 1.0,
             membership,
             filter,
+          );
+        } else if (hasOffset) {
+          wasmPlugin?.add_ball_collider(
+            bodyHandle,
+            radius,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            membership,
+            filter,
+            opts.colliderId,
+            opts.offsetX,
+            opts.offsetY,
           );
         } else {
           wasmPlugin?.add_ball_collider(
@@ -582,6 +633,90 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       updateSensorState(entityIndex, sensorId, started) {
         wasmPlugin?.update_sensor_state?.(entityIndex, sensorId, started ? 1 : 0);
+      },
+
+      loadTilemapPhysicsChunk(chunk, x, y, opts = {}) {
+        if (!wasmPlugin?.load_tilemap_chunk_body) {
+          throw new Error('[Physics2D] Tilemap chunk runtime requires a compatible WASM build.');
+        }
+
+        const existing = loadedTilemapChunks.get(chunk.key);
+        if (existing?.checksum === chunk.checksum) {
+          return;
+        }
+        if (existing) {
+          wasmPlugin.unload_tilemap_chunk_body?.(existing.chunkId);
+          loadedTilemapChunks.delete(chunk.key);
+        }
+
+        const chunkId = tilemapChunkIdFromKey(chunk.key);
+        const pseudoEntityIndex = tilemapPseudoEntityFromChunkId(chunkId);
+        const bodyHandle = wasmPlugin.load_tilemap_chunk_body(chunkId, pseudoEntityIndex, x, y);
+        const source: ReadonlyArray<PhysicsColliderDef> = opts.debugNaive
+          ? chunk.rects.map((rect, index) => ({
+              shape: 'box',
+              hw: (rect.w * 16) / 2,
+              hh: (rect.h * 16) / 2,
+              offsetX: (rect.x + rect.w / 2) * 16,
+              offsetY: (rect.y + rect.h / 2) * 16,
+              id: `rect_${index}`,
+            }))
+          : chunk.colliders;
+
+        for (const [colliderIndex, collider] of source.entries()) {
+          const runtimeOpts: ColliderOptions = {
+            restitution: collider.restitution ?? 0,
+            friction: collider.friction ?? 0.5,
+            isSensor: collider.isSensor ?? false,
+            density: collider.density ?? 1.0,
+            membershipLayers:
+              typeof collider.membershipLayers === 'number'
+                ? collider.membershipLayers >>> 0
+                : layerRegistry.resolve(collider.membershipLayers, 'membership'),
+            filterLayers:
+              typeof collider.filterLayers === 'number'
+                ? collider.filterLayers >>> 0
+                : layerRegistry.resolve(collider.filterLayers, 'filter'),
+            colliderId: colliderIndex,
+            offsetX: (collider.offsetX ?? 0) / PIXELS_PER_METER,
+            offsetY: (collider.offsetY ?? 0) / PIXELS_PER_METER,
+          };
+
+          if (collider.shape === 'box') {
+            if (collider.hw === undefined || collider.hh === undefined) {
+              throw new Error(
+                `[Physics2D] Tilemap chunk collider \`${collider.id ?? colliderIndex}\` requires hw/hh.`,
+              );
+            }
+            this.addBoxCollider(
+              bodyHandle,
+              collider.hw / PIXELS_PER_METER,
+              collider.hh / PIXELS_PER_METER,
+              runtimeOpts,
+            );
+          } else {
+            if (collider.radius === undefined) {
+              throw new Error(
+                `[Physics2D] Tilemap chunk collider \`${collider.id ?? colliderIndex}\` requires radius.`,
+              );
+            }
+            this.addBallCollider(bodyHandle, collider.radius / PIXELS_PER_METER, runtimeOpts);
+          }
+        }
+
+        loadedTilemapChunks.set(chunk.key, { chunkId, checksum: chunk.checksum });
+      },
+
+      unloadTilemapPhysicsChunk(key) {
+        const loaded = loadedTilemapChunks.get(key);
+        if (!loaded) return;
+        wasmPlugin?.unload_tilemap_chunk_body?.(loaded.chunkId);
+        loadedTilemapChunks.delete(key);
+      },
+
+      patchTilemapPhysicsChunk(chunk, x, y, opts = {}) {
+        this.unloadTilemapPhysicsChunk(chunk.key);
+        this.loadTilemapPhysicsChunk(chunk, x, y, opts);
       },
     };
   }
@@ -833,6 +968,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       cachedCollisionEventCount = 0;
       physicsService = null;
       collisionCallbacks.clear();
+      loadedTilemapChunks.clear();
     },
   };
 });

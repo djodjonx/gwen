@@ -17,6 +17,8 @@ function makeMockWasmPlugin() {
     add_box_collider: vi.fn(),
     add_ball_collider: vi.fn(),
     remove_rigid_body: vi.fn(),
+    load_tilemap_chunk_body: vi.fn().mockReturnValue(777),
+    unload_tilemap_chunk_body: vi.fn(),
     apply_impulse: vi.fn(),
     set_linear_velocity: vi.fn(),
     set_kinematic_position: vi.fn(),
@@ -1184,5 +1186,87 @@ describe('LayerRegistry — layer resolution', () => {
       8, // filter
       0,
     );
+  });
+});
+
+// ─── Physics2DPlugin — tilemap chunk runtime ─────────────────────────────────
+
+describe('Physics2DPlugin — tilemap chunk runtime', () => {
+  let mockWasmPlugin: ReturnType<typeof makeMockWasmPlugin>;
+  let mockBridge: ReturnType<typeof makeMockBridge>;
+  let mockBus: ReturnType<typeof makeMockBus>;
+
+  beforeEach(() => {
+    mockWasmPlugin = makeMockWasmPlugin();
+    mockBridge = makeMockBridge();
+    mockBus = makeMockBus();
+    (loadWasmPlugin as Mock).mockResolvedValue({
+      Physics2DPlugin: makeConstructibleCtorMock(mockWasmPlugin),
+    });
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('loadTilemapPhysicsChunk charge un body fixe de chunk puis ses colliders avec offsets', async () => {
+    const plugin = new Physics2DPlugin();
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as import('../src').Physics2DAPI;
+
+    physics.loadTilemapPhysicsChunk(
+      {
+        key: '0:0',
+        chunkX: 0,
+        chunkY: 0,
+        checksum: 'abc123',
+        rects: [{ x: 0, y: 0, w: 2, h: 1 }],
+        colliders: [{ shape: 'box', hw: 16, hh: 8, offsetX: 16, offsetY: 8 }],
+      },
+      3,
+      4,
+    );
+
+    expect(mockWasmPlugin.load_tilemap_chunk_body).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      3,
+      4,
+    );
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      777,
+      16 / 50,
+      8 / 50,
+      0,
+      0.5,
+      0,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+      0,
+      16 / 50,
+      8 / 50,
+    );
+  });
+
+  it('patchTilemapPhysicsChunk unload puis recharge le chunk', async () => {
+    const plugin = new Physics2DPlugin();
+    const api = makeMockAPI();
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    const physics = api._registered['physics'] as import('../src').Physics2DAPI;
+    const chunk = {
+      key: '1:2',
+      chunkX: 1,
+      chunkY: 2,
+      checksum: 'v1',
+      rects: [],
+      colliders: [{ shape: 'ball' as const, radius: 10 }],
+    };
+
+    physics.loadTilemapPhysicsChunk(chunk, 0, 0);
+    physics.patchTilemapPhysicsChunk({ ...chunk, checksum: 'v2' }, 1, 2);
+    physics.unloadTilemapPhysicsChunk(chunk.key);
+
+    expect(mockWasmPlugin.unload_tilemap_chunk_body).toHaveBeenCalled();
+    expect(mockWasmPlugin.load_tilemap_chunk_body).toHaveBeenCalledTimes(2);
   });
 });

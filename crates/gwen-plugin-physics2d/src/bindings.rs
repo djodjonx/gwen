@@ -162,6 +162,8 @@ impl Physics2DPlugin {
         membership: u32,
         filter: u32,
         collider_id: Option<u32>,
+        offset_x: Option<f32>,
+        offset_y: Option<f32>,
     ) {
         if !hw.is_finite() || !hh.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
             js_sys::eval("console.warn('[Physics2D] add_box_collider rejected: non-finite input')").ok();
@@ -185,6 +187,8 @@ impl Physics2DPlugin {
                 density,
                 groups: CollisionGroups { membership, filter },
                 collider_id: collider_id.unwrap_or(u32::MAX),
+                offset_x: offset_x.unwrap_or(0.0),
+                offset_y: offset_y.unwrap_or(0.0),
             },
         );
     }
@@ -207,6 +211,8 @@ impl Physics2DPlugin {
         membership: u32,
         filter: u32,
         collider_id: Option<u32>,
+        offset_x: Option<f32>,
+        offset_y: Option<f32>,
     ) {
         if !radius.is_finite() || !restitution.is_finite() || !friction.is_finite() || !density.is_finite() {
             js_sys::eval("console.warn('[Physics2D] add_ball_collider rejected: non-finite input')").ok();
@@ -229,6 +235,8 @@ impl Physics2DPlugin {
                 density,
                 groups: CollisionGroups { membership, filter },
                 collider_id: collider_id.unwrap_or(u32::MAX),
+                offset_x: offset_x.unwrap_or(0.0),
+                offset_y: offset_y.unwrap_or(0.0),
             },
         );
     }
@@ -240,6 +248,35 @@ impl Physics2DPlugin {
         if let Ok(mut slot) = self.world.try_borrow_mut() {
             if let Some(world) = slot.as_mut() {
                 world.remove_rigid_body(entity_index);
+            }
+        }
+    }
+
+    /// Create or replace a fixed body used to host one baked tilemap chunk.
+    pub fn load_tilemap_chunk_body(
+        &self,
+        chunk_id: u32,
+        pseudo_entity_index: u32,
+        x: f32,
+        y: f32,
+    ) -> u32 {
+        if !x.is_finite() || !y.is_finite() {
+            return u32::MAX;
+        }
+        let Ok(mut slot) = self.world.try_borrow_mut() else {
+            return u32::MAX;
+        };
+        let Some(world) = slot.as_mut() else {
+            return u32::MAX;
+        };
+        world.load_tilemap_chunk_body(chunk_id, pseudo_entity_index, x, y)
+    }
+
+    /// Remove a previously loaded tilemap chunk body.
+    pub fn unload_tilemap_chunk_body(&self, chunk_id: u32) {
+        if let Ok(mut slot) = self.world.try_borrow_mut() {
+            if let Some(world) = slot.as_mut() {
+                world.unload_tilemap_chunk_body(chunk_id);
             }
         }
     }
