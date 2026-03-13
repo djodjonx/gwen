@@ -119,6 +119,13 @@ if (chunk) physics.patchTilemapPhysicsChunk(chunk, worldX, worldY);
 
 ## Deprecation inventory
 
+The inventory below is the source of truth for active Physics2D legacy APIs.
+Gate contract:
+
+- every TS `@deprecated` symbol in `src/types.ts` must appear here,
+- `Deprecated since`, `Planned removal`, `Replacement`, `Tracking issue`, and `Tests` must stay filled,
+- Rust deprecated symbols are currently expected to be **absent** in `crates/gwen-plugin-physics2d/src/`; if that changes, the audit gate must be extended in the same PR.
+
 | Symbol | Language | Kind | Deprecated since | Planned removal | Replacement | Status | Tracking issue | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `Physics2DPrefabExtension.radius` | TS | property | `0.4.0` | `1.0.0` | `colliders[0].radius` | active | `PHYS-S1-002` | `compat + new path` |

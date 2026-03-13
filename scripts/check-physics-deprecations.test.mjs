@@ -45,6 +45,7 @@ assert.deepEqual(
   runDeprecationChecks({
     typesSource: validTypesSource,
     migrationSource: validMigrationSource,
+    rustSources: [],
   }),
   [],
   'expected valid fixtures to pass the deprecation gate',
@@ -61,6 +62,36 @@ const missingInventoryErrors = runDeprecationChecks({
   migrationSource: validMigrationSource.replace('| `parseCollisionEvents` | TS | function | `0.4.0` | `1.0.0` | `readCollisionEventsFromBuffer` | active | `PHYS-S1-003` | `compat + new path` |\n', ''),
 });
 assert.equal(missingInventoryErrors.some((error) => error.includes('parseCollisionEvents')), true);
+
+const mismatchedCountErrors = runDeprecationChecks({
+  typesSource: `${validTypesSource}\n/** @deprecated Since 0.5.0. */\nconst extra = 1;`,
+  migrationSource: validMigrationSource,
+  rustSources: [],
+});
+assert.equal(
+  mismatchedCountErrors.some((error) => error.includes('Deprecated TS symbol count mismatch')),
+  true,
+);
+
+const incompleteMetadataErrors = runDeprecationChecks({
+  typesSource: validTypesSource,
+  migrationSource: validMigrationSource.replace('`PHYS-S1-003`', '``'),
+  rustSources: [],
+});
+assert.equal(
+  incompleteMetadataErrors.some((error) => error.includes('trackingIssue/tests are required')),
+  true,
+);
+
+const rustDeprecationErrors = runDeprecationChecks({
+  typesSource: validTypesSource,
+  migrationSource: validMigrationSource,
+  rustSources: [{ filePath: 'crates/gwen-plugin-physics2d/src/example.rs', source: '#[deprecated(note = "legacy")]\npub fn old() {}' }],
+});
+assert.equal(
+  rustDeprecationErrors.some((error) => error.includes('Rust deprecated symbols detected')),
+  true,
+);
 
 console.log('✅ check-physics-deprecations.test.mjs passed');
 
