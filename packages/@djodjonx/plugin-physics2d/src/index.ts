@@ -47,6 +47,11 @@ import type {
   PhysicsQualityPreset,
   PhysicsColliderShape,
   SensorState,
+  BuildTilemapPhysicsChunksInput,
+  PatchTilemapPhysicsChunkInput,
+  TilemapPhysicsChunk,
+  TilemapPhysicsChunkMap,
+  TilemapChunkRect,
 } from './types';
 import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 export {
@@ -54,6 +59,7 @@ export {
   createPlatformerGroundedSystem,
   SENSOR_ID_FOOT,
 } from './systems';
+export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './helpers/tilemap';
 export type { PhysicsKinematicSyncSystemOptions, PlatformerGroundedSystemOptions } from './systems';
 
 // Re-export public types
@@ -73,6 +79,11 @@ export type {
   PhysicsQualityPreset,
   PhysicsColliderShape,
   SensorState,
+  BuildTilemapPhysicsChunksInput,
+  PatchTilemapPhysicsChunkInput,
+  TilemapPhysicsChunk,
+  TilemapPhysicsChunkMap,
+  TilemapChunkRect,
 };
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 

@@ -309,6 +309,58 @@ export type PhysicsColliderShape = 'box' | 'ball';
  */
 export type PhysicsGroundedRole = 'none' | 'head' | 'body' | 'foot';
 
+// ─── Tilemap chunks (Sprint 6) ──────────────────────────────────────────────
+
+/** Versioned binary/JSON contract for baked tilemap physics chunks. */
+export const TILEMAP_PHYSICS_CHUNK_FORMAT_VERSION = 1;
+
+/** Compact rectangle in tile units, local to a chunk. */
+export interface TilemapChunkRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One baked physics chunk. */
+export interface TilemapPhysicsChunk {
+  /** Stable key: `${chunkX}:${chunkY}`. */
+  key: string;
+  chunkX: number;
+  chunkY: number;
+  checksum: string;
+  rects: ReadonlyArray<TilemapChunkRect>;
+  colliders: ReadonlyArray<PhysicsColliderDef>;
+}
+
+/** Full bake output for a tilemap. */
+export interface TilemapPhysicsChunkMap {
+  formatVersion: number;
+  mapWidthTiles: number;
+  mapHeightTiles: number;
+  chunkSizeTiles: number;
+  tileSizePx: number;
+  chunks: ReadonlyArray<TilemapPhysicsChunk>;
+}
+
+/** Input for `buildTilemapPhysicsChunks`. */
+export interface BuildTilemapPhysicsChunksInput {
+  tiles: ReadonlyArray<number>;
+  mapWidthTiles: number;
+  mapHeightTiles: number;
+  chunkSizeTiles?: number;
+  tileSizePx?: number;
+  isSolidTile?: (tileValue: number, x: number, y: number) => boolean;
+}
+
+/** Input for incremental `patchTilemapPhysicsChunk`. */
+export interface PatchTilemapPhysicsChunkInput {
+  source: BuildTilemapPhysicsChunksInput;
+  chunkX: number;
+  chunkY: number;
+  previous: TilemapPhysicsChunkMap;
+}
+
 export interface PhysicsColliderDef extends PhysicsMaterialPreset {
   /** Optional stable collider id (string key) for gameplay mapping. */
   id?: string;
