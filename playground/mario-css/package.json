@@ -1,5 +1,5 @@
 {
-  "name": "mario-css",
+  "name": "@playground/mario-css",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "gwen dev",
     "build": "gwen build",
     "preview": "gwen preview",
-    "prepare": "gwen prepare",
+    "gwen:prepare": "gwen prepare",
     "lint": "gwen lint",
     "lint:fix": "gwen lint --fix",
     "format": "gwen format",
