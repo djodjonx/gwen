@@ -150,4 +150,3 @@ Resolution order is:
 
 - API reference: `./API.md`
 - Migration notes: `./MIGRATION.md`
-

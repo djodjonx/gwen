@@ -41,4 +41,3 @@ This checklist is used for the hardening/release phase of `@djodjonx/gwen-plugin
 - [ ] QA completed by:
 - [ ] Date:
 - [ ] Notes / exceptions:
-

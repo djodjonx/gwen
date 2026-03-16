@@ -5,5 +5,8 @@
   },
   "lineWidth": 100,
   "trailingComma": "all",
-  "singleQuote": true
+  "singleQuote": true,
+  "ignorePatterns": [
+    "**/SKILL.md"
+  ]
 }

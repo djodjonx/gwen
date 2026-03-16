@@ -126,17 +126,17 @@ Gate contract:
 - `Deprecated since`, `Planned removal`, `Replacement`, `Tracking issue`, and `Tests` must stay filled,
 - Rust deprecated symbols are currently expected to be **absent** in `crates/gwen-plugin-physics2d/src/`; if that changes, the audit gate must be extended in the same PR.
 
-| Symbol | Language | Kind | Deprecated since | Planned removal | Replacement | Status | Tracking issue | Tests |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `Physics2DPrefabExtension.radius` | TS | property | `0.4.0` | `1.0.0` | `colliders[0].radius` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.hw` | TS | property | `0.4.0` | `1.0.0` | `colliders[0].hw` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.hh` | TS | property | `0.4.0` | `1.0.0` | `colliders[0].hh` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.restitution` | TS | property | `0.4.0` | `1.0.0` | `colliders[].restitution` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.friction` | TS | property | `0.4.0` | `1.0.0` | `colliders[].friction` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.isSensor` | TS | property | `0.4.0` | `1.0.0` | `colliders[].isSensor` | active | `PHYS-S1-002` | `compat + new path` |
-| `Physics2DPrefabExtension.density` | TS | property | `0.4.0` | `1.0.0` | `colliders[].density` | active | `PHYS-S1-002` | `compat + new path` |
-| `parseCollisionEvents` | TS | function | `0.4.0` | `1.0.0` | `readCollisionEventsFromBuffer` | active | `PHYS-S1-003` | `compat + new path` |
-| `Physics2DAPI.getCollisionEvents` | TS | method | `0.4.0` | `1.0.0` | `getCollisionEventsBatch` | active | `PHYS-S1-007` | `compat + new path` |
+| Symbol                                 | Language | Kind     | Deprecated since | Planned removal | Replacement                     | Status | Tracking issue | Tests               |
+| -------------------------------------- | -------- | -------- | ---------------- | --------------- | ------------------------------- | ------ | -------------- | ------------------- |
+| `Physics2DPrefabExtension.radius`      | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[0].radius`           | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.hw`          | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[0].hw`               | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.hh`          | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[0].hh`               | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.restitution` | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[].restitution`       | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.friction`    | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[].friction`          | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.isSensor`    | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[].isSensor`          | active | `PHYS-S1-002`  | `compat + new path` |
+| `Physics2DPrefabExtension.density`     | TS       | property | `0.4.0`          | `1.0.0`         | `colliders[].density`           | active | `PHYS-S1-002`  | `compat + new path` |
+| `parseCollisionEvents`                 | TS       | function | `0.4.0`          | `1.0.0`         | `readCollisionEventsFromBuffer` | active | `PHYS-S1-003`  | `compat + new path` |
+| `Physics2DAPI.getCollisionEvents`      | TS       | method   | `0.4.0`          | `1.0.0`         | `getCollisionEventsBatch`       | active | `PHYS-S1-007`  | `compat + new path` |
 
 ## Checklist per PR touching legacy APIs
 

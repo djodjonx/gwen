@@ -35,12 +35,12 @@ export default defineConfig({
 
 #### Quality preset matrix (Sprint 7)
 
-| Preset | Solver iterations | CCD substeps | Typical usage |
-| --- | ---: | ---: | --- |
-| `low` | `2` | `1` | mobile/CPU budget strict |
-| `medium` | `4` | `1` | default balanced profile |
-| `high` | `8` | `2` | precision-heavy gameplay |
-| `esport` | `10` | `4` | maximum stability / competitive tuning |
+| Preset   | Solver iterations | CCD substeps | Typical usage                          |
+| -------- | ----------------: | -----------: | -------------------------------------- |
+| `low`    |               `2` |          `1` | mobile/CPU budget strict               |
+| `medium` |               `4` |          `1` | default balanced profile               |
+| `high`   |               `8` |          `2` | precision-heavy gameplay               |
+| `esport` |              `10` |          `4` | maximum stability / competitive tuning |
 
 Trade-off rule: higher presets reduce instability/tunneling risk, but increase CPU cost.
 
