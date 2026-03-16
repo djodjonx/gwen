@@ -15,6 +15,10 @@
     ".": {
       "types": "./dist/cli/src/index.d.ts",
       "import": "./dist/cli/src/index.js"
+    },
+    "./setup": {
+      "types": "./dist/cli/src/core/setup/types.d.ts",
+      "import": "./dist/cli/src/core/setup/types.js"
     }
   },
   "scripts": {

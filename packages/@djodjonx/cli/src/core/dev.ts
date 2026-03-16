@@ -11,6 +11,8 @@ import { logger } from '../utils/logger.js';
 import { prepare } from './prepare/index.js';
 import { buildViteConfig } from '../vite-config-builder.js';
 import { loadGwenConfig } from './config.js';
+import { runPluginSetups, GwenSetupError } from './setup/setup-runner.js';
+import type { GwenOptions } from '@djodjonx/gwen-schema';
 import { DEFAULT_PORT_DEV } from '../utils/constants.js';
 
 /**
@@ -51,13 +53,26 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
 
   // 1. Load config to ensure it exists and get path
   let configPath: string;
+  let config: GwenOptions;
   try {
     const loaded = await loadGwenConfig(projectDir);
     configPath = loaded.configPath;
+    config = loaded.config;
     logger.debug('Config loaded successfully for dev server');
   } catch (error: any) {
     logger.error(`Failed to load config: ${error.message}`);
     throw error;
+  }
+
+  // 1.5. Run plugin setups
+  try {
+    await runPluginSetups(projectDir, config);
+  } catch (err) {
+    if (err instanceof GwenSetupError) {
+      logger.error(`[setup:${err.pluginName}] ${err.message}`);
+      throw err;
+    }
+    throw err;
   }
 
   // 2. Run prepare to generate .gwen/ folder (tsconfig, types, index.html)

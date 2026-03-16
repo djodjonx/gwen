@@ -25,15 +25,19 @@ export class MouseInput {
   private _wheel = 0;
   private _wheelAccumulator = 0;
   private canvas: HTMLCanvasElement | null = null;
+  private cachedRect: DOMRect | null = null;
+  private onResize = (): void => {
+    this.cachedRect = null;
+  };
 
   private onMouseMove = (e: MouseEvent): void => {
     this._position.screenX = e.clientX;
     this._position.screenY = e.clientY;
 
     if (this.canvas) {
-      const rect = this.canvas.getBoundingClientRect();
-      this._position.x = e.clientX - rect.left;
-      this._position.y = e.clientY - rect.top;
+      if (!this.cachedRect) this.cachedRect = this.canvas.getBoundingClientRect();
+      this._position.x = e.clientX - this.cachedRect.left;
+      this._position.y = e.clientY - this.cachedRect.top;
     } else {
       this._position.x = e.clientX;
       this._position.y = e.clientY;
@@ -75,6 +79,9 @@ export class MouseInput {
     target.addEventListener('mousedown', this.onMouseDown as EventListener);
     target.addEventListener('mouseup', this.onMouseUp as EventListener);
     target.addEventListener('wheel', this.onWheel as EventListener, { passive: true });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.onResize);
+    }
   }
 
   detach(target: EventTarget = window): void {
@@ -82,6 +89,9 @@ export class MouseInput {
     target.removeEventListener('mousedown', this.onMouseDown as EventListener);
     target.removeEventListener('mouseup', this.onMouseUp as EventListener);
     target.removeEventListener('wheel', this.onWheel as EventListener);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.onResize);
+    }
   }
 
   /** Advance button states. Call in onBeforeUpdate(). */

@@ -12,6 +12,7 @@ import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
 import { collectPluginTypingMeta } from './plugin-resolver.js';
+import { runPluginSetups, GwenSetupError } from '../setup/setup-runner.js';
 import type { GwenOptions } from '@djodjonx/gwen-schema';
 
 /**
@@ -73,6 +74,17 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
 
   logger.debug(`Config: ${configPath}`);
   logger.debug(`Output: ${gwenDir}`);
+
+  // 1.5. Run plugin setups
+  try {
+    await runPluginSetups(projectDir, config);
+  } catch (err) {
+    if (err instanceof GwenSetupError) {
+      result.errors.push(`[setup:${err.pluginName}] ${err.message}`);
+      return result;
+    }
+    throw err;
+  }
 
   // 2. Ensure .gwen/ directory exists
   await fs.mkdir(gwenDir, { recursive: true });

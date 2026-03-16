@@ -17,8 +17,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "watch": "vite build --watch"
+    "watch": "vite build --watch",
+    "lint": "oxlint src/",
+    "format": "oxfmt src/"
   },
   "dependencies": {
     "@djodjonx/gwen-engine-core": "workspace:*",

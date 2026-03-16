@@ -25,6 +25,7 @@ describe('@djodjonx/gwen-schema - Hooks Contracts', () => {
         'engine:tick': (dt) => {
           expectTypeOf(dt).toBeNumber();
         },
+        'engine:runtimeError': () => {},
       };
       expect(hooks).toBeDefined();
     });
@@ -123,6 +124,7 @@ describe('@djodjonx/gwen-schema - Hooks Contracts', () => {
         'engine:start': () => {},
         'engine:stop': () => {},
         'engine:tick': () => {},
+        'engine:runtimeError': () => {},
         // Plugin
         'plugin:register': () => {},
         'plugin:init': () => {},

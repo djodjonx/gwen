@@ -21,6 +21,8 @@ import type { GwenPluginMeta } from '@djodjonx/gwen-kit';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
+import { InputMapper } from './mapping/InputMapper.js';
+import type { InputMapConfig } from './mapping/types.js';
 
 export { KeyboardInput } from './keyboard';
 export { MouseInput } from './mouse';
@@ -28,6 +30,17 @@ export { GamepadInput } from './gamepad';
 export type { KeyState } from './keyboard';
 export type { MouseButton, MouseButtonState, MousePosition } from './mouse';
 export type { GamepadAxis } from './gamepad';
+export { InputMapper } from './mapping/InputMapper.js';
+export type { InputMapConfig, ActionConfig, AnyBinding, InputType } from './mapping/types.js';
+export { BindingType, InputType as InputTypeValues } from './mapping/types.js';
+export { Keys, type KeyCode } from './constants/keys.js';
+export {
+  GamepadButtons,
+  GamepadAxes,
+  INPUT_PLUGIN_NAME,
+  type GamepadButtonId,
+  type GamepadAxisId,
+} from './constants/gamepad.js';
 
 /** Services provided by InputPlugin in api.services. */
 export interface InputPluginServices {
@@ -51,6 +64,12 @@ export interface InputPluginConfig {
   eventTarget?: EventTarget;
   /** Deadzone for gamepad axes (0-1, default 0.15). */
   gamepadDeadzone?: number;
+  /**
+   * Optional input action map. If provided, registers an 'inputMapper'
+   * service in api.services — accessible by systems via
+   * `api.services.get('inputMapper') as InputMapper`.
+   */
+  actionMap?: InputMapConfig;
 }
 
 export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
@@ -83,11 +102,18 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
       api.services.register('keyboard', keyboard);
       api.services.register('mouse', mouse);
       api.services.register('gamepad', gamepad);
+
+      if (config.actionMap) {
+        const mapper = new InputMapper();
+        mapper.init(config.actionMap, keyboard, gamepad);
+        api.services.register('inputMapper', mapper);
+      }
     },
 
     onBeforeUpdate(_api, _dt): void {
       keyboard.update();
       mouse.update();
+      gamepad.update();
     },
 
     onDestroy(): void {
