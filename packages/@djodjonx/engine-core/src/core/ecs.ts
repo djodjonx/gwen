@@ -7,6 +7,11 @@
 
 import type { ComponentDefinition } from '../schema';
 import type { EntityId } from '../types/entity';
+import {
+  buildQueryCacheKey,
+  normalizeComponentTypesForQuery,
+  type ComponentTypeInput,
+} from './component-type-normalizer';
 import { createEntityId, unpackEntityId } from '../types/entity';
 
 // Re-export EntityId as part of the ECS module's public API
@@ -125,7 +130,11 @@ export class ComponentRegistry {
   }
 
   /** Add or update a component on an entity. */
-  add<T>(entityId: EntityId, type: ComponentType | ComponentDefinition<any>, data: T): void {
+  add<T>(
+    entityId: EntityId,
+    type: ComponentType | ComponentDefinition<import('../schema').ComponentSchema>,
+    data: T,
+  ): void {
     const key = typeof type === 'string' ? type : type.name;
     if (!this.storage.has(key)) {
       this.storage.set(key, new Map());
@@ -134,7 +143,10 @@ export class ComponentRegistry {
   }
 
   /** Remove a component from an entity. Returns true if it existed. */
-  remove(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): boolean {
+  remove(
+    entityId: EntityId,
+    type: ComponentType | ComponentDefinition<import('../schema').ComponentSchema>,
+  ): boolean {
     const key = typeof type === 'string' ? type : type.name;
     const map = this.storage.get(key);
     if (!map) return false;
@@ -142,13 +154,19 @@ export class ComponentRegistry {
   }
 
   /** Get a component by entity and type. Returns undefined if absent. */
-  get<T>(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): T | undefined {
+  get<T>(
+    entityId: EntityId,
+    type: ComponentType | ComponentDefinition<import('../schema').ComponentSchema>,
+  ): T | undefined {
     const key = typeof type === 'string' ? type : type.name;
     return this.storage.get(key)?.get(idIndex(entityId)) as T | undefined;
   }
 
   /** Check if an entity has a component. */
-  has(entityId: EntityId, type: ComponentType | ComponentDefinition<any>): boolean {
+  has(
+    entityId: EntityId,
+    type: ComponentType | ComponentDefinition<import('../schema').ComponentSchema>,
+  ): boolean {
     const key = typeof type === 'string' ? type : type.name;
     return this.storage.get(key)?.has(idIndex(entityId)) ?? false;
   }
@@ -185,18 +203,22 @@ export class QueryEngine {
   /**
    * Return all entities (from EntityManager) that have ALL required types.
    * Results are cached until next invalidation.
+   *
+   * Accepts both string names and ComponentDefinition objects.
    */
   query(
-    required: ComponentType[],
+    required: ComponentTypeInput[],
     entities: EntityManager,
     components: ComponentRegistry,
   ): EntityId[] {
-    if (required.length === 0) {
+    const normalizedRequired = normalizeComponentTypesForQuery(required);
+
+    if (normalizedRequired.length === 0) {
       // Return all alive entities
       return [...entities];
     }
 
-    const cacheKey = [...required].sort().join('|');
+    const cacheKey = buildQueryCacheKey(normalizedRequired);
 
     if (!this.dirty && this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
@@ -204,7 +226,7 @@ export class QueryEngine {
 
     const results: EntityId[] = [];
     for (const id of entities) {
-      if (required.every((type) => components.has(id, type))) {
+      if (normalizedRequired.every((type) => components.has(id, type))) {
         results.push(id);
       }
     }

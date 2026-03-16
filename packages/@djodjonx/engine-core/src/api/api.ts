@@ -14,6 +14,10 @@ import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } fr
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema';
 import type { EntityId } from '../types/entity';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
+import {
+  normalizeComponentTypesForQuery,
+  type ComponentTypeInput,
+} from '../core/component-type-normalizer';
 import { PrefabManager } from '../core/prefab';
 import { createGwenHooks } from '../hooks';
 
@@ -240,9 +244,12 @@ export class EngineAPIImpl<
   /**
    * Return all entities that have ALL of the given component types.
    * Results are cached and invalidated on any component mutation.
+   *
+   * Accepts both string names and ComponentDefinition objects.
    */
-  query(componentTypes: ComponentType[]): EntityId[] {
-    return this.queryEngine.query(componentTypes, this.entityManager, this.components);
+  query(componentTypes: ComponentTypeInput[]): EntityId[] {
+    const normalized = normalizeComponentTypesForQuery(componentTypes);
+    return this.queryEngine.query(normalized, this.entityManager, this.components);
   }
 
   /**

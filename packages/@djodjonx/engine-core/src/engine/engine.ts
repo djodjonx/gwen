@@ -28,7 +28,11 @@ import { defaultConfig, mergeConfigs } from '../config/config';
 import { getWasmBridge, type WasmBridge } from './wasm-bridge';
 import type { SharedMemoryManager } from '../wasm/shared-memory';
 import type { PluginDataBus } from '../wasm/plugin-data-bus';
-import { type ComponentDefinition, type ComponentSchema } from '../schema';
+import { type ComponentDefinition, type ComponentSchema, InferComponent } from '../schema';
+import {
+  normalizeComponentTypesForQuery,
+  type ComponentTypeInput,
+} from '../core/component-type-normalizer';
 import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
 import {
   createEntityId,
@@ -155,9 +159,18 @@ export class Engine {
   ): void {
     const typeName = typeof type === 'string' ? type : type.name;
     const typeId = this.componentRegistry.getOrRegister(typeName);
-    const def: ComponentDefinition<ComponentSchema> =
-      typeof type === 'string' ? { name: type, schema: {} } : type;
-    this.serializer.getOrComputeLayout(def);
+
+    // If string name, only compute default empty layout if no layout exists yet.
+    // This allows manual registration of schemas for components used via strings (e.g. 'position').
+    if (typeof type === 'string') {
+      const existingLayouts = this.serializer.getLayouts();
+      if (!existingLayouts.has(typeName)) {
+        this.serializer.getOrComputeLayout({ name: typeName, schema: {} });
+      }
+    } else {
+      this.serializer.getOrComputeLayout(type);
+    }
+
     const bytes = this.serializer.serialize(typeName, data);
     const { index, generation } = unpackEntityId(id);
 
@@ -449,9 +462,12 @@ export class Engine {
   /**
    * Return all entity IDs that have ALL of the given component types.
    * Delegates to the WASM bridge — results reflect the current simulation state.
+   *
+   * Accepts both string names and ComponentDefinition objects.
    */
-  public query(componentTypes: ComponentType[]): EntityId[] {
-    const typeIds = componentTypes.map((t) => this.componentRegistry.getOrRegister(t));
+  public query(componentTypes: ComponentTypeInput[]): EntityId[] {
+    const normalizedTypes = normalizeComponentTypesForQuery(componentTypes);
+    const typeIds = normalizedTypes.map((t) => this.componentRegistry.getOrRegister(t));
     return this.wasmBridge.queryEntities(typeIds);
   }
 
@@ -463,7 +479,7 @@ export class Engine {
    * @param filter         Optional predicate — return `false` to exclude an entity.
    */
   public queryWith(
-    componentTypes: ComponentType[],
+    componentTypes: ComponentTypeInput[],
     filter?: (id: EntityId) => boolean,
   ): EntityId[] {
     let results = this.query(componentTypes);

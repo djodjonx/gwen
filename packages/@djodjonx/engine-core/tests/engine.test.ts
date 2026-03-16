@@ -356,6 +356,27 @@ describe('Engine', () => {
       expect(withPos).not.toContain(e3);
     });
 
+    it('should return equivalent results for definition and name query inputs', async () => {
+      const id = await engine.createEntity();
+      engine.addComponent(id, Position, { x: 1, y: 1 });
+
+      const byDefinition = engine.query([Position]);
+      const byName = engine.query([Position.name]);
+      expect(byDefinition).toEqual(byName);
+      expect(byDefinition).toContain(id);
+    });
+
+    it('should support mixed query inputs', async () => {
+      const id = await engine.createEntity();
+      engine.addComponent(id, Position, { x: 2, y: 3 });
+      engine.addComponent(id, Velocity, { vx: 1, vy: 0 });
+
+      const mixed = engine.query([Position, Velocity.name]);
+      const byName = engine.query([Position.name, Velocity.name]);
+      expect(mixed).toEqual(byName);
+      expect(mixed).toContain(id);
+    });
+
     it('should require ALL components for multi-component query', async () => {
       const e1 = await engine.createEntity();
       const e2 = await engine.createEntity();

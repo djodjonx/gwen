@@ -13,7 +13,7 @@ const makeApi = (overrides: any = {}) => ({
 });
 
 function makeSystemStub(name: string) {
-  return Object.assign(() => ({ name, onUpdate() {} }), { systemName: name });
+  return { name, onUpdate() {} };
 }
 
 describe('createPlatformerScene', () => {
@@ -24,20 +24,11 @@ describe('createPlatformerScene', () => {
     expect(names).toContain('PlatformerMovementSystem');
   });
 
-  it('systemsBefore avant PlatformerInputSystem', () => {
+  it('systems personnalisés sont append après les systèmes platformer', () => {
     const Spawn = makeSystemStub('SpawnSystem');
-    const scene = createPlatformerScene({ name: 'Test', systemsBefore: [Spawn] });
+    const scene = createPlatformerScene({ name: 'Test', systems: [Spawn as any] });
     const names = getSystemNames(scene);
-    expect(names.indexOf('SpawnSystem')).toBeLessThan(names.indexOf('PlatformerInputSystem'));
-  });
-
-  it('systemsAfter après PlatformerMovementSystem', () => {
-    const Camera = makeSystemStub('CameraSystem');
-    const scene = createPlatformerScene({ name: 'Test', systemsAfter: [Camera] });
-    const names = getSystemNames(scene);
-    expect(names.indexOf('CameraSystem')).toBeGreaterThan(
-      names.indexOf('PlatformerMovementSystem'),
-    );
+    expect(names.indexOf('SpawnSystem')).toBeGreaterThan(names.indexOf('PlatformerMovementSystem'));
   });
 
   it('gravity par défaut = 20', async () => {

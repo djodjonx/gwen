@@ -32,9 +32,10 @@ describe('EngineAPI + DSL Components integration', () => {
     expect(pos?.x).toBe(10);
     expect(pos?.y).toBe(20);
 
-    // Test TS query array (fallback to string names for now)
-    const entities = api.query([Position.name]);
-    expect(entities).toContain(id);
+    const byDefinition = api.query([Position]);
+    const byName = api.query([Position.name]);
+    expect(byDefinition).toContain(id);
+    expect(byDefinition).toEqual(byName);
 
     api.removeComponent(id, Position);
     expect(api.hasComponent(id, Position)).toBe(false);

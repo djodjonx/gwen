@@ -8,6 +8,10 @@
 
 import type { ComponentDefinition, ComponentSchema } from '../schema';
 import type { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
+import {
+  normalizeComponentTypesForQuery,
+  type ComponentTypeInput,
+} from '../core/component-type-normalizer';
 import type { ComponentType } from '../types';
 import type { Engine } from './engine';
 import { createEntityId, unpackEntityId, type EntityId } from '../types/entity';
@@ -162,7 +166,7 @@ interface ComponentRegistryShim extends Pick<ComponentRegistry, 'removeAll' | 'r
  */
 interface QueryEngineShim extends Pick<QueryEngine, 'invalidate'> {
   query(
-    required: ComponentType[],
+    required: ComponentTypeInput[],
     entities: EntityManagerShim,
     components: ComponentRegistryShim,
   ): EntityId[];
@@ -231,8 +235,9 @@ export function createShims(engine: Engine): {
   };
 
   const queryShim: QueryEngineShim = {
-    query: (required: ComponentType[]) => {
-      const typeIds = required.map((t) => engine._getOrRegisterTypeId(t));
+    query: (required: ComponentTypeInput[]) => {
+      const normalized = normalizeComponentTypesForQuery(required);
+      const typeIds = normalized.map((t) => engine._getOrRegisterTypeId(t));
       return wasmBridge.queryEntities(typeIds);
     },
     invalidate: () => {

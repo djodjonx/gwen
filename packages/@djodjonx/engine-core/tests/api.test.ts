@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ServiceLocator, EngineAPIImpl, createEngineAPI } from '../src/api/api';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
+import { defineComponent, Types } from '../src/schema';
 
 // ============= ServiceLocator =============
 
@@ -139,6 +140,16 @@ describe('EngineAPIImpl', () => {
   });
 
   describe('Query', () => {
+    const Position = defineComponent({
+      name: 'Position',
+      schema: { x: Types.f32, y: Types.f32 },
+    });
+
+    const Velocity = defineComponent({
+      name: 'Velocity',
+      schema: { vx: Types.f32, vy: Types.f32 },
+    });
+
     it('should query entities with component', () => {
       const e1 = api.createEntity();
       const e2 = api.createEntity();
@@ -159,6 +170,32 @@ describe('EngineAPIImpl', () => {
       const results = api.query(['position', 'velocity']);
       expect(results).toContain(e1);
       expect(results).not.toContain(e2);
+    });
+
+    it('should return the same results for definition and name queries', () => {
+      const id = api.createEntity();
+      api.addComponent(id, Position, { x: 1, y: 2 });
+
+      expect(api.query([Position])).toEqual(api.query([Position.name]));
+      expect(api.query([Position])).toContain(id);
+    });
+
+    it('should support mixed component references in query', () => {
+      const id = api.createEntity();
+      api.addComponent(id, Position, { x: 0, y: 0 });
+      api.addComponent(id, Velocity, { vx: 1, vy: 0 });
+
+      const mixed = api.query([Position, Velocity.name]);
+      const byName = api.query([Position.name, Velocity.name]);
+      expect(mixed).toEqual(byName);
+      expect(mixed).toContain(id);
+    });
+
+    it('should reject invalid query component references', () => {
+      expect(() => api.query([''])).toThrow('Component type must not be an empty string');
+      expect(() => api.query([null as unknown as string])).toThrow(
+        'Invalid component type. Expected string or ComponentDefinition',
+      );
     });
   });
 

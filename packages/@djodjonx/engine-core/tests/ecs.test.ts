@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
+import { defineComponent, Types } from '../src/schema';
 
 // ============= EntityManager =============
 
@@ -241,6 +242,16 @@ describe('QueryEngine', () => {
   let reg: ComponentRegistry;
   let qe: QueryEngine;
 
+  const Position = defineComponent({
+    name: 'Position',
+    schema: { x: Types.f32, y: Types.f32 },
+  });
+
+  const Velocity = defineComponent({
+    name: 'Velocity',
+    schema: { vx: Types.f32, vy: Types.f32 },
+  });
+
   beforeEach(() => {
     em = new EntityManager(100);
     reg = new ComponentRegistry();
@@ -312,5 +323,35 @@ describe('QueryEngine', () => {
     const r1 = qe.query(['position'], em, reg);
     const r2 = qe.query(['position'], em, reg); // should hit cache
     expect(r1).toBe(r2); // same array reference
+  });
+
+  it('should treat definition and name query inputs as equivalent', () => {
+    const e = em.create();
+    reg.add(e, Position, { x: 1, y: 2 });
+    qe.invalidate();
+
+    const byDefinition = qe.query([Position], em, reg);
+    const byName = qe.query([Position.name], em, reg);
+    expect(byDefinition).toEqual(byName);
+    expect(byDefinition).toContain(e);
+  });
+
+  it('should canonicalize mixed order and duplicate query inputs', () => {
+    const e = em.create();
+    reg.add(e, Position, { x: 0, y: 0 });
+    reg.add(e, Velocity, { vx: 1, vy: 0 });
+    qe.invalidate();
+
+    const r1 = qe.query([Position, Velocity.name, Position.name], em, reg);
+    const r2 = qe.query([Velocity, Position], em, reg);
+    expect(r1).toEqual(r2);
+    expect(r1).toContain(e);
+  });
+
+  it('should reject invalid component references in query', () => {
+    expect(() => qe.query([''], em, reg)).toThrow('Component type must not be an empty string');
+    expect(() => qe.query([null as unknown as string], em, reg)).toThrow(
+      'Invalid component type. Expected string or ComponentDefinition',
+    );
   });
 });

@@ -4,15 +4,6 @@ import { PlatformerIntent } from '../components/PlatformerIntent.js';
 
 /**
  * Translates InputMapper state → PlatformerIntent ECS component.
- *
- * Must run BEFORE PlatformerMovementSystem each frame.
- * Registered via createPlatformerScene() or manually in scene.systems[].
- *
- * Uses defineSystem Form 2 (factory closure) to hold the `mapper` reference.
- * SceneManager auto-resolves SystemFactory entries in systems[] — no need
- * to call PlatformerInputSystem() manually.
- *
- * Rule: resolve 'inputMapper' service in onInit(), never in onBeforeUpdate().
  */
 export const PlatformerInputSystem = defineSystem('PlatformerInputSystem', () => {
   let mapper: InputMapper;
@@ -23,9 +14,12 @@ export const PlatformerInputSystem = defineSystem('PlatformerInputSystem', () =>
     },
 
     onBeforeUpdate(api) {
-      for (const eid of api.query([PlatformerIntent])) {
+      const entities = api.query([PlatformerIntent.name]);
+      const axis = mapper.readAxis2D('Move');
+
+      for (const eid of entities) {
         api.addComponent(eid, PlatformerIntent, {
-          moveX: mapper.readAxis2D('Move').x,
+          moveX: axis.x,
           jumpJustPressed: mapper.isActionJustPressed('Jump'),
           jumpPressed: mapper.isActionPressed('Jump'),
         });
