@@ -52,6 +52,10 @@ import type {
   TilemapPhysicsChunk,
   TilemapPhysicsChunkMap,
   TilemapChunkRect,
+  Physics2DHelperContext,
+  PhysicsEntitySnapshot,
+  ResolvedCollisionContact,
+  TilemapChunkOrchestrator,
 } from './types';
 import {
   BODY_TYPE,
@@ -89,6 +93,10 @@ export type {
   TilemapPhysicsChunk,
   TilemapPhysicsChunkMap,
   TilemapChunkRect,
+  Physics2DHelperContext,
+  PhysicsEntitySnapshot,
+  ResolvedCollisionContact,
+  TilemapChunkOrchestrator,
 };
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
 export { PHYSICS_QUALITY_PRESET_CODE } from './types';

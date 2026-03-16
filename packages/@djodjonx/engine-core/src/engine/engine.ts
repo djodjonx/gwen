@@ -28,7 +28,7 @@ import { defaultConfig, mergeConfigs } from '../config/config';
 import { getWasmBridge, type WasmBridge } from './wasm-bridge';
 import type { SharedMemoryManager } from '../wasm/shared-memory';
 import type { PluginDataBus } from '../wasm/plugin-data-bus';
-import { type ComponentDefinition, type ComponentSchema, InferComponent } from '../schema';
+import { type ComponentDefinition, type ComponentSchema } from '../schema';
 import {
   normalizeComponentTypesForQuery,
   type ComponentTypeInput,

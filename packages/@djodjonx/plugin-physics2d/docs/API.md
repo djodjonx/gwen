@@ -259,3 +259,74 @@ interface TilemapPhysicsChunk {
 ```
 
 See also: `./TILEMAP.md`
+
+## Helpers API (tree-shakable)
+
+Use domain subpaths when possible to keep bundle size minimal.
+
+```ts
+import { getBodySnapshot } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
+import { moveKinematicByVelocity } from '@djodjonx/gwen-plugin-physics2d/helpers/movement';
+import { selectContactsForEntity } from '@djodjonx/gwen-plugin-physics2d/helpers/contact';
+import { buildStaticGeometryChunk } from '@djodjonx/gwen-plugin-physics2d/helpers/static-geometry';
+import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/helpers/orchestration';
+```
+
+### Helper contracts
+
+- `PhysicsEntitySnapshot`: compact state for one raw entity slot.
+- `ResolvedCollisionContact`: collision event resolved to packed `EntityId`s.
+- `TilemapChunkOrchestrator`: runtime chunk sync interface (`syncVisibleChunks`, `patchChunk`, `dispose`).
+
+### Domain overview
+
+- `helpers/queries`: read helpers (`getBodySnapshot`, `isSensorActive`, `getSpeed`).
+- `helpers/movement`: generic movement helpers (`moveKinematicByVelocity`, `applyDirectionalImpulse`).
+- `helpers/contact`: event filtering/resolution (`selectContactsForEntity`, `dedupeContactsByPair`, `toResolvedContacts`).
+- `helpers/static-geometry`: baked chunk wrappers (`buildStaticGeometryChunk`, `loadStaticGeometryChunk`).
+- `helpers/orchestration`: runtime chunk lifecycle orchestrator.
+
+## Tree-shaking Baseline
+
+The script `scripts/check-physics-tree-shaking.test.mjs` enforces bundle-size rules
+by running `scripts/bench-physics2d-bundle-size.mjs --json` and asserting:
+
+- Each domain subpath (`helpers-queries.js`, `helpers-movement.js`, etc.) is **≤** the aggregate `helpers.js`.
+- Each aggregate entry (`core.js`, `helpers.js`, `tilemap.js`, `debug.js`) is **≤** `index.js`.
+
+Run manually:
+
+```sh
+node scripts/check-physics-tree-shaking.test.mjs
+```
+
+**Pass logic:** every rule in the JSON report must be `true`. Any failure exits non-zero (CI-safe).
+
+**Domain isolation guarantees:**
+
+- `helpers/queries`, `helpers/movement`, `helpers/contact`, `helpers/static-geometry` must each be **≤** `helpers.js` (pure re-export, one domain).
+- `helpers/orchestration` bundles tilemap logic — it is compared to `index.js` (not `helpers.js`).
+- A `helpers/queries` import does not include orchestration chunk code.
+- A `helpers/movement` import does not include tilemap helpers.
+- Aggregate `helpers` may include all domains.
+
+## Quality Gates
+
+Helper module coverage is enforced via `vitest.config.ts` thresholds:
+
+```
+lines     >= 80 %
+branches  >= 80 %
+functions >= 80 %
+statements>= 80 %
+```
+
+Scope: `src/helpers/**` and `src/helpers-*.ts` (tilemap implementation excluded).
+
+Run with coverage:
+
+```sh
+pnpm test --coverage
+```
+
+CI fails automatically when any threshold is not met.

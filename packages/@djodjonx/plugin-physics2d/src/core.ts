@@ -29,6 +29,10 @@ export type {
   TilemapPhysicsChunk,
   TilemapPhysicsChunkMap,
   TilemapChunkRect,
+  Physics2DHelperContext,
+  PhysicsEntitySnapshot,
+  ResolvedCollisionContact,
+  TilemapChunkOrchestrator,
 } from './types';
 
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE } from './types';

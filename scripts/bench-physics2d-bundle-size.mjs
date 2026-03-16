@@ -12,7 +12,18 @@ const pkgRoot = path.resolve(repoRoot, 'packages/@djodjonx/plugin-physics2d');
 const distRoot = path.resolve(pkgRoot, 'dist');
 const jsonMode = process.argv.includes('--json');
 
-const entries = ['index.js', 'core.js', 'helpers.js', 'tilemap.js', 'debug.js'];
+const entries = [
+  'index.js',
+  'core.js',
+  'helpers.js',
+  'helpers-queries.js',
+  'helpers-movement.js',
+  'helpers-contact.js',
+  'helpers-static-geometry.js',
+  'helpers-orchestration.js',
+  'tilemap.js',
+  'debug.js',
+];
 
 execFileSync('pnpm', ['--filter', '@djodjonx/gwen-plugin-physics2d', 'build'], {
   cwd: repoRoot,
@@ -35,6 +46,13 @@ const report = {
     helpersNotLargerThanIndex: sizes['helpers.js'] <= sizes['index.js'],
     tilemapNotLargerThanIndex: sizes['tilemap.js'] <= sizes['index.js'],
     debugNotLargerThanIndex: sizes['debug.js'] <= sizes['index.js'],
+    // Per-domain helper subpaths must each be smaller than index.
+    // Note: helpers-orchestration embeds tilemap logic so it is compared to index, not helpers.
+    queriesNotLargerThanHelpers: sizes['helpers-queries.js'] <= sizes['helpers.js'],
+    movementNotLargerThanHelpers: sizes['helpers-movement.js'] <= sizes['helpers.js'],
+    contactNotLargerThanHelpers: sizes['helpers-contact.js'] <= sizes['helpers.js'],
+    staticGeometryNotLargerThanHelpers: sizes['helpers-static-geometry.js'] <= sizes['helpers.js'],
+    orchestrationNotLargerThanIndex: sizes['helpers-orchestration.js'] <= sizes['index.js'],
   },
 };
 

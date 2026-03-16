@@ -390,6 +390,55 @@ export interface PatchTilemapPhysicsChunkInput {
   previous: TilemapPhysicsChunkMap;
 }
 
+/** Shared context object passed to high-level helpers. */
+export interface Physics2DHelperContext {
+  /** Physics service instance resolved from `api.services.get('physics')`. */
+  physics: Physics2DAPI;
+  /** Optional pixel-to-meter ratio used by helpers performing conversions. */
+  pixelsPerMeter?: number;
+}
+
+/** Read-only physics snapshot for one entity slot. */
+export interface PhysicsEntitySnapshot {
+  /** Raw ECS slot index (not packed EntityId). */
+  slot: number;
+  /** Position in world meters + rotation in radians, when available. */
+  position: { x: number; y: number; rotation: number } | null;
+  /** Linear velocity in m/s, when available. */
+  velocity: { x: number; y: number } | null;
+}
+
+/** Collision event resolved to packed EntityIds for ECS consumption. */
+export interface ResolvedCollisionContact {
+  /** Packed EntityId for participant A. */
+  entityA: EntityId;
+  /** Packed EntityId for participant B. */
+  entityB: EntityId;
+  /** Raw ECS slot index for participant A. */
+  slotA: number;
+  /** Raw ECS slot index for participant B. */
+  slotB: number;
+  /** `true` when contact started, `false` when it ended. */
+  started: boolean;
+  /** Optional stable collider id for side A. */
+  aColliderId?: number;
+  /** Optional stable collider id for side B. */
+  bColliderId?: number;
+}
+
+/** Runtime loader that keeps tilemap physics chunks in sync with a visible set. */
+export interface TilemapChunkOrchestrator {
+  /**
+   * Sync loaded chunks with the provided visible chunk coordinates.
+   * Coordinates are chunk-space indices, not pixels.
+   */
+  syncVisibleChunks(chunks: ReadonlyArray<{ chunkX: number; chunkY: number }>): void;
+  /** Re-bake one chunk and patch it in place. */
+  patchChunk(chunkX: number, chunkY: number, nextSource: BuildTilemapPhysicsChunksInput): void;
+  /** Unload all tracked chunks and release internal references. */
+  dispose(): void;
+}
+
 export interface PhysicsColliderDef extends PhysicsMaterialPreset {
   /** Optional stable collider id (string key) for gameplay mapping. */
   id?: string;

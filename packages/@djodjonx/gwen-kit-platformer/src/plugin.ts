@@ -1,5 +1,5 @@
 import { definePlugin } from '@djodjonx/gwen-kit';
-import type { ComponentDefinition, ComponentSchema } from '@djodjonx/gwen-engine-core';
+import type { ComponentDefinition } from '@djodjonx/gwen-engine-core';
 import { Position } from './components/StandardComponents.js';
 
 /**

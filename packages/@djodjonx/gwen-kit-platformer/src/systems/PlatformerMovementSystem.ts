@@ -1,7 +1,7 @@
 import { defineSystem, unpackEntityId } from '@djodjonx/gwen-engine-core';
-import { createPlatformerGroundedSystem } from '@djodjonx/gwen-plugin-physics2d';
+import { createPlatformerGroundedSystem } from '@djodjonx/gwen-plugin-physics2d/core';
 import type { EntityId } from '@djodjonx/gwen-engine-core';
-import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
+import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,

@@ -23,6 +23,26 @@
       "types": "./dist/helpers.d.ts",
       "import": "./dist/helpers.js"
     },
+    "./helpers/queries": {
+      "types": "./dist/helpers-queries.d.ts",
+      "import": "./dist/helpers-queries.js"
+    },
+    "./helpers/movement": {
+      "types": "./dist/helpers-movement.d.ts",
+      "import": "./dist/helpers-movement.js"
+    },
+    "./helpers/contact": {
+      "types": "./dist/helpers-contact.d.ts",
+      "import": "./dist/helpers-contact.js"
+    },
+    "./helpers/static-geometry": {
+      "types": "./dist/helpers-static-geometry.d.ts",
+      "import": "./dist/helpers-static-geometry.js"
+    },
+    "./helpers/orchestration": {
+      "types": "./dist/helpers-orchestration.d.ts",
+      "import": "./dist/helpers-orchestration.js"
+    },
     "./tilemap": {
       "types": "./dist/tilemap.d.ts",
       "import": "./dist/tilemap.js"
@@ -43,6 +63,7 @@
     "@djodjonx/gwen-kit": "workspace:*"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-dts": "^4.5.4",

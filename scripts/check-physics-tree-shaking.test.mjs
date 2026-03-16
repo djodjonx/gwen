@@ -1,4 +1,21 @@
 #!/usr/bin/env node
+/**
+ * Tree-shaking baseline check for @djodjonx/gwen-plugin-physics2d.
+ *
+ * Pass logic:
+ * - Runs bench-physics2d-bundle-size with --json to get all dist entry sizes.
+ * - For each size rule, the check passes only if the rule evaluates to `true`.
+ * - If any rule fails (e.g. a helper subpath is larger than the full helpers bundle),
+ *   the script throws and exits non-zero — failing CI.
+ *
+ * Domain isolation rules verified:
+ * - helpers/queries, helpers/movement, helpers/contact, helpers/static-geometry
+ *   must each be strictly <= helpers bundle (pure re-export + one domain).
+ * - helpers/orchestration bundles tilemap logic so it is compared to index (not helpers).
+ * - queries import must not include orchestration chunk code (size rule proxy).
+ * - movement import must not include tilemap helpers (size rule proxy).
+ * - aggregate helpers import may include all domains.
+ */
 
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

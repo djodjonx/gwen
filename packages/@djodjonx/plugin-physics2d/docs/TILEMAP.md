@@ -97,6 +97,23 @@ if (patchedChunk) {
 }
 ```
 
+## Helpers workflow (new)
+
+Use helper subpaths to keep imports targeted:
+
+```ts
+import { buildStaticGeometryChunk } from '@djodjonx/gwen-plugin-physics2d/helpers/static-geometry';
+import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/helpers/orchestration';
+```
+
+Minimal runtime flow:
+
+1. Build once with `buildStaticGeometryChunk(source)`.
+2. Create orchestrator with `createTilemapChunkOrchestrator(physics, { source, origin })`.
+3. On camera update, call `orchestrator.syncVisibleChunks(visibleChunks)`.
+4. For terrain edits, call `orchestrator.patchChunk(chunkX, chunkY, updatedSource)`.
+5. On scene teardown, call `orchestrator.dispose()`.
+
 ## Materials on baked colliders
 
 Every baked collider still uses the normal `PhysicsColliderDef` shape, so you can enrich or post-process them before runtime loading.

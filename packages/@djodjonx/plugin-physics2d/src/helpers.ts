@@ -1,4 +1,13 @@
-export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './helpers/tilemap';
+export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './helpers/tilemap.js';
+export { buildStaticGeometryChunk, loadStaticGeometryChunk } from './helpers/static-geometry.js';
+export { createTilemapChunkOrchestrator } from './helpers/orchestration.js';
+export { getBodySnapshot, getSpeed, isSensorActive } from './helpers/queries.js';
+export { moveKinematicByVelocity, applyDirectionalImpulse } from './helpers/movement.js';
+export {
+  selectContactsForEntity,
+  dedupeContactsByPair,
+  toResolvedContacts,
+} from './helpers/contact.js';
 
 export type {
   BuildTilemapPhysicsChunksInput,
@@ -6,4 +15,8 @@ export type {
   TilemapChunkRect,
   TilemapPhysicsChunk,
   TilemapPhysicsChunkMap,
-} from './types';
+  Physics2DHelperContext,
+  PhysicsEntitySnapshot,
+  ResolvedCollisionContact,
+  TilemapChunkOrchestrator,
+} from './types.js';

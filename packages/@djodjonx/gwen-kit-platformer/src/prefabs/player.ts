@@ -1,6 +1,6 @@
 import { definePrefab } from '@djodjonx/gwen-engine-core';
 import type { EngineAPI, EntityId } from '@djodjonx/gwen-engine-core';
-import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@djodjonx/gwen-plugin-physics2d';
+import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@djodjonx/gwen-plugin-physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,

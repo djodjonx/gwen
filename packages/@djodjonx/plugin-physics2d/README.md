@@ -52,8 +52,21 @@ Available entry points:
 - `@djodjonx/gwen-plugin-physics2d` (full)
 - `@djodjonx/gwen-plugin-physics2d/core`
 - `@djodjonx/gwen-plugin-physics2d/helpers`
+- `@djodjonx/gwen-plugin-physics2d/helpers/queries`
+- `@djodjonx/gwen-plugin-physics2d/helpers/movement`
+- `@djodjonx/gwen-plugin-physics2d/helpers/contact`
+- `@djodjonx/gwen-plugin-physics2d/helpers/static-geometry`
+- `@djodjonx/gwen-plugin-physics2d/helpers/orchestration`
 - `@djodjonx/gwen-plugin-physics2d/tilemap`
 - `@djodjonx/gwen-plugin-physics2d/debug`
+
+### Helpers quick examples
+
+```ts
+import { getSpeed } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
+import { applyDirectionalImpulse } from '@djodjonx/gwen-plugin-physics2d/helpers/movement';
+import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/helpers/orchestration';
+```
 
 ## Key config options
 
