@@ -926,7 +926,13 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
               }
               seenIds.add(collider.id);
             }
-            addPrefabCollider(svc, handle, collider, layerRegistry, colliderIndex);
+            addPrefabCollider(
+              svc,
+              handle,
+              collider,
+              layerRegistry,
+              collider.colliderId ?? colliderIndex,
+            );
           }
         } else {
           addLegacyPrefabCollider(svc, handle, ext, cfg.compat, layerRegistry);

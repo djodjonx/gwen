@@ -33,8 +33,16 @@ export const PlayerUI = defineUI('PlayerUI', () => {
 
       const { index: slot } = unpackEntityId(entity as EntityId);
       const pos = physics.getPosition(slot);
+      const vel = physics.getLinearVelocity(slot); // Ajout pour le debug
 
       if (pos) {
+        // Log de debug pour l'analyse de vélocité
+        if (Math.abs(vel.x) > 0.1) {
+          console.log(
+            `[DEBUG PHYSICS] PosX: ${pos.x.toFixed(2)}m | VelX: ${vel.x.toFixed(2)}m/s | RenderX: ${(pos.x * PPM).toFixed(2)}px`,
+          );
+        }
+
         el.style.left = `${pos.x * PPM}px`;
         el.style.top = `${pos.y * PPM}px`;
 

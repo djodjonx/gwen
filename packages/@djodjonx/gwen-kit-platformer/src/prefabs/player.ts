@@ -6,6 +6,11 @@ import {
   PLATFORMER_CONTROLLER_DEFAULTS,
 } from '../components/PlatformerController.js';
 import { PlatformerIntent } from '../components/PlatformerIntent.js';
+import {
+  DEFAULT_PIXELS_PER_METER,
+  DEFAULT_PLATFORMER_UNITS,
+  type PlatformerUnits,
+} from '../units.js';
 import { type PlatformerKitComponents, resolveComponent } from '../plugin.js';
 
 /**
@@ -28,15 +33,19 @@ export interface ColliderPixelDef {
 export interface PlayerPrefabOptions {
   /** Prefab name — used by api.prefabs.instantiate(). Default: 'PlatformerPlayer' */
   name?: string;
-  /** Max horizontal speed (px/s). Default: 300 */
+  /** Gameplay units used by movement fields. @default 'pixels' */
+  units?: PlatformerUnits;
+  /** Conversion ratio used when `units` is `pixels`. @default 50 */
+  pixelsPerMeter?: number;
+  /** Max horizontal speed (depends on `units`). Default: 300 */
   speed?: number;
-  /** Vertical jump impulse (px/s). Default: 500 */
+  /** Vertical jump impulse (depends on `units`). Default: 500 */
   jumpForce?: number;
   /** Coyote time window (ms). Default: 110 */
   coyoteMs?: number;
   /** Jump buffer window (ms). Default: 110 */
   jumpBufferMs?: number;
-  /** Max fall speed cap (px/s). Default: 600 */
+  /** Max fall speed cap (depends on `units`). Default: 600 */
   maxFallSpeed?: number;
 
   /**
@@ -155,6 +164,8 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
       api.addComponent(id, PositionComponent, { x, y });
 
       api.addComponent(id, PlatformerController, {
+        units: options.units ?? d.units ?? DEFAULT_PLATFORMER_UNITS,
+        pixelsPerMeter: options.pixelsPerMeter ?? d.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER,
         speed: options.speed ?? d.speed,
         jumpForce: options.jumpForce ?? d.jumpForce,
         coyoteMs: options.coyoteMs ?? d.coyoteMs,

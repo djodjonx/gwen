@@ -21,27 +21,29 @@ const makeApi = () => {
 };
 
 describe('createPlayerPrefab', () => {
-  it('nom par défaut = PlatformerPlayer', () => {
+  it('uses PlatformerPlayer as default name', () => {
     const prefab = createPlayerPrefab();
     expect(prefab.name).toBe('PlatformerPlayer');
   });
 
-  it('nom custom', () => {
+  it('supports a custom prefab name', () => {
     const prefab = createPlayerPrefab({ name: 'Hero' });
     expect(prefab.name).toBe('Hero');
   });
 
-  it('utilise les DEFAULTS sans options', () => {
+  it('uses controller defaults when no options are provided', () => {
     const prefab = createPlayerPrefab();
     const api = makeApi();
     prefab.create(api as any, 0, 0);
     const ctrl = api._components.get('PlatformerController');
+    expect(ctrl.units).toBe(PLATFORMER_CONTROLLER_DEFAULTS.units);
+    expect(ctrl.pixelsPerMeter).toBe(PLATFORMER_CONTROLLER_DEFAULTS.pixelsPerMeter);
     expect(ctrl.speed).toBe(PLATFORMER_CONTROLLER_DEFAULTS.speed);
     expect(ctrl.jumpForce).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpForce);
     expect(ctrl.coyoteMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.coyoteMs);
   });
 
-  it('génère des colliders par défaut', () => {
+  it('generates default colliders', () => {
     const prefab = createPlayerPrefab();
     const physics = (prefab.extensions as any).physics;
 
@@ -57,7 +59,7 @@ describe('createPlayerPrefab', () => {
     expect(physics.colliders[1].offsetY).toBe(16);
   });
 
-  it('permet de personnaliser les dimensions des colliders', () => {
+  it('allows collider dimension overrides', () => {
     const prefab = createPlayerPrefab({
       colliders: {
         body: { w: 40, h: 40 },
@@ -71,7 +73,7 @@ describe('createPlayerPrefab', () => {
     expect(physics.colliders[1].offsetY).toBe(20);
   });
 
-  it("permet d'ajouter des colliders supplémentaires", () => {
+  it('allows extra colliders', () => {
     const prefab = createPlayerPrefab({
       extraColliders: [{ shape: 'ball', radius: 10, id: 'sensor' }],
     });
@@ -80,16 +82,23 @@ describe('createPlayerPrefab', () => {
     expect(physics.colliders[2].id).toBe('sensor');
   });
 
-  it('override des valeurs de mouvement', () => {
-    const prefab = createPlayerPrefab({ speed: 500, jumpForce: 800 });
+  it('supports movement overrides and units configuration', () => {
+    const prefab = createPlayerPrefab({
+      units: 'meters',
+      pixelsPerMeter: 100,
+      speed: 500,
+      jumpForce: 800,
+    });
     const api = makeApi();
     prefab.create(api as any, 0, 0);
     const ctrl = api._components.get('PlatformerController');
+    expect(ctrl.units).toBe('meters');
+    expect(ctrl.pixelsPerMeter).toBe(100);
     expect(ctrl.speed).toBe(500);
     expect(ctrl.jumpForce).toBe(800);
   });
 
-  it('onCreated appelé avec api et id', () => {
+  it('calls onCreated with api and id', () => {
     const onCreated = vi.fn();
     const prefab = createPlayerPrefab({ onCreated });
     const api = makeApi();

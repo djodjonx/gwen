@@ -17,21 +17,21 @@ function makeSystemStub(name: string) {
 }
 
 describe('createPlatformerScene', () => {
-  it('contient PlatformerInputSystem et PlatformerMovementSystem', () => {
+  it('includes PlatformerInputSystem and PlatformerMovementSystem', () => {
     const scene = createPlatformerScene({ name: 'Test' });
     const names = getSystemNames(scene);
     expect(names).toContain('PlatformerInputSystem');
     expect(names).toContain('PlatformerMovementSystem');
   });
 
-  it('systems personnalisés sont append après les systèmes platformer', () => {
+  it('appends custom systems after platformer systems', () => {
     const Spawn = makeSystemStub('SpawnSystem');
     const scene = createPlatformerScene({ name: 'Test', systems: [Spawn as any] });
     const names = getSystemNames(scene);
     expect(names.indexOf('SpawnSystem')).toBeGreaterThan(names.indexOf('PlatformerMovementSystem'));
   });
 
-  it('gravity par défaut = 20', async () => {
+  it('uses default gravity in pixels and converts to meters', async () => {
     const setGravity = vi.fn();
     const scene = createPlatformerScene({ name: 'Test' });
     await (scene as any).onEnter(
@@ -39,12 +39,23 @@ describe('createPlatformerScene', () => {
         services: { has: () => true, get: () => ({ setGravity }) },
       }),
     );
-    expect(setGravity).toHaveBeenCalledWith(0, 20);
+    expect(setGravity).toHaveBeenCalledWith(0, 0.4);
   });
 
-  it('gravity configurable', async () => {
+  it('converts custom gravity when units is pixels', async () => {
     const setGravity = vi.fn();
-    const scene = createPlatformerScene({ name: 'Test', gravity: 9.8 });
+    const scene = createPlatformerScene({ name: 'Test', gravity: 35, units: 'pixels' });
+    await (scene as any).onEnter(
+      makeApi({
+        services: { has: () => true, get: () => ({ setGravity }) },
+      }),
+    );
+    expect(setGravity).toHaveBeenCalledWith(0, 0.7);
+  });
+
+  it('keeps gravity unchanged when units is meters', async () => {
+    const setGravity = vi.fn();
+    const scene = createPlatformerScene({ name: 'Test', gravity: 9.8, units: 'meters' });
     await (scene as any).onEnter(
       makeApi({
         services: { has: () => true, get: () => ({ setGravity }) },
@@ -53,7 +64,23 @@ describe('createPlatformerScene', () => {
     expect(setGravity).toHaveBeenCalledWith(0, 9.8);
   });
 
-  it('appelle onEnter après gravity', async () => {
+  it('uses custom pixelsPerMeter for gravity conversion', async () => {
+    const setGravity = vi.fn();
+    const scene = createPlatformerScene({
+      name: 'Test',
+      gravity: 20,
+      units: 'pixels',
+      pixelsPerMeter: 100,
+    });
+    await (scene as any).onEnter(
+      makeApi({
+        services: { has: () => true, get: () => ({ setGravity }) },
+      }),
+    );
+    expect(setGravity).toHaveBeenCalledWith(0, 0.2);
+  });
+
+  it('calls onEnter after applying gravity', async () => {
     const onEnter = vi.fn();
     const scene = createPlatformerScene({ name: 'Test', onEnter });
     const api = makeApi();
@@ -61,7 +88,7 @@ describe('createPlatformerScene', () => {
     expect(onEnter).toHaveBeenCalledWith(api);
   });
 
-  it('appelle onExit si fourni', async () => {
+  it('calls onExit when provided', async () => {
     const onExit = vi.fn();
     const scene = createPlatformerScene({ name: 'Test', onExit });
     const api = makeApi();

@@ -3,6 +3,12 @@ import type { EngineAPI, UIDefinition } from '@djodjonx/gwen-engine-core';
 import type { PluginEntry } from '@djodjonx/gwen-engine-core';
 import { PlatformerInputSystem } from '../systems/PlatformerInputSystem.js';
 import { PlatformerMovementSystem } from '../systems/PlatformerMovementSystem.js';
+import {
+  DEFAULT_PIXELS_PER_METER,
+  DEFAULT_PLATFORMER_UNITS,
+  toPhysicsScalar,
+  type PlatformerUnits,
+} from '../units.js';
 import { type PlatformerKitComponents } from '../plugin.js';
 
 /**
@@ -11,8 +17,12 @@ import { type PlatformerKitComponents } from '../plugin.js';
 export interface PlatformerSceneOptions {
   /** Scene name — used by api.scene.load(). Default: 'Main' */
   name?: string;
-  /** Gravity force (px/s²). Default: 20 */
+  /** Gravity force (depends on `units`). Default: 20 */
   gravity?: number;
+  /** Units for `gravity`. @default 'pixels' */
+  units?: PlatformerUnits;
+  /** Conversion ratio used when `units` is `pixels`. @default 50 */
+  pixelsPerMeter?: number;
   /** Custom logic called when entering the scene. */
   onEnter?(api: EngineAPI): void | Promise<void>;
   /** Custom logic called when exiting the scene. */
@@ -60,7 +70,10 @@ export function createPlatformerScene(options: PlatformerSceneOptions = {}) {
 
     onEnter(api) {
       const physics = api.services.has('physics') ? (api.services.get('physics') as any) : null;
-      physics?.setGravity?.(0, options.gravity ?? 20);
+      const units = options.units ?? DEFAULT_PLATFORMER_UNITS;
+      const pixelsPerMeter = options.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER;
+      const gravity = toPhysicsScalar(options.gravity ?? 20, units, pixelsPerMeter);
+      physics?.setGravity?.(0, gravity);
       return options.onEnter?.(api);
     },
 

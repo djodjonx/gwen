@@ -7,6 +7,7 @@ import {
   PLATFORMER_CONTROLLER_DEFAULTS,
 } from '../components/PlatformerController.js';
 import { PlatformerIntent } from '../components/PlatformerIntent.js';
+import { toPhysicsScalar } from '../units.js';
 
 /**
  * Reads PlatformerIntent and applies movement via Physics2DAPI.
@@ -43,8 +44,11 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         if (!vel) continue;
 
         // Horizontal movement
-        const targetVx = intent.moveX * ctrl.speed;
-        physics.setLinearVelocity(slot, targetVx, Math.max(vel.y, -ctrl.maxFallSpeed));
+        const speed = toPhysicsScalar(ctrl.speed, ctrl.units, ctrl.pixelsPerMeter);
+        const jumpForce = toPhysicsScalar(ctrl.jumpForce, ctrl.units, ctrl.pixelsPerMeter);
+        const maxFallSpeed = toPhysicsScalar(ctrl.maxFallSpeed, ctrl.units, ctrl.pixelsPerMeter);
+        const targetVx = intent.moveX * speed;
+        physics.setLinearVelocity(slot, targetVx, Math.max(vel.y, -maxFallSpeed));
 
         // Coyote time
         const isOnGround = grounded.isGrounded(slot);
@@ -59,7 +63,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
 
         // Jump resolution
         if (buffer > 0 && (isOnGround || coyote > 0)) {
-          physics.setLinearVelocity(slot, targetVx, -ctrl.jumpForce);
+          physics.setLinearVelocity(slot, targetVx, -jumpForce);
           jumpBuffers.set(eid, 0);
           coyoteTimers.set(eid, 0);
         }

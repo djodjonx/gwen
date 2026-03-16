@@ -393,6 +393,12 @@ export interface PatchTilemapPhysicsChunkInput {
 export interface PhysicsColliderDef extends PhysicsMaterialPreset {
   /** Optional stable collider id (string key) for gameplay mapping. */
   id?: string;
+  /**
+   * Stable numeric collider id propagated to collision events and sensor state.
+   * When set, takes precedence over the collider's array index.
+   * Use `SENSOR_ID_FOOT` for the ground-detection foot sensor.
+   */
+  colliderId?: number;
   shape: PhysicsColliderShape;
   /** Built-in material preset name or custom material object. */
   material?: PhysicsMaterialPresetName | PhysicsMaterialPreset;

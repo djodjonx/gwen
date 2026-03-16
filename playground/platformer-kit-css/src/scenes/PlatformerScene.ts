@@ -32,6 +32,7 @@ const AdvancedPosition = defineComponent({
 // 1. Define the scene
 export const PlatformerScene = createPlatformerScene({
   name: 'PlatformerScene',
+  units: 'pixels',
   gravity: 35,
 
   // Register UI components for this scene
@@ -78,6 +79,7 @@ export const PlatformerScene = createPlatformerScene({
 // 2. Create the player prefab
 const PlayerPrefab = createPlayerPrefab({
   name: 'Player',
+  units: 'pixels',
   speed: 400,
   jumpForce: 750,
 

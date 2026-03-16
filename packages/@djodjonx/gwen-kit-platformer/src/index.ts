@@ -7,6 +7,8 @@ export type { PlatformerSceneOptions } from './scenes/platformer.js';
 // ── Level 2 — Prefabs & Components ─────────────────────────────────────────
 export { createPlayerPrefab } from './prefabs/player.js';
 export type { PlayerPrefabOptions, ColliderPixelDef } from './prefabs/player.js';
+export type { PlatformerUnits } from './units.js';
+export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './units.js';
 
 export { PlatformerController } from './components/PlatformerController.js';
 export { PlatformerIntent } from './components/PlatformerIntent.js';
