@@ -7,7 +7,8 @@ des actions logiques (Jump, Move) indépendantes du dispositif physique
 ## Installation
 
 ```ts
-import { InputPlugin, PlatformerDefaultInputMap } from '@djodjonx/gwen-plugin-input';
+import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { PlatformerDefaultInputMap } from '@djodjonx/gwen-kit-platformer';
 
 // Dans gwen.config.ts :
 export default defineConfig({

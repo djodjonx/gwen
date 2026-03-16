@@ -64,8 +64,12 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
         ...options.physics,
       },
     },
-    create(api, _x: number, _y: number) {
+    create(api, x: number, y: number) {
       const id = api.createEntity();
+
+      // Physics2D plugin reads `position` during prefab:instantiate.
+      // Keep lower-case key to match plugin-physics2d default position component.
+      api.addComponent(id, 'position', { x, y });
 
       api.addComponent(id, PlatformerController, {
         speed: options.speed ?? d.speed,

@@ -1,9 +1,8 @@
 import type { GwenModuleContext } from '@djodjonx/gwen-cli/setup';
 import { INPUT_PLUGIN_NAME } from '@djodjonx/gwen-plugin-input';
 
-// Defined locally to avoid circular dependency on @djodjonx/gwen-plugin-physics2d
-// Update if the physics plugin renames its plugin.name
-const PHYSICS_2D_PLUGIN_NAME = 'Physics2DPlugin';
+// Match plugin-physics2d runtime plugin.name in src/index.ts
+const PHYSICS_2D_PLUGIN_NAME = 'Physics2D';
 
 /**
  * Build-time validation for gwen-kit-platformer.

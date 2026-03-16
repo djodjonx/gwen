@@ -8,7 +8,8 @@ const makeApi = () => {
   return {
     createEntity: () => 1n as any,
     addComponent: vi.fn((_id: any, def: any, data: any) => {
-      components.set(def.name, data);
+      const key = typeof def === 'string' ? def : def.name;
+      components.set(key, data);
     }),
     _components: components,
   };
@@ -59,5 +60,13 @@ describe('createPlayerPrefab', () => {
     const intent = api._components.get('PlatformerIntent');
     expect(intent.moveX).toBe(0);
     expect(intent.jumpJustPressed).toBe(false);
+    expect(intent.jumpPressed).toBe(false);
+  });
+
+  it('position est initialisée avec les coordonnées de spawn', () => {
+    const prefab = createPlayerPrefab();
+    const api = makeApi();
+    prefab.create(api as any, 100, 300);
+    expect(api._components.get('position')).toEqual({ x: 100, y: 300 });
   });
 });

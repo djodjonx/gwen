@@ -1,4 +1,5 @@
 import { defineSystem, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { createPlatformerGroundedSystem } from '@djodjonx/gwen-plugin-physics2d';
 import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 import {
@@ -25,6 +26,7 @@ import { PlatformerIntent } from '../components/PlatformerIntent.js';
  */
 export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem', () => {
   let physics: Physics2DAPI;
+  let grounded: ReturnType<typeof createPlatformerGroundedSystem>;
 
   const coyoteTimers = new Map<bigint, number>(); // EntityId → ms remaining
   const jumpBuffers = new Map<bigint, number>(); // EntityId → ms remaining
@@ -32,6 +34,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
   return {
     onInit(api) {
       physics = api.services.get('physics') as Physics2DAPI;
+      grounded = createPlatformerGroundedSystem({ physics });
 
       // Cleanup on entity destroy — prevents memory leaks on spawn/despawn
       api.hooks.hook('entity:destroy', (eid: EntityId) => {
@@ -57,9 +60,9 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         physics.setLinearVelocity(slot, targetVx, Math.max(vel.y, -ctrl.maxFallSpeed));
 
         // ── Coyote time ───────────────────────────────────────────────
-        const grounded = (physics as any).isGrounded?.(slot) ?? false;
+        const isOnGround = grounded.isGrounded(slot);
         let coyote = coyoteTimers.get(eid) ?? 0;
-        coyote = grounded ? ctrl.coyoteMs : Math.max(0, coyote - dtMs);
+        coyote = isOnGround ? ctrl.coyoteMs : Math.max(0, coyote - dtMs);
         coyoteTimers.set(eid, coyote);
 
         // ── Jump buffer ───────────────────────────────────────────────
@@ -68,7 +71,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         jumpBuffers.set(eid, buffer);
 
         // ── Jump resolution ───────────────────────────────────────────
-        if (buffer > 0 && (grounded || coyote > 0)) {
+        if (buffer > 0 && (isOnGround || coyote > 0)) {
           physics.setLinearVelocity(slot, targetVx, -ctrl.jumpForce);
           jumpBuffers.set(eid, 0);
           coyoteTimers.set(eid, 0);

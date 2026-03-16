@@ -58,6 +58,9 @@ export default defineConfig({
         items: [
           { text: 'Official Plugins', link: '/plugins/official' },
           { text: 'Using & Creating Plugins', link: '/plugins/creating' },
+          { text: 'Input Mapping', link: '/plugins/input-mapping' },
+          { text: 'Kit Platformer', link: '/plugins/kit-platformer' },
+          { text: 'Kit Platformer — Advanced', link: '/plugins/kit-platformer-advanced' },
           { text: 'Plugin Hooks Guide', link: '/PLUGIN_HOOKS_GUIDE' },
           { text: 'WASM Plugins', link: '/plugins/wasm-plugins' },
           { text: 'WASM Best Practices', link: '/plugins/wasm-plugin-best-practices' },
