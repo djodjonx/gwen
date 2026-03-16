@@ -1,11 +1,30 @@
 import { definePrefab } from '@djodjonx/gwen-engine-core';
 import type { EngineAPI, EntityId } from '@djodjonx/gwen-engine-core';
+import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@djodjonx/gwen-plugin-physics2d';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,
 } from '../components/PlatformerController.js';
 import { PlatformerIntent } from '../components/PlatformerIntent.js';
+import { type PlatformerKitComponents, resolveComponent } from '../plugin.js';
 
+/**
+ * Definition for a simplified collider in pixels.
+ */
+export interface ColliderPixelDef {
+  /** Total width in pixels. */
+  w: number;
+  /** Total height in pixels. */
+  h: number;
+  /** Vertical offset from the center in pixels. Positive is down. */
+  offset?: number;
+  /** Optional ID for the collider. */
+  id?: number | string;
+}
+
+/**
+ * Options for creating a platformer player prefab.
+ */
 export interface PlayerPrefabOptions {
   /** Prefab name — used by api.prefabs.instantiate(). Default: 'PlatformerPlayer' */
   name?: string;
@@ -19,23 +38,40 @@ export interface PlayerPrefabOptions {
   jumpBufferMs?: number;
   /** Max fall speed cap (px/s). Default: 600 */
   maxFallSpeed?: number;
+
   /**
-   * Physics body extensions forwarded to the prefab extensions map.
-   * Typed as Record<string, unknown> because this package is a library —
-   * GwenPrefabExtensions is a global interface enriched by `gwen prepare`
-   * only in consumer projects. The consumer gets full types via .gwen/gwen.d.ts.
+   * Simplified collider configuration in pixels.
+   * The kit will automatically convert these to physics meters based on project PPM.
+   */
+  colliders?: {
+    /** Main solid body. Default: 30x30 px */
+    body?: { w: number; h: number };
+    /** Foot sensor required for grounded check. Default: 26x4 px at offset 16 */
+    foot?: ColliderPixelDef;
+    /** Optional head sensor. */
+    head?: ColliderPixelDef;
+  };
+
+  /**
+   * Advanced: Local component overrides for this prefab.
+   */
+  components?: Partial<PlatformerKitComponents>;
+
+  /**
+   * Additional colliders to add to the player (e.g., hitboxes, interaction zones).
+   * These use the standard Physics2D collider definition format.
+   */
+  extraColliders?: PhysicsColliderDef[];
+
+  /**
+   * Raw physics body extensions forwarded to the plugin.
+   * If provided, these will merge with or override the default kit physics config.
    */
   physics?: Record<string, unknown>;
+
   /**
    * Extension hook — called after entity creation, before returning the id.
-   * Use to add custom components without forking createPlayerPrefab.
-   *
-   * @example
-   * createPlayerPrefab({
-   *   onCreated(api, id) {
-   *     api.addComponent(id, HealthComponent, { hp: 100 });
-   *   }
-   * })
+   * Use this to add custom project-specific components.
    */
   onCreated?: (api: EngineAPI, id: EntityId) => void;
 }
@@ -43,33 +79,80 @@ export interface PlayerPrefabOptions {
 /**
  * Creates a PrefabDefinition for a platformer player entity.
  *
- * Adds:
+ * This factory generates a complete player setup including movement logic,
+ * input intentions, and a physical representation with default colliders.
+ *
+ * Automatically Adds:
+ * - Position (from resolveComponent)
  * - PlatformerController (movement config)
- * - PlatformerIntent (movement state, initialized to idle)
- * - Physics body extension (dynamic, fixedRotation)
+ * - PlatformerIntent (movement intentions)
+ * - Physics Extension (Body + Colliders)
  *
  * @example
- * const PlayerPrefab = createPlayerPrefab({ speed: 400, jumpForce: 600 });
+ * ```ts
+ * const PlayerPrefab = createPlayerPrefab({
+ *   speed: 400,
+ *   jumpForce: 600,
+ *   colliders: { body: { w: 20, h: 30 } }
+ * });
  * api.prefabs.register(PlayerPrefab);
- * const id = api.prefabs.instantiate('PlatformerPlayer', 100, 200);
+ * ```
  */
 export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
   const d = PLATFORMER_CONTROLLER_DEFAULTS;
+
+  // 1. Prepare default colliders (in pixels, will be scaled by Physics2D plugin)
+  const bodyHw = (options.colliders?.body?.w ?? 30) / 2;
+  const bodyHh = (options.colliders?.body?.h ?? 30) / 2;
+
+  const defaultColliders: PhysicsColliderDef[] = [
+    // Main body collider
+    {
+      shape: 'box',
+      hw: bodyHw,
+      hh: bodyHh,
+      friction: (options.physics?.friction as number) ?? 0,
+      restitution: (options.physics?.restitution as number) ?? 0,
+    },
+    // Foot sensor (REQUIRED for PlatformerMovementSystem)
+    {
+      shape: 'box',
+      hw: (options.colliders?.foot?.w ?? 26) / 2,
+      hh: (options.colliders?.foot?.h ?? 4) / 2,
+      offsetY: options.colliders?.foot?.offset ?? 16,
+      isSensor: true,
+      colliderId: SENSOR_ID_FOOT,
+    },
+  ];
+
+  // Optional head sensor
+  if (options.colliders?.head) {
+    defaultColliders.push({
+      shape: 'box',
+      hw: options.colliders.head.w / 2,
+      hh: options.colliders.head.h / 2,
+      offsetY: options.colliders.head.offset ?? -16,
+      isSensor: true,
+      colliderId: options.colliders.head.id ?? 0x4ead,
+    });
+  }
+
   return definePrefab({
     name: options.name ?? 'PlatformerPlayer',
     extensions: {
       physics: {
         bodyType: 'dynamic',
         fixedRotation: true,
+        colliders: [...defaultColliders, ...(options.extraColliders ?? [])],
         ...options.physics,
       },
     },
     create(api, x: number, y: number) {
       const id = api.createEntity();
 
-      // Physics2D plugin reads `position` during prefab:instantiate.
-      // Keep lower-case key to match plugin-physics2d default position component.
-      api.addComponent(id, 'position', { x, y });
+      // Resolve the Position component (allows advanced user overrides)
+      const PositionComponent = resolveComponent(api, 'position', options.components);
+      api.addComponent(id, PositionComponent, { x, y });
 
       api.addComponent(id, PlatformerController, {
         speed: options.speed ?? d.speed,

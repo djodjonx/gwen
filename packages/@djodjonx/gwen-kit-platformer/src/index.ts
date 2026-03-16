@@ -4,19 +4,23 @@
 export { createPlatformerScene } from './scenes/platformer.js';
 export type { PlatformerSceneOptions } from './scenes/platformer.js';
 
-// ── Level 2 — Player prefab ────────────────────────────────────────────────
+// ── Level 2 — Prefabs & Components ─────────────────────────────────────────
 export { createPlayerPrefab } from './prefabs/player.js';
-export type { PlayerPrefabOptions } from './prefabs/player.js';
+export type { PlayerPrefabOptions, ColliderPixelDef } from './prefabs/player.js';
 
-// ── Level 3 — Raw ECS components (advanced use) ────────────────────────────
-export {
-  PlatformerController,
-  PLATFORMER_CONTROLLER_DEFAULTS,
-} from './components/PlatformerController.js';
-export type { PlatformerControllerData } from './components/PlatformerController.js';
+export { PlatformerController } from './components/PlatformerController.js';
 export { PlatformerIntent } from './components/PlatformerIntent.js';
+export { Position } from './components/StandardComponents.js';
 
-// ── Systems (for manual scene assembly) ────────────────────────────────────
+// ── Level 3 — Advanced Configuration ───────────────────────────────────────
+export { PlatformerKitPlugin } from './plugin.js';
+export type {
+  PlatformerKitConfig,
+  PlatformerKitComponents,
+  PlatformerKitService,
+} from './plugin.js';
+
+// ── Level 4 — Logic & Internal Systems ─────────────────────────────────────
 export { PlatformerInputSystem } from './systems/PlatformerInputSystem.js';
 export { PlatformerMovementSystem } from './systems/PlatformerMovementSystem.js';
 

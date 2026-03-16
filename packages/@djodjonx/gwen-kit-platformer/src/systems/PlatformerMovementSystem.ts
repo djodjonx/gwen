@@ -31,7 +31,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
 
     onUpdate(api, dt) {
       const dtMs = dt * 1000;
-      const entities = api.query([PlatformerController.name, PlatformerIntent.name]);
+      const entities = api.query([PlatformerController, PlatformerIntent]);
 
       for (const eid of entities) {
         const { index: slot } = unpackEntityId(eid);
