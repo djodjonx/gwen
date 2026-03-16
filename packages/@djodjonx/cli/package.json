@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "GWEN Engine CLI with Citty and schema-based config validation",
   "bin": {
-    "gwen": "./dist/cli/src/bin.js"
+    "gwen": "./bin.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin.js"
   ],
   "type": "module",
   "main": "./dist/cli/src/index.js",
