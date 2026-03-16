@@ -114,8 +114,8 @@ function scanScenes(projectRoot: string): SceneInfo[] {
       const isFactory =
         !!constMatch && /defineScene\s*\(\s*['"`][^'"`,]+['"`]\s*,/.test(source) && !classMatch;
 
-      // defineScene forme 1 = export const + defineScene({ ... })
-      const isConst = !!constMatch && /defineScene\s*\(\s*\{/.test(source) && !classMatch;
+      // Toute autre constante exportée est traitée comme un objet direct (Forme 1)
+      const isConst = !!constMatch && !isFactory && !classMatch;
 
       const sceneName =
         source.match(/defineScene\s*\(\s*['"]([^'"]+)['"]/)?.[1] ??
