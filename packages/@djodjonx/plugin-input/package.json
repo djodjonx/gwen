@@ -1,6 +1,6 @@
 {
   "name": "@djodjonx/gwen-plugin-input",
-  "version": "0.3.7",
+  "version": "1.0.0",
   "description": "GWEN Input Plugin — keyboard, mouse, gamepad",
   "files": [
     "dist"

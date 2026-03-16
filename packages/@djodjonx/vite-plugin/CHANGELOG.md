@@ -1,5 +1,11 @@
 # @djodjonx/gwen-vite-plugin
 
+## 1.0.0
+
+### Minor Changes
+
+- enhance cli, add new kit tansformer.
+
 ## 0.3.7
 
 ### Patch Changes

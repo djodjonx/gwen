@@ -1,5 +1,15 @@
 # @djodjonx/gwen-plugin-physics2d
 
+## 1.0.0
+
+### Minor Changes
+
+- enhance cli, add new kit tansformer.
+
+### Patch Changes
+
+- Updated dependencies: [object Object], [object Object]
+
 ## Unreleased (Sprint 8 hardening)
 
 ### New
