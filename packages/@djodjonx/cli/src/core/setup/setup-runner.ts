@@ -49,7 +49,11 @@ export async function runPluginSetups(
     try {
       mod = (await importer(`${packageName}/setup`)) as GwenPluginSetup;
     } catch (err: any) {
-      if (err.code === 'ERR_MODULE_NOT_FOUND' || err.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+      if (
+        err.code === 'ERR_MODULE_NOT_FOUND' ||
+        err.code === 'MODULE_NOT_FOUND' ||
+        err.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+      ) {
         cliLogger.trace(`No setup module for ${pluginName}`);
         continue;
       }
