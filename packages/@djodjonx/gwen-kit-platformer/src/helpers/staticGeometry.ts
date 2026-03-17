@@ -19,6 +19,13 @@ export interface BuildPlatformerStaticGeometryOptions {
   worldHeightPx: number;
   tileSizePx?: number;
   chunkSizeTiles?: number;
+  /**
+   * Optional friction override applied to all baked static colliders.
+   * Use low values (e.g. 0.0-0.1) to reduce sticky block edges.
+   */
+  surfaceFriction?: number;
+  /** Optional restitution override applied to all baked static colliders. */
+  surfaceRestitution?: number;
 }
 
 /** Runtime options used when loading baked chunks into physics. */
@@ -55,13 +62,29 @@ export function buildPlatformerStaticGeometry(
     fillSolidRect(tiles, mapWidthTiles, mapHeightTiles, block, tileSizePx);
   }
 
-  return buildStaticGeometryChunk({
+  const chunkMap = buildStaticGeometryChunk({
     tiles,
     mapWidthTiles,
     mapHeightTiles,
     tileSizePx,
     chunkSizeTiles: options.chunkSizeTiles ?? DEFAULT_CHUNK_SIZE_TILES,
   });
+
+  if (options.surfaceFriction === undefined && options.surfaceRestitution === undefined) {
+    return chunkMap;
+  }
+
+  return {
+    ...chunkMap,
+    chunks: chunkMap.chunks.map((chunk) => ({
+      ...chunk,
+      colliders: chunk.colliders.map((collider) => ({
+        ...collider,
+        friction: options.surfaceFriction ?? collider.friction,
+        restitution: options.surfaceRestitution ?? collider.restitution,
+      })),
+    })),
+  };
 }
 
 /**

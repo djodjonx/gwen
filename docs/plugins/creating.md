@@ -160,6 +160,10 @@ export const Physics2DPlugin = definePlugin((options = {}) => {
 });
 ```
 
+> Note: `provides: { physics: {} as Physics2DAPI }` is a plugin declaration pattern.
+> It is different from app/playground usage. In gameplay code, prefer inferred services:
+> `const physics = api.services.get('physics')` (no cast).
+
 ## Typing Instance Variables
 
 Because `definePlugin` returns a constructor value, use `GwenPluginInstance` to type instance refs:

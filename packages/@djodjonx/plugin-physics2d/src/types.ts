@@ -622,12 +622,12 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
  * @example
  * ```typescript
  * onInit(api) {
- *   const physics = api.services.get('physics') as Physics2DAPI;
+ *   const physics = api.services.get('physics');
  *   const handle = physics.addRigidBody(entityIndex, 'dynamic', 0, 10);
  *   physics.addBoxCollider(handle, 0.5, 0.5);
  * }
  * onUpdate(api) {
- *   for (const ev of (api.services.get('physics') as Physics2DAPI).getCollisionEvents()) {
+ *   for (const ev of api.services.get('physics').getCollisionEvents()) {
  *     console.log('collision', ev.entityA, ev.entityB);
  *   }
  * }

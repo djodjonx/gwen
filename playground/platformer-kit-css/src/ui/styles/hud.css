@@ -1,0 +1,31 @@
+.platformer-hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  max-width: 360px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 17, 27, 0.66);
+  color: #ebf3ff;
+  backdrop-filter: blur(3px);
+}
+
+.platformer-hud__title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.platformer-hud__help,
+.platformer-hud__stat {
+  margin: 0;
+  line-height: 1.4;
+  font-size: 0.88rem;
+}
+
+.platformer-hud__help {
+  opacity: 0.82;
+  margin-bottom: 6px;
+}
+

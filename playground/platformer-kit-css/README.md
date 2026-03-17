@@ -1,43 +1,95 @@
-# playground-platformer-kit-css
+# platformer-kit-css playground
 
-Platformer CSS playground using `@djodjonx/gwen-kit-platformer` with merged static colliders.
+Clean platformer playground that uses `@djodjonx/gwen-kit-platformer` as the primary gameplay layer.
 
 ## Getting started
 
 ```bash
-npm install
-npm run dev      # development server with WASM hot-reload
-npm run build    # production build → dist/
-npm run preview  # preview production build
+pnpm install
+pnpm dev
+pnpm build
+pnpm preview
 ```
 
-## Project structure
+## Why this playground exists
+
+- Build a platformer scene in a few lines with kit factories.
+- Keep codebase organization strict but minimal for onboarding.
+- Demonstrate proper `HtmlUIPlugin` usage with HTML templates + CSS assets.
+
+## Structure
 
 ```
-playground-platformer-kit-css/
+playground/platformer-kit-css/
   src/
+    components/
+      BlockVisual.ts
+      PlayerTag.ts
+    level/
+      levelData.ts
+    prefabs/
+      PlayerPrefab.ts
+      BlockPrefab.ts
+      HudPrefab.ts
+      SceneChromePrefab.ts
     scenes/
-      PlatformerScene.ts # Kit scene + player prefab + static geometry helper
+      PlatformerScene.ts
     ui/
-      GameUI.ts          # CSS UI renderers (player, blocks, HUD)
-  gwen.config.ts         # Engine & plugin configuration
+      BlockUI.ts
+      HudUI.ts
+      PlayerUI.ts
+      SceneChromeUI.ts
+      templates/
+      styles/
+  gwen.config.ts
 ```
 
-## Adding plugins
+## Scene setup (few lines)
 
-```typescript
-// gwen.config.ts
-import { defineConfig } from '@djodjonx/gwen-kit';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
-import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+`src/scenes/PlatformerScene.ts` keeps scene composition short and readable:
 
-export default defineConfig({
-  plugins: [new InputPlugin(), new AudioPlugin()],
+```ts
+export const PlatformerScene = createPlatformerScene({
+  name: 'PlatformerScene',
+  units: 'pixels',
+  gravity: 35,
+  ui: [SceneChromeUI, PlayerUI, BlockUI, HudUI],
+  onEnter(api) {
+    api.prefabs.register(PlayerPrefab);
+    api.prefabs.register(BlockPrefab);
+    api.prefabs.register(HudPrefab);
+    api.prefabs.register(SceneChromePrefab);
+
+    api.prefabs.instantiate('SceneChrome', 0, 0);
+    api.prefabs.instantiate('Hud', 0, 0);
+
+    for (const block of LEVEL_BLOCKS) {
+      api.prefabs.instantiate('Block', block.x, block.y, block.w, block.h);
+    }
+
+    api.prefabs.instantiate('Player', PLAYER_SPAWN.x, PLAYER_SPAWN.y);
+  },
+  onExit() {
+    world?.unload();
+  },
 });
 ```
 
-## Docs
+## Notes
 
-- [GWEN Documentation](https://gwen.dev/docs)
-- [Plugin API](https://gwen.dev/docs/plugins)
-- [Schema DSL](https://gwen.dev/docs/schema)
+- Physics colliders are generated through kit helper `createPlatformerStaticGeometry`.
+- Player behavior is configured via `createPlayerPrefab` (coyote, buffer, hysteresis tuning).
+- UI rendering uses `HtmlUIPlugin` service (`mount`, `el`, `text`, `unmount`) only.
+- Services are inferred from generated GWEN types: do not use manual casts like `as Physics2DAPI`.
+
+## Useful commands
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+## References
+
+- `docs/plugins/kit-platformer.md`
+- `docs/plugins/kit-platformer-advanced.md`

@@ -84,6 +84,10 @@ Gwen est extensible via des plugins. Les services exposés par les plugins sont 
 ## 💡 Patterns & Best Practices
 
 - **Typed Services** : Ne jamais typer manuellement les services. Gwen les génère dynamiquement dans `GwenDefaultServices` lors du `gwen prepare`.
+- **No Service Casts** : Interdit d'écrire `api.services.get('physics') as Physics2DAPI` dans les apps/playgrounds.
+  - Mauvais : `const physics = api.services.get('physics') as Physics2DAPI;`
+  - Bon : `const physics = api.services.get('physics');`
+  - Prérequis : lancer `gwen prepare` (ou `pnpm dev`) pour avoir les types à jour.
 - **Prefabs over Manual Creation** : Toujours préférer les prefabs pour la création d'entités complexes.
 - **Scene State** : Utiliser `api.services.register()` pour partager des données persistantes entre les scènes.
 - **Hybrid Rendering** : On peut mixer `Canvas2DRenderer` pour le jeu et `HtmlUIPlugin` pour les menus/overlays.

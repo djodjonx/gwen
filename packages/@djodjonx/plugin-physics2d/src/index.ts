@@ -18,7 +18,7 @@
  * ## Accessing the API in a plugin
  * ```typescript
  * onInit(api) {
- *   const physics = api.services.get('physics') as Physics2DAPI;
+ *   const physics = api.services.get('physics');
  *   const h = physics.addRigidBody(entityIndex, 'dynamic', x, y);
  *   physics.addBoxCollider(h, 0.5, 0.5);
  * }
@@ -1038,26 +1038,39 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       // Update sensor states from events, emitting physics:sensor:changed on transitions.
       for (const { slotA, slotB, aColliderId, bColliderId, started } of batch.events) {
-        const resolveSensorId = (
+        const resolveTrackedSensorId = (
           slot: number,
           colliderId: number | undefined,
-          fallback: number,
-        ) => {
-          if (colliderId !== undefined) return colliderId;
+        ): number | undefined => {
           const knownSensors = sensorColliderIdsBySlot.get(slot);
-          if (knownSensors && knownSensors.size === 1) {
+          if (!knownSensors || knownSensors.size === 0) {
+            // For non-prefab or external callers, collider ids are still a valid
+            // direct sensor key in v2 payloads.
+            return colliderId;
+          }
+
+          // Event payload v2: only trust explicit ids that were declared as sensors.
+          if (colliderId !== undefined) {
+            return knownSensors.has(colliderId) ? colliderId : undefined;
+          }
+
+          // Legacy payload fallback (no collider ids): only when unambiguous.
+          if (knownSensors.size === 1) {
             return [...knownSensors][0];
           }
-          return fallback;
+
+          return undefined;
         };
 
-        // Preferred key: collider ids from event payload (stable gameplay sensor ids).
-        // Fallback for legacy payloads: known sensor id for the slot (if unique),
-        // otherwise opposite slot index.
-        const sensorPairs: Array<{ slot: number; sensorId: number }> = [
-          { slot: slotA, sensorId: resolveSensorId(slotA, aColliderId, slotB) },
-          { slot: slotB, sensorId: resolveSensorId(slotB, bColliderId, slotA) },
-        ];
+        const sensorPairs: Array<{ slot: number; sensorId: number }> = [];
+        const sensorIdA = resolveTrackedSensorId(slotA, aColliderId);
+        if (sensorIdA !== undefined) {
+          sensorPairs.push({ slot: slotA, sensorId: sensorIdA });
+        }
+        const sensorIdB = resolveTrackedSensorId(slotB, bColliderId);
+        if (sensorIdB !== undefined) {
+          sensorPairs.push({ slot: slotB, sensorId: sensorIdB });
+        }
 
         for (const { slot, sensorId } of sensorPairs) {
           const prevState = physicsService.getSensorState(slot, sensorId);

@@ -23,6 +23,16 @@ pnpm install
 pnpm dev
 ```
 
+`pnpm dev` runs `gwen prepare` and generates typed services for your project.
+
+Use inferred services directly:
+
+```ts
+const physics = api.services.get('physics');
+```
+
+Avoid manual casts like `as Physics2DAPI` in app/playground code.
+
 ## Build and preview
 
 ```bash

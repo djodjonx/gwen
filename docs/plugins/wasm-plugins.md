@@ -691,7 +691,8 @@ export default defineConfig({
 private physics!: Physics2DAPI;
 
 onInit(api: EngineAPI) {
-  this.physics = api.services.get('physics') as Physics2DAPI;
+  // Service is inferred from generated types (gwen prepare).
+  this.physics = api.services.get('physics');
   const handle = this.physics.addRigidBody(entityIndex, 'dynamic', x, y);
   this.physics.addBoxCollider(handle, 0.5, 0.5);
 }
@@ -704,3 +705,7 @@ onUpdate(api: EngineAPI) {
   }
 }
 ```
+
+> Important: in app/playground code, do **not** cast services (e.g. `as Physics2DAPI`).
+> Run `gwen prepare` (or `pnpm dev`) so `api.services.get('physics')` is inferred automatically.
+

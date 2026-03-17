@@ -86,6 +86,11 @@ function resolveMovementConfig(ctrl: ControllerLike): ControllerMovementConfig {
  * Reads PlatformerIntent and applies movement via Physics2DAPI.
  */
 export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem', () => {
+  const RESTING_VY_EPSILON = 0.08;
+  const RESTING_DY_EPSILON = 0.0015;
+  const RESTING_GROUNDED_DELAY_MS = 120;
+  const RESTING_LANDING_CONFIRM_MS = 160;
+
   let physics: Physics2DAPI;
   let grounded: ReturnType<typeof createPlatformerGroundedSystem>;
   let debug = false;
@@ -93,6 +98,8 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
 
   const groundStates = new Map<bigint, ReturnType<typeof createGroundHysteresisState>>();
   const jumpStates = new Map<bigint, ReturnType<typeof createJumpResolverState>>();
+  const nearStillAirMs = new Map<bigint, number>();
+  const lastYByEntity = new Map<bigint, number>();
 
   return {
     onInit(api) {
@@ -103,6 +110,8 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
       api.hooks.hook('entity:destroy', (eid: EntityId) => {
         groundStates.delete(eid);
         jumpStates.delete(eid);
+        nearStillAirMs.delete(eid);
+        lastYByEntity.delete(eid);
       });
     },
 
@@ -132,11 +141,39 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         const groundState = grounded.getSensorState(slot);
         const groundStateRecord =
           groundStates.get(eid) ?? createGroundHysteresisState(sensorGrounded);
-        const isOnGround = resolveGroundedWithHysteresis(groundStateRecord, sensorGrounded, {
-          enterFrames: movement.groundEnterFrames,
-          exitFrames: movement.groundExitFrames,
-        });
+        const hysteresisGrounded = resolveGroundedWithHysteresis(
+          groundStateRecord,
+          sensorGrounded,
+          {
+            enterFrames: movement.groundEnterFrames,
+            exitFrames: movement.groundExitFrames,
+          },
+        );
         groundStates.set(eid, groundStateRecord);
+
+        const pos = physics.getPosition?.(slot) ?? null;
+        const prevY = lastYByEntity.get(eid) ?? pos?.y;
+        if (pos) {
+          lastYByEntity.set(eid, pos.y);
+        }
+        const deltaY =
+          pos && prevY !== undefined ? Math.abs(pos.y - prevY) : Number.POSITIVE_INFINITY;
+
+        const isNearResting = Math.abs(vel.y) <= RESTING_VY_EPSILON && deltaY <= RESTING_DY_EPSILON;
+
+        let stillMs = nearStillAirMs.get(eid) ?? 0;
+        if (hysteresisGrounded || sensorGrounded || !isNearResting) {
+          stillMs = 0;
+        } else {
+          stillMs += dtMs;
+        }
+        nearStillAirMs.set(eid, stillMs);
+        const inferredGrounded = stillMs >= RESTING_GROUNDED_DELAY_MS;
+        const isOnGround = hysteresisGrounded || inferredGrounded;
+        const canConfirmLanding =
+          hysteresisGrounded ||
+          sensorGrounded ||
+          (inferredGrounded && stillMs >= RESTING_LANDING_CONFIRM_MS);
 
         const jumpState = jumpStates.get(eid) ?? createJumpResolverState();
         stepJumpResolver(jumpState, {
@@ -149,18 +186,18 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
             postJumpLockMs: movement.postJumpLockMs,
           },
         });
-        tryConfirmLanding(jumpState, isOnGround);
+        tryConfirmLanding(jumpState, canConfirmLanding);
         jumpStates.set(eid, jumpState);
 
         if (debug && intent.jumpJustPressed) {
           console.log(
-            `[PlatformerMovementSystem] jump request slot=${slot} grounded=${isOnGround}(sensor=${sensorGrounded}) contactCount=${groundState.contactCount} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed} vy=${vel.y.toFixed(3)}`,
+            `[PlatformerMovementSystem] jump request slot=${slot} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contactCount=${groundState.contactCount} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed} vy=${vel.y.toFixed(3)}`,
           );
         }
 
         if (debug && debugTick++ % 30 === 0) {
           console.log(
-            `[PlatformerMovementSystem] state slot=${slot} vy=${vel.y.toFixed(3)} grounded=${isOnGround}(sensor=${sensorGrounded}) contacts=${groundState.contactCount} enterFrames=${groundStateRecord.consecutiveGroundFrames} exitFrames=${groundStateRecord.consecutiveAirFrames} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed}`,
+            `[PlatformerMovementSystem] state slot=${slot} vy=${vel.y.toFixed(3)} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contacts=${groundState.contactCount} enterFrames=${groundStateRecord.consecutiveGroundFrames} exitFrames=${groundStateRecord.consecutiveAirFrames} stillMs=${stillMs.toFixed(1)} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed}`,
           );
         }
 
