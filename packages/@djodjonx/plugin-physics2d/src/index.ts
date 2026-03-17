@@ -249,6 +249,10 @@ function addPrefabCollider(
   registry: LayerRegistry,
   colliderId?: number,
 ): void {
+  /**
+   * PhysicsColliderDef values are authored in pixels at prefab/tilemap level.
+   * Convert exactly once here before forwarding to runtime Physics2D API.
+   */
   const material = resolveMaterial(collider.material, collider, {
     friction: 0,
     restitution: 0,
@@ -263,6 +267,16 @@ function addPrefabCollider(
     filterLayers: registry.resolve(collider.filterLayers, 'filter'),
     colliderId,
   };
+
+  // Apply offsets if provided
+  if (collider.offsetX !== undefined || collider.offsetY !== undefined) {
+    if (collider.offsetX !== undefined) {
+      colliderOpts.offsetX = collider.offsetX / PIXELS_PER_METER;
+    }
+    if (collider.offsetY !== undefined) {
+      colliderOpts.offsetY = collider.offsetY / PIXELS_PER_METER;
+    }
+  }
 
   if (collider.shape === 'ball') {
     if (collider.radius === undefined) {
@@ -384,6 +398,15 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   const cfg = normalizeConfig(config);
   const isDebug = cfg.debug;
   const layerRegistry = new LayerRegistry(cfg.layers);
+
+  /**
+   * Debug logger gated by plugin option `debug: true`.
+   * Keep callsites strategic to preserve runtime performance in hot paths.
+   */
+  const debugLog = (...args: unknown[]) => {
+    if (!isDebug) return;
+    console.log('[Physics2D]', ...args);
+  };
 
   let wasmPlugin: WasmPhysics2DPlugin | null = null;
   let eventsView: DataView | null = null;
@@ -531,18 +554,16 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
                 ccd === undefined ? undefined : ccd ? 1 : 0,
                 additionalSolverIterations,
               );
-        if (isDebug) {
-          console.log(
-            `[Physics2D] addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} → handle=${handle}`,
-          );
-        }
+        debugLog(
+          `addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} -> handle=${handle}`,
+        );
         return handle;
       },
 
       addBoxCollider(bodyHandle, hw, hh, opts: ColliderOptions = {}) {
-        if (isDebug) {
-          console.log(`[Physics2D] addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh}`);
-        }
+        debugLog(
+          `addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh} offsetX=${opts.offsetX} offsetY=${opts.offsetY} isSensor=${opts.isSensor} colliderId=${opts.colliderId}`,
+        );
         const membership =
           typeof opts.membershipLayers === 'number'
             ? opts.membershipLayers >>> 0
@@ -597,9 +618,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       },
 
       addBallCollider(bodyHandle, radius, opts: ColliderOptions = {}) {
-        if (isDebug) {
-          console.log(`[Physics2D] addBallCollider handle=${bodyHandle} radius=${radius}`);
-        }
+        debugLog(
+          `addBallCollider handle=${bodyHandle} radius=${radius} offsetX=${opts.offsetX} offsetY=${opts.offsetY} isSensor=${opts.isSensor} colliderId=${opts.colliderId}`,
+        );
         const membership =
           typeof opts.membershipLayers === 'number'
             ? opts.membershipLayers >>> 0
@@ -706,9 +727,13 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
         const existing = loadedTilemapChunks.get(chunk.key);
         if (existing?.checksum === chunk.checksum) {
+          debugLog(`loadTilemapPhysicsChunk skip key=${chunk.key} reason=unchanged`);
           return;
         }
         if (existing) {
+          debugLog(
+            `loadTilemapPhysicsChunk replace key=${chunk.key} oldChecksum=${existing.checksum}`,
+          );
           wasmPlugin.unload_tilemap_chunk_body?.(existing.chunkId);
           loadedTilemapChunks.delete(chunk.key);
         }
@@ -726,6 +751,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
               id: `rect_${index}`,
             }))
           : chunk.colliders;
+
+        debugLog(
+          `loadTilemapPhysicsChunk key=${chunk.key} bodyHandle=${bodyHandle} world=(${x.toFixed(3)},${y.toFixed(3)}) colliders=${source.length} naive=${opts.debugNaive === true}`,
+        );
 
         for (const [colliderIndex, collider] of source.entries()) {
           const material = resolveMaterial(collider.material, collider, {
@@ -781,11 +810,15 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       unloadTilemapPhysicsChunk(key) {
         const loaded = loadedTilemapChunks.get(key);
         if (!loaded) return;
+        debugLog(`unloadTilemapPhysicsChunk key=${key}`);
         wasmPlugin?.unload_tilemap_chunk_body?.(loaded.chunkId);
         loadedTilemapChunks.delete(key);
       },
 
       patchTilemapPhysicsChunk(chunk, x, y, opts = {}) {
+        debugLog(
+          `patchTilemapPhysicsChunk key=${chunk.key} world=(${x.toFixed(3)},${y.toFixed(3)})`,
+        );
         this.unloadTilemapPhysicsChunk(chunk.key);
         this.loadTilemapPhysicsChunk(chunk, x, y, opts);
       },
@@ -882,6 +915,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
       physicsService = createAPI();
       api.services.register('physics', physicsService);
+      debugLog(
+        `initialized qualityPreset=${cfg.qualityPreset} eventMode=${cfg.eventMode} coalesced=${cfg.coalesceEvents} ccdGlobal=${resolveGlobalCcdEnabled(cfg)}`,
+      );
 
       // Local non-null alias used inside hook closures — TypeScript cannot narrow
       // the outer `physicsService` variable through a closure boundary.
@@ -950,6 +986,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         if (ext.onCollision) {
           collisionCallbacks.set(slot, ext.onCollision);
         }
+
+        debugLog(
+          `prefab:instantiate slot=${slot} bodyType=${bodyType} handle=${handle} colliders=${ext.colliders?.length ?? 0} hasLegacy=${!hasNextColliders}`,
+        );
       });
 
       // Clean up callbacks and rigid bodies when an entity is destroyed.
@@ -960,6 +1000,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         // Without this, stale bodies can survive scene transitions and trigger
         // immediate phantom collisions on next game start.
         svc.removeBody(slot);
+        debugLog(`entity:destroy slot=${slot} bodyRemoved=true`);
       });
     },
 

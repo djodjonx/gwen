@@ -56,7 +56,8 @@ describe('createPlayerPrefab', () => {
     // Foot sensor
     expect(physics.colliders[1].isSensor).toBe(true);
     expect(physics.colliders[1].colliderId).toBe(SENSOR_ID_FOOT);
-    expect(physics.colliders[1].offsetY).toBe(16);
+    // Default offset is computed in pixels from collider geometry: bodyHh + footHh.
+    expect(physics.colliders[1].offsetY).toBe(17);
   });
 
   it('allows collider dimension overrides', () => {
@@ -70,6 +71,7 @@ describe('createPlayerPrefab', () => {
 
     expect(physics.colliders[0].hw).toBe(20);
     expect(physics.colliders[1].hw).toBe(10);
+    // Explicit user override stays in pixels at kit level.
     expect(physics.colliders[1].offsetY).toBe(20);
   });
 

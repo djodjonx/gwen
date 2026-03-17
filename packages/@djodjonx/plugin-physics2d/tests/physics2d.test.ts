@@ -399,6 +399,95 @@ describe('Physics2DPlugin', () => {
     );
   });
 
+  it('addBoxCollider forwards offset options to wasm when provided', async () => {
+    const plugin = new Physics2DPlugin();
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    const physics = mockAPI._registered['physics'] as {
+      addBoxCollider: (...a: unknown[]) => unknown;
+    };
+
+    physics.addBoxCollider(15, 0.28, 0.28, {
+      isSensor: true,
+      offsetY: 0.34,
+      colliderId: 0xf007,
+    });
+
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      15,
+      0.28,
+      0.28,
+      0,
+      0.5,
+      1,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+      0xf007,
+      undefined,
+      0.34,
+    );
+  });
+
+  it('addBoxCollider keeps colliderId path when no offset is provided', async () => {
+    const plugin = new Physics2DPlugin();
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+    const physics = mockAPI._registered['physics'] as {
+      addBoxCollider: (...a: unknown[]) => unknown;
+    };
+
+    physics.addBoxCollider(15, 0.28, 0.28, {
+      isSensor: true,
+      colliderId: 0xf007,
+    });
+
+    expect(mockWasmPlugin.add_box_collider).toHaveBeenCalledWith(
+      15,
+      0.28,
+      0.28,
+      0,
+      0.5,
+      1,
+      1.0,
+      0xffffffff,
+      0xffffffff,
+      0xf007,
+    );
+  });
+
+  it('does not emit debug logs when debug option is disabled', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const plugin = new Physics2DPlugin({ debug: false });
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+
+    const physics = mockAPI._registered['physics'] as {
+      addRigidBody: (...a: unknown[]) => unknown;
+    };
+    physics.addRigidBody(1, 'dynamic', 0, 0);
+
+    const hasPhysicsDebugLog = logSpy.mock.calls.some((call) =>
+      String(call[0]).includes('[Physics2D]'),
+    );
+    expect(hasPhysicsDebugLog).toBe(false);
+    logSpy.mockRestore();
+  });
+
+  it('emits strategic debug logs when debug option is enabled', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const plugin = new Physics2DPlugin({ debug: true });
+    await initPlugin(plugin, mockBridge, mockAPI, mockBus);
+
+    const physics = mockAPI._registered['physics'] as {
+      addRigidBody: (...a: unknown[]) => unknown;
+    };
+    physics.addRigidBody(1, 'dynamic', 0, 0);
+
+    const hasPhysicsDebugLog = logSpy.mock.calls.some((call) =>
+      String(call[0]).includes('[Physics2D]'),
+    );
+    expect(hasPhysicsDebugLog).toBe(true);
+    logSpy.mockRestore();
+  });
+
   // ── Physics2DAPI — removeBody & applyImpulse ──────────────────────────────
 
   it('removeBody delegates to wasm', async () => {

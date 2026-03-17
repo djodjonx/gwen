@@ -23,8 +23,8 @@ export interface ColliderPixelDef {
   h: number;
   /** Vertical offset from the center in pixels. Positive is down. */
   offset?: number;
-  /** Optional ID for the collider. */
-  id?: number | string;
+  /** Optional numeric ID for the collider. */
+  id?: number;
 }
 
 /**
@@ -55,7 +55,11 @@ export interface PlayerPrefabOptions {
   colliders?: {
     /** Main solid body. Default: 30x30 px */
     body?: { w: number; h: number };
-    /** Foot sensor required for grounded check. Default: 26x4 px at offset 16 */
+    /**
+     * Foot sensor required for grounded checks.
+     * Default: 26x4 px.
+     * Default offset: `bodyHalfHeight + footHalfHeight` (touching body bottom, no gap).
+     */
     foot?: ColliderPixelDef;
     /** Optional head sensor. */
     head?: ColliderPixelDef;
@@ -114,6 +118,10 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
   const bodyHw = (options.colliders?.body?.w ?? 30) / 2;
   const bodyHh = (options.colliders?.body?.h ?? 30) / 2;
 
+  const footHw = (options.colliders?.foot?.w ?? 26) / 2;
+  const footHh = (options.colliders?.foot?.h ?? 4) / 2;
+  const footOffsetPx = options.colliders?.foot?.offset ?? bodyHh + footHh;
+
   const defaultColliders: PhysicsColliderDef[] = [
     // Main body collider
     {
@@ -126,9 +134,10 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
     // Foot sensor (REQUIRED for PlatformerMovementSystem)
     {
       shape: 'box',
-      hw: (options.colliders?.foot?.w ?? 26) / 2,
-      hh: (options.colliders?.foot?.h ?? 4) / 2,
-      offsetY: options.colliders?.foot?.offset ?? 16,
+      hw: footHw,
+      hh: footHh,
+      // Keep pixel units here; Physics2D plugin converts once at runtime.
+      offsetY: footOffsetPx,
       isSensor: true,
       colliderId: SENSOR_ID_FOOT,
     },
@@ -136,11 +145,16 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
 
   // Optional head sensor
   if (options.colliders?.head) {
+    const headHw = options.colliders.head.w / 2;
+    const headHh = options.colliders.head.h / 2;
+    const headOffsetPx = options.colliders.head.offset ?? -(bodyHh + headHh);
+
     defaultColliders.push({
       shape: 'box',
-      hw: options.colliders.head.w / 2,
-      hh: options.colliders.head.h / 2,
-      offsetY: options.colliders.head.offset ?? -16,
+      hw: headHw,
+      hh: headHh,
+      // Keep pixel units here; Physics2D plugin converts once at runtime.
+      offsetY: headOffsetPx,
       isSensor: true,
       colliderId: options.colliders.head.id ?? 0x4ead,
     });

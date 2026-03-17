@@ -25,7 +25,7 @@ export default defineConfig({
 
   plugins: [
     new Physics2DPlugin({
-      gravity: 25,
+      gravity: 35,
       debug: true,
     }),
     new InputPlugin({

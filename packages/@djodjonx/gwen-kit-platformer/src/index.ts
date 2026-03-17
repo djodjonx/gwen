@@ -26,5 +26,18 @@ export type {
 export { PlatformerInputSystem } from './systems/PlatformerInputSystem.js';
 export { PlatformerMovementSystem } from './systems/PlatformerMovementSystem.js';
 
+// ── Level Geometry Helpers ──────────────────────────────────────────────────
+export {
+  buildPlatformerStaticGeometry,
+  loadPlatformerStaticGeometry,
+  createPlatformerStaticGeometry,
+} from './helpers/staticGeometry.js';
+export type {
+  PlatformerLevelBlock,
+  BuildPlatformerStaticGeometryOptions,
+  LoadPlatformerStaticGeometryOptions,
+  PlatformerStaticGeometryHandle,
+} from './helpers/staticGeometry.js';
+
 // ── Shared constants & types ───────────────────────────────────────────────
 export { PlatformerDefaultInputMap } from './input.js';

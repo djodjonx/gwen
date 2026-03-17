@@ -41,6 +41,28 @@ Creates a full player prefab with movement, physics colliders, and foot sensor.
 
 Creates a basic scene with a floor and optional ceiling/walls.
 
+### `createPlatformerStaticGeometry(physics, buildOptions, loadOptions?)`
+
+Builds and loads merged static level colliders from pixel-authored blocks.
+
+```ts
+import { createPlatformerStaticGeometry } from '@djodjonx/gwen-kit-platformer';
+
+const level = createPlatformerStaticGeometry(physics, {
+  blocks: [{ x: 640, y: 550, w: 1280, h: 64 }],
+  worldWidthPx: 1280,
+  worldHeightPx: 640,
+  tileSizePx: 16,
+});
+
+// On scene exit:
+level.unload();
+```
+
+Related low-level variants:
+- `buildPlatformerStaticGeometry(options)`
+- `loadPlatformerStaticGeometry(physics, chunkMap, options?)`
+
 ## Documentation index
 
 - CHANGELOG: `CHANGELOG.md`

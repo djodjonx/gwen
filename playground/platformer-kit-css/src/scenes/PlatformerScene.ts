@@ -1,9 +1,25 @@
-import { UIComponent, unpackEntityId, defineComponent, Types } from '@djodjonx/gwen-engine-core';
-import { createPlatformerScene, createPlayerPrefab, Position } from '@djodjonx/gwen-kit-platformer';
-import { PlayerUI, BlockUI, HudUI, blockSizes } from '../ui/GameUI.ts';
+import { UIComponent, defineComponent, Types, type EngineAPI } from '@djodjonx/gwen-engine-core';
+import { createPlatformerScene, createPlayerPrefab } from '@djodjonx/gwen-kit-platformer';
+import { PlayerUI, BlockUI, HudUI, blockLayout } from '../ui/GameUI.ts';
+import {
+  createLevelStaticGeometry,
+  type LevelBlock,
+  type LevelStaticGeometryHandle,
+} from '../level/staticGeometry.ts';
 import '../style.css';
 
-const PPM = 50;
+const TILE_SIZE_PX = 16;
+const WORLD_WIDTH_PX = 1280;
+const WORLD_HEIGHT_PX = 640;
+
+const LEVEL_BLOCKS: ReadonlyArray<LevelBlock> = [
+  { x: WORLD_WIDTH_PX / 2, y: 550, w: WORLD_WIDTH_PX, h: 64 },
+  { x: 300, y: 420, w: 128, h: 32 },
+  { x: 550, y: 320, w: 128, h: 32 },
+  { x: 800, y: 220, w: 128, h: 32 },
+];
+
+let staticGeometry: LevelStaticGeometryHandle | null = null;
 
 /**
  * Advanced Example:
@@ -29,13 +45,11 @@ const AdvancedPosition = defineComponent({
  * 3. CSS rendering synchronized with authoritative physics
  */
 
-// 1. Define the scene
 export const PlatformerScene = createPlatformerScene({
   name: 'PlatformerScene',
   units: 'pixels',
   gravity: 35,
 
-  // Register UI components for this scene
   ui: [PlayerUI, BlockUI, HudUI],
 
   async onEnter(api) {
@@ -50,17 +64,9 @@ export const PlatformerScene = createPlatformerScene({
     // Register Prefabs
     api.prefabs.register(PlayerPrefab);
 
-    // --- Create Level ---
-
-    // Solid ground
-    for (let i = 0; i < 20; i++) {
-      createBlock(api, i * 64 + 32, 550, 64, 64);
-    }
-
-    // Floating platforms
-    createBlock(api, 300, 420, 128, 32);
-    createBlock(api, 550, 320, 128, 32);
-    createBlock(api, 800, 220, 128, 32);
+    // Create visual blocks and load merged static colliders from a tile bake.
+    spawnLevelVisuals(api, LEVEL_BLOCKS);
+    loadMergedLevelCollision(api, LEVEL_BLOCKS);
 
     // Spawn Player
     api.prefabs.instantiate('Player', 100, 450);
@@ -70,13 +76,14 @@ export const PlatformerScene = createPlatformerScene({
     api.addComponent(hud, UIComponent, { uiName: 'HudUI' });
   },
 
-  onExit() {
+  onExit(_api) {
+    staticGeometry?.unload();
+    staticGeometry = null;
     document.getElementById('game-viewport')?.remove();
-    blockSizes.clear();
+    blockLayout.clear();
   },
 });
 
-// 2. Create the player prefab
 const PlayerPrefab = createPlayerPrefab({
   name: 'Player',
   units: 'pixels',
@@ -91,30 +98,38 @@ const PlayerPrefab = createPlayerPrefab({
 
   colliders: {
     body: { w: 28, h: 28 },
-    foot: { w: 24, h: 6, offset: 16 },
+    foot: { w: 24, h: 6 },
   },
   onCreated(api, entity) {
     api.addComponent(entity, UIComponent, { uiName: 'PlayerUI' });
   },
 });
 
-/**
- * Helper to create a static block with physics and UI
- */
-function createBlock(api: any, x: number, y: number, w: number, h: number) {
+function createBlockVisual(api: EngineAPI, x: number, y: number, w: number, h: number) {
   const block = api.createEntity();
-
-  blockSizes.set(block as bigint, { w, h });
+  blockLayout.set(block, { x, y, w, h });
   api.addComponent(block, UIComponent, { uiName: 'BlockUI' });
+  return block;
+}
+
+function spawnLevelVisuals(api: EngineAPI, blocks: ReadonlyArray<LevelBlock>) {
+  for (const block of blocks) {
+    createBlockVisual(api, block.x, block.y, block.w, block.h);
+  }
+}
+
+function loadMergedLevelCollision(api: EngineAPI, blocks: ReadonlyArray<LevelBlock>) {
+  if (!api.services.has('physics')) {
+    console.error('[PlatformerScene] Physics service not available during onEnter!');
+    return;
+  }
 
   const physics = api.services.get('physics');
-  const { index: slot } = unpackEntityId(block);
-
-  const body = physics.addRigidBody(slot, 'static', x / PPM, y / PPM);
-  physics.addBoxCollider(body, w / 2 / PPM, h / 2 / PPM, {
-    friction: 0.5,
-    restitution: 0.1,
+  staticGeometry = createLevelStaticGeometry(physics, {
+    blocks,
+    worldWidthPx: WORLD_WIDTH_PX,
+    worldHeightPx: WORLD_HEIGHT_PX,
+    tileSizePx: TILE_SIZE_PX,
+    chunkSizeTiles: 16,
   });
-
-  return block;
 }

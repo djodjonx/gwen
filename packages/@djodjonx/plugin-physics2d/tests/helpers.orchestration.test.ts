@@ -103,4 +103,19 @@ describe('orchestration helpers', () => {
     expect(x).toBe(10);
     expect(y).toBe(20);
   });
+
+  it('should place each visible chunk at its chunk-grid world offset', () => {
+    const physics = makePhysics();
+    const orch = createTilemapChunkOrchestrator(physics, {
+      source,
+      origin: { x: 1, y: 2 },
+    });
+
+    orch.syncVisibleChunks([{ chunkX: 1, chunkY: 1 }]);
+
+    const [, x, y] = physics.loadTilemapPhysicsChunk.mock.calls[0];
+    // source: chunkSizeTiles=1, tileSizePx=16 => chunk world size = 16 / 50 = 0.32m
+    expect(x).toBeCloseTo(1.32, 6);
+    expect(y).toBeCloseTo(2.32, 6);
+  });
 });

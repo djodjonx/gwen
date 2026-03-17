@@ -79,3 +79,36 @@ const PlayerPrefab = createPlayerPrefab({
 | `colliders` | authored in pixels in kit APIs | authored in pixels in kit APIs |
 
 `colliders` stay pixel-authored in kit APIs for DX and are converted by Physics2D internally.
+
+---
+
+## Level 3 - Static Level Geometry Helpers
+
+Use kit-level helpers to author level collision in pixels while relying on Physics2D merged chunks.
+
+```ts
+import { createPlatformerStaticGeometry } from '@djodjonx/gwen-kit-platformer';
+
+const handle = createPlatformerStaticGeometry(physics, {
+  blocks: [
+    { x: 640, y: 550, w: 1280, h: 64 },
+    { x: 300, y: 420, w: 128, h: 32 },
+  ],
+  worldWidthPx: 1280,
+  worldHeightPx: 640,
+  tileSizePx: 16,
+  chunkSizeTiles: 16,
+});
+
+// Scene teardown
+handle.unload();
+```
+
+### Geometry helper API
+
+| Helper | Description |
+|---|---|
+| `buildPlatformerStaticGeometry(options)` | Build merged chunk map from pixel blocks |
+| `loadPlatformerStaticGeometry(physics, chunkMap, options?)` | Load a pre-built chunk map and get a disposable handle |
+| `createPlatformerStaticGeometry(physics, buildOptions, loadOptions?)` | Build + load in one call |
+

@@ -19,6 +19,8 @@ export default defineConfig({
         '@djodjonx/gwen-engine-core',
         '@djodjonx/gwen-kit',
         '@djodjonx/gwen-plugin-physics2d',
+        '@djodjonx/gwen-plugin-physics2d/core',
+        '@djodjonx/gwen-plugin-physics2d/helpers/static-geometry',
         '@djodjonx/gwen-plugin-input',
         '@djodjonx/gwen-cli',
       ],

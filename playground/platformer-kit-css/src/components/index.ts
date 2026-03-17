@@ -1,10 +1,5 @@
 import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
-/**
- * Project-specific components.
- * Note: 'position' is now imported directly from the Platformer Kit.
- */
-
 export const Velocity = defineComponent('Velocity', () => ({
   schema: {
     x: Types.f32,

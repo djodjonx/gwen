@@ -7,6 +7,8 @@ import type {
 } from '../types.js';
 import { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './tilemap.js';
 
+const DEFAULT_PIXELS_PER_METER = 50;
+
 function chunkIndexKey(chunkX: number, chunkY: number): string {
   return `${chunkX}:${chunkY}`;
 }
@@ -27,6 +29,9 @@ function getChunk(
  * diff on each `syncVisibleChunks` call: it loads newly visible chunks once and
  * unloads chunks that are no longer visible. Calling `syncVisibleChunks` multiple
  * times with the same set is a safe no-op.
+ *
+ * Chunk colliders are chunk-local, so runtime loading applies the chunk-grid offset
+ * (`chunkX/chunkY * chunkWorldSizeMeters`) on top of the provided `origin`.
  *
  * **Lifecycle:**
  * 1. Create once per scene (or per tilemap layer).
@@ -66,6 +71,10 @@ export function createTilemapChunkOrchestrator(
   const origin = options.origin ?? { x: 0, y: 0 };
   const loaded = new Set<string>();
 
+  function getChunkWorldSizeM(): number {
+    return (chunkMap.chunkSizeTiles * chunkMap.tileSizePx) / DEFAULT_PIXELS_PER_METER;
+  }
+
   return {
     syncVisibleChunks(chunks) {
       const nextVisible = new Set(chunks.map((c) => chunkIndexKey(c.chunkX, c.chunkY)));
@@ -82,7 +91,10 @@ export function createTilemapChunkOrchestrator(
         if (loaded.has(key)) continue;
         const chunk = getChunk(chunkMap, visible.chunkX, visible.chunkY);
         if (!chunk) continue;
-        physics.loadTilemapPhysicsChunk(chunk, origin.x, origin.y);
+        const chunkWorldSizeM = getChunkWorldSizeM();
+        const worldX = origin.x + chunk.chunkX * chunkWorldSizeM;
+        const worldY = origin.y + chunk.chunkY * chunkWorldSizeM;
+        physics.loadTilemapPhysicsChunk(chunk, worldX, worldY);
         loaded.add(chunk.key);
       }
     },
@@ -99,7 +111,10 @@ export function createTilemapChunkOrchestrator(
       const next = getChunk(chunkMap, chunkX, chunkY);
       if (!next) return;
       if (!loaded.has(next.key)) return;
-      physics.patchTilemapPhysicsChunk(next, origin.x, origin.y);
+      const chunkWorldSizeM = getChunkWorldSizeM();
+      const worldX = origin.x + next.chunkX * chunkWorldSizeM;
+      const worldY = origin.y + next.chunkY * chunkWorldSizeM;
+      physics.patchTilemapPhysicsChunk(next, worldX, worldY);
     },
 
     dispose() {

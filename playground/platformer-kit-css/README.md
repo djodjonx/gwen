@@ -1,6 +1,6 @@
 # playground-platformer-kit-css
 
-A game built with [GWEN](https://gwen.dev) — the modular web-native game engine.
+Platformer CSS playground using `@djodjonx/gwen-kit-platformer` with merged static colliders.
 
 ## Getting started
 
@@ -17,10 +17,9 @@ npm run preview  # preview production build
 playground-platformer-kit-css/
   src/
     scenes/
-      MainScene.ts       # Your first scene
-    components/          # Component definitions (typed via Schema DSL)
-    systems/             # Game systems (physics, AI, ...)
-    prefabs/             # Entity prefabs
+      PlatformerScene.ts # Kit scene + player prefab + static geometry helper
+    ui/
+      GameUI.ts          # CSS UI renderers (player, blocks, HUD)
   gwen.config.ts         # Engine & plugin configuration
 ```
 
