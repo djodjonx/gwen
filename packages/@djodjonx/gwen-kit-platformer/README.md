@@ -78,6 +78,7 @@ level.unload();
 ```
 
 Related low-level variants:
+
 - `buildPlatformerStaticGeometry(options)`
 - `loadPlatformerStaticGeometry(physics, chunkMap, options?)`
 
