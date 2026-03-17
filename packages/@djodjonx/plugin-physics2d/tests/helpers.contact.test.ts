@@ -4,7 +4,7 @@ import {
   dedupeContactsByPair,
   selectContactsForEntity,
   toResolvedContacts,
-} from '../src/helpers/contact.ts';
+} from '../src/helpers/contact';
 
 describe('contact helpers', () => {
   it('should select events for one slot', () => {

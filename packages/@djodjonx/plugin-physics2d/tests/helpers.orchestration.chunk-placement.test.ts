@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTilemapChunkOrchestrator } from '../src/helpers/orchestration.ts';
+import { createTilemapChunkOrchestrator } from '../src/helpers/orchestration';
 
 describe('orchestration chunk world placement', () => {
   function makePhysics() {

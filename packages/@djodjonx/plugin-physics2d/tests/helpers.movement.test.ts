@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyDirectionalImpulse, moveKinematicByVelocity } from '../src/helpers/movement.ts';
+import { applyDirectionalImpulse, moveKinematicByVelocity } from '../src/helpers/movement';
 
 describe('movement helpers', () => {
   it('should move kinematic body by velocity * dt', () => {

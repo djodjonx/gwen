@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildTilemapPhysicsChunks } from '../src/helpers/tilemap.ts';
-import {
-  buildStaticGeometryChunk,
-  loadStaticGeometryChunk,
-} from '../src/helpers/static-geometry.ts';
+import { buildTilemapPhysicsChunks } from '../src/helpers/tilemap';
+import { buildStaticGeometryChunk, loadStaticGeometryChunk } from '../src/helpers/static-geometry';
 
 describe('static geometry helpers', () => {
   it('should merge contiguous solids into a single rectangle', () => {

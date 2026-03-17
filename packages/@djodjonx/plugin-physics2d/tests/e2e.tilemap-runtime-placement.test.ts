@@ -5,8 +5,8 @@
  * bake chunks -> stream visible chunks -> patch one chunk.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { buildTilemapPhysicsChunks } from '../src/helpers/tilemap.ts';
-import { createTilemapChunkOrchestrator } from '../src/helpers/orchestration.ts';
+import { buildTilemapPhysicsChunks } from '../src/helpers/tilemap';
+import { createTilemapChunkOrchestrator } from '../src/helpers/orchestration';
 
 describe('e2e tilemap runtime placement contract (library scoped)', () => {
   it('streams adjacent chunks at deterministic world offsets and patches in place', () => {

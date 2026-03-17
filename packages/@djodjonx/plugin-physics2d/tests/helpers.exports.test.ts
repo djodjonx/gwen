@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import * as queries from '../src/helpers-queries.ts';
-import * as movement from '../src/helpers-movement.ts';
-import * as contact from '../src/helpers-contact.ts';
-import * as geometry from '../src/helpers-static-geometry.ts';
-import * as orchestration from '../src/helpers-orchestration.ts';
+import * as queries from '../src/helpers-queries';
+import * as movement from '../src/helpers-movement';
+import * as contact from '../src/helpers-contact';
+import * as geometry from '../src/helpers-static-geometry';
+import * as orchestration from '../src/helpers-orchestration';
 
 describe('helpers domain entries', () => {
   it('should expose queries helpers', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBodySnapshot, getSpeed, isSensorActive } from '../src/helpers/queries.ts';
+import { getBodySnapshot, getSpeed, isSensorActive } from '../src/helpers/queries';
 
 describe('queries helpers', () => {
   it('should return snapshot with null fields when body is missing', () => {
