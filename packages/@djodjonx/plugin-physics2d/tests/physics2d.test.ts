@@ -12,6 +12,8 @@ import type { GwenPlugin } from '@djodjonx/gwen-kit';
 // ─── Helpers & mocks ─────────────────────────────────────────────────────────
 
 function makeMockWasmPlugin() {
+  const sensorCounts = new Map<string, number>();
+
   return {
     add_rigid_body: vi.fn().mockReturnValue(0),
     add_box_collider: vi.fn(),
@@ -27,6 +29,17 @@ function makeMockWasmPlugin() {
     set_global_ccd_enabled: vi.fn(),
     consume_event_metrics: vi.fn().mockReturnValue([1, 0, 0, 1]),
     get_linear_velocity: vi.fn().mockReturnValue([]),
+    get_sensor_state: vi.fn((entityIndex: number, sensorId: number) => {
+      const key = `${entityIndex}:${sensorId}`;
+      const count = sensorCounts.get(key) ?? 0;
+      return [count, count > 0 ? 1 : 0];
+    }),
+    update_sensor_state: vi.fn((entityIndex: number, sensorId: number, started: number) => {
+      const key = `${entityIndex}:${sensorId}`;
+      const current = sensorCounts.get(key) ?? 0;
+      const next = started === 1 ? current + 1 : Math.max(0, current - 1);
+      sensorCounts.set(key, next);
+    }),
     step: vi.fn(),
     get_position: vi.fn().mockReturnValue([]),
     stats: vi.fn().mockReturnValue('{"bodies":0,"colliders":0}'),
@@ -1170,7 +1183,25 @@ describe('Physics2DPlugin — onUpdate policy', () => {
     view.setUint8(8 + 10, 1);
   }
 
-  it('ne dispatch pas de hook en mode pull sans callback opt-in', async () => {
+  function seedSingleCollisionEventV2(
+    eventsBuf: ArrayBuffer,
+    slotA: number,
+    slotB: number,
+    aColliderId: number,
+    bColliderId: number,
+  ) {
+    const view = new DataView(eventsBuf);
+    view.setUint32(0, 1, true);
+    view.setUint32(4, 0, true);
+    // Event payload (stride 19): [type:2][slotA:4][slotB:4][aColliderId:4][bColliderId:4][started:1]
+    view.setUint32(8 + 2, slotA, true);
+    view.setUint32(8 + 6, slotB, true);
+    view.setUint32(8 + 10, aColliderId, true);
+    view.setUint32(8 + 14, bColliderId, true);
+    view.setUint8(8 + 18, 1);
+  }
+
+  it('en mode pull sans callback opt-in, n emet pas le batch hook', async () => {
     const plugin = new Physics2DPlugin({ eventMode: 'pull' });
     const api = makeMockAPI();
     seedSingleCollisionEvent(mockBus._eventsBuf, 3, 4);
@@ -1178,7 +1209,10 @@ describe('Physics2DPlugin — onUpdate policy', () => {
     await initPlugin(plugin, mockBridge, api, mockBus);
     plugin.onUpdate!(api as never, 0.016);
 
-    expect(api.hooks.callHook).not.toHaveBeenCalled();
+    expect(api.hooks.callHook).not.toHaveBeenCalledWith(
+      'physics:collision:batch',
+      expect.anything(),
+    );
   });
 
   it('dispatch le hook enrichi en mode hybrid', async () => {
@@ -1204,6 +1238,57 @@ describe('Physics2DPlugin — onUpdate policy', () => {
       'physics:collision',
       expect.arrayContaining([expect.objectContaining({ slotA: 7, slotB: 8, started: true })]),
     );
+  });
+
+  it('updates sensor state in pull mode using collider ids (no callback required)', async () => {
+    const plugin = new Physics2DPlugin({ eventMode: 'pull' });
+    const api = makeMockAPI();
+    const eventsBufV2 = new ArrayBuffer(8 + 256 * 19);
+    const busV2 = makeMockBus(undefined, eventsBufV2);
+
+    seedSingleCollisionEventV2(eventsBufV2, 7, 8, 0xf007, 0xbeef);
+
+    await initPlugin(plugin, mockBridge, api, busV2);
+    plugin.onUpdate!(api as never, 0.016);
+
+    const physics = api._registered['physics'] as {
+      getSensorState: (entityIndex: number, sensorId: number) => { isActive: boolean };
+    };
+
+    expect(physics.getSensorState(7, 0xf007).isActive).toBe(true);
+    expect(physics.getSensorState(8, 0xbeef).isActive).toBe(true);
+    // pull mode without callbacks should not emit collision hooks, only internal sensor updates
+    expect(api.hooks.callHook).not.toHaveBeenCalledWith(
+      'physics:collision:batch',
+      expect.anything(),
+    );
+  });
+
+  it('updates known sensor id for legacy payloads without collider ids', async () => {
+    const plugin = new Physics2DPlugin({ eventMode: 'pull' });
+    const api = makeMockAPI({ x: 0, y: 0 });
+    const entityId = createEntityId(7, 0);
+
+    // Legacy stride payload: no collider ids available
+    seedSingleCollisionEvent(mockBus._eventsBuf, 7, 8);
+
+    await initPlugin(plugin, mockBridge, api, mockBus);
+    await api.hooks._trigger('prefab:instantiate', entityId, {
+      physics: {
+        colliders: [
+          { shape: 'box', hw: 10, hh: 10 },
+          { shape: 'box', hw: 8, hh: 2, isSensor: true, colliderId: 0xf007 },
+        ],
+      },
+    });
+
+    plugin.onUpdate!(api as never, 0.016);
+
+    const physics = api._registered['physics'] as {
+      getSensorState: (entityIndex: number, sensorId: number) => { isActive: boolean };
+    };
+
+    expect(physics.getSensorState(7, 0xf007).isActive).toBe(true);
   });
 
   it('dispatch aussi quand un callback prefab onCollision est enregistre', async () => {

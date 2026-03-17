@@ -433,6 +433,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     number,
     NonNullable<Physics2DPrefabExtension['onCollision']>
   >();
+  const sensorColliderIdsBySlot = new Map<number, Set<number>>();
   const loadedTilemapChunks = new Map<string, { chunkId: number; checksum: string }>();
 
   // ── Service factory ──────────────────────────────────────────────────
@@ -522,6 +523,10 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     }
 
     return {
+      isDebugEnabled() {
+        return isDebug;
+      },
+
       addRigidBody(entityIndex, type, x, y, opts = {}) {
         if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
         const ccd = opts.ccdEnabled;
@@ -960,6 +965,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         const hasNextColliders = Array.isArray(ext.colliders) && ext.colliders.length > 0;
         if (hasNextColliders) {
           const seenIds = new Set<string>();
+          const sensorIds = new Set<number>();
           for (const [colliderIndex, collider] of ext.colliders!.entries()) {
             if (collider.id) {
               if (seenIds.has(collider.id)) {
@@ -977,6 +983,14 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
               layerRegistry,
               collider.colliderId ?? colliderIndex,
             );
+
+            if (collider.isSensor) {
+              sensorIds.add(collider.colliderId ?? colliderIndex);
+            }
+          }
+
+          if (sensorIds.size > 0) {
+            sensorColliderIdsBySlot.set(slot, sensorIds);
           }
         } else {
           addLegacyPrefabCollider(svc, handle, ext, cfg.compat, layerRegistry);
@@ -996,6 +1010,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       api.hooks.hook('entity:destroy', (entityId) => {
         const { index: slot } = unpackEntityId(entityId);
         collisionCallbacks.delete(slot);
+        sensorColliderIdsBySlot.delete(slot);
         // Important: keep Rapier in sync with ECS lifecycle.
         // Without this, stale bodies can survive scene transitions and trigger
         // immediate phantom collisions on next game start.
@@ -1013,7 +1028,6 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
      */
     onUpdate(api): void {
       if (!wasmPlugin || !physicsService) return;
-      if (cfg.eventMode !== 'hybrid' && collisionCallbacks.size === 0) return;
 
       const batch = physicsService.getCollisionEventsBatch();
       if (batch.count === 0) return;
@@ -1023,19 +1037,37 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       }
 
       // Update sensor states from events, emitting physics:sensor:changed on transitions.
-      for (const { slotA, slotB, started } of batch.events) {
-        // We track sensors by checking both sides of each contact.
-        // Only emit the hook when the is_active flag actually changes.
-        for (const [slot, other] of [
-          [slotA, slotB],
-          [slotB, slotA],
-        ] as [number, number][]) {
-          // sensor_id = other slot (simplest agnostic key; callers can use layer bits instead)
-          const prevState = physicsService.getSensorState(slot, other);
-          physicsService.updateSensorState(slot, other, started);
-          const nextState = physicsService.getSensorState(slot, other);
+      for (const { slotA, slotB, aColliderId, bColliderId, started } of batch.events) {
+        const resolveSensorId = (
+          slot: number,
+          colliderId: number | undefined,
+          fallback: number,
+        ) => {
+          if (colliderId !== undefined) return colliderId;
+          const knownSensors = sensorColliderIdsBySlot.get(slot);
+          if (knownSensors && knownSensors.size === 1) {
+            return [...knownSensors][0];
+          }
+          return fallback;
+        };
+
+        // Preferred key: collider ids from event payload (stable gameplay sensor ids).
+        // Fallback for legacy payloads: known sensor id for the slot (if unique),
+        // otherwise opposite slot index.
+        const sensorPairs: Array<{ slot: number; sensorId: number }> = [
+          { slot: slotA, sensorId: resolveSensorId(slotA, aColliderId, slotB) },
+          { slot: slotB, sensorId: resolveSensorId(slotB, bColliderId, slotA) },
+        ];
+
+        for (const { slot, sensorId } of sensorPairs) {
+          const prevState = physicsService.getSensorState(slot, sensorId);
+          physicsService.updateSensorState(slot, sensorId, started);
+          const nextState = physicsService.getSensorState(slot, sensorId);
           if (prevState.isActive !== nextState.isActive) {
-            void api.hooks.callHook('physics:sensor:changed', slot, other, nextState);
+            debugLog(
+              `sensor:changed slot=${slot} sensorId=${sensorId} active=${nextState.isActive} count=${nextState.contactCount} started=${started}`,
+            );
+            void api.hooks.callHook('physics:sensor:changed', slot, sensorId, nextState);
           }
         }
       }
@@ -1090,6 +1122,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       cachedCollisionEventCount = 0;
       physicsService = null;
       collisionCallbacks.clear();
+      sensorColliderIdsBySlot.clear();
       loadedTilemapChunks.clear();
     },
   };

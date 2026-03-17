@@ -120,7 +120,6 @@ function spawnLevelVisuals(api: EngineAPI, blocks: ReadonlyArray<LevelBlock>) {
 
 function loadMergedLevelCollision(api: EngineAPI, blocks: ReadonlyArray<LevelBlock>) {
   if (!api.services.has('physics')) {
-    console.error('[PlatformerScene] Physics service not available during onEnter!');
     return;
   }
 

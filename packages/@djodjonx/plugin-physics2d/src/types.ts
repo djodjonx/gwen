@@ -634,6 +634,9 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
  * ```
  */
 export interface Physics2DAPI {
+  /** Returns true when Physics2D plugin debug mode is enabled. */
+  isDebugEnabled?(): boolean;
+
   /**
    * Register a rigid body for an entity.
    * @param entityIndex  Raw `EntityId.index` (slot only — not packed).
