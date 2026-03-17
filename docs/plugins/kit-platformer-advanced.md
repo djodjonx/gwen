@@ -53,10 +53,19 @@ export const EnemyAISystem = defineSystem('EnemyAISystem', () => ({
 | `units` | `string` | `'pixels'` | Movement unit: `'pixels'` or `'meters'` |
 | `pixelsPerMeter` | `f32` | `50` | Conversion ratio used when `units='pixels'` |
 | `speed` | `f32` | `300` | Max horizontal speed (depends on `units`) |
-| `jumpForce` | `f32` | `500` | Jump impulse (depends on `units`) |
-| `coyoteMs` | `f32` | `110` | Coyote time window (ms) |
-| `jumpBufferMs` | `f32` | `110` | Jump buffer window (ms) |
+| `jumpVelocity` | `f32` | `500` | Jump launch velocity (depends on `units`) |
+| `jumpCoyoteMs` | `f32` | `110` | Coyote time window (ms) |
+| `jumpBufferWindowMs` | `f32` | `110` | Jump buffer window (ms) |
+| `groundEnterFrames` | `f32` | `1` | Frames required to confirm grounded |
+| `groundExitFrames` | `f32` | `4` | Frames required to confirm airborne |
+| `postJumpLockMs` | `f32` | `80` | Short post-jump lockout to absorb re-contact jitter |
 | `maxFallSpeed` | `f32` | `600` | Fall speed cap (depends on `units`) |
+
+Deprecated aliases (accepted, but migrate away):
+
+- `jumpForce` -> `jumpVelocity`
+- `coyoteMs` -> `jumpCoyoteMs`
+- `jumpBufferMs` -> `jumpBufferWindowMs`
 
 ## `PlatformerIntent` reference
 
@@ -75,3 +84,13 @@ export const EnemyAISystem = defineSystem('EnemyAISystem', () => ({
 | `getLinearVelocity` | `(eid) => {x,y} \| null` | Current velocity |
 | `setLinearVelocity` | `(eid, vx, vy) => void` | Applies velocity |
 | `getSensorState` | `(eid, sensorId) => SensorState` | Ground check via foot sensor |
+
+## Deterministic internals
+
+`PlatformerMovementSystem` uses:
+
+- `groundHysteresis.ts` to stabilize grounded state from sensor flicker.
+- `jumpResolver.ts` to enforce deterministic jump gate and one-jump-per-takeoff semantics.
+
+For migration details, see `docs/plugins/kit-platformer-migration.md`.
+

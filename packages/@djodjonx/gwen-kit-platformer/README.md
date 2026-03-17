@@ -9,8 +9,15 @@ Requires `@djodjonx/gwen-plugin-physics2d` to be registered as a plugin.
 ```ts
 import { createPlayerPrefab, createPlatformerScene } from '@djodjonx/gwen-kit-platformer';
 
-const PlayerPrefab = createPlayerPrefab({ speed: 300, jumpForce: 500 });
+const PlayerPrefab = createPlayerPrefab({
+  speed: 300,
+  jumpVelocity: 500,
+  jumpCoyoteMs: 110,
+  jumpBufferWindowMs: 110,
+});
 ```
+
+Legacy aliases still work (`jumpForce`, `coyoteMs`, `jumpBufferMs`) but are deprecated.
 
 ## Import migration (subpath-first)
 
@@ -36,6 +43,17 @@ import { applyDirectionalImpulse } from '@djodjonx/gwen-plugin-physics2d/helpers
 ### `createPlayerPrefab(options?)`
 
 Creates a full player prefab with movement, physics colliders, and foot sensor.
+
+Key movement options:
+
+- `jumpVelocity`
+- `jumpCoyoteMs`
+- `jumpBufferWindowMs`
+- `groundEnterFrames`
+- `groundExitFrames`
+- `postJumpLockMs`
+
+`PlatformerMovementSystem` resolves jump deterministically with grounded hysteresis + jump gating.
 
 ### `createPlatformerScene(options)`
 
@@ -66,3 +84,4 @@ Related low-level variants:
 ## Documentation index
 
 - CHANGELOG: `CHANGELOG.md`
+- Migration: `../../docs/plugins/kit-platformer-migration.md`

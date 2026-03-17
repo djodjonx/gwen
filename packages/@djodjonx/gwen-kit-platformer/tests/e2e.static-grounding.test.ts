@@ -37,9 +37,11 @@ describe('e2e grounding contracts (library scoped)', () => {
   });
 
   it('loads static chunk colliders at chunk-grid world offsets (no chunk stacking)', () => {
+    const loadTilemapPhysicsChunk = vi.fn();
+    const unloadTilemapPhysicsChunk = vi.fn();
     const physics = {
-      loadTilemapPhysicsChunk: vi.fn(),
-      unloadTilemapPhysicsChunk: vi.fn(),
+      loadTilemapPhysicsChunk,
+      unloadTilemapPhysicsChunk,
     } as unknown as Physics2DAPI;
 
     const handle = createPlatformerStaticGeometry(
@@ -56,12 +58,12 @@ describe('e2e grounding contracts (library scoped)', () => {
     );
 
     const chunkWorldSizeM = (16 * 16) / 50; // 5.12m
-    const calls = physics.loadTilemapPhysicsChunk.mock.calls;
+    const calls = loadTilemapPhysicsChunk.mock.calls;
 
     // Keep only chunks on the same row to check X stepping.
     const row0 = calls
-      .map((call) => ({ x: call[1] as number, y: call[2] as number }))
-      .filter((entry) => entry.y === 2);
+      .map((call: any[]) => ({ x: call[1] as number, y: call[2] as number }))
+      .filter((entry: { y: number }) => entry.y === 2);
 
     expect(row0.length).toBeGreaterThanOrEqual(3);
     expect(row0[0].x).toBeCloseTo(1, 6);

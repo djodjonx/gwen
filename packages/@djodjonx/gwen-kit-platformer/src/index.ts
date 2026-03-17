@@ -11,6 +11,7 @@ export type { PlatformerUnits } from './units.js';
 export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './units.js';
 
 export { PlatformerController } from './components/PlatformerController.js';
+export type { PlatformerControllerData } from './components/PlatformerController.js';
 export { PlatformerIntent } from './components/PlatformerIntent.js';
 export { Position } from './components/StandardComponents.js';
 

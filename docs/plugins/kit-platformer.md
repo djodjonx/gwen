@@ -50,7 +50,7 @@ const PlayerPrefab = createPlayerPrefab({
   units: 'pixels',
   pixelsPerMeter: 50,
   speed: 400,
-  jumpForce: 600,
+  jumpVelocity: 600,
   maxFallSpeed: 700,
 });
 ```
@@ -63,10 +63,21 @@ const PlayerPrefab = createPlayerPrefab({
 | `units` | `'pixels' \| 'meters'` | `'pixels'` | Unit for movement values |
 | `pixelsPerMeter` | `number` | `50` | Conversion ratio used when `units='pixels'` |
 | `speed` | `number` | `300` | Max horizontal speed (depends on `units`) |
-| `jumpForce` | `number` | `500` | Jump impulse (depends on `units`) |
-| `coyoteMs` | `number` | `110` | Coyote time window |
-| `jumpBufferMs` | `number` | `110` | Jump buffer window |
+| `jumpVelocity` | `number` | `500` | Jump launch velocity (depends on `units`) |
+| `jumpCoyoteMs` | `number` | `110` | Coyote time window |
+| `jumpBufferWindowMs` | `number` | `110` | Jump input buffer window |
+| `groundEnterFrames` | `number` | `1` | Frames required to confirm grounded from sensor |
+| `groundExitFrames` | `number` | `4` | Frames required to confirm airborne after sensor loss |
+| `postJumpLockMs` | `number` | `80` | Short post-jump lock to avoid jitter double-jumps |
 | `maxFallSpeed` | `number` | `600` | Fall speed cap (depends on `units`) |
+
+Deprecated aliases still accepted for migration:
+
+| Deprecated option | Replacement |
+|---|---|
+| `jumpForce` | `jumpVelocity` |
+| `coyoteMs` | `jumpCoyoteMs` |
+| `jumpBufferMs` | `jumpBufferWindowMs` |
 
 ## Units reference
 
@@ -74,11 +85,20 @@ const PlayerPrefab = createPlayerPrefab({
 |---|---|---|
 | `gravity` | px/s^2, converted to m/s^2 | m/s^2 (no conversion) |
 | `speed` | px/s, converted to m/s | m/s (no conversion) |
-| `jumpForce` | px/s, converted to m/s | m/s (no conversion) |
+| `jumpVelocity` | px/s, converted to m/s | m/s (no conversion) |
 | `maxFallSpeed` | px/s, converted to m/s | m/s (no conversion) |
 | `colliders` | authored in pixels in kit APIs | authored in pixels in kit APIs |
 
 `colliders` stay pixel-authored in kit APIs for DX and are converted by Physics2D internally.
+
+## Deterministic jump model
+
+`PlatformerMovementSystem` now resolves jump in two explicit phases:
+
+1. **Ground resolver** with frame hysteresis (`groundEnterFrames`, `groundExitFrames`).
+2. **Jump resolver** with deterministic gating (`jumpBufferWindowMs`, `jumpCoyoteMs`, `postJumpLockMs`).
+
+This makes jump behavior stable under foot-sensor flicker while keeping input responsiveness.
 
 ---
 

@@ -76,7 +76,10 @@ export function resolveComponent<K extends keyof PlatformerKitComponents>(
   // 2. Global override via PlatformerKitPlugin
   if (api.services.has('platformerKit')) {
     const service = api.services.get('platformerKit') as PlatformerKitService;
-    return service.config.components[key];
+    const component = service.config.components[key];
+    if (component) {
+      return component;
+    }
   }
 
   // 3. Default (fallback)

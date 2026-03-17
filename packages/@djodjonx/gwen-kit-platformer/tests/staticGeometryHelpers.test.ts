@@ -31,9 +31,11 @@ describe('platformer static geometry helpers', () => {
       worldHeightPx: 640,
     });
 
+    const loadTilemapPhysicsChunk = vi.fn();
+    const unloadTilemapPhysicsChunk = vi.fn();
     const physics = {
-      loadTilemapPhysicsChunk: vi.fn(),
-      unloadTilemapPhysicsChunk: vi.fn(),
+      loadTilemapPhysicsChunk,
+      unloadTilemapPhysicsChunk,
     } as unknown as Physics2DAPI;
 
     const handle = loadPlatformerStaticGeometry(physics, chunkMap, { origin: { x: 0, y: 0 } });
@@ -42,7 +44,7 @@ describe('platformer static geometry helpers', () => {
     expect(physics.loadTilemapPhysicsChunk).toHaveBeenCalledTimes(chunkMap.chunks.length);
 
     const distinctOrigins = new Set(
-      physics.loadTilemapPhysicsChunk.mock.calls.map((call) => `${call[1]}:${call[2]}`),
+      loadTilemapPhysicsChunk.mock.calls.map((call: any[]) => `${call[1]}:${call[2]}`),
     );
     expect(distinctOrigins.size).toBeGreaterThan(1);
 
@@ -51,9 +53,11 @@ describe('platformer static geometry helpers', () => {
   });
 
   it('builds and loads in one call', () => {
+    const loadTilemapPhysicsChunk = vi.fn();
+    const unloadTilemapPhysicsChunk = vi.fn();
     const physics = {
-      loadTilemapPhysicsChunk: vi.fn(),
-      unloadTilemapPhysicsChunk: vi.fn(),
+      loadTilemapPhysicsChunk,
+      unloadTilemapPhysicsChunk,
     } as unknown as Physics2DAPI;
 
     const handle = createPlatformerStaticGeometry(
@@ -71,9 +75,11 @@ describe('platformer static geometry helpers', () => {
   });
 
   it('loads adjacent chunks with a stable chunk-grid world step', () => {
+    const loadTilemapPhysicsChunk = vi.fn();
+    const unloadTilemapPhysicsChunk = vi.fn();
     const physics = {
-      loadTilemapPhysicsChunk: vi.fn(),
-      unloadTilemapPhysicsChunk: vi.fn(),
+      loadTilemapPhysicsChunk,
+      unloadTilemapPhysicsChunk,
     } as unknown as Physics2DAPI;
 
     const chunkMap = buildPlatformerStaticGeometry({
@@ -88,10 +94,10 @@ describe('platformer static geometry helpers', () => {
     loadPlatformerStaticGeometry(physics, chunkMap, { origin: { x: 0, y: 0 } });
 
     const chunkWorldSizeM = (16 * 16) / 50; // 5.12m
-    const calls = physics.loadTilemapPhysicsChunk.mock.calls;
+    const calls = loadTilemapPhysicsChunk.mock.calls;
     const withSameRow = calls
-      .map((call) => ({ x: call[1] as number, y: call[2] as number }))
-      .filter((p) => p.y === 0);
+      .map((call: any[]) => ({ x: call[1] as number, y: call[2] as number }))
+      .filter((p: { y: number }) => p.y === 0);
 
     // At least 3 chunks on row 0: x = 0, 5.12, 10.24
     expect(withSameRow.length).toBeGreaterThanOrEqual(3);

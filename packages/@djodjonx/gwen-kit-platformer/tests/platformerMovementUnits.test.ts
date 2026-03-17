@@ -38,7 +38,7 @@ function makePhysics(overrides: Partial<any> = {}) {
 }
 
 describe('PlatformerMovementSystem units conversion', () => {
-  it('converts speed, jumpForce and maxFallSpeed from pixels to meters', () => {
+  it('converts speed, jumpVelocity and maxFallSpeed from pixels to meters', () => {
     const physics = makePhysics({ getLinearVelocity: vi.fn(() => ({ x: 0, y: -30 })) });
     const system = PlatformerMovementSystem();
 
@@ -56,10 +56,13 @@ describe('PlatformerMovementSystem units conversion', () => {
               units: 'pixels',
               pixelsPerMeter: 50,
               speed: 400,
-              jumpForce: 750,
+              jumpVelocity: 750,
               maxFallSpeed: 600,
-              coyoteMs: 110,
-              jumpBufferMs: 110,
+              jumpCoyoteMs: 110,
+              jumpBufferWindowMs: 110,
+              groundEnterFrames: 1,
+              groundExitFrames: 4,
+              postJumpLockMs: 80,
             };
           }
           if (def === PlatformerIntent)
@@ -92,10 +95,13 @@ describe('PlatformerMovementSystem units conversion', () => {
               units: 'meters',
               pixelsPerMeter: 50,
               speed: 8,
-              jumpForce: 15,
+              jumpVelocity: 15,
               maxFallSpeed: 12,
-              coyoteMs: 110,
-              jumpBufferMs: 110,
+              jumpCoyoteMs: 110,
+              jumpBufferWindowMs: 110,
+              groundEnterFrames: 1,
+              groundExitFrames: 4,
+              postJumpLockMs: 80,
             };
           }
           if (def === PlatformerIntent)
@@ -128,10 +134,13 @@ describe('PlatformerMovementSystem units conversion', () => {
               units: 'pixels',
               pixelsPerMeter: 50,
               speed: 300,
-              jumpForce: 500,
+              jumpVelocity: 500,
               maxFallSpeed: 600,
-              coyoteMs: 110,
-              jumpBufferMs: 110,
+              jumpCoyoteMs: 110,
+              jumpBufferWindowMs: 110,
+              groundEnterFrames: 1,
+              groundExitFrames: 4,
+              postJumpLockMs: 80,
             };
           }
           if (def === PlatformerIntent)
@@ -165,10 +174,13 @@ describe('PlatformerMovementSystem units conversion', () => {
               units: 'pixels',
               pixelsPerMeter: 100,
               speed: 400,
-              jumpForce: 600,
+              jumpVelocity: 600,
               maxFallSpeed: 500,
-              coyoteMs: 110,
-              jumpBufferMs: 110,
+              jumpCoyoteMs: 110,
+              jumpBufferWindowMs: 110,
+              groundEnterFrames: 1,
+              groundExitFrames: 4,
+              postJumpLockMs: 80,
             };
           }
           if (def === PlatformerIntent)
@@ -179,8 +191,44 @@ describe('PlatformerMovementSystem units conversion', () => {
       1 / 60,
     );
 
-    // speed=400/100=4, maxFallSpeed=500/100=5 → clamp(-100, -5)=-5, jumpForce=600/100=6
+    // speed=400/100=4, maxFallSpeed=500/100=5 -> clamp(-100, -5)=-5, jumpVelocity=600/100=6
     expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 4, -5);
     expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 4, -6);
+  });
+
+  it('supports deprecated jump aliases from legacy controllers', () => {
+    const physics = makePhysics();
+    const system = PlatformerMovementSystem();
+
+    system.onInit?.({
+      services: { get: () => physics },
+      hooks: { hook: vi.fn() },
+    } as any);
+
+    system.onUpdate?.(
+      {
+        query: () => [0n],
+        getComponent: (_id: bigint, def: any) => {
+          if (def === PlatformerController) {
+            return {
+              units: 'meters',
+              pixelsPerMeter: 50,
+              speed: 8,
+              jumpForce: 16,
+              maxFallSpeed: 12,
+              coyoteMs: 120,
+              jumpBufferMs: 120,
+            };
+          }
+          if (def === PlatformerIntent)
+            return { moveX: 1, jumpJustPressed: true, jumpPressed: true };
+          return null;
+        },
+      } as any,
+      1 / 60,
+    );
+
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 8, 0);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 8, -16);
   });
 });

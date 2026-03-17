@@ -7,7 +7,80 @@ import {
   PLATFORMER_CONTROLLER_DEFAULTS,
 } from '../components/PlatformerController.js';
 import { PlatformerIntent } from '../components/PlatformerIntent.js';
-import { toPhysicsScalar } from '../units.js';
+import {
+  canApplyJump,
+  createJumpResolverState,
+  markJumpApplied,
+  stepJumpResolver,
+  tryConfirmLanding,
+} from './platformer/jumpResolver.js';
+import {
+  createGroundHysteresisState,
+  resolveGroundedWithHysteresis,
+} from './platformer/groundHysteresis.js';
+import { toPhysicsScalar, type PlatformerUnits } from '../units.js';
+
+type ControllerMovementConfig = {
+  speed: number;
+  jumpVelocity: number;
+  maxFallSpeed: number;
+  jumpCoyoteMs: number;
+  jumpBufferWindowMs: number;
+  groundEnterFrames: number;
+  groundExitFrames: number;
+  postJumpLockMs: number;
+};
+
+function isValidNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function pickNumber(
+  primary: number | undefined,
+  legacy: number | undefined,
+  fallback: number,
+): number {
+  if (isValidNumber(primary)) return primary;
+  if (isValidNumber(legacy)) return legacy;
+  return fallback;
+}
+
+type ControllerLike = {
+  speed?: number;
+  jumpVelocity?: number;
+  jumpForce?: number;
+  maxFallSpeed?: number;
+  jumpCoyoteMs?: number;
+  coyoteMs?: number;
+  jumpBufferWindowMs?: number;
+  jumpBufferMs?: number;
+  groundEnterFrames?: number;
+  groundExitFrames?: number;
+  postJumpLockMs?: number;
+};
+
+function normalizeUnits(units: string): PlatformerUnits {
+  return units === 'meters' ? 'meters' : 'pixels';
+}
+
+function resolveMovementConfig(ctrl: ControllerLike): ControllerMovementConfig {
+  const defaults = PLATFORMER_CONTROLLER_DEFAULTS;
+
+  return {
+    speed: pickNumber(ctrl.speed, undefined, defaults.speed),
+    jumpVelocity: pickNumber(ctrl.jumpVelocity, ctrl.jumpForce, defaults.jumpVelocity),
+    maxFallSpeed: pickNumber(ctrl.maxFallSpeed, undefined, defaults.maxFallSpeed),
+    jumpCoyoteMs: pickNumber(ctrl.jumpCoyoteMs, ctrl.coyoteMs, defaults.jumpCoyoteMs),
+    jumpBufferWindowMs: pickNumber(
+      ctrl.jumpBufferWindowMs,
+      ctrl.jumpBufferMs,
+      defaults.jumpBufferWindowMs,
+    ),
+    groundEnterFrames: pickNumber(ctrl.groundEnterFrames, undefined, defaults.groundEnterFrames),
+    groundExitFrames: pickNumber(ctrl.groundExitFrames, undefined, defaults.groundExitFrames),
+    postJumpLockMs: pickNumber(ctrl.postJumpLockMs, undefined, defaults.postJumpLockMs),
+  };
+}
 
 /**
  * Reads PlatformerIntent and applies movement via Physics2DAPI.
@@ -15,18 +88,21 @@ import { toPhysicsScalar } from '../units.js';
 export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem', () => {
   let physics: Physics2DAPI;
   let grounded: ReturnType<typeof createPlatformerGroundedSystem>;
+  let debug = false;
+  let debugTick = 0;
 
-  const coyoteTimers = new Map<bigint, number>();
-  const jumpBuffers = new Map<bigint, number>();
+  const groundStates = new Map<bigint, ReturnType<typeof createGroundHysteresisState>>();
+  const jumpStates = new Map<bigint, ReturnType<typeof createJumpResolverState>>();
 
   return {
     onInit(api) {
       physics = api.services.get('physics') as Physics2DAPI;
       grounded = createPlatformerGroundedSystem({ physics });
+      debug = physics.isDebugEnabled?.() ?? false;
 
       api.hooks.hook('entity:destroy', (eid: EntityId) => {
-        coyoteTimers.delete(eid);
-        jumpBuffers.delete(eid);
+        groundStates.delete(eid);
+        jumpStates.delete(eid);
       });
     },
 
@@ -44,28 +120,70 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         if (!vel) continue;
 
         // Horizontal movement
-        const speed = toPhysicsScalar(ctrl.speed, ctrl.units, ctrl.pixelsPerMeter);
-        const jumpForce = toPhysicsScalar(ctrl.jumpForce, ctrl.units, ctrl.pixelsPerMeter);
-        const maxFallSpeed = toPhysicsScalar(ctrl.maxFallSpeed, ctrl.units, ctrl.pixelsPerMeter);
+        const movement = resolveMovementConfig(ctrl);
+        const units = normalizeUnits(ctrl.units);
+        const speed = toPhysicsScalar(movement.speed, units, ctrl.pixelsPerMeter);
+        const jumpVelocity = toPhysicsScalar(movement.jumpVelocity, units, ctrl.pixelsPerMeter);
+        const maxFallSpeed = toPhysicsScalar(movement.maxFallSpeed, units, ctrl.pixelsPerMeter);
         const targetVx = intent.moveX * speed;
         physics.setLinearVelocity(slot, targetVx, Math.max(vel.y, -maxFallSpeed));
 
-        // Coyote time
-        const isOnGround = grounded.isGrounded(slot);
-        let coyote = coyoteTimers.get(eid) ?? 0;
-        coyote = isOnGround ? ctrl.coyoteMs : Math.max(0, coyote - dtMs);
-        coyoteTimers.set(eid, coyote);
+        const sensorGrounded = grounded.isGrounded(slot);
+        const groundState = grounded.getSensorState(slot);
+        const groundStateRecord =
+          groundStates.get(eid) ?? createGroundHysteresisState(sensorGrounded);
+        const isOnGround = resolveGroundedWithHysteresis(groundStateRecord, sensorGrounded, {
+          enterFrames: movement.groundEnterFrames,
+          exitFrames: movement.groundExitFrames,
+        });
+        groundStates.set(eid, groundStateRecord);
 
-        // Jump buffer
-        let buffer = jumpBuffers.get(eid) ?? 0;
-        buffer = intent.jumpJustPressed ? ctrl.jumpBufferMs : Math.max(0, buffer - dtMs);
-        jumpBuffers.set(eid, buffer);
+        const jumpState = jumpStates.get(eid) ?? createJumpResolverState();
+        stepJumpResolver(jumpState, {
+          dtMs,
+          jumpJustPressed: intent.jumpJustPressed,
+          isGrounded: isOnGround,
+          config: {
+            coyoteMs: movement.jumpCoyoteMs,
+            jumpBufferWindowMs: movement.jumpBufferWindowMs,
+            postJumpLockMs: movement.postJumpLockMs,
+          },
+        });
+        tryConfirmLanding(jumpState, isOnGround);
+        jumpStates.set(eid, jumpState);
 
-        // Jump resolution
-        if (buffer > 0 && (isOnGround || coyote > 0)) {
-          physics.setLinearVelocity(slot, targetVx, -jumpForce);
-          jumpBuffers.set(eid, 0);
-          coyoteTimers.set(eid, 0);
+        if (debug && intent.jumpJustPressed) {
+          console.log(
+            `[PlatformerMovementSystem] jump request slot=${slot} grounded=${isOnGround}(sensor=${sensorGrounded}) contactCount=${groundState.contactCount} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed} vy=${vel.y.toFixed(3)}`,
+          );
+        }
+
+        if (debug && debugTick++ % 30 === 0) {
+          console.log(
+            `[PlatformerMovementSystem] state slot=${slot} vy=${vel.y.toFixed(3)} grounded=${isOnGround}(sensor=${sensorGrounded}) contacts=${groundState.contactCount} enterFrames=${groundStateRecord.consecutiveGroundFrames} exitFrames=${groundStateRecord.consecutiveAirFrames} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed}`,
+          );
+        }
+
+        // ── Jump resolution ───────────────────────────────────────────────────
+        if (canApplyJump(jumpState, isOnGround)) {
+          physics.setLinearVelocity(slot, targetVx, -jumpVelocity);
+          markJumpApplied(jumpState, movement.postJumpLockMs);
+
+          if (debug) {
+            console.log(
+              `[PlatformerMovementSystem] jump applied slot=${slot} targetVx=${targetVx.toFixed(3)} jumpVy=${(-jumpVelocity).toFixed(3)} lockMs=${movement.postJumpLockMs.toFixed(1)}`,
+            );
+          }
+        } else if (debug && intent.jumpJustPressed) {
+          const reason =
+            jumpState.postJumpLockLeftMs > 0
+              ? `post_jump_lock(${jumpState.postJumpLockLeftMs.toFixed(1)}ms)`
+              : jumpState.jumpConsumed
+                ? 'jump_already_consumed'
+                : 'not_grounded_or_no_coyote';
+          console.log(
+            `[PlatformerMovementSystem] jump blocked slot=${slot} reason=${reason} grounded=${isOnGround} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)}`,
+          );
         }
       }
     },

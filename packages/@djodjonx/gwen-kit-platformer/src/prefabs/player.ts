@@ -39,11 +39,23 @@ export interface PlayerPrefabOptions {
   pixelsPerMeter?: number;
   /** Max horizontal speed (depends on `units`). Default: 300 */
   speed?: number;
-  /** Vertical jump impulse (depends on `units`). Default: 500 */
+  /** Vertical jump velocity (depends on `units`). Default: 500 */
+  jumpVelocity?: number;
+  /** Jump coyote time window (ms). Default: 110 */
+  jumpCoyoteMs?: number;
+  /** Jump input buffer window (ms). Default: 110 */
+  jumpBufferWindowMs?: number;
+  /** Frames required to confirm entering grounded state. Default: 1 */
+  groundEnterFrames?: number;
+  /** Frames required to confirm leaving grounded state. Default: 4 */
+  groundExitFrames?: number;
+  /** Jump lock duration right after jump launch (ms). Default: 80 */
+  postJumpLockMs?: number;
+  /** @deprecated Use `jumpVelocity`. */
   jumpForce?: number;
-  /** Coyote time window (ms). Default: 110 */
+  /** @deprecated Use `jumpCoyoteMs`. */
   coyoteMs?: number;
-  /** Jump buffer window (ms). Default: 110 */
+  /** @deprecated Use `jumpBufferWindowMs`. */
   jumpBufferMs?: number;
   /** Max fall speed cap (depends on `units`). Default: 600 */
   maxFallSpeed?: number;
@@ -105,7 +117,7 @@ export interface PlayerPrefabOptions {
  * ```ts
  * const PlayerPrefab = createPlayerPrefab({
  *   speed: 400,
- *   jumpForce: 600,
+ *   jumpVelocity: 600,
  *   colliders: { body: { w: 20, h: 30 } }
  * });
  * api.prefabs.register(PlayerPrefab);
@@ -181,9 +193,17 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
         units: options.units ?? d.units ?? DEFAULT_PLATFORMER_UNITS,
         pixelsPerMeter: options.pixelsPerMeter ?? d.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER,
         speed: options.speed ?? d.speed,
-        jumpForce: options.jumpForce ?? d.jumpForce,
-        coyoteMs: options.coyoteMs ?? d.coyoteMs,
-        jumpBufferMs: options.jumpBufferMs ?? d.jumpBufferMs,
+        jumpVelocity: options.jumpVelocity ?? options.jumpForce ?? d.jumpVelocity,
+        jumpCoyoteMs: options.jumpCoyoteMs ?? options.coyoteMs ?? d.jumpCoyoteMs,
+        jumpBufferWindowMs:
+          options.jumpBufferWindowMs ?? options.jumpBufferMs ?? d.jumpBufferWindowMs,
+        groundEnterFrames: options.groundEnterFrames ?? d.groundEnterFrames,
+        groundExitFrames: options.groundExitFrames ?? d.groundExitFrames,
+        postJumpLockMs: options.postJumpLockMs ?? d.postJumpLockMs,
+        // Deprecated aliases mirrored to preserve compatibility for manual readers.
+        jumpForce: options.jumpVelocity ?? options.jumpForce ?? d.jumpVelocity,
+        coyoteMs: options.jumpCoyoteMs ?? options.coyoteMs ?? d.jumpCoyoteMs,
+        jumpBufferMs: options.jumpBufferWindowMs ?? options.jumpBufferMs ?? d.jumpBufferWindowMs,
         maxFallSpeed: options.maxFallSpeed ?? d.maxFallSpeed,
       });
 
