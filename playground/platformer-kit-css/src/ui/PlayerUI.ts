@@ -1,4 +1,4 @@
-import { defineUI, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { PlatformerIntent } from '@djodjonx/gwen-kit-platformer';
 import { getBodySnapshot } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
 import {
@@ -25,8 +25,7 @@ export const PlayerUI = defineUI({
     if (!element) return;
 
     const physics = api.services.get('physics');
-    const { index: slot } = unpackEntityId(entityId);
-    const snapshot = getBodySnapshot(physics, slot);
+    const snapshot = getBodySnapshot(physics, entityId);
     if (!snapshot.position) return;
 
     const xPx = snapshot.position.x * PIXELS_PER_METER + VIEWPORT_OFFSET_X_PX;

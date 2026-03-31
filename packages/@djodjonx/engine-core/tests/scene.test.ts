@@ -79,8 +79,8 @@ describe('SceneManager', () => {
     it('should purge all entities between scenes', async () => {
       const menu = makeScene('Menu', {
         onEnter: (api) => {
-          api.createEntity();
-          api.createEntity();
+          api.entity.create();
+          api.entity.create();
         },
         onExit: vi.fn(),
       });

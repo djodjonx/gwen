@@ -45,10 +45,6 @@ describe('createPlayerPrefab', () => {
     expect(ctrl.groundEnterFrames).toBe(PLATFORMER_CONTROLLER_DEFAULTS.groundEnterFrames);
     expect(ctrl.groundExitFrames).toBe(PLATFORMER_CONTROLLER_DEFAULTS.groundExitFrames);
     expect(ctrl.postJumpLockMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.postJumpLockMs);
-    // Deprecated aliases are mirrored for migration safety.
-    expect(ctrl.jumpForce).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpVelocity);
-    expect(ctrl.coyoteMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpCoyoteMs);
-    expect(ctrl.jumpBufferMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpBufferWindowMs);
   });
 
   it('generates default colliders', () => {
@@ -118,15 +114,15 @@ describe('createPlayerPrefab', () => {
     expect(ctrl.postJumpLockMs).toBe(55);
   });
 
-  it('supports deprecated jump aliases for migration', () => {
-    const prefab = createPlayerPrefab({ jumpForce: 777, coyoteMs: 88, jumpBufferMs: 99 });
+  it('uses defaults when jump options are not provided', () => {
+    const prefab = createPlayerPrefab({});
     const api = makeApi();
     prefab.create(api as any, 0, 0);
     const ctrl = api._components.get('PlatformerController');
 
-    expect(ctrl.jumpVelocity).toBe(777);
-    expect(ctrl.jumpCoyoteMs).toBe(88);
-    expect(ctrl.jumpBufferWindowMs).toBe(99);
+    expect(ctrl.jumpVelocity).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpVelocity);
+    expect(ctrl.jumpCoyoteMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpCoyoteMs);
+    expect(ctrl.jumpBufferWindowMs).toBe(PLATFORMER_CONTROLLER_DEFAULTS.jumpBufferWindowMs);
   });
 
   it('calls onCreated with api and id', () => {

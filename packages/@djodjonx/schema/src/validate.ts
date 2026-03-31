@@ -26,6 +26,15 @@ export function validateResolvedConfig(config: GwenOptions): GwenOptions {
     throw new Error('targetFPS must be between 30 and 240');
   }
 
+  if (config.engine.loop !== 'internal' && config.engine.loop !== 'external') {
+    throw new Error("engine.loop must be 'internal' or 'external'");
+  }
+
+  const maxDelta = config.engine.maxDeltaSeconds;
+  if (typeof maxDelta !== 'number' || maxDelta <= 0 || maxDelta > 1) {
+    throw new Error('engine.maxDeltaSeconds must be > 0 and <= 1');
+  }
+
   const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
   if (!hexColorRegex.test(config.html.background)) {
     throw new Error('background must be a valid hex color');

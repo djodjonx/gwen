@@ -22,6 +22,9 @@ export const defaultOptions: GwenOptions = {
     targetFPS: 60,
     debug: false,
     enableStats: true,
+    sparseTransformSync: true,
+    loop: 'internal',
+    maxDeltaSeconds: 0.1,
   },
   html: {
     title: 'GWEN Project',

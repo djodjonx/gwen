@@ -79,9 +79,10 @@ import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/
 ## Recommended runtime pattern
 
 1. Declare physics in prefabs with `extensions.physics.colliders[]`.
-2. Use `physics.getCollisionEventsBatch()` in gameplay systems.
-3. Keep `getCollisionEvents()` only for legacy compatibility.
-4. Use tilemap chunk helpers for large maps; patch chunks incrementally.
+2. Prefer `physics.getCollisionContacts()` in gameplay systems (EntityId-first).
+3. For one-entity filtering, use `getEntityCollisionContacts(physics, entityId)` from `@djodjonx/gwen-plugin-physics2d/helpers/contact`.
+4. Use `physics.getCollisionEventsBatch()` when raw slot-level diagnostics are needed.
+5. Use tilemap chunk helpers for large maps; patch chunks incrementally.
 
 ## Prefab example (vNext)
 

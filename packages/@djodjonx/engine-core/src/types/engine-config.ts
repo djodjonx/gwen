@@ -31,6 +31,33 @@ export interface EngineConfig {
   debug?: boolean;
   /** Collect performance statistics each frame. @default true */
   enableStats?: boolean;
+  /**
+   * Use sparse transform synchronization (RFC-V2-004).
+   * Only entities that changed since last frame are copied to the WASM buffer.
+   * @default true
+   */
+  sparseTransformSync?: boolean;
+
+  /**
+   * Game loop ownership mode.
+   *
+   * - `'internal'` (default): GWEN owns `requestAnimationFrame`. Call `engine.start()` to begin.
+   * - `'external'`: GWEN never touches RAF. The caller drives the loop by calling
+   *   `engine.advance(delta)` each frame (e.g. from R3F's `useFrame`).
+   *
+   * @default 'internal'
+   */
+  loop?: 'internal' | 'external';
+
+  /**
+   * Maximum delta time (in seconds) passed to a single simulation step.
+   *
+   * Prevents the simulation from destabilising after tab suspension, debugger pauses,
+   * or renderer hiccups. Applied in both `'internal'` and `'external'` loop modes.
+   *
+   * @default 0.1
+   */
+  maxDeltaSeconds?: number;
 
   /**
    * All plugins — TS-only and WASM plugins mixed in declaration order.
@@ -48,22 +75,6 @@ export interface EngineConfig {
    * ```
    */
   plugins?: GwenPlugin[];
-
-  /**
-   * @deprecated Use `plugins` instead.
-   *
-   * WASM plugins previously required a separate array. Migrate by moving all
-   * entries into the unified `plugins` array — detection is automatic.
-   */
-  wasmPlugins?: GwenPlugin[];
-
-  /**
-   * @deprecated Use `plugins` instead.
-   *
-   * TS plugins previously required a separate array. Migrate by moving all
-   * entries into the unified `plugins` array.
-   */
-  tsPlugins?: GwenPlugin[];
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────

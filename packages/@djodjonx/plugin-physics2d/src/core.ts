@@ -18,7 +18,6 @@ export type {
   RigidBodyType,
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
-  PhysicsCompatFlags,
   PhysicsColliderDef,
   PhysicsEventMode,
   PhysicsQualityPreset,

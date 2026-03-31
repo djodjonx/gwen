@@ -5,7 +5,6 @@ export {
   PHYSICS_MATERIAL_PRESETS,
   PHYSICS_QUALITY_PRESET_CODE,
   readCollisionEventsFromBuffer,
-  parseCollisionEvents,
 } from './types';
 
 export type { CollisionEvent } from './types';

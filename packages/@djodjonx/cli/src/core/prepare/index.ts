@@ -12,6 +12,8 @@ import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
 import { collectPluginTypingMeta } from './plugin-resolver.js';
+import { extractProjectMetadata } from './ast-extractor.js';
+import { validateMetadata } from './validator.js';
 import { runPluginSetups, GwenSetupError } from '../setup/setup-runner.js';
 import type { GwenOptions } from '@djodjonx/gwen-schema';
 
@@ -27,6 +29,10 @@ export interface PrepareOptions {
    * Enable detailed logging output
    */
   verbose?: boolean;
+  /**
+   * Fail on validation errors (useful for CI)
+   */
+  strict?: boolean;
 }
 
 /**
@@ -86,13 +92,36 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
     throw err;
   }
 
+  // 1.7. AST extraction and validation
+  let extractedMeta;
+  try {
+    extractedMeta = extractProjectMetadata(projectDir);
+    const validationErrors = validateMetadata(extractedMeta);
+
+    for (const err of validationErrors) {
+      const msg = `${err.severity === 'error' ? '❌' : '⚠️'} [AST] ${err.message} (${path.relative(projectDir, err.file)}:${err.line})`;
+      if (err.severity === 'error') {
+        result.errors.push(msg);
+        if (err.suggestion) logger.info(`   ${err.suggestion}`);
+      } else {
+        logger.warn(msg);
+      }
+    }
+
+    if (options.strict && validationErrors.some((e) => e.severity === 'error')) {
+      return result;
+    }
+  } catch (error: any) {
+    logger.warn(`AST extraction failed: ${error.message}. Falling back to default metadata.`);
+  }
+
   // 2. Ensure .gwen/ directory exists
   await fs.mkdir(gwenDir, { recursive: true });
 
   // 3. Generate files
   try {
     await generateTsconfigFile(gwenDir, projectDir, result);
-    await generateDtsFile(gwenDir, projectDir, config, configPath, result);
+    await generateDtsFile(gwenDir, projectDir, config, configPath, extractedMeta, result);
     await generateHtmlFile(gwenDir, config.html ?? {}, result);
   } catch (error: any) {
     result.errors.push(error.message);
@@ -143,9 +172,23 @@ async function generateDtsFile(
   projectDir: string,
   config: GwenOptions,
   configPath: string,
+  extractedMeta: any, // type from ast-extractor.js
   result: PrepareResult,
 ): Promise<void> {
   const pluginTypingMeta = await collectPluginTypingMeta(projectDir, config);
+
+  // Merge services extracted from AST (for local plugins)
+  if (extractedMeta && extractedMeta.pluginServices) {
+    for (const [name, service] of extractedMeta.pluginServices.entries()) {
+      if (!pluginTypingMeta.serviceTypes[name]) {
+        pluginTypingMeta.serviceTypes[name] = {
+          from: service.from,
+          exportName: service.exportName,
+        };
+        logger.debug(`📦 (AST) -> serviceType: ${name} => ${service.from}#${service.exportName}`);
+      }
+    }
+  }
 
   const filePath = path.join(gwenDir, 'gwen.d.ts');
   const content = await generateDts(projectDir, configPath, pluginTypingMeta);

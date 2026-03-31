@@ -1,16 +1,117 @@
 //! Transform component - Hierarchical entity transforms
 
+// ── Shared memory layout constants (single source of truth for TS ↔ Rust) ────
+//
+// These values MUST match the TypeScript constants in:
+//   packages/@djodjonx/engine-core/src/wasm/shared-memory.ts
+//
+// Run `node scripts/verify-memory-layout.mjs` to verify consistency.
+
+/// Bytes per entity slot in the shared 2D transform buffer.
+///
+/// Layout: pos_x(4) + pos_y(4) + rotation(4) + scale_x(4) + scale_y(4) + flags(4) + reserved(8) = 32
+pub const TRANSFORM_STRIDE: usize = 32;
+
+/// Bytes per entity slot in the shared 3D transform buffer.
+///
+/// Layout: pos(12) + quat(16) + scale(12) + flags(4) + reserved(4) = 48
+pub const TRANSFORM3D_STRIDE: usize = 48;
+
+/// Byte offset of the `flags` field within a 2D entity slot.
+pub const FLAGS_OFFSET: usize = 20;
+
+/// Byte offset of the `flags` field within a 3D entity slot.
+pub const FLAGS3D_OFFSET: usize = 40;
+
 use crate::entity::EntityId;
 use crate::transform_math::{Mat3, Vec2};
+use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 
-/// 2D Transform component for entities
-#[derive(Debug, Clone)]
+/// 2D Transform component for entities (Plain Old Data)
+///
+/// This struct contains only the local transform data (position, rotation, scale)
+/// and is designed to be stored in the ECS component storage with zero-copy safety.
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
+#[repr(C)]
 pub struct Transform {
-    // Local transform (relative to parent)
+    /// Local position relative to parent
     pub position: Vec2,
-    pub rotation: f32, // radians
+    /// Local rotation in radians
+    pub rotation: f32,
+    /// Local scale
     pub scale: Vec2,
+}
+
+impl Transform {
+    /// Create new local transform
+    pub const fn new(position: Vec2, rotation: f32, scale: Vec2) -> Self {
+        Transform {
+            position,
+            rotation,
+            scale,
+        }
+    }
+
+    /// Default identity transform (origin, no rotation, scale 1)
+    pub const fn identity() -> Self {
+        Transform {
+            position: Vec2::zero(),
+            rotation: 0.0,
+            scale: Vec2::one(),
+        }
+    }
+
+    /// Alias for identity transform (for backward compatibility in tests)
+    pub fn default_transform() -> Self {
+        Self::identity()
+    }
+
+    /// Get local position
+    pub fn position(&self) -> Vec2 {
+        self.position
+    }
+
+    /// Set local position
+    pub fn set_position(&mut self, position: Vec2) {
+        self.position = position;
+    }
+
+    /// Get local rotation
+    pub fn rotation(&self) -> f32 {
+        self.rotation
+    }
+
+    /// Set local rotation
+    pub fn set_rotation(&mut self, rotation: f32) {
+        self.rotation = rotation;
+    }
+
+    /// Get local scale
+    pub fn scale(&self) -> Vec2 {
+        self.scale
+    }
+
+    /// Set local scale
+    pub fn set_scale(&mut self, scale: Vec2) {
+        self.scale = scale;
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self::identity()
+    }
+}
+
+/// Internal node for hierarchical transforms
+///
+/// This struct wraps a POD `Transform` and adds hierarchy metadata and cached world transforms.
+/// It is managed by the `TransformSystem`.
+#[derive(Debug, Clone)]
+pub struct TransformNode {
+    /// Local transform (relative to parent)
+    pub local: Transform,
 
     // Cached world transform
     world_position: Vec2,
@@ -26,58 +127,51 @@ pub struct Transform {
     dirty: bool,
 }
 
-impl Transform {
-    /// Create new local transform
-    pub fn new(position: Vec2, rotation: f32, scale: Vec2) -> Self {
-        Transform {
-            position,
-            rotation,
-            scale,
-            world_position: position,
-            world_rotation: rotation,
-            world_scale: scale,
-            world_matrix: Mat3::transform(position, rotation, scale),
+impl TransformNode {
+    /// Create new transform node from local transform data
+    pub fn new(local: Transform) -> Self {
+        TransformNode {
+            local,
+            world_position: local.position,
+            world_rotation: local.rotation,
+            world_scale: local.scale,
+            world_matrix: Mat3::transform(local.position, local.rotation, local.scale),
             parent: None,
             children: Vec::new(),
             dirty: true,
         }
     }
 
-    /// Default transform (origin, no rotation, scale 1)
-    pub fn default_transform() -> Self {
-        Transform::new(Vec2::zero(), 0.0, Vec2::one())
-    }
-
     /// Get local position
     pub fn position(&self) -> Vec2 {
-        self.position
+        self.local.position
     }
 
     /// Set local position
     pub fn set_position(&mut self, position: Vec2) {
-        self.position = position;
+        self.local.position = position;
         self.dirty = true;
     }
 
     /// Get local rotation
     pub fn rotation(&self) -> f32 {
-        self.rotation
+        self.local.rotation
     }
 
     /// Set local rotation
     pub fn set_rotation(&mut self, rotation: f32) {
-        self.rotation = rotation;
+        self.local.rotation = rotation;
         self.dirty = true;
     }
 
     /// Get local scale
     pub fn scale(&self) -> Vec2 {
-        self.scale
+        self.local.scale
     }
 
     /// Set local scale
     pub fn set_scale(&mut self, scale: Vec2) {
-        self.scale = scale;
+        self.local.scale = scale;
         self.dirty = true;
     }
 
@@ -151,7 +245,7 @@ impl Transform {
         }
 
         // Calculate local matrix
-        let local_matrix = Mat3::transform(self.position, self.rotation, self.scale);
+        let local_matrix = Mat3::transform(self.local.position, self.local.rotation, self.local.scale);
 
         // Calculate world matrix
         self.world_matrix = parent_matrix.multiply(local_matrix);
@@ -179,17 +273,17 @@ impl Transform {
             return;
         }
 
-        self.world_matrix = Mat3::transform(self.position, self.rotation, self.scale);
-        self.world_position = self.position;
-        self.world_rotation = self.rotation;
-        self.world_scale = self.scale;
+        self.world_matrix = Mat3::transform(self.local.position, self.local.rotation, self.local.scale);
+        self.world_position = self.local.position;
+        self.world_rotation = self.local.rotation;
+        self.world_scale = self.local.scale;
         self.dirty = false;
     }
 }
 
 /// Transform system - manages hierarchical transforms
 pub struct TransformSystem {
-    transforms: HashMap<EntityId, Transform>,
+    transforms: HashMap<EntityId, TransformNode>,
     root_entities: Vec<EntityId>,
     #[allow(dead_code)] // Reserved for future O(1) index lookup
     entity_to_index: HashMap<EntityId, usize>,
@@ -209,7 +303,8 @@ impl TransformSystem {
 
     /// Add transform for entity
     pub fn add_transform(&mut self, entity: EntityId, transform: Transform) {
-        self.transforms.insert(entity, transform);
+        let node = TransformNode::new(transform);
+        self.transforms.insert(entity, node);
         if self.transforms[&entity].parent().is_none() {
             self.root_entities.push(entity);
         }
@@ -218,22 +313,22 @@ impl TransformSystem {
 
     /// Remove transform for entity
     pub fn remove_transform(&mut self, entity: EntityId) -> Option<Transform> {
-        if let Some(transform) = self.transforms.remove(&entity) {
+        if let Some(node) = self.transforms.remove(&entity) {
             self.root_entities.retain(|&id| id != entity);
             self.rebuild_update_order();
-            Some(transform)
+            Some(node.local)
         } else {
             None
         }
     }
 
-    /// Get transform reference
-    pub fn get_transform(&self, entity: EntityId) -> Option<&Transform> {
+    /// Get transform node reference
+    pub fn get_transform(&self, entity: EntityId) -> Option<&TransformNode> {
         self.transforms.get(&entity)
     }
 
-    /// Get mutable transform reference
-    pub fn get_transform_mut(&mut self, entity: EntityId) -> Option<&mut Transform> {
+    /// Get mutable transform node reference
+    pub fn get_transform_mut(&mut self, entity: EntityId) -> Option<&mut TransformNode> {
         self.transforms.get_mut(&entity)
     }
 
@@ -332,12 +427,6 @@ impl TransformSystem {
     }
 }
 
-impl Default for Transform {
-    fn default() -> Self {
-        Self::default_transform()
-    }
-}
-
 impl Default for TransformSystem {
     fn default() -> Self {
         Self::new()
@@ -365,7 +454,6 @@ mod tests {
         let mut t = Transform::default_transform();
         t.set_position(Vec2::new(5.0, 10.0));
         assert_eq!(t.position(), Vec2::new(5.0, 10.0));
-        assert!(t.is_dirty());
     }
 
     #[test]
@@ -373,12 +461,18 @@ mod tests {
         let mut t = Transform::default_transform();
         t.set_rotation(1.57);
         assert!((t.rotation() - 1.57).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_transform_node_dirty() {
+        let mut t = TransformNode::new(Transform::default());
+        t.set_position(Vec2::new(5.0, 10.0));
         assert!(t.is_dirty());
     }
 
     #[test]
     fn test_transform_world_as_root() {
-        let mut t = Transform::new(Vec2::new(5.0, 10.0), 0.0, Vec2::one());
+        let mut t = TransformNode::new(Transform::new(Vec2::new(5.0, 10.0), 0.0, Vec2::one()));
         t.update_as_root();
 
         assert_eq!(t.world_position(), Vec2::new(5.0, 10.0));

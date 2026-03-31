@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "./dist",
     "strict": true,
     "declaration": true,
@@ -12,6 +12,8 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@djodjonx/gwen-kit": ["../kit/src/index.ts"],
+      "@djodjonx/gwen-schema": ["../schema/src/index.ts"],
       "@djodjonx/gwen-vite-plugin": ["../vite-plugin/src/index.ts"],
       "@djodjonx/gwen-engine-core": ["../engine-core/src/index.ts"]
     }

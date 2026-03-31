@@ -4,11 +4,13 @@
  */
 
 import type { GwenOptions } from '@djodjonx/gwen-schema';
+import type { CoreVariant } from './variant-detector.js';
 
 export interface BuildContext {
   projectDir: string;
   outDir: string;
   mode: 'release' | 'debug';
+  variant: CoreVariant;
   dryRun: boolean;
   config?: GwenOptions;
   configPath?: string;
@@ -30,6 +32,7 @@ export function createBuildContext(
     projectDir,
     outDir,
     mode,
+    variant: 'light',
     dryRun,
     errors: [],
     warnings: [],

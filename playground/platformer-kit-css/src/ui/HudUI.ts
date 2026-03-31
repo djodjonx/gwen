@@ -1,4 +1,4 @@
-import { defineUI, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@djodjonx/gwen-engine-core';
 import { getBodySnapshot, getSpeed } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
 import { PlayerTag } from '../components';
 import hudHtml from './templates/hud.html?raw';
@@ -18,9 +18,8 @@ export const HudUI = defineUI({
     if (!player) return;
 
     const physics = api.services.get('physics');
-    const { index: slot } = unpackEntityId(player);
-    const snapshot = getBodySnapshot(physics, slot);
-    const speed = getSpeed(physics, slot);
+    const snapshot = getBodySnapshot(physics, player);
+    const speed = getSpeed(physics, player);
 
     const htmlUI = api.services.get('htmlUI');
 

@@ -1,28 +1,44 @@
-import { createEntityId } from '@djodjonx/gwen-engine-core';
+import { createEntityId, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { EngineAPI } from '@djodjonx/gwen-engine-core';
-import type { CollisionEvent, CollisionEventsBatch, ResolvedCollisionContact } from '../types.js';
+import type {
+  CollisionEvent,
+  CollisionEventsBatch,
+  Physics2DAPI,
+  ResolvedCollisionContact,
+} from '../types.js';
 
 /**
- * Filter collision events from a batch to those involving one specific entity slot.
+ * Internal structural type used by slot-dependent helpers.
+ * Satisfied by `InternalCollisionEvent` in the plugin core.
+ * Not exported — internal use only.
+ */
+type SlottedEvent = {
+  slotA: number;
+  slotB: number;
+  started: boolean;
+  aColliderId?: number;
+  bColliderId?: number;
+};
+
+/**
+ * EntityId-first contact filter helper.
  *
- * Checks both `slotA` and `slotB` of each event. Preserves source order.
- * Returns a new array on every call — does not mutate the batch.
+ * Extracts the raw slot index from a packed `EntityId` and filters the batch
+ * to events where the entity participates on either side.
  *
  * @param batch - Collision event batch from `physics.getCollisionEventsBatch()`.
- * @param entityIndex - Raw ECS slot index to filter on.
- * @returns All events where `slotA === entityIndex` or `slotB === entityIndex`.
- *
- * @example
- * ```ts
- * const mine = selectContactsForEntity(batch, playerSlot);
- * for (const ev of mine) handleContact(ev);
- * ```
+ * @param entityId - Packed `EntityId` to filter on.
+ * @returns All events where the entity's slot matches `slotA` or `slotB`.
  */
-export function selectContactsForEntity(
+export function selectContactsForEntityId(
   batch: CollisionEventsBatch,
-  entityIndex: number,
+  entityId: EntityId,
 ): CollisionEvent[] {
-  return batch.events.filter((e) => e.slotA === entityIndex || e.slotB === entityIndex);
+  const { index } = unpackEntityId(entityId);
+  return (batch.events as unknown as SlottedEvent[]).filter(
+    (e) => e.slotA === index || e.slotB === index,
+  ) as unknown as CollisionEvent[];
 }
 
 /**
@@ -31,6 +47,10 @@ export function selectContactsForEntity(
  * Pair identity is **order-independent**: `(A, B, started)` deduplicates `(B, A, started)`.
  * The **first** occurrence is kept; subsequent duplicates are dropped.
  * Output order is deterministic and matches input order of surviving events.
+ *
+ * Pair identity is keyed on `aColliderId` / `bColliderId` when present.
+ * Events without collider ids fall back to a shared sentinel key — only the first
+ * such event per `started` state is retained.
  *
  * Use this when `coalesceEvents` is disabled at the plugin level, or when
  * consuming events from multiple sources.
@@ -48,8 +68,10 @@ export function dedupeContactsByPair(events: ReadonlyArray<CollisionEvent>): Col
   const seen = new Set<string>();
 
   for (const ev of events) {
-    const min = Math.min(ev.slotA, ev.slotB);
-    const max = Math.max(ev.slotA, ev.slotB);
+    const idA = ev.aColliderId ?? -1;
+    const idB = ev.bColliderId ?? -1;
+    const min = Math.min(idA, idB);
+    const max = Math.max(idA, idB);
     const key = `${min}:${max}:${ev.started ? 1 : 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -60,18 +82,16 @@ export function dedupeContactsByPair(events: ReadonlyArray<CollisionEvent>): Col
 }
 
 /**
- * Resolve raw slot-based collision events into packed `EntityId` contacts.
+ * Resolve slot-based collision events into packed `EntityId` contacts.
  *
- * Raw `CollisionEvent` objects carry only slot indices, not packed `EntityId` bigints.
- * This helper resolves each slot to a full `EntityId` by reading the entity
- * generation from the engine API, making the result safe to use with
- * `api.getComponent()` or `api.destroyEntity()`.
+ * Accepts any object that carries `slotA`, `slotB`, `started`, and optional
+ * collider ids — in practice this is the plugin's internal `InternalCollisionEvent`.
  *
  * Events for slots whose generation cannot be resolved (destroyed or unregistered
  * entities) are **silently skipped**.
  *
  * @param api - Engine API providing `getEntityGeneration(slot)`.
- * @param events - Raw collision events (slot-based).
+ * @param events - Slot-bearing collision events (internal representation).
  * @returns Resolved contacts with packed `EntityId`s, in source order.
  *
  * @example
@@ -85,7 +105,7 @@ export function dedupeContactsByPair(events: ReadonlyArray<CollisionEvent>): Col
  */
 export function toResolvedContacts(
   api: EngineAPI,
-  events: ReadonlyArray<CollisionEvent>,
+  events: ReadonlyArray<SlottedEvent>,
 ): ResolvedCollisionContact[] {
   const out: ResolvedCollisionContact[] = [];
 
@@ -97,8 +117,6 @@ export function toResolvedContacts(
     out.push({
       entityA: createEntityId(ev.slotA, genA),
       entityB: createEntityId(ev.slotB, genB),
-      slotA: ev.slotA,
-      slotB: ev.slotB,
       started: ev.started,
       aColliderId: ev.aColliderId,
       bColliderId: ev.bColliderId,
@@ -106,4 +124,30 @@ export function toResolvedContacts(
   }
 
   return out;
+}
+
+/**
+ * Filter already-resolved contacts for one packed `EntityId`.
+ *
+ * Useful in gameplay systems that consume `physics.getCollisionContacts()` and
+ * want an EntityId-first path without slot checks.
+ */
+export function selectResolvedContactsForEntityId(
+  contacts: ReadonlyArray<ResolvedCollisionContact>,
+  entityId: EntityId,
+): ResolvedCollisionContact[] {
+  return contacts.filter((c) => c.entityA === entityId || c.entityB === entityId);
+}
+
+/**
+ * Pull and filter resolved contacts for one entity in a single call.
+ *
+ * EntityId-first convenience helper for gameplay systems.
+ */
+export function getEntityCollisionContacts(
+  physics: Physics2DAPI,
+  entityId: EntityId,
+  opts?: { max?: number },
+): ResolvedCollisionContact[] {
+  return selectResolvedContactsForEntityId(physics.getCollisionContacts(opts), entityId);
 }

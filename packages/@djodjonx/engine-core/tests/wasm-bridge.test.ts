@@ -41,6 +41,8 @@ function createMockEngine(): WasmEngine {
     update_entity_archetype: vi.fn(),
     remove_entity_from_query: vi.fn(),
     query_entities: vi.fn(() => new Uint32Array(0)),
+    query_entities_to_buffer: vi.fn(() => 0),
+    get_query_result_ptr: vi.fn(() => 8192),
     get_entity_generation: vi.fn(() => 0),
     tick: vi.fn(),
     frame_count: vi.fn(() => BigInt(1)),
@@ -49,9 +51,12 @@ function createMockEngine(): WasmEngine {
     // SAB methods
     alloc_shared_buffer: vi.fn(() => 4096),
     sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_to_buffer_sparse: vi.fn(),
+    dirty_transform_count: vi.fn(() => 0),
+    clear_transform_dirty: vi.fn(),
     sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{"entities":0,"frame":1}'),
-  };
+  } as WasmEngine;
 }
 
 // ── Without WASM (not initialized) ───────────────────────────────────────────
@@ -178,6 +183,63 @@ describe('WasmBridge — with injected mock', () => {
     // get_entity_generation returns 0 for all → entityId = (0n << 32n) | BigInt(index)
     const result = bridge.queryEntities([0]);
     expect(result).toEqual([0n, 1n, 2n]); // generation=0 → entityId === BigInt(index)
+  });
+
+  it('queryEntitiesRaw() delegates to query_entities_to_buffer', () => {
+    (mock.query_entities_to_buffer as ReturnType<typeof vi.fn>).mockReturnValueOnce(5);
+    const count = bridge.queryEntitiesRaw([10, 20]);
+    expect(mock.query_entities_to_buffer).toHaveBeenCalled();
+    expect(count).toBe(5);
+
+    // Verify typeIdBuffer was used (it should contain [10, 20])
+    const callArg = (mock.query_entities_to_buffer as any).mock.calls[0][0];
+    expect(callArg).toBeInstanceOf(Uint32Array);
+    expect(Array.from(callArg)).toEqual([10, 20]);
+  });
+
+  it('forEachQueryResultRaw() iterates over static buffer', () => {
+    const buf = new ArrayBuffer(100_000);
+    const mockMemory = { buffer: buf } as WebAssembly.Memory;
+    _injectMockWasmExports({ memory: mockMemory });
+
+    // Mock query result: 3 entities with indices [100, 200, 300]
+    (mock.query_entities_to_buffer as ReturnType<typeof vi.fn>).mockReturnValueOnce(3);
+    (mock.get_query_result_ptr as ReturnType<typeof vi.fn>).mockReturnValueOnce(0);
+
+    const view = new Uint32Array(buf, 0, 3);
+    view[0] = 100;
+    view[1] = 200;
+    view[2] = 300;
+
+    const results: number[] = [];
+    bridge.forEachQueryResultRaw([10], (idx) => {
+      results.push(idx);
+    });
+
+    expect(results).toEqual([100, 200, 300]);
+    expect(mock.query_entities_to_buffer).toHaveBeenCalled();
+  });
+
+  it('forEachQueryResultRaw() handles memory grow by recreating the view', () => {
+    const buf1 = new ArrayBuffer(100_000);
+    const buf2 = new ArrayBuffer(200_000);
+    const mockMemory = { buffer: buf1 } as any;
+    _injectMockWasmExports({ memory: mockMemory });
+
+    (mock.query_entities_to_buffer as ReturnType<typeof vi.fn>).mockReturnValue(1);
+    (mock.get_query_result_ptr as ReturnType<typeof vi.fn>).mockReturnValue(0);
+
+    // 1. Initial call
+    new Uint32Array(buf1, 0, 1)[0] = 42;
+    let result = 0;
+    bridge.forEachQueryResultRaw([10], (idx) => (result = idx));
+    expect(result).toBe(42);
+
+    // 2. Grow
+    mockMemory.buffer = buf2;
+    new Uint32Array(buf2, 0, 1)[0] = 99;
+    bridge.forEachQueryResultRaw([10], (idx) => (result = idx));
+    expect(result).toBe(99);
   });
 
   it('tick() delegates to mock', () => {

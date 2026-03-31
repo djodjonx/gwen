@@ -22,6 +22,7 @@
 export { defineConfig } from './config';
 export type {
   TypedEngineConfig,
+  GwenConfig,
   MergePluginsProvides,
   MergePluginsHooks,
   MergePluginsPrefabExtensions,
@@ -33,10 +34,10 @@ export type {
 
 export { definePlugin } from './define-plugin';
 export type {
-  TsPluginDefinition,
+  GwenPluginDefinition,
   WasmPluginDefinition,
   WasmPluginStaticContext,
-  TsPluginLifecycle,
+  GwenPluginLifecycle,
   WasmPluginLifecycle,
   PluginClass,
   GwenPluginInstance,

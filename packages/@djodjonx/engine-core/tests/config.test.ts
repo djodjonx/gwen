@@ -3,15 +3,15 @@
  *
  * Covers:
  * - defaultConfig values
- * - defineConfig() — new `plugins` array + legacy `tsPlugins`/`wasmPlugins`
+ * - defineConfig() — `plugins` array
  * - mergeConfigs()
- * - ConfigBuilder — addPlugin() + deprecated addWasmPlugin / addTsPlugin
+ * - ConfigBuilder — addPlugin()
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { defineConfig } from '../../kit/src/config';
 import type { EngineConfig, GwenPlugin, GwenPluginWasmContext } from '../src/types';
-import { ConfigBuilder, defaultConfig, mergeConfigs } from '../src/config/config';
+import { ConfigBuilder, createEngine, defaultConfig, mergeConfigs } from '../src/config/config';
 import { isWasmPlugin } from '../src/plugin-system/plugin-utils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,17 +74,6 @@ describe('defineConfig()', () => {
     expect((config as any).plugins?.length).toBe(2);
   });
 
-  it('accepts legacy tsPlugins for backward compatibility', () => {
-    const config = defineConfig({ tsPlugins: [mockTsPlugin('input')] });
-    expect((config as any).tsPlugins?.length).toBe(1);
-  });
-
-  it('accepts legacy wasmPlugins for backward compatibility', () => {
-    const wasm = mockWasmPlugin('physics', 'Physics2D');
-    const config = defineConfig({ wasmPlugins: [wasm] });
-    expect((config as any).wasmPlugins?.length).toBe(1);
-  });
-
   it('passes html config through', () => {
     const config = defineConfig({ html: { title: 'My Game', background: '#111' } });
     expect((config as any).html?.title).toBe('My Game');
@@ -116,16 +105,7 @@ describe('mergeConfigs()', () => {
     expect(merged.plugins?.[1].name).toBe('user');
   });
 
-  it('concatenates legacy wasmPlugins for backward compat', () => {
-    const base: EngineConfig = {
-      ...defaultConfig,
-      wasmPlugins: [mockWasmPlugin('physics', 'Physics')],
-    };
-    const user: Partial<EngineConfig> = { wasmPlugins: [mockWasmPlugin('ai', 'AIEngine')] };
-    const merged = mergeConfigs(base, user);
-
-    expect(merged.wasmPlugins?.length).toBe(2);
-  });
+  // v2: no legacy wasmPlugins/tsPlugins arrays.
 });
 
 // ── isWasmPlugin ──────────────────────────────────────────────────────────────
@@ -221,21 +201,7 @@ describe('ConfigBuilder', () => {
     expect(tsList.length).toBe(1);
   });
 
-  it('deprecated addWasmPlugin() still works (uses legacy wasmPlugins array)', () => {
-    const wasm = mockWasmPlugin('physics', 'Physics2D');
-    const config = new ConfigBuilder().addWasmPlugin(wasm).build();
-
-    expect(config.wasmPlugins).toContain(wasm);
-    expect(config.wasmPlugins?.length).toBe(1);
-  });
-
-  it('deprecated addTsPlugin() still works (uses legacy tsPlugins array)', () => {
-    const ts = mockTsPlugin('input');
-    const config = new ConfigBuilder().addTsPlugin(ts).build();
-
-    expect(config.tsPlugins).toContain(ts);
-    expect(config.tsPlugins?.length).toBe(1);
-  });
+  // v2: only addPlugin() exists.
 
   it('supports full chaining', () => {
     const config = new ConfigBuilder()
@@ -251,11 +217,9 @@ describe('ConfigBuilder', () => {
     expect(config.plugins?.length).toBe(2);
   });
 
-  it('build() result always has plugins, wasmPlugins, tsPlugins arrays', () => {
+  it('build() result always has plugins array', () => {
     const config = new ConfigBuilder().build();
     expect(Array.isArray(config.plugins)).toBe(true);
-    expect(Array.isArray(config.wasmPlugins)).toBe(true);
-    expect(Array.isArray(config.tsPlugins)).toBe(true);
   });
 });
 
@@ -279,13 +243,22 @@ describe('Integration — defineConfig + mergeConfigs', () => {
     expect(merged.maxEntities).toBe(defaultConfig.maxEntities);
   });
 
-  it('legacy wasmPlugins from defineConfig are preserved through mergeConfigs', () => {
-    const config = defineConfig({
-      wasmPlugins: [mockWasmPlugin('physics', 'Physics')],
+  // v2: defineConfig uses unified plugins array only.
+
+  it('createEngine() propagates loop and maxDeltaSeconds from defineConfig()', async () => {
+    const cfg = defineConfig({
+      engine: {
+        loop: 'external',
+        maxDeltaSeconds: 0.05,
+      },
     });
 
-    const merged = mergeConfigs(defaultConfig, config as unknown as Partial<EngineConfig>);
+    const { engine } = await createEngine(cfg);
+    const runtime = engine.getConfig();
 
-    expect(merged.wasmPlugins?.length).toBe(1);
+    expect(runtime.loop).toBe('external');
+    expect(runtime.maxDeltaSeconds).toBe(0.05);
+
+    await engine.stop();
   });
 });

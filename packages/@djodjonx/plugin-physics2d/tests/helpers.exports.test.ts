@@ -18,7 +18,9 @@ describe('helpers domain entries', () => {
   });
 
   it('should expose contact helpers', () => {
-    expect(typeof contact.selectContactsForEntity).toBe('function');
+    expect(typeof contact.selectContactsForEntityId).toBe('function');
+    expect(typeof contact.selectResolvedContactsForEntityId).toBe('function');
+    expect(typeof contact.getEntityCollisionContacts).toBe('function');
     expect(typeof contact.dedupeContactsByPair).toBe('function');
     expect(typeof contact.toResolvedContacts).toBe('function');
   });

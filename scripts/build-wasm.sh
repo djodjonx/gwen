@@ -1,10 +1,11 @@
 #!/bin/bash
-# build-wasm.sh — Build WASM crates and copy artifacts to npm packages
+# build-wasm.sh — Build multi-variant WASM artifacts (RFC-V2-006)
 #
 # This script:
-# 1. Builds each WASM crate with wasm-pack (generates .wasm + JS bindings)
-# 2. Copies the generated files to the corresponding npm package wasm/ folder
-# 3. Ensures the artifacts are ready for npm publishing
+# 1. Builds gwen-core with different Cargo features (light, physics2d, physics3d)
+# 2. Places each variant in its own subdirectory in @djodjonx/engine-core/wasm/
+# 3. Optimizes the output with wasm-opt if available
+# 4. Cleans up unnecessary wasm-pack artifacts
 
 set -euo pipefail
 
@@ -17,8 +18,8 @@ NC='\033[0m'
 
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CRATES_DIR="$PROJECT_ROOT/crates"
-PACKAGES_DIR="$PROJECT_ROOT/packages/@djodjonx"
+CRATE_DIR="$PROJECT_ROOT/crates/gwen-core"
+ENGINE_CORE_WASM="$PROJECT_ROOT/packages/@djodjonx/engine-core/wasm"
 
 # Functions
 log_info() {
@@ -37,124 +38,83 @@ log_error() {
   echo -e "${RED}✗${NC} $*"
 }
 
-# Check if wasm-pack is installed
-check_wasm_pack() {
+# Check prerequisites
+check_prerequisites() {
   if ! command -v wasm-pack &> /dev/null; then
-    log_error "wasm-pack is not installed"
-    echo ""
-    echo "Install it with:"
-    echo "  curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh"
-    echo ""
-    echo "Or with cargo:"
-    echo "  cargo install wasm-pack"
+    log_error "wasm-pack is not installed. Install with: cargo install wasm-pack"
     exit 1
   fi
 
-  local version
-  version=$(wasm-pack --version | awk '{print $2}')
-  log_success "wasm-pack $version found"
+  if ! command -v wasm-opt &> /dev/null; then
+    log_warn "wasm-opt not found. Skipping additional post-build optimization."
+  else
+    log_success "wasm-opt found for post-processing."
+  fi
 }
 
-# Build a WASM crate with wasm-pack
-build_wasm_crate() {
-  local crate_dir="$1"
-  local crate_name="$2"
-  local target_package="$3"
+# Build a specific variant
+build_variant() {
+  local variant="$1"
+  local features="$2"
+  local out_dir="$ENGINE_CORE_WASM/$variant"
 
-  log_info "Building WASM crate: $crate_name"
+  log_info "Building variant: $variant (features: ${features:-none})"
 
-  cd "$crate_dir"
+  # Ensure out_dir is clean
+  rm -rf "$out_dir"
+  mkdir -p "$out_dir"
 
-  # Build with wasm-pack (web target for native ESM support)
-  wasm-pack build \
+  # Build with wasm-pack
+  local feature_args=""
+  if [ -n "$features" ]; then
+    feature_args="-- --features $features"
+  else
+    feature_args="-- --no-default-features"
+  fi
+
+  wasm-pack build "$CRATE_DIR" \
     --target web \
     --release \
-    --out-dir pkg \
-    --out-name "${crate_name}" \
-    2>&1 | grep -v "warning: " || true
+    --out-dir "$out_dir" \
+    --out-name gwen_core \
+    $feature_args
 
-  if [ ! -d "pkg" ]; then
-    log_error "Failed to build $crate_name - pkg/ directory not created"
-    return 1
+  # Cleanup wasm-pack noise
+  rm -f "$out_dir/.gitignore" "$out_dir/package.json" "$out_dir/README.md"
+
+  # Post-process with wasm-opt if available
+  if command -v wasm-opt &> /dev/null; then
+    local wasm_file="$out_dir/gwen_core_bg.wasm"
+    log_info "  Running wasm-opt -Oz on $variant..."
+    wasm-opt -Oz "$wasm_file" -o "$wasm_file.opt"
+    mv "$wasm_file.opt" "$wasm_file"
   fi
 
-  log_success "Built $crate_name"
-
-  # Copy artifacts to target npm package
-  local wasm_dir="$PACKAGES_DIR/$target_package/wasm"
-
-  log_info "Copying artifacts to $target_package/wasm/"
-
-  # Create wasm directory if it doesn't exist
-  mkdir -p "$wasm_dir"
-
-  # Copy the generated files
-  # Copy both the main JS glue and the _bg.js if it exists (for some targets)
-  [ -f "pkg/${crate_name}.js" ] && cp "pkg/${crate_name}.js" "$wasm_dir/"
-  [ -f "pkg/${crate_name}_bg.js" ] && cp "pkg/${crate_name}_bg.js" "$wasm_dir/"
-  
-  cp "pkg/${crate_name}_bg.wasm" "$wasm_dir/"
-  cp "pkg/${crate_name}.d.ts" "$wasm_dir/" 2>/dev/null || true
-  cp "pkg/${crate_name}_bg.wasm.d.ts" "$wasm_dir/" 2>/dev/null || true
-
-  # Copy package.json if exists (for wasm-pack metadata)
-  if [ -f "pkg/package.json" ]; then
-    cp "pkg/package.json" "$wasm_dir/"
-  fi
-
-  # Remove .gitignore from wasm directory if it was copied or exists
-  # wasm-pack generates a .gitignore with '*' which prevents npm from publishing the files
-  if [ -f "$wasm_dir/.gitignore" ]; then
-    rm "$wasm_dir/.gitignore"
-  fi
-
-  log_success "Artifacts copied to $wasm_dir"
-
-  # List generated files
-  echo "  Generated files:"
-  ls -lh "$wasm_dir" | tail -n +2 | awk '{print "    - " $9 " (" $5 ")"}'
-
-  cd "$PROJECT_ROOT"
+  log_success "Built $variant variant"
+  ls -lh "$out_dir" | awk '{print "    - " $9 " (" $5 ")"}'
 }
 
 # Main
 main() {
-  log_info "🚀 Building WASM artifacts for npm packages"
+  log_info "🚀 Starting Multi-Variant WASM Build Pipeline (RFC-V2-006)"
   echo ""
 
-  # Check prerequisites
-  check_wasm_pack
+  check_prerequisites
   echo ""
 
-  # Build gwen-core → @djodjonx/engine-core/wasm/
-  if [ -d "$CRATES_DIR/gwen-core" ]; then
-    build_wasm_crate \
-      "$CRATES_DIR/gwen-core" \
-      "gwen_core" \
-      "engine-core"
-    echo ""
-  else
-    log_warn "Skipping gwen-core (not found)"
-  fi
-
-  # Build gwen-plugin-physics2d → @djodjonx/plugin-physics2d/wasm/
-  if [ -d "$CRATES_DIR/gwen-plugin-physics2d" ]; then
-    build_wasm_crate \
-      "$CRATES_DIR/gwen-plugin-physics2d" \
-      "gwen_physics2d" \
-      "plugin-physics2d"
-    echo ""
-  else
-    log_warn "Skipping gwen-plugin-physics2d (not found)"
-  fi
-
-  log_success "🎉 All WASM artifacts built successfully!"
+  # 1. Build light variant (no physics, no pathfinding)
+  build_variant "light" ""
   echo ""
-  log_info "Next steps:"
-  echo "  1. Run: pnpm build:ts"
-  echo "  2. Test: pnpm test"
-  echo "  3. Release: pnpm changeset && pnpm changeset:version && pnpm release"
+
+  # 2. Build physics2d variant
+  build_variant "physics2d" "physics2d"
+  echo ""
+
+  # 3. Build physics3d variant
+  build_variant "physics3d" "physics3d"
+  echo ""
+
+  log_success "🎉 All WASM variants built successfully!"
 }
 
 main "$@"
-

@@ -1,5 +1,5 @@
 /**
- * @file Plugin Manager — Orchestrates TsPlugin lifecycle via hooks
+ * @file Plugin Manager — Orchestrates GwenPlugin lifecycle via hooks
  *
  * Manages plugin registration, initialization, and per-frame dispatch.
  * All plugin lifecycle is coordinated through the hooks system.
@@ -10,13 +10,15 @@
  * 3. `plugin:update` - Game logic phase
  * 4. `plugin:render` - Rendering phase
  *
- * @see {@link TsPlugin} for plugin interface
+ * @see {@link GwenPlugin} for plugin interface
  * @see {@link GwenHooks} for available hooks
  */
 
 import type { GwenPlugin, EngineAPI } from '../types';
 import { isWasmPlugin } from './plugin-utils';
 import type { GwenHookable } from '../hooks';
+import { buildQueryResult } from '../core/query-result';
+import { HookLifecycleManager } from './hook-lifecycle-manager';
 
 interface RuntimeErrorPayload {
   phase: 'plugin:beforeUpdate' | 'plugin:update' | 'plugin:render' | 'wasm:onStep';
@@ -60,17 +62,10 @@ export class PluginManager {
   private wasmPlugins: GwenPlugin[] = [];
 
   /**
-   * WeakMap tracking unsubscriber functions for each plugin instance.
-   *
-   * **Why WeakMap?**
-   * - Key is the plugin instance object itself (not plugin.name string)
-   * - Automatically garbage-collected when plugin is no longer referenced elsewhere
-   * - Prevents memory leaks from forgotten cleanup
-   * - Avoids name collision if two plugins happen to have identical names at different times
-   *
-   * @internal Used by _track() and _cleanup()
+   * Centralised hook subscription tracker and scoped-API factory.
+   * Replaces the previous inline WeakMap + _track/_cleanup/_createScopedHooks pattern.
    */
-  private readonly _unsubscribers = new WeakMap<GwenPlugin, Array<() => void>>();
+  private readonly _lifecycleManager = new HookLifecycleManager();
 
   private _reportRuntimeError(
     phase: RuntimeErrorPayload['phase'],
@@ -102,86 +97,8 @@ export class PluginManager {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  // Hook Tracking & Cleanup (P0-1 v2)
+  // Scoped API (delegated to HookLifecycleManager)
   // ════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Track an unsubscriber function for a plugin instance.
-   *
-   * Called whenever a hook is registered (auto-lifecycle or manual).
-   * Stores the unsubscriber function returned by `hooks.hook()` so it can be
-   * called later during plugin destruction to properly clean up.
-   *
-   * @param plugin - The plugin instance (used as WeakMap key)
-   * @param unregisterFn - The unsubscriber function returned by hooks.hook()
-   * @internal
-   */
-  private _track(plugin: GwenPlugin, unregisterFn: () => void): void {
-    const list = this._unsubscribers.get(plugin) ?? [];
-    list.push(unregisterFn);
-    this._unsubscribers.set(plugin, list);
-  }
-
-  /**
-   * Clean up all hooks registered by a plugin instance.
-   *
-   * Invokes each stored unsubscriber function to remove hooks from the system.
-   * Should be called during plugin destruction BEFORE any lifecycle events
-   * to ensure handlers are fully removed before other operations.
-   *
-   * **Order matters:** Called before plugin:destroy hook and onDestroy(),
-   * so the plugin cannot accidentally receive callbacks during its own destruction.
-   *
-   * @param plugin - The plugin instance whose hooks should be cleaned
-   * @internal
-   */
-  private _cleanup(plugin: GwenPlugin): void {
-    const list = this._unsubscribers.get(plugin);
-    if (list) {
-      // Unsubscribe from all hooks (in registration order)
-      for (const unregister of list) {
-        unregister();
-      }
-      // Release the WeakMap entry (optional but explicit)
-      this._unsubscribers.delete(plugin);
-    }
-  }
-
-  /**
-   * Create a scoped version of the hooks API for a plugin.
-   *
-   * Wraps `hooks.hook()` to automatically track hook registrations made
-   * directly by plugins in `onInit()`. Other methods (callHook, removeHook, etc.)
-   * are preserved via prototype chain using Object.create().
-   *
-   * **Example:**
-   * ```typescript
-   * // In plugin.onInit(scopedApi):
-   * scopedApi.hooks.hook('custom:event', handler);  // Tracked automatically
-   * scopedApi.hooks.callHook('custom:event', ...);  // Works normally
-   * ```
-   *
-   * @param plugin - The plugin instance (used to track unsubscribers)
-   * @param hooks - The hooks system instance to wrap
-   * @returns A hooks API that looks identical but tracks manual hook registrations
-   * @internal
-   */
-  private _createScopedHooks(plugin: GwenPlugin, hooks: DefaultHookable): DefaultHookable {
-    // Create an object that inherits from hooks prototype (preserves callHook, removeHook, etc.)
-    const scopedHooks = Object.create(hooks) as DefaultHookable;
-
-    // Bind the original hook method to the real hooks instance
-    const originalHook = hooks.hook.bind(hooks);
-
-    // Override hook() to track the unsubscriber
-    scopedHooks.hook = ((name: string, fn: (...args: any[]) => any) => {
-      const unregister = originalHook(name as any, fn);
-      this._track(plugin, unregister);
-      return unregister;
-    }) as any;
-
-    return scopedHooks;
-  }
 
   /**
    * Create a scoped EngineAPI for a plugin where all `hooks.hook()` calls
@@ -191,8 +108,7 @@ export class PluginManager {
    * `wasm.onInit()`, which runs outside the normal `register()` flow and
    * therefore cannot rely on the scoped API built inside `register()`.
    *
-   * @param plugin - The plugin instance (WeakMap key — must be the same object
-   *                 that will later be passed to `unregister()`)
+   * @param plugin - The plugin instance (name used as tracking key)
    * @param api    - Engine API to wrap
    * @param hooks  - Hooks system instance
    * @returns A scoped EngineAPI whose `hooks.hook()` is tracked
@@ -200,18 +116,7 @@ export class PluginManager {
    * @internal Called by createEngine() for the WASM onWasmInit phase
    */
   createScopedApi(plugin: GwenPlugin, api: EngineAPI, hooks: DefaultHookable): EngineAPI {
-    // Preserve EngineAPI prototype methods by using `api` as prototype.
-    // Object spread strips prototype methods (getComponent/query/...), which can
-    // break plugin callbacks expecting full EngineAPI inside hooks.
-    const scopedApi = Object.create(api, {
-      hooks: {
-        value: this._createScopedHooks(plugin, hooks),
-        writable: false,
-        enumerable: true,
-        configurable: true,
-      },
-    }) as EngineAPI;
-    return scopedApi;
+    return this._lifecycleManager.createScopedApi(plugin, api, hooks);
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -249,7 +154,7 @@ export class PluginManager {
    * @example
    * ```typescript
    * const manager = new PluginManager();
-   * const plugin: TsPlugin = {
+   * const plugin: GwenPlugin = {
    *   name: 'MyPlugin',
    *   onInit(api) { console.log('init'); },
    *   onUpdate(api, dt) { console.log('update'); }
@@ -264,6 +169,18 @@ export class PluginManager {
     if (this.plugins.find((p) => p.name === plugin.name)) {
       console.warn(`[GWEN:PluginManager] '${plugin.name}' already registered — skipping.`);
       return false;
+    }
+
+    // Validate declared dependencies are already registered
+    if (plugin.dependencies && plugin.dependencies.length > 0) {
+      for (const dep of plugin.dependencies) {
+        if (!this.has(dep)) {
+          throw new Error(
+            `[GWEN] Plugin '${plugin.name}' requires '${dep}' to be registered first. ` +
+              `Register '${dep}' before '${plugin.name}'.`,
+          );
+        }
+      }
     }
 
     // Add to registry
@@ -286,16 +203,8 @@ export class PluginManager {
       console.error(`[GWEN:PluginManager] Error in plugin:init hook:`, err);
     }
 
-    // Create scoped API where manual hooks are automatically tracked.
-    // Keep api as prototype so EngineAPI methods remain available.
-    const scopedApi = Object.create(api, {
-      hooks: {
-        value: this._createScopedHooks(plugin, hooks),
-        writable: false,
-        enumerable: true,
-        configurable: true,
-      },
-    }) as EngineAPI;
+    // Build scoped API — all hooks.hook() calls inside onInit are auto-tracked.
+    const scopedApi = this._lifecycleManager.createScopedApi(plugin, api, hooks);
 
     // Call plugin's onInit with scoped API
     if (plugin.onInit) {
@@ -325,17 +234,17 @@ export class PluginManager {
   private _setupPluginHooks(plugin: GwenPlugin, hooks: DefaultHookable): void {
     if (plugin.onBeforeUpdate) {
       const unregister = this._registerBeforeUpdateHook(plugin, hooks);
-      this._track(plugin, unregister);
+      this._lifecycleManager.track(plugin.name, unregister);
     }
 
     if (plugin.onUpdate) {
       const unregister = this._registerUpdateHook(plugin, hooks);
-      this._track(plugin, unregister);
+      this._lifecycleManager.track(plugin.name, unregister);
     }
 
     if (plugin.onRender) {
       const unregister = this._registerRenderHook(plugin, hooks);
-      this._track(plugin, unregister);
+      this._lifecycleManager.track(plugin.name, unregister);
     }
   }
 
@@ -356,13 +265,21 @@ export class PluginManager {
   /**
    * Register a plugin:update hook with type safety.
    *
+   * When the plugin declares a static `query` descriptor, the query is resolved
+   * each frame and injected as the third argument to `onUpdate`.
+   *
    * @internal
    */
   private _registerUpdateHook(plugin: GwenPlugin, hooks: DefaultHookable): () => void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return hooks.hook('plugin:update' as any, (api: unknown, dt: unknown) => {
       if (plugin.onUpdate) {
-        plugin.onUpdate(api as EngineAPI, dt as number);
+        if (plugin.query) {
+          const entities = buildQueryResult(plugin.query, api as EngineAPI);
+          plugin.onUpdate(api as EngineAPI, dt as number, entities);
+        } else {
+          plugin.onUpdate(api as EngineAPI, dt as number);
+        }
       }
     });
   }
@@ -431,7 +348,7 @@ export class PluginManager {
     const plugin = this.plugins[idx];
 
     // 1. Clean up ALL hooks (automatic + manual) before any lifecycle events
-    this._cleanup(plugin);
+    this._lifecycleManager.cleanup(plugin.name);
 
     // 2. Notify the plugin it's being destroyed
     try {
@@ -535,7 +452,7 @@ export class PluginManager {
 
     for (const plugin of pluginsToDestroy) {
       // 1. Clean up all hooks first
-      this._cleanup(plugin);
+      this._lifecycleManager.cleanup(plugin.name);
 
       // 2. Notify destruction
       try {
@@ -570,7 +487,7 @@ export class PluginManager {
   /**
    * Get a registered plugin by name.
    *
-   * @typeParam T - Plugin type (defaults to TsPlugin)
+   * @typeParam T - Plugin type (defaults to GwenPlugin)
    * @param name - Plugin name
    * @returns The plugin, or undefined if not found
    *
@@ -646,6 +563,24 @@ export class PluginManager {
           console.error(`[GWEN:PluginManager] Error in WASM plugin '${id}' onStep:`, err);
         }
       }
+    }
+  }
+
+  /**
+   * Dispatch physics step via the WASM core.
+   *
+   * @param deltaTime - Frame delta time in seconds
+   * @param api - Engine API instance
+   *
+   * @internal Called by Engine._tick()
+   */
+  dispatchPhysicsStep(deltaTime: number, api: EngineAPI): void {
+    const wasm = api.wasm;
+    // Check if physics_step exists on the variant (physics2d or physics3d)
+    if ('physics_step' in wasm && typeof wasm.physics_step === 'function') {
+      wasm.physics_step(deltaTime);
+    } else if ('physics3d_step' in wasm && typeof wasm.physics3d_step === 'function') {
+      wasm.physics3d_step(deltaTime);
     }
   }
 

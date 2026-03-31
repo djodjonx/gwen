@@ -8,18 +8,29 @@
 
 pub mod allocator;
 pub mod bindings;
-pub mod component;
-pub mod entity;
+pub mod ecs;
 pub mod events;
 pub mod gameloop;
-pub mod query;
 pub mod transform;
 pub mod transform_math;
 
-pub use component::*;
-pub use entity::*;
+#[cfg(feature = "physics2d")]
+pub mod physics2d;
+
+#[cfg(feature = "physics3d")]
+pub mod physics3d;
+
+#[cfg(all(feature = "physics2d", feature = "physics3d"))]
+compile_error!("Features 'physics2d' and 'physics3d' are mutually exclusive and cannot be enabled at the same time.");
+
+/// Shared memory layout constants re-exported for external crate consumers.
+/// These values are defined in `transform` (the canonical source of truth).
+pub mod shared_memory {
+    pub use crate::transform::{FLAGS3D_OFFSET, FLAGS_OFFSET, TRANSFORM3D_STRIDE, TRANSFORM_STRIDE};
+}
+
+pub use ecs::*;
 pub use events::*;
 pub use gameloop::*;
-pub use query::*;
 pub use transform::*;
 pub use transform_math::*;

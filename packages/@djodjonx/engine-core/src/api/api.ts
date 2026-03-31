@@ -1,7 +1,7 @@
 /**
  * EngineAPI & ServiceLocator
  *
- * Exposes ECS operations and service injection to TsPlugins.
+ * Exposes ECS operations and service injection to GwenPlugins.
  * This module can be used independently for advanced plugin scenarios.
  *
  * Architecture (ENGINE.md §5):
@@ -11,6 +11,7 @@
  */
 
 import type { TypedServiceLocator, EngineAPI, ComponentType, SceneNavigator } from '../types';
+import type { ComponentAPI, EntityAPI } from '../types/engine-api';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema';
 import type { EntityId } from '../types/entity';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs';
@@ -20,6 +21,7 @@ import {
 } from '../core/component-type-normalizer';
 import { PrefabManager } from '../core/prefab';
 import { createGwenHooks } from '../hooks';
+import { getWasmBridge, type WasmEngine } from '../engine/wasm-bridge';
 
 // ── ServiceLocator ────────────────────────────────────────────────────────────
 
@@ -117,6 +119,18 @@ export class EngineAPIImpl<
   readonly prefabs: PrefabManager;
 
   /**
+   * Canonical component namespace — delegates to internal `ComponentRegistry`.
+   * @see ComponentAPI
+   */
+  readonly component: ComponentAPI;
+
+  /**
+   * Canonical entity namespace — delegates to internal `EntityManager`.
+   * @see EntityAPI
+   */
+  readonly entity: EntityAPI;
+
+  /**
    * Hooks system for engine lifecycle, plugins, entities, components, and scenes.
    *
    * Use this to:
@@ -166,6 +180,105 @@ export class EngineAPIImpl<
     this.prefabs = new PrefabManager();
     this.prefabs._setAPI(this as any);
     this.hooks = hooks;
+
+    // Build the component namespace — delegates to internal ComponentRegistry
+    const self = this;
+    this.component = {
+      add<S extends ComponentSchema>(
+        id: EntityId,
+        def: ComponentDefinition<S>,
+        data: InferComponent<ComponentDefinition<S>>,
+      ): void {
+        self.components.add(id, def, data as any);
+        self.queryEngine.invalidate();
+      },
+
+      set<S extends ComponentSchema>(
+        id: EntityId,
+        def: ComponentDefinition<S>,
+        patch: Partial<InferComponent<ComponentDefinition<S>>>,
+      ): void {
+        const current = (self.components.get(id, def) ?? def.defaults ?? {}) as InferComponent<
+          ComponentDefinition<S>
+        >;
+        self.components.add(id, def, { ...current, ...patch } as any);
+        self.queryEngine.invalidate();
+      },
+
+      get<S extends ComponentSchema>(
+        id: EntityId,
+        def: ComponentDefinition<S>,
+      ): InferComponent<ComponentDefinition<S>> | undefined {
+        return self.components.get(id, def) as InferComponent<ComponentDefinition<S>> | undefined;
+      },
+
+      getOrThrow<S extends ComponentSchema>(
+        id: EntityId,
+        def: ComponentDefinition<S>,
+      ): InferComponent<ComponentDefinition<S>> {
+        const val = self.components.get(id, def) as
+          | InferComponent<ComponentDefinition<S>>
+          | undefined;
+        if (val === undefined) {
+          throw new Error(
+            `[GWEN] component.getOrThrow: entity ${String(id)} does not have component '${def.name}'. ` +
+              `Add it first with api.component.add().`,
+          );
+        }
+        return val;
+      },
+
+      remove(id: EntityId, def: ComponentDefinition<ComponentSchema>): boolean {
+        const result = self.components.remove(id, def);
+        if (result) self.queryEngine.invalidate();
+        return result;
+      },
+
+      has(id: EntityId, def: ComponentDefinition<ComponentSchema> | string): boolean {
+        return self.components.has(id, def);
+      },
+    };
+
+    // Build the entity namespace — delegates to internal EntityManager
+    this.entity = {
+      create(): EntityId {
+        return self.entityManager.create();
+      },
+
+      destroy(id: EntityId): boolean {
+        if (!self.entityManager.isAlive(id)) return false;
+        self.components.removeAll(id);
+        const result = self.entityManager.destroy(id);
+        self.queryEngine.invalidate();
+        return result;
+      },
+
+      isAlive(id: EntityId): boolean {
+        return self.entityManager.isAlive(id);
+      },
+
+      getGeneration(slotIndex: number): number {
+        return self.entityManager.getGeneration(slotIndex);
+      },
+
+      tag(id: EntityId, tag: string): void {
+        self.components.add(id, tag, {});
+        self.queryEngine.invalidate();
+      },
+
+      untag(id: EntityId, tag: string): void {
+        self.components.remove(id, tag);
+        self.queryEngine.invalidate();
+      },
+
+      hasTag(id: EntityId, tag: string): boolean {
+        return self.components.has(id, tag);
+      },
+    };
+  }
+
+  get wasm(): WasmEngine {
+    return getWasmBridge().engine();
   }
 
   get deltaTime(): number {
@@ -184,9 +297,12 @@ export class EngineAPIImpl<
       : null;
   }
 
-  // ── Entity operations ──────────────────────────────────────────────────
+  // ── Internal entity helpers (not on EngineAPI interface) ──────────────────
 
-  /** Create a new entity and return its packed EntityId. */
+  /**
+   * Create a new entity and return its packed EntityId.
+   * @internal Use `api.entity.create()` in plugin code.
+   */
   createEntity(): EntityId {
     return this.entityManager.create();
   }
@@ -194,17 +310,26 @@ export class EngineAPIImpl<
   /**
    * Destroy an entity and remove all its components.
    * @returns `false` if the entity was already dead.
+   * @internal Use `api.entity.destroy()` in plugin code.
    */
   destroyEntity(id: EntityId): boolean {
-    if (!this.entityManager.isAlive(id)) return false;
-    this.components.removeAll(id);
-    const result = this.entityManager.destroy(id);
-    this.queryEngine.invalidate();
-    return result;
+    return this.entity.destroy(id);
   }
 
-  // ── Component operations ───────────────────────────────────────────────
+  /**
+   * Check whether an entity is alive.
+   * @internal Use `api.entity.isAlive()` in plugin code.
+   */
+  entityExists(id: EntityId): boolean {
+    return this.entityManager.isAlive(id);
+  }
 
+  // ── Internal component helpers (not on EngineAPI interface) ───────────────
+
+  /**
+   * Attach or overwrite a component on an entity.
+   * @internal Use `api.component.add()` in plugin code.
+   */
   addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
   addComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
@@ -220,6 +345,10 @@ export class EngineAPIImpl<
     this.queryEngine.invalidate();
   }
 
+  /**
+   * Read a component from an entity.
+   * @internal Use `api.component.get()` in plugin code.
+   */
   getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
   getComponent<D extends ComponentDefinition<ComponentSchema>>(
     id: EntityId,
@@ -229,14 +358,30 @@ export class EngineAPIImpl<
     return this.components.get(id, type);
   }
 
+  /**
+   * Return `true` if an entity has the given component type.
+   * @internal Use `api.component.has()` in plugin code.
+   */
   hasComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): boolean {
     return this.components.has(id, type);
   }
 
+  /**
+   * Remove a component from an entity.
+   * @internal Use `api.component.remove()` in plugin code.
+   */
   removeComponent(id: EntityId, type: string | ComponentDefinition<ComponentSchema>): boolean {
     const result = this.components.remove(id, type);
     if (result) this.queryEngine.invalidate();
     return result;
+  }
+
+  /**
+   * Return the generation counter for a raw entity slot index.
+   * @internal Use `api.entity.getGeneration()` in plugin code.
+   */
+  getEntityGeneration(slotIndex: number): number {
+    return this.entityManager.getGeneration(slotIndex);
   }
 
   // ── Query ──────────────────────────────────────────────────────────────
@@ -250,15 +395,6 @@ export class EngineAPIImpl<
   query(componentTypes: ComponentTypeInput[]): EntityId[] {
     const normalized = normalizeComponentTypesForQuery(componentTypes);
     return this.queryEngine.query(normalized, this.entityManager, this.components);
-  }
-
-  /**
-   * Return the generation counter for a raw entity slot index.
-   * Use this to reconstruct a packed EntityId from a WASM-side raw slot index
-   * (e.g. `slotA` / `slotB` from physics collision events).
-   */
-  getEntityGeneration(slotIndex: number): number {
-    return this.entityManager.getGeneration(slotIndex);
   }
 
   // ── State update (called by Engine each frame) ─────────────────────────

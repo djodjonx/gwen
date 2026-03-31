@@ -91,34 +91,6 @@ export class ConfigBuilder {
   }
 
   /**
-   * @deprecated Use `addPlugin()` instead.
-   *
-   * Add a WASM plugin. Kept for backward compatibility — the plugin is pushed
-   * into the legacy `wasmPlugins` array which `createEngine()` still reads.
-   *
-   * @param plugin - A plugin with a `wasm` sub-object.
-   */
-  public addWasmPlugin(plugin: GwenPlugin): this {
-    if (!this.config.wasmPlugins) this.config.wasmPlugins = [];
-    this.config.wasmPlugins.push(plugin);
-    return this;
-  }
-
-  /**
-   * @deprecated Use `addPlugin()` instead.
-   *
-   * Add a TypeScript plugin. Kept for backward compatibility — the plugin is
-   * pushed into the legacy `tsPlugins` array which `createEngine()` still reads.
-   *
-   * @param plugin - A TS-only plugin.
-   */
-  public addTsPlugin(plugin: GwenPlugin): this {
-    if (!this.config.tsPlugins) this.config.tsPlugins = [];
-    this.config.tsPlugins.push(plugin);
-    return this;
-  }
-
-  /**
    * Merge all builder options into a final `EngineConfig` object.
    * Unset options fall back to `defaultConfig`.
    *

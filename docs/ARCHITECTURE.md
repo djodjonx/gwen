@@ -1,5 +1,7 @@
 # 🏗️ GWEN Architecture
 
+> **Note:** This document reflects the GWEN v2 architecture. For the canonical implementation contract, see [specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md](../specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md).
+
 Understanding GWEN's architecture helps you build better games and contribute effectively.
 
 ## High-Level Design
@@ -85,24 +87,29 @@ onInit() → onBeforeUpdate() → onUpdate() → onRender() → onDestroy()
 
 ### Game Loop
 
+Two loop modes are supported. See the [playbook](../specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md) for the authoritative specification.
+
+**Mode `loop: 'internal'` (default)** — The engine owns `requestAnimationFrame`. Delta is computed internally and capped at `maxDeltaSeconds` (default `0.1`).
+
 ```
 ┌─────────────────────────────────────┐
 │  requestAnimationFrame(now)         │
 └────────────┬────────────────────────┘
              │
-    ┌────────▼────────┐
-    │  Calculate ΔT   │
-    └────────┬────────┘
+    ┌────────▼────────────────┐
+    │  Calculate ΔT (capped)  │
+    └────────┬────────────────┘
              │
     ┌────────▼──────────────────┐
     │  Plugin.onBeforeUpdate()  │
     └────────┬──────────────────┘
              │
-    ┌────────▼─────────────────────────┐
-    │  WASM Engine.tick(deltaTime)     │ ← Rust core
-    │  - Update archetype cache        │
-    │  - Update entity generations     │
-    └────────┬─────────────────────────┘
+    ┌────────▼──────────────────────┐
+    │  engine.advance(ΔT)           │ ← Rust core step
+    │  - Reset event channels       │
+    │  - Update archetype cache     │
+    │  - Update entity generations  │
+    └────────┬──────────────────────┘
              │
     ┌────────▼──────────────────┐
     │  Plugin.onUpdate(api)     │ ← Your systems run here
@@ -112,11 +119,13 @@ onInit() → onBeforeUpdate() → onUpdate() → onRender() → onDestroy()
     │  Plugin.onRender(api)     │ ← Rendering happens here
     └────────┬──────────────────┘
              │
-    ┌────────▼───────────────────┐
-    │  Emit Events (input, etc)  │
-    └────────┬───────────────────┘
-             │
              └──→ Loop back to requestAnimationFrame
+```
+
+**Mode `loop: 'external'`** — JS controls timing. The engine never starts RAF. The caller invokes `engine.advance(delta)` each frame.
+
+```
+JS tick → engine.advance(delta) → [onBeforeUpdate → Core reset channels → Rust step → onUpdate → onRender]
 ```
 
 ## Component System
@@ -160,6 +169,30 @@ api.query([Position, Velocity])
 
 // Subsequent calls: Returns cached result (fast ~1μs)
 api.query([Position, Velocity])
+```
+
+**Canonical component API** (`api.component.*`):
+
+```typescript
+api.component.add(entity, Position, { x: 0, y: 0 });
+api.component.get(entity, Position);              // → { x, y }
+api.component.set(entity, Position, { x: 10 });  // partial update
+api.component.remove(entity, Position);
+```
+
+Query-first system authoring — declare queries in the system descriptor rather than calling `api.query()` imperatively:
+
+```typescript
+defineSystem({
+  name: 'MovementSystem',
+  query: [Position, Velocity],
+  onUpdate(api, entities, dt) {
+    for (const id of entities) {
+      const vel = api.component.get(id, Velocity);
+      api.component.set(id, Position, { x: pos.x + vel.x * dt });
+    }
+  }
+});
 ```
 
 ## Entity Lifecycle
@@ -370,13 +403,9 @@ class Player extends GameObject {
    - Compose plugins for complex behavior
    - Share common utilities
 
-## Future Improvements
+## Roadmap
 
-- 🚧 Native physics engine
-- 🚧 Better debugging tools
-- 🚧 WebGPU renderer
-- 🚧 Networking for multiplayer
-- 🚧 Better hot-reload
+See the RFC backlog in [specs/rfc-v3/README.md](../specs/rfc-v3/README.md) for planned milestones covering 3D core, R3F integration, performance improvements, and kit packages.
 
 ---
 

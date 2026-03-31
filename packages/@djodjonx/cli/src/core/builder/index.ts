@@ -23,10 +23,11 @@ import { resolve, join } from 'pathe';
 import { loadGwenConfig } from '../config.js';
 import { prepare } from '../prepare/index.js';
 import { logger } from '../../utils/logger.js';
-import { createBuildContext, getDuration } from './context.js';
+import { createBuildContext, getDuration, type BuildContext } from './context.js';
 import { copyWasmArtifacts } from './wasm.js';
 import { generateManifest } from './manifest.js';
 import { runViteBuild } from './vite.js';
+import { detectCoreVariant, detectSharedMemoryPlugins } from './variant-detector.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -110,13 +111,27 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 /**
  * Load and validate project config
  */
-async function loadConfig(ctx: any): Promise<void> {
+async function loadConfig(ctx: BuildContext): Promise<void> {
   logger.info('Loading configuration...');
 
   try {
     const loaded = await loadGwenConfig(ctx.projectDir);
     ctx.config = loaded.config;
     ctx.configPath = loaded.configPath;
+
+    // Detect core variant (light, physics2d, physics3d)
+    ctx.variant = detectCoreVariant(ctx.config as any);
+    logger.info(`Core variant: ${ctx.variant} (auto-detected)`);
+
+    const sabPlugins = detectSharedMemoryPlugins(ctx.config as any);
+    if (sabPlugins.length > 0) {
+      logger.warn(
+        'SharedArrayBuffer required by plugin(s): ' +
+          sabPlugins.map((n) => `'${n}'`).join(', ') +
+          '. Configure COOP/COEP headers (Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Embedder-Policy: require-corp).',
+      );
+    }
+
     logger.debug('Config loaded and validated');
   } catch (error: any) {
     throw new Error(`Config loading failed: ${error.message}`);
@@ -126,7 +141,7 @@ async function loadConfig(ctx: any): Promise<void> {
 /**
  * Prepare project artifacts
  */
-async function prepareBuildArtifacts(ctx: any): Promise<void> {
+async function prepareBuildArtifacts(ctx: BuildContext): Promise<void> {
   if (ctx.dryRun) return;
 
   logger.info('Preparing project artifacts...');

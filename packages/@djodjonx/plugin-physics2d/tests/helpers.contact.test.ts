@@ -1,77 +1,101 @@
 import { createEntityId } from '@djodjonx/gwen-engine-core';
 import { describe, expect, it } from 'vitest';
+import type { CollisionEventsBatch } from '../src/types';
 import {
   dedupeContactsByPair,
-  selectContactsForEntity,
+  getEntityCollisionContacts,
+  selectContactsForEntityId,
+  selectResolvedContactsForEntityId,
   toResolvedContacts,
 } from '../src/helpers/contact';
 
+/**
+ * Build a minimal CollisionEventsBatch for tests.
+ * Events are cast to the expected type because tests need slot fields
+ * at runtime (internally accessed via SlottedEvent cast).
+ */
+function makeBatch(events: object[]): CollisionEventsBatch {
+  return {
+    frame: 1,
+    count: events.length,
+    droppedSinceLastRead: 0,
+    droppedCritical: 0,
+    droppedNonCritical: 0,
+    coalesced: true,
+    events: events as CollisionEventsBatch['events'],
+  };
+}
+
 describe('contact helpers', () => {
-  it('should select events for one slot', () => {
-    const selected = selectContactsForEntity(
-      {
-        frame: 1,
-        count: 3,
-        droppedSinceLastRead: 0,
-        droppedCritical: 0,
-        droppedNonCritical: 0,
-        coalesced: true,
-        events: [
-          { slotA: 1, slotB: 2, started: true },
-          { slotA: 7, slotB: 1, started: false },
-          { slotA: 3, slotB: 4, started: true },
-        ],
-      },
-      1,
+  it('should select events for one EntityId', () => {
+    const selected = selectContactsForEntityId(
+      makeBatch([
+        { slotA: 12, slotB: 2, started: true },
+        { slotA: 7, slotB: 12, started: false },
+        { slotA: 3, slotB: 4, started: true },
+      ]),
+      createEntityId(12, 3),
     );
 
     expect(selected).toHaveLength(2);
   });
 
-  it('should return empty array when no events match the slot', () => {
-    const selected = selectContactsForEntity(
-      {
-        frame: 1,
-        count: 1,
-        droppedSinceLastRead: 0,
-        droppedCritical: 0,
-        droppedNonCritical: 0,
-        coalesced: true,
-        events: [{ slotA: 5, slotB: 6, started: true }],
-      },
-      99,
+  it('should return empty array when no events match the EntityId', () => {
+    const selected = selectContactsForEntityId(
+      makeBatch([{ slotA: 5, slotB: 6, started: true }]),
+      createEntityId(99, 0),
     );
 
     expect(selected).toHaveLength(0);
   });
 
   it('should return empty array when batch has no events', () => {
-    const selected = selectContactsForEntity(
-      {
-        frame: 1,
-        count: 0,
-        droppedSinceLastRead: 0,
-        droppedCritical: 0,
-        droppedNonCritical: 0,
-        coalesced: true,
-        events: [],
-      },
-      1,
-    );
-
+    const selected = selectContactsForEntityId(makeBatch([]), createEntityId(1, 0));
     expect(selected).toHaveLength(0);
   });
 
-  it('should dedupe symmetric pairs deterministically', () => {
+  it('should select resolved contacts for one EntityId', () => {
+    const e1 = createEntityId(1, 0);
+    const e2 = createEntityId(2, 0);
+    const e3 = createEntityId(3, 0);
+
+    const selected = selectResolvedContactsForEntityId(
+      [
+        { entityA: e1, entityB: e2, started: true },
+        { entityA: e3, entityB: e1, started: false },
+      ],
+      e1,
+    );
+
+    expect(selected).toHaveLength(2);
+  });
+
+  it('should pull and filter resolved contacts for one EntityId', () => {
+    const e1 = createEntityId(1, 0);
+    const e2 = createEntityId(2, 0);
+    const e3 = createEntityId(3, 0);
+
+    const physics = {
+      getCollisionContacts: () => [
+        { entityA: e1, entityB: e2, started: true },
+        { entityA: e3, entityB: e2, started: false },
+      ],
+    } as any;
+
+    const selected = getEntityCollisionContacts(physics, e2);
+    expect(selected).toHaveLength(2);
+  });
+
+  it('should dedupe symmetric pairs deterministically by collider id', () => {
     const deduped = dedupeContactsByPair([
-      { slotA: 1, slotB: 2, started: true },
-      { slotA: 2, slotB: 1, started: true },
-      { slotA: 1, slotB: 2, started: false },
+      { aColliderId: 1, bColliderId: 2, started: true },
+      { aColliderId: 2, bColliderId: 1, started: true },
+      { aColliderId: 1, bColliderId: 2, started: false },
     ]);
 
     expect(deduped).toEqual([
-      { slotA: 1, slotB: 2, started: true },
-      { slotA: 1, slotB: 2, started: false },
+      { aColliderId: 1, bColliderId: 2, started: true },
+      { aColliderId: 1, bColliderId: 2, started: false },
     ]);
   });
 
@@ -81,8 +105,8 @@ describe('contact helpers', () => {
 
   it('should keep ended events separate from started events for same pair', () => {
     const deduped = dedupeContactsByPair([
-      { slotA: 1, slotB: 2, started: true },
-      { slotA: 1, slotB: 2, started: false },
+      { aColliderId: 1, bColliderId: 2, started: true },
+      { aColliderId: 1, bColliderId: 2, started: false },
     ]);
 
     expect(deduped).toHaveLength(2);
@@ -101,8 +125,6 @@ describe('contact helpers', () => {
       {
         entityA: createEntityId(1, 3),
         entityB: createEntityId(2, 3),
-        slotA: 1,
-        slotB: 2,
         started: true,
         aColliderId: undefined,
         bColliderId: undefined,

@@ -5,8 +5,13 @@
  * types for `gwen prepare`.
  */
 
-import type { GwenConfigInput } from '@djodjonx/gwen-schema';
+import type { GwenConfigInput, GwenOptions } from '@djodjonx/gwen-schema';
 import type { GwenPlugin } from '@djodjonx/gwen-engine-core';
+
+/**
+ * Re-export GwenOptions as GwenConfig for easier usage in CLI and tools.
+ */
+export type { GwenOptions as GwenConfig };
 
 /** Converts a union to an intersection (`A | B` -> `A & B`). */
 type UnionToIntersection<U> = (U extends unknown ? (arg: U) => void : never) extends (

@@ -13,6 +13,7 @@ import {
   type ComponentTypeInput,
 } from './component-type-normalizer';
 import { createEntityId, unpackEntityId } from '../types/entity';
+import type { SystemQuery, SystemQueryDescriptor } from './query-result';
 
 // Re-export EntityId as part of the ECS module's public API
 export type { EntityId } from '../types/entity';
@@ -198,6 +199,47 @@ export class QueryEngine {
   invalidate(): void {
     this.dirty = true;
     this.cache.clear();
+  }
+
+  /**
+   * Resolve a `SystemQuery` descriptor against the TS-side ECS.
+   *
+   * Supports all filter fields: `all`, `any`, `none`, `tag`.
+   * Results are NOT cached — call `query()` directly for cache-aware execution.
+   *
+   * Used by tests and the pure-TS ECS path. The engine itself delegates to the
+   * WASM bridge for production query execution.
+   */
+  resolve(
+    queryDesc: SystemQuery,
+    entities: EntityManager,
+    components: ComponentRegistry,
+  ): EntityId[] {
+    const desc: SystemQueryDescriptor = Array.isArray(queryDesc) ? { all: queryDesc } : queryDesc;
+
+    // 1. 'all' filter — primary requirement
+    const allRequired = (desc.all ?? []).map((d) => (typeof d === 'string' ? d : d.name));
+    let results = this.query(allRequired, entities, components);
+
+    // 2. 'any' filter — at least one
+    if (desc.any && desc.any.length > 0) {
+      const anyNames = desc.any.map((d) => (typeof d === 'string' ? d : d.name));
+      results = results.filter((id) => anyNames.some((type) => components.has(id, type)));
+    }
+
+    // 3. 'none' filter — exclusion
+    if (desc.none && desc.none.length > 0) {
+      const noneNames = desc.none.map((d) => (typeof d === 'string' ? d : d.name));
+      results = results.filter((id) => !noneNames.some((type) => components.has(id, type)));
+    }
+
+    // 4. 'tag' filter — marker component
+    if (desc.tag) {
+      const tag = desc.tag;
+      results = results.filter((id) => components.has(id, tag));
+    }
+
+    return results;
   }
 
   /**

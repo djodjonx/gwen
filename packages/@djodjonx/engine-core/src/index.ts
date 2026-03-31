@@ -22,24 +22,28 @@ export type { GwenPlugin, GwenPluginWasmContext, PluginEntry } from './types/plu
 // Plugin system utilities — type helpers for defineConfig() inference
 export type {
   GwenPluginMeta,
-  // Primary (new)
+  // Primary
   MergePluginsProvides,
   MergePluginsHooks,
   PluginProvides,
   PluginProvidesHooks,
   UnionToIntersection,
-  // Legacy (deprecated)
-  MergeProvides,
-  MergeHooks,
-  WasmPluginProvides,
-  MergeWasmProvides,
-  MergeAllProvides,
-  MergeAllHooks,
 } from './plugin-system/plugin';
 
 // System definition — defineSystem() for game logic
 export { defineSystem } from './plugin-system/system';
-export type { System, SystemBody, SystemFactory } from './plugin-system/system';
+export type {
+  System,
+  SystemBody,
+  SystemFactory,
+  SystemQuery,
+  SystemQueryDescriptor,
+  QueryResult,
+  EntityAccessor,
+} from './plugin-system/system';
+
+// Query result builder (for advanced use)
+export { buildQueryResult, resolveSystemQueryIds } from './core/query-result';
 
 // ECS internals (kept for tests / advanced usage)
 export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
@@ -76,16 +80,37 @@ export {
   _resetWasmBridge,
   _injectMockWasmEngine,
 } from './engine/wasm-bridge';
-export type { WasmBridge, WasmEntityId, WasmEngine, GwenCoreWasm } from './engine/wasm-bridge';
+export type {
+  WasmBridge,
+  WasmEntityId,
+  WasmEngine,
+  GwenCoreWasm,
+  CoreVariant,
+  InitWasmOptions,
+} from './engine/wasm-bridge';
 
 // WASM Plugin Infrastructure
 export {
   SharedMemoryManager,
   TRANSFORM_STRIDE,
+  TRANSFORM3D_STRIDE,
   FLAG_PHYSICS_ACTIVE,
   FLAGS_OFFSET,
+  FLAGS3D_OFFSET,
   SENTINEL,
 } from './wasm/shared-memory';
+
+// 3D Transform component + low-level buffer accessors
+export {
+  TRANSFORM_OFFSETS,
+  Transform3D,
+  readTransform3DPosition,
+  readTransform3DRotation,
+  readTransform3DScale,
+  writeTransform3DPosition,
+  writeTransform3DRotation,
+  writeTransform3DScale,
+} from './components/transform3d';
 export type { MemoryRegion } from './wasm/shared-memory';
 export { loadWasmPlugin } from './wasm/wasm-plugin-loader';
 export type { WasmPluginLoadOptions } from './wasm/wasm-plugin-loader';
@@ -101,4 +126,7 @@ export type { AllocatedChannel } from './wasm/plugin-data-bus';
 
 // String Pool — memory-efficient string storage for ECS
 export { GlobalStringPoolManager, StringPoolManager, StringPool } from './utils/string-pool';
-export { GlobalStringPool } from './utils/string-pool'; // Legacy export for backward compatibility
+
+// Core variant detection
+export { detectCoreVariant } from './utils/variant-detector';
+export { detectSharedMemoryRequired } from './utils/variant-detector';

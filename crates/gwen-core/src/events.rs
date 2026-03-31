@@ -7,11 +7,6 @@ use std::collections::HashMap;
 
 /// Trait for all events
 pub trait Event: 'static {
-    /// Get unique type ID for this event
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
-
     /// Cast to Any for downcasting
     fn as_any(&self) -> &dyn Any;
 }
@@ -57,7 +52,7 @@ impl EventBus {
         let events = std::mem::take(&mut self.queue);
 
         for event in events {
-            let type_id = event.type_id();
+            let type_id = event.as_any().type_id();
 
             if let Some(handlers) = self.handlers.get(&type_id) {
                 for handler in handlers {

@@ -15,6 +15,21 @@ web-sys = { version = "0.3.64", features = [
     "Window",
     "Document",
 ] }
+bytemuck = { version = "1", features = ["derive"] }
+
+# Physics — 2D (Rapier2D)
+rapier2d = { version = "0.22", default-features = false, features = ["f32", "dim2"], optional = true }
+# Physics — 3D (Rapier3D)
+rapier3d = { version = "0.22", default-features = false, features = ["f32", "dim3"], optional = true }
+# Pathfinding
+pathfinding = { version = "4.3", optional = true }
+
+[features]
+default = []
+physics2d = ["dep:rapier2d", "pathfinding-2d"]
+physics3d = ["dep:rapier3d", "pathfinding-3d"]
+pathfinding-2d = ["dep:pathfinding"]
+pathfinding-3d = ["dep:pathfinding"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
@@ -26,4 +41,8 @@ wasm-opt = false
 
 [package.metadata.wasm-pack.profile.dev]
 wasm-opt = false
+
+[[bin]]
+name = "bench_solver_presets"
+required-features = ["physics2d"]
 

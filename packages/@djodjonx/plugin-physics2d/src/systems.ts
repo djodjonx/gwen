@@ -1,4 +1,5 @@
-import { defineSystem, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
+import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI, SensorState } from './types';
 
 const DEFAULT_PIXELS_PER_METER = 50;
@@ -42,9 +43,8 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
         for (const id of entities) {
           const pos = api.getComponent<{ x: number; y: number }>(id, positionComponent);
           if (!pos) continue;
-
-          const { index: slot } = unpackEntityId(id);
-          physics.setKinematicPosition(slot, pos.x / pixelsPerMeter, pos.y / pixelsPerMeter);
+          // id is already an EntityId — pass directly
+          physics.setKinematicPosition(id, pos.x / pixelsPerMeter, pos.y / pixelsPerMeter);
         }
       },
 
@@ -55,49 +55,20 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
   });
 }
 
-// ─── Platformer grounded helper (Sprint 4) ───────────────────────────────────
+// ─── Platformer grounded helper ──────────────────────────────────────────────
 
-/**
- * Opaque sensor identifier for the foot sensor in platformer games.
- * Use this constant as `sensorId` in `getSensorState(slot, SENSOR_ID_FOOT)`.
- *
- * @example
- * ```ts
- * const foot = physics.getSensorState(slot, SENSOR_ID_FOOT);
- * if (foot.isActive) canJump = true;
- * ```
- */
-export const SENSOR_ID_FOOT = 0xf007; // arbitrary stable constant
+/** Opaque sensor identifier for the foot sensor in platformer games. */
+export const SENSOR_ID_FOOT = 0xf007;
 
 export interface PlatformerGroundedSystemOptions {
-  /**
-   * Sensor id used to track ground contacts.
-   * Must match the `sensorId` used when calling `physics.updateSensorState`.
-   * @default SENSOR_ID_FOOT
-   */
+  /** Sensor id used to track ground contacts. @default SENSOR_ID_FOOT */
   sensorId?: number;
 }
 
 /**
  * Create a tree-shakable helper that derives `isGrounded` from a foot sensor.
  *
- * Returns a `isGrounded(slot)` function to call in your own update loop.
- * No ECS writes are performed — the game owns its state.
- *
- * ## Usage
- * ```ts
- * const { isGrounded } = createPlatformerGroundedSystem({ physics });
- *
- * // In your update loop:
- * if (isGrounded(playerSlot)) {
- *   physics.applyImpulse(playerSlot, 0, JUMP_FORCE);
- * }
- * ```
- *
- * ## Performance notes
- * - `getSensorState` is O(1) — a direct HashMap lookup on the Rust side.
- * - No event subscription is needed; this helper reads state, not events.
- * - Zero allocations in the hot path.
+ * Returns `isGrounded(entityId)` and `getSensorState(entityId)` utilities.
  */
 export function createPlatformerGroundedSystem(
   options: PlatformerGroundedSystemOptions & { physics: Physics2DAPI },
@@ -106,20 +77,14 @@ export function createPlatformerGroundedSystem(
   const sensorId = options.sensorId ?? SENSOR_ID_FOOT;
 
   return {
-    /**
-     * Returns `true` if the entity's foot sensor is currently touching ground.
-     * @param slot Raw ECS slot index (not a packed EntityId).
-     */
-    isGrounded(slot: number): boolean {
-      return physics.getSensorState(slot, sensorId).isActive;
+    /** Returns `true` if the entity's foot sensor is currently touching ground. */
+    isGrounded(entityId: EntityId): boolean {
+      return physics.getSensorState(entityId, sensorId).isActive;
     },
 
-    /**
-     * Returns the full sensor state for the entity.
-     * Useful when you need contactCount, not just the boolean.
-     */
-    getSensorState(slot: number): SensorState {
-      return physics.getSensorState(slot, sensorId);
+    /** Returns the full sensor state for the entity. */
+    getSensorState(entityId: EntityId): SensorState {
+      return physics.getSensorState(entityId, sensorId);
     },
   };
 }

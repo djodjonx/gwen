@@ -1,10 +1,9 @@
 {
   "name": "@djodjonx/gwen-plugin-physics2d",
   "version": "1.0.0",
-  "description": "2D physics plugin for GWEN — Rapier2D via WASM",
+  "description": "2D physics plugin for GWEN — pure adapter for core WASM",
   "files": [
-    "dist",
-    "wasm"
+    "dist"
   ],
   "type": "module",
   "sideEffects": false,
@@ -70,12 +69,7 @@
     "vitest": "^4.0.18"
   },
   "gwen": {
-    "type": "wasm-plugin",
-    "wasmId": "physics2d",
-    "wasmFiles": [
-      "wasm/gwen_physics2d.js",
-      "wasm/gwen_physics2d_bg.wasm"
-    ],
+    "type": "typescript",
     "serviceTypes": {
       "physics": {
         "from": "@djodjonx/gwen-plugin-physics2d",

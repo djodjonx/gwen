@@ -15,8 +15,9 @@ Complete API documentation for GWEN Engine.
 6. [defineUI](#defineui)
 7. [defineConfig](#defineconfig)
 8. [EngineAPI](#engineapi)
-9. [GwenPlugin Interface](#gwenplugin-interface)
-10. [Types](#types)
+9. [Canonical Component API](#canonical-component-api)
+10. [GwenPlugin Interface](#gwenplugin-interface)
+11. [Types](#types)
 
 ---
 
@@ -84,6 +85,13 @@ Types.u32     // 32-bit unsigned integer
 Types.u64     // 64-bit unsigned integer (bigint in JS)
 Types.bool    // Boolean
 Types.string  // String (stored as UTF-8 intern ID)
+
+// Spatial primitives — packed f32 arrays
+Types.vec2    // { x, y }       — 2 × f32 (8 bytes)
+Types.vec3    // { x, y, z }    — 3 × f32 (12 bytes)
+Types.vec4    // { x, y, z, w } — 4 × f32 (16 bytes)
+Types.quat    // { x, y, z, w } — 4 × f32 (16 bytes), identity: (0,0,0,1)
+Types.color   // { r, g, b, a } — 4 × f32 (16 bytes), range [0, 1]
 ```
 
 ### InferComponent
@@ -171,10 +179,10 @@ export const MovementSystem = defineSystem({
   onUpdate(api, dt) {
     const entities = api.query([Position, Velocity]);
     for (const id of entities) {
-      const pos = api.getComponent(id, Position);
-      const vel = api.getComponent(id, Velocity);
+      const pos = api.component.get(id, Position);
+      const vel = api.component.get(id, Velocity);
       if (!pos || !vel) continue;
-      api.addComponent(id, Position, {
+      api.component.set(id, Position, {
         x: pos.x + vel.vx * dt,
         y: pos.y + vel.vy * dt,
       });
@@ -211,9 +219,9 @@ import { definePrefab } from '@djodjonx/gwen-engine-core';
 export const PlayerPrefab = definePrefab({
   name: 'Player',
   create: (api) => {
-    const id = api.createEntity();
-    api.addComponent(id, Position, { x: 240, y: 560 });
-    api.addComponent(id, Health, { current: 3, max: 3 });
+    const id = api.entity.create();
+    api.component.add(id, Position, { x: 240, y: 560 });
+    api.component.add(id, Health, { current: 3, max: 3 });
     return id;
   },
 });
@@ -222,8 +230,8 @@ export const PlayerPrefab = definePrefab({
 export const EnemyPrefab = definePrefab({
   name: 'Enemy',
   create: (api, x: number, y: number) => {
-    const id = api.createEntity();
-    api.addComponent(id, Position, { x, y });
+    const id = api.entity.create();
+    api.component.add(id, Position, { x, y });
     return id;
   },
 });
@@ -242,7 +250,7 @@ export const PlayerUI = defineUI<GwenServices>({
   name: 'PlayerUI',
   onMount(api, entityId) { /* allocate DOM / canvas resources */ },
   render(api, entityId) {
-    const pos = api.getComponent(entityId, Position);
+    const pos = api.component.get(entityId, Position);
     if (!pos) return;
     const { ctx } = api.services.get('renderer');
     ctx.fillStyle = '#4fffb0';
@@ -257,8 +265,8 @@ Link a UI to an entity with `UIComponent`:
 ```typescript
 import { UIComponent } from '@djodjonx/gwen-engine-core';
 
-const player = api.createEntity();
-api.addComponent(player, UIComponent, { uiName: 'PlayerUI' });
+const player = api.entity.create();
+api.component.add(player, UIComponent, { uiName: 'PlayerUI' });
 ```
 
 ---
@@ -304,44 +312,114 @@ export const gwenConfig = defineConfig({
 The runtime API available inside all systems, scenes, plugins, prefabs and UI components.
 
 ```typescript
-interface EngineAPI<M extends Record<string, unknown> = Record<string, unknown>> {
-  // Entity
-  createEntity(): EntityId;
-  destroyEntity(id: EntityId): boolean;
+interface EngineAPI<M extends object = GwenDefaultServices> {
+  // Canonical component namespace
+  readonly component: ComponentAPI;
 
-  // Components
-  addComponent<T>(id: EntityId, type: ComponentType, data: T): void;
-  addComponent<D extends ComponentDefinition<ComponentSchema>>(
-    id: EntityId, type: D, data: InferComponent<D>
-  ): void;
-  getComponent<T>(id: EntityId, type: ComponentType): T | undefined;
-  getComponent<D extends ComponentDefinition<ComponentSchema>>(
-    id: EntityId, type: D
-  ): InferComponent<D> | undefined;
-  hasComponent(id: EntityId, type: ComponentType | ComponentDefinition<any>): boolean;
-  removeComponent(id: EntityId, type: ComponentType | ComponentDefinition<any>): boolean;
+  // Canonical entity namespace
+  readonly entity: EntityAPI;
 
-  // Queries — returns EntityId[]
+  // Ad-hoc query — returns EntityId[]
   query(componentTypes: Array<ComponentType | ComponentDefinition<any>>): EntityId[];
 
   // Services
   services: TypedServiceLocator<M>;
 
+  // Hooks
+  readonly hooks: GwenHookable<H>;
+
   // Prefabs
-  prefabs: PrefabManager;
+  readonly prefabs: PrefabManager;
 
   // Scene navigator (null in headless contexts)
-  scene: SceneNavigator | null;
+  readonly scene: SceneNavigator | null;
 
   // Frame state
   readonly deltaTime: number;
   readonly frameCount: number;
+
+  // WASM engine (power-user)
+  readonly wasm: WasmEngine;
 }
 ```
 
-**Not in EngineAPI:**
-- `entityExists()` — not exposed
-- `emit()` / `on()` — use plugin/service patterns instead
+### ComponentAPI (`api.component.*`)
+
+```typescript
+interface ComponentAPI {
+  add(id, def, data): void;         // Attach / overwrite a component
+  set(id, def, patch): void;        // Upsert — merges patch onto existing or defaults
+  get(id, def): T | undefined;      // Read, returns undefined if absent
+  getOrThrow(id, def): T;           // Read, throws [GWEN] error if absent
+  remove(id, def): boolean;         // Remove, returns true if it existed
+  has(id, def | string): boolean;   // Presence check (also works for tags)
+}
+```
+
+### EntityAPI (`api.entity.*`)
+
+```typescript
+interface EntityAPI {
+  create(): EntityId;               // Allocate a new entity
+  destroy(id): boolean;             // Destroy entity + all components
+  isAlive(id): boolean;             // Generation-safe liveness check
+  getGeneration(slotIndex): number; // Raw slot → generation (for WASM interop)
+  tag(id, tag): void;               // Add marker-component
+  untag(id, tag): void;             // Remove marker-component
+  hasTag(id, tag): boolean;         // Check marker-component presence
+}
+```
+
+---
+
+## Canonical Component API
+
+Use `api.component.*` and `api.entity.*` in all plugin and system code.
+
+### Component operations
+
+```typescript
+import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+
+const Transform = defineComponent({
+  name: 'Transform',
+  schema: {
+    position: Types.vec3,
+    rotation: Types.quat,
+  },
+  defaults: {
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0, w: 1 },
+  },
+});
+
+// In onInit or spawn:
+api.component.add(entityId, Transform, {
+  position: { x: 0, y: 0, z: 0 },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+});
+
+// In onUpdate (partial patch, no allocation):
+api.component.set(entityId, Transform, { position: { x: 1, y: 0, z: 0 } });
+
+// Read:
+const t = api.component.get(entityId, Transform);
+```
+
+### Entity operations
+
+```typescript
+// Create
+const id = api.entity.create();
+
+// Tags (marker components for query filtering)
+api.entity.tag(id, 'grounded');
+api.entity.hasTag(id, 'grounded'); // → true
+api.entity.untag(id, 'grounded');
+
+// Destroy
+api.entity.destroy(id);
+```
 
 ---
 

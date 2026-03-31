@@ -42,11 +42,35 @@ import type { WasmBridge } from '../engine/wasm-bridge';
 
 // ─── Public constants ─────────────────────────────────────────────────────────
 
-/** Bytes per entity slot in the shared transform buffer. */
+/** Bytes per entity slot in the shared 2D transform buffer. */
 export const TRANSFORM_STRIDE = 32;
+
+/**
+ * Bytes per entity slot in the shared 3D transform buffer (STRIDE 48).
+ *
+ * ## Layout (48 bytes, 16-byte aligned)
+ * ```
+ * slot_offset +  0 : pos_x   (f32, 4 B)
+ * slot_offset +  4 : pos_y   (f32, 4 B)
+ * slot_offset +  8 : pos_z   (f32, 4 B)
+ * slot_offset + 12 : rot_x   (f32, 4 B) — quaternion x
+ * slot_offset + 16 : rot_y   (f32, 4 B) — quaternion y
+ * slot_offset + 20 : rot_z   (f32, 4 B) — quaternion z
+ * slot_offset + 24 : rot_w   (f32, 4 B) — quaternion w (identity = 1)
+ * slot_offset + 28 : scale_x (f32, 4 B)
+ * slot_offset + 32 : scale_y (f32, 4 B)
+ * slot_offset + 36 : scale_z (f32, 4 B)
+ * slot_offset + 40 : flags   (u32, 4 B) — bit 0 = physics_active, bit 1 = dirty
+ * slot_offset + 44 : reserved (4 B)     — 16-byte alignment padding
+ * ```
+ */
+export const TRANSFORM3D_STRIDE = 48;
 
 /** Byte offset of the `flags` field within a single entity slot. */
 export const FLAGS_OFFSET = 20;
+
+/** Byte offset of the `flags` field within a single 3D entity slot. */
+export const FLAGS3D_OFFSET = 40;
 
 /** Bit flag: this entity slot is actively managed by a physics plugin. */
 export const FLAG_PHYSICS_ACTIVE = 0b01;

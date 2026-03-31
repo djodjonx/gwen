@@ -4,83 +4,45 @@
 
 import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, join } from 'pathe';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'pathe';
 import { logger } from '../../utils/logger.js';
 import type { BuildContext } from './context.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolveWasmPath } from './variant-detector.js';
 
 /**
  * Copy pre-compiled WASM artifacts from @djodjonx/gwen-engine-core
+ * to the build output directory.
+ *
+ * @param ctx - Current build context
  */
 export async function copyWasmArtifacts(ctx: BuildContext): Promise<void> {
   if (ctx.dryRun) return;
 
-  logger.info('Copying pre-compiled WASM artifacts...');
-  const wasmOutDir = join(ctx.outDir, 'wasm');
-  const copyResult = await copyPrecompiledWasm(wasmOutDir);
+  const variant = ctx.variant ?? 'light';
+  logger.info(`Copying pre-compiled WASM artifacts (variant: ${variant})...`);
 
-  if (!copyResult.success) {
-    ctx.warnings.push(...copyResult.warnings);
-    logger.warn('WASM copy had warnings');
-  } else {
-    logger.success(`WASM artifacts copied → ${wasmOutDir}`);
-  }
-}
+  try {
+    const { jsPath, wasmPath } = resolveWasmPath(variant);
+    const wasmOutDir = join(ctx.outDir, 'wasm');
+    await fs.mkdir(wasmOutDir, { recursive: true });
 
-/**
- * Copy pre-compiled WASM from @djodjonx/gwen-engine-core/wasm/
- */
-async function copyPrecompiledWasm(
-  destDir: string,
-): Promise<{ success: boolean; warnings: string[] }> {
-  const warnings: string[] = [];
+    // Copy JS wrapper
+    const destJs = join(wasmOutDir, 'gwen_core.js');
+    await fs.copyFile(jsPath, destJs);
 
-  // Search candidates for @djodjonx/gwen-engine-core/wasm/
-  const candidates = [
-    resolve(__dirname, '../../node_modules/@djodjonx/gwen-engine-core/wasm'),
-    resolve(__dirname, '../../../node_modules/@djodjonx/gwen-engine-core/wasm'),
-    resolve(process.cwd(), 'node_modules/@djodjonx/gwen-engine-core/wasm'),
-    resolve(__dirname, '../../engine-core/wasm'),
-  ];
+    // Copy WASM binary
+    const destWasm = join(wasmOutDir, 'gwen_core_bg.wasm');
+    await fs.copyFile(wasmPath, destWasm);
 
-  let sourceDir: string | null = null;
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      sourceDir = candidate;
-      logger.debug(`Found WASM source: ${sourceDir}`);
-      break;
+    // Also copy d.ts if it exists
+    const dtsPath = jsPath.replace(/\.js$/, '.d.ts');
+    if (existsSync(dtsPath)) {
+      await fs.copyFile(dtsPath, join(wasmOutDir, 'gwen_core.d.ts'));
     }
+
+    logger.success(`WASM artifacts (${variant}) copied → ${wasmOutDir}`);
+  } catch (error: any) {
+    ctx.warnings.push(`WASM artifacts copy failed: ${error.message}`);
+    logger.warn(`WASM artifacts copy failed: ${error.message}`);
   }
-
-  if (!sourceDir) {
-    warnings.push(
-      'Pre-compiled WASM not found in @djodjonx/gwen-engine-core/wasm/. ' +
-        'Run: pnpm install @djodjonx/gwen-engine-core',
-    );
-    return { success: false, warnings };
-  }
-
-  await fs.mkdir(destDir, { recursive: true });
-
-  const files = await fs.readdir(sourceDir);
-  const wasmFiles = files.filter(
-    (f) => f.endsWith('.wasm') || f.endsWith('.js') || f.endsWith('.d.ts'),
-  );
-
-  if (wasmFiles.length === 0) {
-    warnings.push(`No WASM artifacts found in ${sourceDir}`);
-    return { success: false, warnings };
-  }
-
-  for (const file of wasmFiles) {
-    const src = join(sourceDir, file);
-    const dest = join(destDir, file);
-    await fs.copyFile(src, dest);
-    logger.trace(`Copied ${file}`);
-  }
-
-  return { success: true, warnings };
 }

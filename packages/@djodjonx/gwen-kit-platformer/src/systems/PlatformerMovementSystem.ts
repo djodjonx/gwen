@@ -1,4 +1,4 @@
-import { defineSystem, unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@djodjonx/gwen-engine-core';
 import { createPlatformerGroundedSystem } from '@djodjonx/gwen-plugin-physics2d/core';
 import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d/core';
@@ -35,25 +35,17 @@ function isValidNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function pickNumber(
-  primary: number | undefined,
-  legacy: number | undefined,
-  fallback: number,
-): number {
-  if (isValidNumber(primary)) return primary;
-  if (isValidNumber(legacy)) return legacy;
+function pickNumber(value: number | undefined, fallback: number): number {
+  if (isValidNumber(value)) return value;
   return fallback;
 }
 
 type ControllerLike = {
   speed?: number;
   jumpVelocity?: number;
-  jumpForce?: number;
   maxFallSpeed?: number;
   jumpCoyoteMs?: number;
-  coyoteMs?: number;
   jumpBufferWindowMs?: number;
-  jumpBufferMs?: number;
   groundEnterFrames?: number;
   groundExitFrames?: number;
   postJumpLockMs?: number;
@@ -67,18 +59,14 @@ function resolveMovementConfig(ctrl: ControllerLike): ControllerMovementConfig {
   const defaults = PLATFORMER_CONTROLLER_DEFAULTS;
 
   return {
-    speed: pickNumber(ctrl.speed, undefined, defaults.speed),
-    jumpVelocity: pickNumber(ctrl.jumpVelocity, ctrl.jumpForce, defaults.jumpVelocity),
-    maxFallSpeed: pickNumber(ctrl.maxFallSpeed, undefined, defaults.maxFallSpeed),
-    jumpCoyoteMs: pickNumber(ctrl.jumpCoyoteMs, ctrl.coyoteMs, defaults.jumpCoyoteMs),
-    jumpBufferWindowMs: pickNumber(
-      ctrl.jumpBufferWindowMs,
-      ctrl.jumpBufferMs,
-      defaults.jumpBufferWindowMs,
-    ),
-    groundEnterFrames: pickNumber(ctrl.groundEnterFrames, undefined, defaults.groundEnterFrames),
-    groundExitFrames: pickNumber(ctrl.groundExitFrames, undefined, defaults.groundExitFrames),
-    postJumpLockMs: pickNumber(ctrl.postJumpLockMs, undefined, defaults.postJumpLockMs),
+    speed: pickNumber(ctrl.speed, defaults.speed),
+    jumpVelocity: pickNumber(ctrl.jumpVelocity, defaults.jumpVelocity),
+    maxFallSpeed: pickNumber(ctrl.maxFallSpeed, defaults.maxFallSpeed),
+    jumpCoyoteMs: pickNumber(ctrl.jumpCoyoteMs, defaults.jumpCoyoteMs),
+    jumpBufferWindowMs: pickNumber(ctrl.jumpBufferWindowMs, defaults.jumpBufferWindowMs),
+    groundEnterFrames: pickNumber(ctrl.groundEnterFrames, defaults.groundEnterFrames),
+    groundExitFrames: pickNumber(ctrl.groundExitFrames, defaults.groundExitFrames),
+    postJumpLockMs: pickNumber(ctrl.postJumpLockMs, defaults.postJumpLockMs),
   };
 }
 
@@ -120,12 +108,11 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
       const entities = api.query([PlatformerController, PlatformerIntent]);
 
       for (const eid of entities) {
-        const { index: slot } = unpackEntityId(eid);
         const ctrl = api.getComponent(eid, PlatformerController) ?? PLATFORMER_CONTROLLER_DEFAULTS;
         const intent = api.getComponent(eid, PlatformerIntent);
         if (!intent) continue;
 
-        const vel = physics.getLinearVelocity(slot);
+        const vel = physics.getLinearVelocity(eid);
         if (!vel) continue;
 
         // Horizontal movement
@@ -135,10 +122,10 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         const jumpVelocity = toPhysicsScalar(movement.jumpVelocity, units, ctrl.pixelsPerMeter);
         const maxFallSpeed = toPhysicsScalar(movement.maxFallSpeed, units, ctrl.pixelsPerMeter);
         const targetVx = intent.moveX * speed;
-        physics.setLinearVelocity(slot, targetVx, Math.max(vel.y, -maxFallSpeed));
+        physics.setLinearVelocity(eid, targetVx, Math.max(vel.y, -maxFallSpeed));
 
-        const sensorGrounded = grounded.isGrounded(slot);
-        const groundState = grounded.getSensorState(slot);
+        const sensorGrounded = grounded.isGrounded(eid);
+        const groundState = grounded.getSensorState(eid);
         const groundStateRecord =
           groundStates.get(eid) ?? createGroundHysteresisState(sensorGrounded);
         const hysteresisGrounded = resolveGroundedWithHysteresis(
@@ -151,7 +138,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         );
         groundStates.set(eid, groundStateRecord);
 
-        const pos = physics.getPosition?.(slot) ?? null;
+        const pos = physics.getPosition?.(eid) ?? null;
         const prevY = lastYByEntity.get(eid) ?? pos?.y;
         if (pos) {
           lastYByEntity.set(eid, pos.y);
@@ -191,24 +178,24 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
 
         if (debug && intent.jumpJustPressed) {
           console.log(
-            `[PlatformerMovementSystem] jump request slot=${slot} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contactCount=${groundState.contactCount} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed} vy=${vel.y.toFixed(3)}`,
+            `[PlatformerMovementSystem] jump request entity=${String(eid)} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contactCount=${groundState.contactCount} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed} vy=${vel.y.toFixed(3)}`,
           );
         }
 
         if (debug && debugTick++ % 30 === 0) {
           console.log(
-            `[PlatformerMovementSystem] state slot=${slot} vy=${vel.y.toFixed(3)} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contacts=${groundState.contactCount} enterFrames=${groundStateRecord.consecutiveGroundFrames} exitFrames=${groundStateRecord.consecutiveAirFrames} stillMs=${stillMs.toFixed(1)} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed}`,
+            `[PlatformerMovementSystem] state entity=${String(eid)} vy=${vel.y.toFixed(3)} grounded=${isOnGround}(sensor=${sensorGrounded},inferred=${inferredGrounded}) contacts=${groundState.contactCount} enterFrames=${groundStateRecord.consecutiveGroundFrames} exitFrames=${groundStateRecord.consecutiveAirFrames} stillMs=${stillMs.toFixed(1)} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} lockMs=${jumpState.postJumpLockLeftMs.toFixed(1)} consumed=${jumpState.jumpConsumed}`,
           );
         }
 
         // ── Jump resolution ───────────────────────────────────────────────────
         if (canApplyJump(jumpState, isOnGround)) {
-          physics.setLinearVelocity(slot, targetVx, -jumpVelocity);
+          physics.setLinearVelocity(eid, targetVx, -jumpVelocity);
           markJumpApplied(jumpState, movement.postJumpLockMs);
 
           if (debug) {
             console.log(
-              `[PlatformerMovementSystem] jump applied slot=${slot} targetVx=${targetVx.toFixed(3)} jumpVy=${(-jumpVelocity).toFixed(3)} lockMs=${movement.postJumpLockMs.toFixed(1)}`,
+              `[PlatformerMovementSystem] jump applied entity=${String(eid)} targetVx=${targetVx.toFixed(3)} jumpVy=${(-jumpVelocity).toFixed(3)} lockMs=${movement.postJumpLockMs.toFixed(1)}`,
             );
           }
         } else if (debug && intent.jumpJustPressed) {
@@ -219,7 +206,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
                 ? 'jump_already_consumed'
                 : 'not_grounded_or_no_coyote';
           console.log(
-            `[PlatformerMovementSystem] jump blocked slot=${slot} reason=${reason} grounded=${isOnGround} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)}`,
+            `[PlatformerMovementSystem] jump blocked entity=${String(eid)} reason=${reason} grounded=${isOnGround} coyoteMs=${jumpState.coyoteLeftMs.toFixed(1)} bufferMs=${jumpState.jumpBufferLeftMs.toFixed(1)}`,
           );
         }
       }

@@ -15,7 +15,6 @@ export type {
 } from './engine-api';
 
 // Plugin types
-export type { TsPlugin } from './plugin-ts';
 export type { GwenPlugin, GwenPluginWasmContext, PluginEntry } from './plugin';
 export type { PluginChannel, DataChannel, EventChannel, GwenEvent } from './plugin-channel';
 

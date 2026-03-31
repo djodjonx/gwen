@@ -23,10 +23,6 @@ export const PlatformerController = defineComponent({
     groundEnterFrames: Types.f32, // Frames needed to confirm grounded from sensor active.
     groundExitFrames: Types.f32, // Frames needed to confirm airborne from sensor inactive.
     postJumpLockMs: Types.f32, // Short jump lockout to absorb immediate reland jitter.
-    // Deprecated aliases kept for compatibility.
-    jumpForce: Types.f32,
-    coyoteMs: Types.f32,
-    jumpBufferMs: Types.f32,
     maxFallSpeed: Types.f32, // Maximum fall speed cap (depends on `units`). Default: 600
   },
 });
@@ -41,12 +37,6 @@ export type PlatformerControllerData = {
   groundEnterFrames: number;
   groundExitFrames: number;
   postJumpLockMs: number;
-  /** @deprecated Use `jumpVelocity`. */
-  jumpForce: number;
-  /** @deprecated Use `jumpCoyoteMs`. */
-  coyoteMs: number;
-  /** @deprecated Use `jumpBufferWindowMs`. */
-  jumpBufferMs: number;
   maxFallSpeed: number;
 };
 
@@ -61,9 +51,5 @@ export const PLATFORMER_CONTROLLER_DEFAULTS: PlatformerControllerData = {
   groundEnterFrames: 1,
   groundExitFrames: 4,
   postJumpLockMs: 80,
-  // Deprecated aliases mirrored to avoid behavioral drift.
-  jumpForce: 500,
-  coyoteMs: 110,
-  jumpBufferMs: 110,
   maxFallSpeed: 600,
 };

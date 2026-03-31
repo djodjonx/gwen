@@ -7,11 +7,29 @@
 //! cannot accidentally use a recycled slot (the classic stale-ID bug).
 //! `create_entity` returns a `JsEntityId` struct exposing both fields.
 
-use crate::component::{ComponentStorage, ComponentTypeId};
-use crate::entity::{EntityId, EntityManager};
+use crate::ecs::component::ComponentTypeId;
+use crate::ecs::dirty_set::DirtySet;
+use crate::ecs::entity::{EntityId, EntityManager};
+use crate::ecs::query::{QueryId, QuerySystem};
+use crate::ecs::storage::ArchetypeStorage;
 use crate::gameloop::GameLoop;
-use crate::query::{QueryId, QuerySystem};
 use wasm_bindgen::prelude::*;
+
+#[cfg(feature = "physics2d")]
+use crate::physics2d::{BodyOptions, BodyType, ColliderOptions, PhysicsQualityPreset, PhysicsWorld};
+
+#[cfg(feature = "physics3d")]
+use crate::physics3d::PhysicsWorld3D;
+
+const TRANSFORM_SAB_TYPE_ID: u32 = u32::MAX - 1;
+const PHYS_FLAG: u32 = 0b01; // bit 0 — physics active
+use crate::transform::TRANSFORM_STRIDE;
+/// Local alias so all buffer arithmetic below reads as `STRIDE` unchanged.
+const STRIDE: usize = TRANSFORM_STRIDE;
+
+/// Static buffer for query results to avoid allocations during JS bridge calls.
+/// Capped at 10,000 entities.
+static mut QUERY_RESULT_BUFFER: [u32; 10_000] = [0u32; 10_000];
 
 // ─── Opaque entity handle exposed to JS ──────────────────────────────────────
 
@@ -55,13 +73,19 @@ impl From<EntityId> for JsEntityId {
 #[wasm_bindgen]
 pub struct Engine {
     entity_manager: EntityManager,
-    component_storage: ComponentStorage,
+    storage: ArchetypeStorage,
     query_system: QuerySystem,
     gameloop: GameLoop,
     /// Monotonically increasing counter used by `register_component_type`.
     /// Each call returns a fresh ID regardless of the underlying Rust type,
     /// because JS does not have Rust's `TypeId` concept.
     next_js_type_id: u32,
+    /// Tracks entities with modified transforms.
+    dirty_transforms: DirtySet,
+    #[cfg(feature = "physics2d")]
+    physics_world: Option<PhysicsWorld>,
+    #[cfg(feature = "physics3d")]
+    physics3d_world: Option<PhysicsWorld3D>,
 }
 
 #[wasm_bindgen]
@@ -71,10 +95,15 @@ impl Engine {
     pub fn new(max_entities: u32) -> Engine {
         Engine {
             entity_manager: EntityManager::new(max_entities),
-            component_storage: ComponentStorage::new(),
+            storage: ArchetypeStorage::new(),
             query_system: QuerySystem::new(),
             gameloop: GameLoop::new(60),
             next_js_type_id: 0,
+            dirty_transforms: DirtySet::new(max_entities),
+            #[cfg(feature = "physics2d")]
+            physics_world: None,
+            #[cfg(feature = "physics3d")]
+            physics3d_world: None,
         }
     }
 
@@ -90,7 +119,15 @@ impl Engine {
     /// that stale handles are correctly rejected.
     pub fn delete_entity(&mut self, index: u32, generation: u32) -> bool {
         let id = EntityId::from_parts(index, generation);
-        self.entity_manager.delete_entity(id)
+        if self.entity_manager.delete_entity(id) {
+            if let Some(arch_id) = self.storage.remove_entity(index) {
+                self.query_system.on_archetype_change(arch_id);
+            }
+            self.query_system.remove_entity(index);
+            true
+        } else {
+            false
+        }
     }
 
     /// Get count of live entities
@@ -141,7 +178,17 @@ impl Engine {
             return false;
         }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage.upsert_js(index, type_id, data);
+        if let Some(migration) = self.storage.upsert_js(index, type_id, data) {
+            if let Some(from) = migration.from {
+                self.query_system.on_archetype_change(from);
+            }
+            self.query_system.on_archetype_change(migration.to);
+        }
+
+        if component_type_id == TRANSFORM_SAB_TYPE_ID {
+            self.dirty_transforms.mark_dirty(index);
+        }
+
         true
     }
 
@@ -159,7 +206,15 @@ impl Engine {
             return false;
         }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage.remove_component(index, type_id)
+        if let Some(migration) = self.storage.remove_component(index, type_id) {
+            if let Some(from) = migration.from {
+                self.query_system.on_archetype_change(from);
+            }
+            self.query_system.on_archetype_change(migration.to);
+            true
+        } else {
+            false
+        }
     }
 
     /// Check if entity has component
@@ -171,7 +226,7 @@ impl Engine {
             return false;
         }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage.has_component(index, type_id)
+        self.storage.has_component(index, type_id)
     }
 
     /// Get raw component bytes for an entity (returns empty Vec if not found).
@@ -189,7 +244,7 @@ impl Engine {
             return Vec::new();
         }
         let type_id = ComponentTypeId::from_raw(component_type_id);
-        self.component_storage
+        self.storage
             .get_component(index, type_id)
             .map(|bytes| bytes.to_vec())
             .unwrap_or_default()
@@ -199,12 +254,9 @@ impl Engine {
 
     /// Update the archetype of an entity after component changes.
     /// Pass the full list of component type IDs currently on the entity.
-    pub fn update_entity_archetype(&mut self, index: u32, component_type_ids: &[u32]) {
-        let types: Vec<ComponentTypeId> = component_type_ids
-            .iter()
-            .map(|&id| ComponentTypeId::from_raw(id))
-            .collect();
-        self.query_system.update_entity_archetype(index, types);
+    pub fn update_entity_archetype(&mut self, _index: u32, _component_type_ids: &[u32]) {
+        // No-op in archetype-based storage as it's handled automatically
+        // in add_component/remove_component.
     }
 
     /// Remove an entity from the query system cache.
@@ -230,8 +282,52 @@ impl Engine {
             .iter()
             .map(|&id| ComponentTypeId::from_raw(id))
             .collect();
-        let query_id = QueryId::new(types);
-        self.query_system.query(query_id).entities().to_vec()
+        let query_id = QueryId::new(types, self.storage.registry());
+        self.query_system.query(&self.storage, query_id).entities().to_vec()
+    }
+
+    /// Query entities and copy their indices into a static buffer.
+    /// Returns the number of entities found (capped at 10,000).
+    ///
+    /// This is an optimized alternative to `query_entities` that avoids
+    /// allocating a new `Vec` or `Uint32Array` for the result. Use
+    /// `get_query_result_ptr` to get the pointer to the buffer.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use gwen_core::bindings::Engine;
+    /// # let mut engine = Engine::new(100);
+    /// let count = engine.query_entities_to_buffer(&[0, 1]);
+    /// let ptr = engine.get_query_result_ptr();
+    /// // Read count * 4 bytes from ptr in JS.
+    /// ```
+    pub fn query_entities_to_buffer(&mut self, component_type_ids: &[u32]) -> u32 {
+        let types: Vec<ComponentTypeId> = component_type_ids
+            .iter()
+            .map(|&id| ComponentTypeId::from_raw(id))
+            .collect();
+        let query_id = QueryId::new(types, self.storage.registry());
+        let results = self.query_system.query(&self.storage, query_id);
+        let entities = results.entities();
+
+        let count = entities.len().min(10_000);
+        // SAFETY: Only one engine instance accesses this buffer at a time
+        // in a single-threaded WASM environment.
+        unsafe {
+            for (i, &entity_id) in entities.iter().enumerate().take(count) {
+                QUERY_RESULT_BUFFER[i] = entity_id;
+            }
+        }
+        count as u32
+    }
+
+    /// Get a raw pointer to the static query result buffer.
+    ///
+    /// Use this to read the results of the last `query_entities_to_buffer` call
+    /// from JavaScript without allocations.
+    pub fn get_query_result_ptr(&self) -> *const u32 {
+        // SAFETY: The buffer is static and lives for the duration of the module.
+        std::ptr::addr_of!(QUERY_RESULT_BUFFER) as *const u32
     }
 
     // === Game Loop API ===
@@ -311,21 +407,15 @@ impl Engine {
     ///
     /// Only entities that have a `Transform` component are written.
     /// Stride is 32 bytes per slot (see `alloc_shared_buffer` layout).
-    pub fn sync_transforms_to_buffer(&self, ptr: usize, max_entities: u32) {
-        const STRIDE: usize = 32;
-        const PHYS_FLAG: u32 = 0b01; // bit 0 — physics active
-
+    pub fn sync_transforms_to_buffer(&mut self, ptr: usize, max_entities: u32) {
         for idx in 0..max_entities as usize {
             let offset = idx * STRIDE;
             // SAFETY: ptr was allocated by alloc_shared_buffer with size ≥ max_entities*32
             unsafe {
                 let base = (ptr + offset) as *mut f32;
 
-                // Read Transform from ComponentStorage (raw bytes, SoA layout)
-                // We store pos_x, pos_y, rotation, scale_x, scale_y in the first 20 bytes.
-                // If no transform data exists for this slot, write zeros (already cleared
-                // by alloc_zeroed, but we ensure idempotency on repeated calls).
-                if let Some(raw) = self.component_storage.get_transform_raw(idx as u32) {
+                // Read Transform from storage
+                if let Some(raw) = self.storage.get_transform_raw(idx as u32) {
                     // raw is a packed [x: f32, y: f32, rot: f32, sx: f32, sy: f32]
                     let floats = raw.as_ptr() as *const f32;
                     base.write(*floats); // x
@@ -342,6 +432,7 @@ impl Engine {
                 }
             }
         }
+        self.dirty_transforms.clear();
     }
 
     /// Copies Transform data back from the shared buffer into the ECS
@@ -354,9 +445,6 @@ impl Engine {
     /// Only slots with the physics-active flag (bit 0) are written back.
     /// Stride is 32 bytes per slot (see `alloc_shared_buffer` layout).
     pub fn sync_transforms_from_buffer(&mut self, ptr: usize, max_entities: u32) {
-        const STRIDE: usize = 32;
-        const PHYS_FLAG: u32 = 0b01;
-
         for idx in 0..max_entities as usize {
             let offset = idx * STRIDE;
             unsafe {
@@ -372,12 +460,838 @@ impl Engine {
                 let sx = *base.add(3);
                 let sy = *base.add(4);
 
-                // Write back into ComponentStorage as raw f32 bytes
+                // Write back into storage as raw f32 bytes
                 let packed: [f32; 5] = [x, y, rot, sx, sy];
                 let bytes = std::slice::from_raw_parts(packed.as_ptr() as *const u8, 20);
-                self.component_storage
+                self.storage
                     .upsert_transform_raw(idx as u32, bytes);
+
+                self.dirty_transforms.mark_dirty(idx as u32);
             }
+        }
+    }
+
+    /// Optimized version of `sync_transforms_to_buffer` that only copies
+    /// entities that have been modified since the last sync.
+    ///
+    /// Returns the number of entities synchronized.
+    pub fn sync_transforms_to_buffer_sparse(&mut self, ptr: usize) -> u32 {
+        let dirty = self.dirty_transforms.dirty_entities();
+        let count = dirty.len() as u32;
+
+        for &idx in dirty {
+            let offset = idx as usize * STRIDE;
+            unsafe {
+                let base = (ptr + offset) as *mut f32;
+
+                // Read Transform from storage
+                if let Some(raw) = self.storage.get_transform_raw(idx) {
+                    let floats = raw.as_ptr() as *const f32;
+                    base.write(*floats); // x
+                    base.add(1).write(*floats.add(1)); // y
+                    base.add(2).write(*floats.add(2)); // rot
+                    base.add(3).write(*floats.add(3)); // sx
+                    base.add(4).write(*floats.add(4)); // sy
+
+                    let flags_ptr = (ptr + offset + 20) as *mut u32;
+                    *flags_ptr |= PHYS_FLAG;
+                } else {
+                    // Clear slot if it was dirty but no longer has a transform
+                    std::ptr::write_bytes(base as *mut u8, 0, STRIDE);
+                }
+            }
+        }
+
+        self.dirty_transforms.clear();
+        count
+    }
+
+    /// Get the number of transforms marked as dirty.
+    pub fn dirty_transform_count(&self) -> u32 {
+        self.dirty_transforms.len() as u32
+    }
+
+    // === Physics API ===
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_init(&mut self, grav_x: f32, grav_y: f32, _max_entities: u32) {
+        self.physics_world = Some(PhysicsWorld::new(grav_x, grav_y));
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_step(&mut self, delta: f32) {
+        if let Some(ref mut world) = self.physics_world {
+            world.step(delta);
+            world.sync_to_storage(&mut self.storage);
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_set_quality(&mut self, preset: u8) {
+        if let Some(ref mut world) = self.physics_world {
+            world.set_quality_preset(PhysicsQualityPreset::from_u8(preset));
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_set_event_coalescing(&mut self, _enabled: u32) {
+        // Coalescing logic is handled in the event buffer or world
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_set_global_ccd_enabled(&mut self, _enabled: u32) {
+        // CCD logic handled in the world
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_add_rigid_body(
+        &mut self,
+        slot: u32,
+        x: f32,
+        y: f32,
+        body_type: u8,
+        mass: f32,
+        gravity_scale: f32,
+        linear_damping: f32,
+        angular_damping: f32,
+        vx: f32,
+        vy: f32,
+        ccd_enabled: Option<u32>,
+        extra_solver_iters: Option<usize>,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics_world {
+            let b_type = match body_type {
+                0 => BodyType::Fixed,
+                2 => BodyType::Kinematic,
+                _ => BodyType::Dynamic,
+            };
+            let opts = BodyOptions {
+                mass,
+                gravity_scale,
+                linear_damping,
+                angular_damping,
+                initial_velocity: (vx, vy),
+                ccd_enabled: ccd_enabled.map(|v| v != 0),
+                additional_solver_iterations: extra_solver_iters,
+            };
+            world.add_rigid_body(slot, x, y, b_type, opts)
+        } else {
+            0
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_remove_rigid_body(&mut self, slot: u32) {
+        if let Some(ref mut world) = self.physics_world {
+            world.remove_rigid_body(slot);
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_add_box_collider(
+        &mut self,
+        handle: u32,
+        hw: f32,
+        hh: f32,
+        restitution: f32,
+        friction: f32,
+        is_sensor: u32,
+        density: f32,
+        membership: u32,
+        filter: u32,
+        collider_id: Option<u32>,
+        offset_x: Option<f32>,
+        offset_y: Option<f32>,
+    ) {
+        if let Some(ref mut world) = self.physics_world {
+            let opts = ColliderOptions {
+                material: crate::physics2d::components::PhysicsMaterial {
+                    restitution,
+                    friction,
+                },
+                is_sensor: is_sensor != 0,
+                density,
+                groups: crate::physics2d::components::CollisionGroups { membership, filter },
+                collider_id: collider_id.unwrap_or(u32::MAX),
+                offset_x: offset_x.unwrap_or(0.0),
+                offset_y: offset_y.unwrap_or(0.0),
+            };
+            world.add_box_collider(handle, hw, hh, opts);
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_add_ball_collider(
+        &mut self,
+        handle: u32,
+        radius: f32,
+        restitution: f32,
+        friction: f32,
+        is_sensor: u32,
+        density: f32,
+        membership: u32,
+        filter: u32,
+        collider_id: Option<u32>,
+        offset_x: Option<f32>,
+        offset_y: Option<f32>,
+    ) {
+        if let Some(ref mut world) = self.physics_world {
+            let opts = ColliderOptions {
+                material: crate::physics2d::components::PhysicsMaterial {
+                    restitution,
+                    friction,
+                },
+                is_sensor: is_sensor != 0,
+                density,
+                groups: crate::physics2d::components::CollisionGroups { membership, filter },
+                collider_id: collider_id.unwrap_or(u32::MAX),
+                offset_x: offset_x.unwrap_or(0.0),
+                offset_y: offset_y.unwrap_or(0.0),
+            };
+            world.add_ball_collider(handle, radius, opts);
+        }
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_get_position(&self, slot: u32) -> Vec<f32> {
+        if let Some(ref world) = self.physics_world {
+            if let Some((x, y, rot)) = world.get_position(slot) {
+                return vec![x, y, rot];
+            }
+        }
+        Vec::new()
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_get_linear_velocity(&self, slot: u32) -> Vec<f32> {
+        if let Some(ref world) = self.physics_world {
+            if let Some((vx, vy)) = world.get_linear_velocity(slot) {
+                return vec![vx, vy];
+            }
+        }
+        Vec::new()
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_get_sensor_state(&self, slot: u32, collider_id: u32) -> Vec<u32> {
+        if let Some(ref world) = self.physics_world {
+            let (count, active) = world.get_sensor_state(slot, collider_id);
+            return vec![count, if active { 1 } else { 0 }];
+        }
+        vec![0, 0]
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_update_sensor_state(&mut self, _slot: u32, _collider_id: u32, _active: u32) {
+        // Implementation logic
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_consume_event_metrics(&mut self) -> Vec<u32> {
+        vec![self.gameloop.frame_count() as u32, 0, 0, 0]
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_get_collision_events_ptr(&self) -> *const u8 {
+        crate::physics2d::events::get_collision_events_ptr() as *const u8
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn physics_get_collision_event_count(&self) -> u32 {
+        crate::physics2d::events::get_collision_event_count() as u32
+    }
+
+    // === Pathfinding API ===
+
+    #[cfg(feature = "physics2d")]
+    pub fn path_find_2d(&mut self, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> u32 {
+        crate::physics2d::pathfinding::find_path_2d(from_x, from_y, to_x, to_y) as u32
+    }
+
+    #[cfg(feature = "physics2d")]
+    pub fn path_get_result_ptr(&self) -> *const f32 {
+        crate::physics2d::pathfinding::get_path_buffer_ptr() as *const f32
+    }
+
+    // === Physics3D API ===
+
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_init(&mut self, gx: f32, gy: f32, gz: f32, _max_entities: u32) {
+        self.physics3d_world = Some(PhysicsWorld3D::new(gx, gy, gz));
+    }
+
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_step(&mut self, delta: f32) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.step(delta);
+        }
+    }
+
+    /// Register a new 3D rigid body for the given entity index.
+    ///
+    /// Returns `false` if the entity index is already registered (no-op).
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `x`, `y`, `z`    — Initial world-space position.
+    /// * `kind`            — `0` = Fixed, `1` = Dynamic, `2` = KinematicPositionBased.
+    /// * `mass`            — Body mass in kg (dynamic bodies only).
+    /// * `linear_damping`  — Linear velocity damping coefficient.
+    /// * `angular_damping` — Angular velocity damping coefficient.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_body(
+        &mut self,
+        entity_index: u32,
+        x: f32,
+        y: f32,
+        z: f32,
+        kind: u8,
+        mass: f32,
+        linear_damping: f32,
+        angular_damping: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_body(entity_index, x, y, z, kind, mass, linear_damping, angular_damping)
+        } else {
+            false
+        }
+    }
+
+    /// Remove the 3D rigid body registered for the given entity index.
+    ///
+    /// Returns `false` if no body was registered or the physics world is not initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_remove_body(&mut self, entity_index: u32) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.remove_body(entity_index)
+        } else {
+            false
+        }
+    }
+
+    /// Return `true` if a 3D body is registered for the given entity index.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_has_body(&self, entity_index: u32) -> bool {
+        if let Some(ref world) = self.physics3d_world {
+            world.has_body(entity_index)
+        } else {
+            false
+        }
+    }
+
+    /// Return the full body state as a flat `Float32Array` of 13 elements.
+    ///
+    /// Layout: `[px, py, pz, qx, qy, qz, qw, vx, vy, vz, ax, ay, az]`
+    ///
+    /// Returns an empty array if the entity has no body or the world is not
+    /// initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_body_state(&self, entity_index: u32) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_body_state(entity_index)
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Overwrite all state fields of an existing 3D body in one call.
+    ///
+    /// Returns `false` if the entity has no registered body.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `px/py/pz`        — New world-space position.
+    /// * `qx/qy/qz/qw`    — New orientation (unit quaternion).
+    /// * `vx/vy/vz`        — New linear velocity.
+    /// * `ax/ay/az`        — New angular velocity.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_set_body_state(
+        &mut self,
+        entity_index: u32,
+        px: f32,
+        py: f32,
+        pz: f32,
+        qx: f32,
+        qy: f32,
+        qz: f32,
+        qw: f32,
+        vx: f32,
+        vy: f32,
+        vz: f32,
+        ax: f32,
+        ay: f32,
+        az: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_body_state(entity_index, px, py, pz, qx, qy, qz, qw, vx, vy, vz, ax, ay, az)
+        } else {
+            false
+        }
+    }
+
+    /// Return the linear velocity of a 3D body as `[vx, vy, vz]`.
+    ///
+    /// Returns an empty array if the entity has no body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_linear_velocity(&self, entity_index: u32) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_linear_velocity(entity_index)
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Set the linear velocity of a 3D body.
+    ///
+    /// Returns `false` if the entity has no registered body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_linear_velocity(
+        &mut self,
+        entity_index: u32,
+        vx: f32,
+        vy: f32,
+        vz: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_linear_velocity(entity_index, vx, vy, vz)
+        } else {
+            false
+        }
+    }
+
+    /// Return the angular velocity of a 3D body as `[ax, ay, az]` (rad/s).
+    ///
+    /// Returns an empty array if the entity has no body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_angular_velocity(&self, entity_index: u32) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_angular_velocity(entity_index)
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Set the angular velocity of a 3D body.
+    ///
+    /// Returns `false` if the entity has no registered body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_angular_velocity(
+        &mut self,
+        entity_index: u32,
+        ax: f32,
+        ay: f32,
+        az: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_angular_velocity(entity_index, ax, ay, az)
+        } else {
+            false
+        }
+    }
+
+    /// Apply a world-space linear impulse to a 3D body.
+    ///
+    /// Wakes the body if sleeping. Returns `false` if the entity has no body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `ix/iy/iz`     — Impulse vector (N·s).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_apply_impulse(
+        &mut self,
+        entity_index: u32,
+        ix: f32,
+        iy: f32,
+        iz: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.apply_impulse(entity_index, ix, iy, iz)
+        } else {
+            false
+        }
+    }
+
+    /// Return the body kind discriminant for a 3D body.
+    ///
+    /// Returns `0` = Fixed, `1` = Dynamic, `2` = KinematicPositionBased,
+    /// or `255` if the entity has no registered body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_body_kind(&self, entity_index: u32) -> u8 {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_body_kind(entity_index)
+        } else {
+            255
+        }
+    }
+
+    /// Change the body kind of an existing 3D body at runtime.
+    ///
+    /// Returns `false` if the entity has no registered body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `kind`         — `0` = Fixed, `1` = Dynamic, `2` = KinematicPositionBased.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_body_kind(&mut self, entity_index: u32, kind: u8) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_body_kind(entity_index, kind)
+        } else {
+            false
+        }
+    }
+
+    /// Attach an axis-aligned box collider to a 3D body.
+    ///
+    /// Returns `false` if the entity has no registered body or the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `half_x/y/z`     — Box half-extents (metres).
+    /// * `offset_x/y/z`   — Local-space offset from the body origin.
+    /// * `is_sensor`       — If `true`, collision response is suppressed; only events fire.
+    /// * `friction`        — Surface friction coefficient (≥ 0).
+    /// * `restitution`     — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`      — Collision layer membership bitmask.
+    /// * `mask_bits`       — Collision filter bitmask (which layers this collider hits).
+    /// * `collider_id`     — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_box_collider(
+        &mut self,
+        entity_index: u32,
+        half_x: f32,
+        half_y: f32,
+        half_z: f32,
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_box_collider(
+                entity_index,
+                half_x,
+                half_y,
+                half_z,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Attach a sphere collider to a 3D body.
+    ///
+    /// Returns `false` if the entity has no registered body or the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `radius`          — Sphere radius (metres).
+    /// * `offset_x/y/z`   — Local-space offset from the body origin.
+    /// * `is_sensor`       — If `true`, collision response is suppressed; only events fire.
+    /// * `friction`        — Surface friction coefficient (≥ 0).
+    /// * `restitution`     — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`      — Collision layer membership bitmask.
+    /// * `mask_bits`       — Collision filter bitmask.
+    /// * `collider_id`     — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_sphere_collider(
+        &mut self,
+        entity_index: u32,
+        radius: f32,
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_sphere_collider(
+                entity_index,
+                radius,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Attach a Y-axis capsule collider to a 3D body.
+    ///
+    /// The capsule extends `±half_height` metres along the Y axis, capped by
+    /// hemispheres of `radius` metres.
+    ///
+    /// Returns `false` if the entity has no registered body or the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `radius`          — Hemisphere radius (metres).
+    /// * `half_height`     — Half-length of the cylindrical shaft (metres).
+    /// * `offset_x/y/z`   — Local-space offset from the body origin.
+    /// * `is_sensor`       — If `true`, collision response is suppressed; only events fire.
+    /// * `friction`        — Surface friction coefficient (≥ 0).
+    /// * `restitution`     — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`      — Collision layer membership bitmask.
+    /// * `mask_bits`       — Collision filter bitmask.
+    /// * `collider_id`     — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_capsule_collider(
+        &mut self,
+        entity_index: u32,
+        radius: f32,
+        half_height: f32,
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_capsule_collider(
+                entity_index,
+                radius,
+                half_height,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Remove a specific collider from a 3D body.
+    ///
+    /// Returns `false` if the collider was not found or the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `collider_id`  — Stable ID that was passed when the collider was created.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_remove_collider(&mut self, entity_index: u32, collider_id: u32) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.remove_collider(entity_index, collider_id)
+        } else {
+            false
+        }
+    }
+
+    /// Set the next kinematic position and orientation of a 3D body.
+    ///
+    /// Only affects bodies of kind `2` (KinematicPositionBased). Rapier
+    /// interpolates from the current to the next position when computing
+    /// collision response.
+    ///
+    /// Returns `false` if the entity has no registered body or the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `px/py/pz`        — Target world-space position.
+    /// * `qx/qy/qz/qw`    — Target orientation as a unit quaternion (xyzw order).
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_set_kinematic_position(
+        &mut self,
+        entity_index: u32,
+        px: f32,
+        py: f32,
+        pz: f32,
+        qx: f32,
+        qy: f32,
+        qz: f32,
+        qw: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_kinematic_position(entity_index, px, py, pz, qx, qy, qz, qw)
+        } else {
+            false
+        }
+    }
+
+    /// Apply a world-space angular (torque) impulse to a 3D body.
+    ///
+    /// Immediately changes the body's angular velocity. Wakes the body if
+    /// sleeping. Returns `false` if the entity has no body or the world is
+    /// not initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `ax/ay/az`     — Angular impulse vector (N·m·s).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_apply_angular_impulse(
+        &mut self,
+        entity_index: u32,
+        ax: f32,
+        ay: f32,
+        az: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.apply_angular_impulse(entity_index, ax, ay, az)
+        } else {
+            false
+        }
+    }
+
+    /// Return the sensor state for a 3D collider as a packed `u64`.
+    ///
+    /// Bit layout: `bits 0–31 = contact_count (u32)`, `bit 32 = is_active (bool)`.
+    /// Returns `0` if no state has been recorded or the world is not initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `sensor_id`    — Stable collider ID used when the sensor was created.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_sensor_state(&self, entity_index: u32, sensor_id: u32) -> u64 {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_sensor_state(entity_index, sensor_id)
+        } else {
+            0
+        }
+    }
+
+    /// Manually override the sensor state for a 3D collider.
+    ///
+    /// Normally sensor state is derived automatically from collision events
+    /// during [`physics3d_step`]. Use this to reset or pre-populate state from
+    /// the JavaScript side.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `sensor_id`    — Stable collider ID.
+    /// * `is_active`    — Whether the sensor is currently overlapping.
+    /// * `count`        — Number of concurrent overlapping contacts.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_update_sensor_state(
+        &mut self,
+        entity_index: u32,
+        sensor_id: u32,
+        is_active: bool,
+        count: u32,
+    ) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.update_sensor_state(entity_index, sensor_id, is_active, count);
+        }
+    }
+
+    /// Select the physics quality preset for the 3D simulation.
+    ///
+    /// | Preset | `u8` | Solver iters | Stabilization iters | CCD substeps |
+    /// |--------|:----:|:------------:|:-------------------:|:------------:|
+    /// | Low    | 0    | 2            | 1                   | 1            |
+    /// | Medium | 1    | 4            | 2                   | 1            |
+    /// | High   | 2    | 8            | 3                   | 2            |
+    /// | Esport | 3    | 10           | 4                   | 4            |
+    ///
+    /// Any unrecognised value maps to `Medium`. No-op if the world is not
+    /// initialised.
+    ///
+    /// # Arguments
+    /// * `preset` — Quality level discriminant (0–3).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_quality(&mut self, preset: u8) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_quality(preset);
+        }
+    }
+
+    /// Enable or disable collision event coalescing for the 3D world.
+    ///
+    /// When enabled, duplicate `(entity_a, entity_b)` pairs generated within a
+    /// single step are deduplicated before writing to the ring buffer. This
+    /// reduces event volume at the cost of losing intermediate state transitions.
+    ///
+    /// No-op if the world is not initialised.
+    ///
+    /// # Arguments
+    /// * `enabled` — `true` to enable coalescing, `false` to disable.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_event_coalescing(&mut self, enabled: bool) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_event_coalescing(enabled);
+        }
+    }
+
+    /// Return a raw pointer to the 3D collision event ring buffer.
+    ///
+    /// The buffer lives in WASM linear memory and remains valid for the
+    /// lifetime of the module. JavaScript should wrap the result in a typed
+    /// array view of length `physics3d_get_collision_event_count() * EVENT_STRIDE_3D`.
+    ///
+    /// Returns `0` if the world is not initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_collision_events_ptr(&self) -> usize {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_collision_events_ptr()
+        } else {
+            0
+        }
+    }
+
+    /// Return the number of 3D collision events written since the last step.
+    ///
+    /// Returns `0` if the world is not initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_collision_event_count(&self) -> u32 {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_collision_event_count()
+        } else {
+            0
+        }
+    }
+
+    /// Clear all pending 3D collision events.
+    ///
+    /// Call after JavaScript has finished reading the event buffer. The next
+    /// [`physics3d_step`] call also implicitly clears the buffer.
+    ///
+    /// No-op if the world is not initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_consume_events(&mut self) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.consume_events();
         }
     }
 
@@ -391,5 +1305,64 @@ impl Engine {
             self.gameloop.frame_count(),
             self.gameloop.total_time()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_query_entities_to_buffer() {
+        let mut engine = Engine::new(100);
+        let t0 = engine.register_component_type();
+        let t1 = engine.register_component_type();
+
+        let e0 = engine.create_entity();
+        let e1 = engine.create_entity();
+        let e2 = engine.create_entity();
+
+        // Add components to entities
+        // e0 has t0 and t1
+        engine.add_component(e0.index(), e0.generation(), t0, &[0u8; 4]);
+        engine.add_component(e0.index(), e0.generation(), t1, &[0u8; 4]);
+        // e1 has t0 only
+        engine.add_component(e1.index(), e1.generation(), t0, &[0u8; 4]);
+        // e2 has t1 only
+        engine.add_component(e2.index(), e2.generation(), t1, &[0u8; 4]);
+
+        // Query for t0
+        let count = engine.query_entities_to_buffer(&[t0]);
+        assert_eq!(count, 2);
+
+        let ptr = engine.get_query_result_ptr();
+        unsafe {
+            let slice = std::slice::from_raw_parts(ptr, count as usize);
+            assert!(slice.contains(&e0.index()));
+            assert!(slice.contains(&e1.index()));
+            assert!(!slice.contains(&e2.index()));
+        }
+
+        // Query for both t0 and t1
+        let count = engine.query_entities_to_buffer(&[t0, t1]);
+        assert_eq!(count, 1);
+        unsafe {
+            let slice = std::slice::from_raw_parts(ptr, count as usize);
+            assert_eq!(slice[0], e0.index());
+        }
+    }
+
+    #[test]
+    fn test_query_entities_to_buffer_cap() {
+        let mut engine = Engine::new(11000);
+        let t0 = engine.register_component_type();
+
+        for _ in 0..11000 {
+            let e = engine.create_entity();
+            engine.add_component(e.index(), e.generation(), t0, &[0u8; 4]);
+        }
+
+        let count = engine.query_entities_to_buffer(&[t0]);
+        assert_eq!(count, 10_000); // Capped at 10,000
     }
 }

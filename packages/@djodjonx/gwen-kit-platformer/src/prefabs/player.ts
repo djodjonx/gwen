@@ -13,129 +13,46 @@ import {
 } from '../units.js';
 import { type PlatformerKitComponents, resolveComponent } from '../plugin.js';
 
-/**
- * Definition for a simplified collider in pixels.
- */
 export interface ColliderPixelDef {
-  /** Total width in pixels. */
   w: number;
-  /** Total height in pixels. */
   h: number;
-  /** Vertical offset from the center in pixels. Positive is down. */
   offset?: number;
-  /** Optional numeric ID for the collider. */
   id?: number;
 }
 
-/**
- * Options for creating a platformer player prefab.
- */
 export interface PlayerPrefabOptions {
-  /** Prefab name — used by api.prefabs.instantiate(). Default: 'PlatformerPlayer' */
   name?: string;
-  /** Gameplay units used by movement fields. @default 'pixels' */
   units?: PlatformerUnits;
-  /** Conversion ratio used when `units` is `pixels`. @default 50 */
   pixelsPerMeter?: number;
-  /** Max horizontal speed (depends on `units`). Default: 300 */
   speed?: number;
-  /** Vertical jump velocity (depends on `units`). Default: 500 */
   jumpVelocity?: number;
-  /** Jump coyote time window (ms). Default: 110 */
   jumpCoyoteMs?: number;
-  /** Jump input buffer window (ms). Default: 110 */
   jumpBufferWindowMs?: number;
-  /** Frames required to confirm entering grounded state. Default: 1 */
   groundEnterFrames?: number;
-  /** Frames required to confirm leaving grounded state. Default: 4 */
   groundExitFrames?: number;
-  /** Jump lock duration right after jump launch (ms). Default: 80 */
   postJumpLockMs?: number;
-  /** @deprecated Use `jumpVelocity`. */
-  jumpForce?: number;
-  /** @deprecated Use `jumpCoyoteMs`. */
-  coyoteMs?: number;
-  /** @deprecated Use `jumpBufferWindowMs`. */
-  jumpBufferMs?: number;
-  /** Max fall speed cap (depends on `units`). Default: 600 */
   maxFallSpeed?: number;
-
-  /**
-   * Simplified collider configuration in pixels.
-   * The kit will automatically convert these to physics meters based on project PPM.
-   */
   colliders?: {
-    /** Main solid body. Default: 30x30 px */
     body?: { w: number; h: number };
-    /**
-     * Foot sensor required for grounded checks.
-     * Default: 26x4 px.
-     * Default offset: `bodyHalfHeight + footHalfHeight` (touching body bottom, no gap).
-     */
     foot?: ColliderPixelDef;
-    /** Optional head sensor. */
     head?: ColliderPixelDef;
   };
-
-  /**
-   * Advanced: Local component overrides for this prefab.
-   */
   components?: Partial<PlatformerKitComponents>;
-
-  /**
-   * Additional colliders to add to the player (e.g., hitboxes, interaction zones).
-   * These use the standard Physics2D collider definition format.
-   */
   extraColliders?: PhysicsColliderDef[];
-
-  /**
-   * Raw physics body extensions forwarded to the plugin.
-   * If provided, these will merge with or override the default kit physics config.
-   */
   physics?: Record<string, unknown>;
-
-  /**
-   * Extension hook — called after entity creation, before returning the id.
-   * Use this to add custom project-specific components.
-   */
   onCreated?: (api: EngineAPI, id: EntityId) => void;
 }
 
-/**
- * Creates a PrefabDefinition for a platformer player entity.
- *
- * This factory generates a complete player setup including movement logic,
- * input intentions, and a physical representation with default colliders.
- *
- * Automatically Adds:
- * - Position (from resolveComponent)
- * - PlatformerController (movement config)
- * - PlatformerIntent (movement intentions)
- * - Physics Extension (Body + Colliders)
- *
- * @example
- * ```ts
- * const PlayerPrefab = createPlayerPrefab({
- *   speed: 400,
- *   jumpVelocity: 600,
- *   colliders: { body: { w: 20, h: 30 } }
- * });
- * api.prefabs.register(PlayerPrefab);
- * ```
- */
 export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
   const d = PLATFORMER_CONTROLLER_DEFAULTS;
 
-  // 1. Prepare default colliders (in pixels, will be scaled by Physics2D plugin)
   const bodyHw = (options.colliders?.body?.w ?? 30) / 2;
   const bodyHh = (options.colliders?.body?.h ?? 30) / 2;
-
   const footHw = (options.colliders?.foot?.w ?? 26) / 2;
   const footHh = (options.colliders?.foot?.h ?? 4) / 2;
   const footOffsetPx = options.colliders?.foot?.offset ?? bodyHh + footHh;
 
   const defaultColliders: PhysicsColliderDef[] = [
-    // Main body collider
     {
       shape: 'box',
       hw: bodyHw,
@@ -143,19 +60,16 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
       friction: (options.physics?.friction as number) ?? 0,
       restitution: (options.physics?.restitution as number) ?? 0,
     },
-    // Foot sensor (REQUIRED for PlatformerMovementSystem)
     {
       shape: 'box',
       hw: footHw,
       hh: footHh,
-      // Keep pixel units here; Physics2D plugin converts once at runtime.
       offsetY: footOffsetPx,
       isSensor: true,
       colliderId: SENSOR_ID_FOOT,
     },
   ];
 
-  // Optional head sensor
   if (options.colliders?.head) {
     const headHw = options.colliders.head.w / 2;
     const headHh = options.colliders.head.h / 2;
@@ -165,7 +79,6 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
       shape: 'box',
       hw: headHw,
       hh: headHh,
-      // Keep pixel units here; Physics2D plugin converts once at runtime.
       offsetY: headOffsetPx,
       isSensor: true,
       colliderId: options.colliders.head.id ?? 0x4ead,
@@ -184,8 +97,6 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
     },
     create(api, x: number, y: number) {
       const id = api.createEntity();
-
-      // Resolve the Position component (allows advanced user overrides)
       const PositionComponent = resolveComponent(api, 'position', options.components);
       api.addComponent(id, PositionComponent, { x, y });
 
@@ -193,17 +104,12 @@ export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {
         units: options.units ?? d.units ?? DEFAULT_PLATFORMER_UNITS,
         pixelsPerMeter: options.pixelsPerMeter ?? d.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER,
         speed: options.speed ?? d.speed,
-        jumpVelocity: options.jumpVelocity ?? options.jumpForce ?? d.jumpVelocity,
-        jumpCoyoteMs: options.jumpCoyoteMs ?? options.coyoteMs ?? d.jumpCoyoteMs,
-        jumpBufferWindowMs:
-          options.jumpBufferWindowMs ?? options.jumpBufferMs ?? d.jumpBufferWindowMs,
+        jumpVelocity: options.jumpVelocity ?? d.jumpVelocity,
+        jumpCoyoteMs: options.jumpCoyoteMs ?? d.jumpCoyoteMs,
+        jumpBufferWindowMs: options.jumpBufferWindowMs ?? d.jumpBufferWindowMs,
         groundEnterFrames: options.groundEnterFrames ?? d.groundEnterFrames,
         groundExitFrames: options.groundExitFrames ?? d.groundExitFrames,
         postJumpLockMs: options.postJumpLockMs ?? d.postJumpLockMs,
-        // Deprecated aliases mirrored to preserve compatibility for manual readers.
-        jumpForce: options.jumpVelocity ?? options.jumpForce ?? d.jumpVelocity,
-        coyoteMs: options.jumpCoyoteMs ?? options.coyoteMs ?? d.jumpCoyoteMs,
-        jumpBufferMs: options.jumpBufferWindowMs ?? options.jumpBufferMs ?? d.jumpBufferWindowMs,
         maxFallSpeed: options.maxFallSpeed ?? d.maxFallSpeed,
       });
 

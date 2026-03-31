@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PluginManager } from '../src/plugin-system/plugin-manager';
-import type { TsPlugin } from '../src/types';
+import type { GwenPlugin } from '../src/types';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 import { createEngineAPI, type EngineAPIImpl } from '../src/api/api';
 import { createGwenHooks } from '../src/hooks';
@@ -22,8 +22,8 @@ function makeAPI(): EngineAPIImpl {
 
 function makePlugin(
   name: string,
-  overrides: Partial<TsPlugin> = {},
-): TsPlugin & {
+  overrides: Partial<GwenPlugin> = {},
+): GwenPlugin & {
   calls: string[];
 } {
   const calls: string[] = [];
@@ -203,7 +203,7 @@ describe('PluginManager', () => {
 
   describe('Optional methods', () => {
     it('should not throw if plugin has no lifecycle methods', () => {
-      const minimal: TsPlugin = { name: 'minimal' };
+      const minimal: GwenPlugin = { name: 'minimal' };
       pm.register(minimal, api, api.hooks);
       expect(() => pm.dispatchBeforeUpdate(api, 0.016, api.hooks)).not.toThrow();
       expect(() => pm.dispatchUpdate(api, 0.016, api.hooks)).not.toThrow();
@@ -216,7 +216,7 @@ describe('PluginManager', () => {
 
   describe('Dependency injection between plugins', () => {
     it('should allow InputPlugin to expose state consumed by PlayerController', () => {
-      interface IInputPlugin extends TsPlugin {
+      interface IInputPlugin extends GwenPlugin {
         getState(): { keys: Record<string, boolean> };
       }
 
@@ -226,7 +226,7 @@ describe('PluginManager', () => {
         onInit: vi.fn(),
       };
 
-      const playerPlugin: TsPlugin = {
+      const playerPlugin: GwenPlugin = {
         name: 'PlayerController',
         onInit: (api) => {
           // Resolve Input in onInit (not onUpdate — per ENGINE.md rule)
@@ -254,7 +254,7 @@ describe('PluginManager', () => {
      */
     it('should not call onUpdate after unregister (Test 1)', async () => {
       const calls: number[] = [];
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'TestPlugin',
         onUpdate: () => calls.push(1),
       };
@@ -278,7 +278,7 @@ describe('PluginManager', () => {
      */
     it('should track manual hooks registered in onInit (Test 2)', async () => {
       const calls: number[] = [];
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'CustomHookPlugin',
         onInit(api) {
           // Register a custom hook manually
@@ -308,7 +308,7 @@ describe('PluginManager', () => {
      */
     it('should not accumulate handlers across scene reloads (Test 3)', async () => {
       const calls: number[] = [];
-      const makePlugin = (): TsPlugin => ({
+      const makePlugin = (): GwenPlugin => ({
         name: 'ReloadablePlugin',
         onUpdate: () => calls.push(1),
       });
@@ -336,7 +336,7 @@ describe('PluginManager', () => {
      */
     it('should clean all handlers on destroyAll (Test 4)', async () => {
       const calls: number[] = [];
-      const plugins: TsPlugin[] = [
+      const plugins: GwenPlugin[] = [
         { name: 'P1', onUpdate: () => calls.push(1) },
         { name: 'P2', onUpdate: () => calls.push(2) },
       ];
@@ -359,7 +359,7 @@ describe('PluginManager', () => {
      * allows it by checking that the WeakMap doesn't prevent collection.
      */
     it('should allow garbage collection of plugin after unregister (Test 5)', () => {
-      let plugin: TsPlugin | null = {
+      let plugin: GwenPlugin | null = {
         name: 'GCTestPlugin',
         onUpdate: () => {
           /* no-op */
@@ -385,7 +385,7 @@ describe('PluginManager', () => {
      */
     it('should preserve full hooks API in scopedApi', async () => {
       let apiUsed: any = null;
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'ScopedAPITest',
         onInit(api) {
           apiUsed = api;
@@ -411,7 +411,7 @@ describe('PluginManager', () => {
      */
     it('should track all lifecycle hooks (onBeforeUpdate, onUpdate, onRender)', async () => {
       const calls: string[] = [];
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'AllLifecyclePlugin',
         onBeforeUpdate: () => calls.push('before'),
         onUpdate: () => calls.push('update'),
@@ -450,7 +450,7 @@ describe('PluginManager', () => {
      */
     it('should track combination of auto and manual hooks', async () => {
       const calls: string[] = [];
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'MixedHooksPlugin',
         onUpdate: () => calls.push('auto:update'),
         onInit(api) {

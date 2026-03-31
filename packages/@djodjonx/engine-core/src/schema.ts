@@ -91,6 +91,22 @@ export const Types = {
     write: 'setString' as const,
     isPersistent: true, // Flag for computeSchemaLayout to select the persistent pool
   },
+
+  // ── Spatial primitives ──────────────────────────────────────────────────────
+  // Use these in components instead of declaring separate f32 fields.
+  // Serialized as packed f32 arrays; read/write are intentionally absent
+  // (handled by the schema serializer as packed f32 arrays).
+
+  /** 2D vector — serialized as 2 × f32 (x, y). */
+  vec2: { type: 'vec2' as const, byteLength: 8, fields: ['x', 'y'] as const },
+  /** 3D vector — serialized as 3 × f32 (x, y, z). */
+  vec3: { type: 'vec3' as const, byteLength: 12, fields: ['x', 'y', 'z'] as const },
+  /** 4D vector — serialized as 4 × f32 (x, y, z, w). */
+  vec4: { type: 'vec4' as const, byteLength: 16, fields: ['x', 'y', 'z', 'w'] as const },
+  /** Quaternion — serialized as 4 × f32 (x, y, z, w). Identity: (0, 0, 0, 1). */
+  quat: { type: 'quat' as const, byteLength: 16, fields: ['x', 'y', 'z', 'w'] as const },
+  /** RGBA color — serialized as 4 × f32 (r, g, b, a). Range [0, 1] per channel. */
+  color: { type: 'color' as const, byteLength: 16, fields: ['r', 'g', 'b', 'a'] as const },
 };
 
 export type SchemaType = (typeof Types)[keyof typeof Types];
@@ -108,24 +124,6 @@ export interface SchemaLayout<T> {
 
 // ── Internal types for serialization ──────────────────────────────────────────
 
-/**
- * Numeric schema types whose DataView accessors accept (offset, littleEndian).
- */
-type NumericSchemaTypeName = 'f32' | 'f64' | 'i32' | 'u32';
-
-/**
- * DataView accessor methods for numeric types — strict binding.
- */
-type NumericReadMethod = 'getFloat32' | 'getFloat64' | 'getInt32' | 'getUint32';
-type NumericWriteMethod = 'setFloat32' | 'setFloat64' | 'setInt32' | 'setUint32';
-
-/**
- * 64-bit integer schema types — require bigint.
- */
-type BigIntSchemaTypeName = 'i64' | 'u64';
-type BigIntReadMethod = 'getBigInt64' | 'getBigUint64';
-type BigIntWriteMethod = 'setBigInt64' | 'setBigUint64';
-
 /** Possible JavaScript value for a schema field */
 type FieldValue = number | bigint | boolean | string;
 
@@ -135,7 +133,120 @@ interface FieldMeta {
   byteLength: number;
 }
 
+/**
+ * Handler for a specific schema type category.
+ * Adding a new schema type only requires adding one entry here — no other code changes needed.
+ */
+interface SchemaTypeHandler {
+  serialize(view: DataView, offset: number, value: unknown, typeObj: SchemaType): void;
+  deserialize(
+    view: DataView,
+    offset: number,
+    typeObj: SchemaType,
+  ): FieldValue | Record<string, number>;
+}
+
+/** Field names for each composite spatial type. */
+const COMPOSITE_FIELDS: Record<string, readonly string[]> = {
+  vec2: ['x', 'y'],
+  vec3: ['x', 'y', 'z'],
+  vec4: ['x', 'y', 'z', 'w'],
+  quat: ['x', 'y', 'z', 'w'],
+  color: ['r', 'g', 'b', 'a'],
+};
+
 import { GlobalStringPoolManager } from './utils/string-pool.js';
+
+/**
+ * Dispatch table mapping each schema type name to its serialize/deserialize handlers.
+ * Defined once at module load — zero per-call allocation.
+ *
+ * The `_numeric` key is used as the fallback for f32, f64, i32, u32 (standard DataView types).
+ */
+const SCHEMA_TYPE_HANDLERS: Record<string, SchemaTypeHandler> = {
+  bool: {
+    serialize(view, offset, value) {
+      view.setInt8(offset, value ? 1 : 0);
+    },
+    deserialize(view, offset) {
+      return view.getInt8(offset) !== 0;
+    },
+  },
+
+  string: {
+    serialize(view, offset, value, typeObj) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (typeObj as any).isPersistent
+        ? GlobalStringPoolManager.persistent
+        : GlobalStringPoolManager.scene;
+      view.setInt32(offset, pool.intern(value as string), true);
+    },
+    deserialize(view, offset, typeObj) {
+      const strId = view.getInt32(offset, true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (typeObj as any).isPersistent
+        ? GlobalStringPoolManager.persistent
+        : GlobalStringPoolManager.scene;
+      return pool.get(strId);
+    },
+  },
+
+  i64: {
+    serialize(view, offset, value) {
+      view.setBigInt64(offset, BigInt(value as number), true);
+    },
+    deserialize(view, offset) {
+      return view.getBigInt64(offset, true);
+    },
+  },
+
+  u64: {
+    serialize(view, offset, value) {
+      view.setBigUint64(offset, BigInt(value as number), true);
+    },
+    deserialize(view, offset) {
+      return view.getBigUint64(offset, true);
+    },
+  },
+
+  // Composite spatial types share the same packed-f32 strategy.
+  // Each is registered individually so the dispatch lookup is a direct key match.
+  ...Object.fromEntries(
+    Object.entries(COMPOSITE_FIELDS).map(([typeName, fields]) => [
+      typeName,
+      {
+        serialize(view: DataView, offset: number, value: unknown) {
+          const composite = value as Record<string, number>;
+          for (let i = 0; i < fields.length; i++) {
+            view.setFloat32(offset + i * 4, composite[fields[i]] ?? 0, true);
+          }
+        },
+        deserialize(view: DataView, offset: number) {
+          const composite: Record<string, number> = {};
+          for (let i = 0; i < fields.length; i++) {
+            composite[fields[i]] = view.getFloat32(offset + i * 4, true);
+          }
+          return composite;
+        },
+      } satisfies SchemaTypeHandler,
+    ]),
+  ),
+
+  // Fallback for standard numeric types: f32, f64, i32, u32.
+  // `Types[type].read` / `.write` hold the correct DataView method name.
+  _numeric: {
+    serialize(view, offset, value, typeObj) {
+      const t = typeObj as { write: string };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (view as any)[t.write](offset, value as number, true);
+    },
+    deserialize(view, offset, typeObj) {
+      const t = typeObj as { read: string };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (view as any)[t.read](offset, true) as number;
+    },
+  },
+};
 
 export function computeSchemaLayout<T extends Record<string, FieldValue>>(
   schema: ComponentSchema,
@@ -151,52 +262,27 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
   const totalByteLength = offset;
   const order = Array.from(layout.entries());
 
+  // Pre-resolve handlers per field so the hot per-frame loop does no map lookups.
+  const handlers = order.map(([key, meta]) => ({
+    key,
+    meta,
+    typeObj: schema[key],
+    handler: SCHEMA_TYPE_HANDLERS[meta.type] ?? SCHEMA_TYPE_HANDLERS['_numeric'],
+  }));
+
   const serialize = (data: T, view: DataView): number => {
     let bytesWritten = 0;
-    for (const [key, meta] of order) {
-      const val = data[key as keyof T];
-      if (meta.type === 'bool') {
-        view.setInt8(meta.offset, val ? 1 : 0);
-      } else if (meta.type === 'string') {
-        // Select pool based on isPersistent flag
-        const typeObj = schema[key];
-        const pool = (typeObj as any).isPersistent
-          ? GlobalStringPoolManager.persistent
-          : GlobalStringPoolManager.scene;
-        const strId = pool.intern(val as string);
-        view.setInt32(meta.offset, strId, true);
-      } else if (meta.type === 'i64' || meta.type === 'u64') {
-        const method = Types[meta.type as BigIntSchemaTypeName].write as BigIntWriteMethod;
-        view[method](meta.offset, BigInt(val as number), true);
-      } else {
-        const method = Types[meta.type as NumericSchemaTypeName].write as NumericWriteMethod;
-        view[method](meta.offset, val as number, true);
-      }
+    for (const { key, meta, typeObj, handler } of handlers) {
+      handler.serialize(view, meta.offset, data[key as keyof T], typeObj);
       bytesWritten += meta.byteLength;
     }
     return bytesWritten;
   };
 
   const deserialize = (view: DataView): T => {
-    const obj: Record<string, FieldValue> = {};
-    for (const [key, meta] of order) {
-      if (meta.type === 'bool') {
-        obj[key] = view.getInt8(meta.offset) !== 0;
-      } else if (meta.type === 'string') {
-        const strId = view.getInt32(meta.offset, true);
-        // Select pool based on isPersistent flag
-        const typeObj = schema[key];
-        const pool = (typeObj as any).isPersistent
-          ? GlobalStringPoolManager.persistent
-          : GlobalStringPoolManager.scene;
-        obj[key] = pool.get(strId);
-      } else if (meta.type === 'i64' || meta.type === 'u64') {
-        const method = Types[meta.type as BigIntSchemaTypeName].read as BigIntReadMethod;
-        obj[key] = view[method](meta.offset, true);
-      } else {
-        const method = Types[meta.type as NumericSchemaTypeName].read as NumericReadMethod;
-        obj[key] = view[method](meta.offset, true);
-      }
+    const obj: Record<string, FieldValue | Record<string, number>> = {};
+    for (const { key, meta, typeObj, handler } of handlers) {
+      obj[key] = handler.deserialize(view, meta.offset, typeObj);
     }
     return obj as T;
   };
@@ -209,14 +295,33 @@ export function computeSchemaLayout<T extends Record<string, FieldValue>>(
   };
 }
 
-// Maps SchemaType to actual TypeScript types
+/**
+ * Maps a `SchemaType` to its corresponding TypeScript value type.
+ *
+ * - `bool` → `boolean`
+ * - `string` → `string`
+ * - `i64` / `u64` → `bigint`
+ * - `vec2` → `{ x: number; y: number }`
+ * - `vec3` → `{ x: number; y: number; z: number }`
+ * - `vec4` / `quat` → `{ x: number; y: number; z: number; w: number }`
+ * - `color` → `{ r: number; g: number; b: number; a: number }`
+ * - all other numeric types → `number`
+ */
 export type InferSchemaType<T extends SchemaType> = T['type'] extends 'bool'
   ? boolean
   : T['type'] extends 'string'
     ? string
     : T['type'] extends 'i64' | 'u64'
       ? bigint
-      : number;
+      : T['type'] extends 'vec2'
+        ? { x: number; y: number }
+        : T['type'] extends 'vec3'
+          ? { x: number; y: number; z: number }
+          : T['type'] extends 'vec4' | 'quat'
+            ? { x: number; y: number; z: number; w: number }
+            : T['type'] extends 'color'
+              ? { r: number; g: number; b: number; a: number }
+              : number;
 
 /**
  * Extracts the TypeScript interface from a ComponentDefinition.
@@ -225,9 +330,33 @@ export type InferComponent<D extends ComponentDefinition<ComponentSchema>> = {
   [K in keyof D['schema']]: InferSchemaType<D['schema'][K]>;
 };
 
+/**
+ * Definition of an ECS component with a typed schema and optional default values.
+ *
+ * @typeParam S - The component schema mapping field names to `SchemaType` descriptors.
+ *
+ * @example
+ * ```ts
+ * const Transform = defineComponent({
+ *   name: 'Transform',
+ *   schema: { position: Types.vec3, rotation: Types.quat },
+ *   defaults: {
+ *     position: { x: 0, y: 0, z: 0 },
+ *     rotation: { x: 0, y: 0, z: 0, w: 1 },
+ *   },
+ * });
+ * ```
+ */
 export interface ComponentDefinition<S extends ComponentSchema> {
   readonly name: string;
   readonly schema: S;
+  /**
+   * Optional default field values applied by `api.component.set()` when the
+   * component does not yet exist on the entity (upsert behaviour).
+   *
+   * Defaults are merged left-to-right: `{ ...defaults, ...patch }`.
+   */
+  readonly defaults?: Partial<{ [K in keyof S]: InferSchemaType<S[K]> }>;
 }
 
 /**

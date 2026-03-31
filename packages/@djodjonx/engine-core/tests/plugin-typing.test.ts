@@ -7,8 +7,7 @@
  * 3. MergePluginsProvides<> — service inference from a mixed plugins array
  * 4. MergePluginsHooks<> — hooks inference
  * 5. defineConfig() type inference with the new single `plugins` field
- * 6. Legacy MergeProvides / MergeAllProvides backward compat aliases
- * 7. Official plugins (InputPlugin, AudioPlugin)
+ * 6. Official plugins (InputPlugin, AudioPlugin)
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -19,8 +18,6 @@ import {
   type GwenPluginWasmContext,
   type MergePluginsProvides,
   type MergePluginsHooks,
-  type MergeProvides,
-  type MergeAllProvides,
   type GwenConfigServices,
   type GwenConfigHooks,
 } from '../src/index';
@@ -214,40 +211,6 @@ describe('defineConfig() — type inference', () => {
     type Hooks = GwenConfigHooks<typeof config>;
     const _fn: Hooks['engine:tick'] = (_dt: number) => {};
     expect(true).toBe(true);
-  });
-});
-
-// ── Legacy type aliases ───────────────────────────────────────────────────────
-
-describe('Legacy type aliases — backward compat', () => {
-  it('MergeProvides is an alias of MergePluginsProvides', () => {
-    class P implements GwenPlugin<'P', { svc: MockService }> {
-      readonly name = 'P' as const;
-      readonly provides = { svc: {} as MockService };
-    }
-    const p = new P();
-    type New = MergePluginsProvides<[typeof p]>;
-    type Old = MergeProvides<[typeof p]>;
-    // Both must be assignable to each other
-    const fromNew: New = { svc: { value: 1 } };
-    const fromOld: Old = fromNew;
-    expect(fromOld.svc.value).toBe(1);
-  });
-
-  it('MergeAllProvides<Ts, Wasm> works with two separate arrays', () => {
-    const ts: GwenPlugin<'TS', { ts: MockService }> = {
-      name: 'TS',
-      provides: { ts: {} as MockService },
-    };
-    const wasm: GwenPlugin<'Wasm', { wasm: OtherService }> = {
-      name: 'Wasm',
-      provides: { wasm: {} as OtherService },
-      wasm: { id: 'w', onInit: vi.fn().mockResolvedValue(undefined) },
-    };
-
-    type Merged = MergeAllProvides<[typeof ts], [typeof wasm]>;
-    const merged: Merged = { ts: { value: 1 }, wasm: { label: 'hi' } };
-    expect(merged.ts.value).toBe(1);
   });
 });
 

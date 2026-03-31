@@ -100,30 +100,6 @@ export function entityIdFromString(str: string): EntityId {
   return createEntityId(index, generation);
 }
 
-/**
- * Pack a WASM entity handle — DEPRECATED, use `createEntityId()` instead.
- *
- * @deprecated Use {@link createEntityId} — this is maintained for backward compatibility only.
- *
- * @param wasmId - Raw `{index, generation}` pair
- * @returns EntityId
- */
-export function packId(wasmId: { index: number; generation: number }): EntityId {
-  return createEntityId(wasmId.index, wasmId.generation);
-}
-
-/**
- * Unpack a packed EntityId — DEPRECATED, use `unpackEntityId()` instead.
- *
- * @deprecated Use {@link unpackEntityId} — this is maintained for backward compatibility only.
- *
- * @param id - EntityId to unpack
- * @returns Raw components
- */
-export function unpackId(id: EntityId): { index: number; generation: number } {
-  return unpackEntityId(id);
-}
-
 // ── Internal types ─────────────────────────────────────────────────────────────
 
 /** Possible JavaScript value for a serialized component field. */
@@ -190,7 +166,7 @@ export function createShims(engine: Engine): {
   const entityShim: EntityManagerShim = {
     create: () => {
       const wid = wasmBridge.createEntity();
-      return packId(wid);
+      return createEntityId(wid.index, wid.generation);
     },
     destroy: (id: EntityId) => {
       return engine._destroyEntityInternal(id);

@@ -14,6 +14,8 @@ describe('@djodjonx/gwen-schema - Configuration', () => {
       expect(defaultOptions.engine.targetFPS).toBe(60);
       expect(defaultOptions.engine.debug).toBe(false);
       expect(defaultOptions.engine.enableStats).toBe(true);
+      expect(defaultOptions.engine.loop).toBe('internal');
+      expect(defaultOptions.engine.maxDeltaSeconds).toBe(0.1);
       expect(defaultOptions.html.title).toBe('GWEN Project');
       expect(defaultOptions.html.background).toBe('#000000');
       expect(defaultOptions.plugins).toEqual([]);
@@ -40,8 +42,17 @@ describe('@djodjonx/gwen-schema - Configuration', () => {
       });
       expect(config.engine.maxEntities).toBe(10_000);
       expect(config.engine.targetFPS).toBe(60); // from default
+      expect(config.engine.loop).toBe('internal'); // from default
       expect(config.html.title).toBe('My Game');
       expect(config.html.background).toBe('#000000'); // from default
+    });
+
+    it('should preserve engine loop and maxDeltaSeconds when provided', () => {
+      const config = resolveConfig({
+        engine: { loop: 'external', maxDeltaSeconds: 0.05 },
+      });
+      expect(config.engine.loop).toBe('external');
+      expect(config.engine.maxDeltaSeconds).toBe(0.05);
     });
 
     it('should unify legacy tsPlugins into plugins array', () => {
@@ -182,6 +193,33 @@ describe('@djodjonx/gwen-schema - Configuration', () => {
           plugins: {} as any,
         });
       }).toThrow('plugins must be an array');
+    });
+
+    it('should reject invalid engine.loop value', () => {
+      expect(() => {
+        validateResolvedConfig({
+          ...defaultOptions,
+          engine: { ...defaultOptions.engine, loop: 'manual' as any },
+        });
+      }).toThrow("engine.loop must be 'internal' or 'external'");
+    });
+
+    it('should reject non-positive maxDeltaSeconds', () => {
+      expect(() => {
+        validateResolvedConfig({
+          ...defaultOptions,
+          engine: { ...defaultOptions.engine, maxDeltaSeconds: 0 },
+        });
+      }).toThrow('engine.maxDeltaSeconds must be > 0 and <= 1');
+    });
+
+    it('should reject too-large maxDeltaSeconds', () => {
+      expect(() => {
+        validateResolvedConfig({
+          ...defaultOptions,
+          engine: { ...defaultOptions.engine, maxDeltaSeconds: 2 },
+        });
+      }).toThrow('engine.maxDeltaSeconds must be > 0 and <= 1');
     });
   });
 });

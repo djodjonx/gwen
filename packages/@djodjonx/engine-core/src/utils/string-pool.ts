@@ -138,7 +138,6 @@ export class StringPoolManager {
 export const GlobalStringPoolManager = new StringPoolManager(false);
 
 /**
- * Legacy global StringPool — delegates to scene pool for backward compatibility.
- * @deprecated Use GlobalStringPoolManager.scene or GlobalStringPoolManager.persistent instead.
+ * Global StringPool alias bound to the scene pool.
  */
 export const GlobalStringPool = GlobalStringPoolManager.scene;

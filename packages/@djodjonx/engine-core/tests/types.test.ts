@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type { EngineConfig, EntityId, Color, Vector2D, EngineStats, TsPlugin } from '../src/types';
+import type {
+  EngineConfig,
+  EntityId,
+  Color,
+  Vector2D,
+  EngineStats,
+  GwenPlugin,
+} from '../src/types';
 import { createEntityId } from '../src/engine/engine-api';
 
 describe('Types', () => {
@@ -105,9 +112,9 @@ describe('Types', () => {
     });
   });
 
-  describe('TsPlugin', () => {
+  describe('GwenPlugin', () => {
     it('should have required name field', () => {
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'my-plugin',
       };
 
@@ -115,7 +122,7 @@ describe('Types', () => {
     });
 
     it('should have optional lifecycle methods', () => {
-      const plugin: TsPlugin = {
+      const plugin: GwenPlugin = {
         name: 'my-plugin',
         onInit: vi.fn(),
         onUpdate: vi.fn(),

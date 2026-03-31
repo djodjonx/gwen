@@ -87,7 +87,7 @@ impl GameLoop {
     /// Process a frame with given delta time (in seconds)
     pub fn tick(&mut self, delta_seconds: f32) {
         // Clamp delta to reasonable values
-        let delta = delta_seconds.max(0.0).min(0.1); // Max 100ms per frame
+        let delta = delta_seconds.clamp(0.0, 0.1); // Max 100ms per frame
 
         self.accumulated_time += delta;
         self.timing.update(delta);

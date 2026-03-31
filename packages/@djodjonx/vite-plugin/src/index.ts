@@ -37,7 +37,14 @@ const __dirname = path.dirname(__filename);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type CoreVariant = 'light' | 'physics2d' | 'physics3d';
+
 export interface GwenPluginOptions {
+  /**
+   * Core WASM variant to use.
+   * If not provided, it will be auto-detected from gwen.config.ts.
+   */
+  variant?: CoreVariant;
   /**
    * Chemin vers le crate Rust à compiler (dossier contenant Cargo.toml).
    * Si omis, le plugin cherche Cargo.toml dans les dossiers parents.
@@ -189,7 +196,7 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
 
 function generateEntryModule(hasScenesDir: boolean): string {
   const lines = [
-    'import { initWasm, createEngine } from "@djodjonx/gwen-engine-core";',
+    'import { initWasm, createEngine, detectCoreVariant, detectSharedMemoryRequired } from "@djodjonx/gwen-engine-core";',
     'import gwenConfig from "/gwen.config.ts";',
   ];
 
@@ -200,7 +207,9 @@ function generateEntryModule(hasScenesDir: boolean): string {
   lines.push(
     '',
     'async function bootstrap() {',
-    '  await initWasm();',
+    '  const variant = detectCoreVariant(gwenConfig as any);',
+    '  const requireSAB = detectSharedMemoryRequired(gwenConfig as any);',
+    '  await initWasm(variant, { requireSAB });',
     // createEngine is now async — must be awaited
     hasScenesDir
       ? '  const { engine } = await createEngine(gwenConfig, registerScenes, mainScene);'
@@ -337,11 +346,22 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   }
 
   /**
-   * Retourne les fichiers WASM/JS depuis wasmSourceDir.
+   * Retourne les fichiers WASM/JS depuis wasmSourceDir récursivement.
    */
-  function listWasmFiles(dir: string): string[] {
+  function listWasmFiles(dir: string, base: string = ''): string[] {
     if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir).filter((f) => f.endsWith('.wasm') || f.endsWith('.js'));
+    const results: string[] = [];
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const fullPath = path.join(dir, file);
+      const relPath = path.join(base, file);
+      if (fs.statSync(fullPath).isDirectory()) {
+        results.push(...listWasmFiles(fullPath, relPath));
+      } else if (file.endsWith('.wasm') || file.endsWith('.js')) {
+        results.push(relPath);
+      }
+    }
+    return results;
   }
 
   /**
@@ -660,4 +680,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 }
 
 // Default export for CommonJS compatibility
+export { gwenTransform } from './transform';
+export type { GwenTransformOptions } from './transform';
+
 export default gwen;

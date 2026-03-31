@@ -76,6 +76,12 @@ export interface GwenOptions {
     debug: boolean;
     /** Enable performance statistics collection */
     enableStats: boolean;
+    /** Use sparse transform synchronization */
+    sparseTransformSync: boolean;
+    /** Loop ownership mode */
+    loop: 'internal' | 'external';
+    /** Delta cap in seconds for a single simulation step */
+    maxDeltaSeconds: number;
   };
   /** HTML generation settings for the dev server */
   html: {
@@ -108,12 +114,7 @@ export interface GwenOptions {
  * Accepts partial configurations, legacy plugin arrays, and preserves
  * backward compatibility with older `tsPlugins`/`wasmPlugins` format.
  */
-export interface GwenConfigInput extends DeepPartial<GwenOptions> {
-  /** @deprecated Use `plugins` instead. Legacy TypeScript plugins array */
-  tsPlugins?: GwenPluginBase[];
-  /** @deprecated Use `plugins` instead. Legacy WASM plugins array */
-  wasmPlugins?: GwenPluginBase[];
-}
+export interface GwenConfigInput extends DeepPartial<GwenOptions> {}
 
 /**
  * Deep partial version of a type - all properties are recursively optional.

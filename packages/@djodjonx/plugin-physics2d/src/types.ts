@@ -19,13 +19,6 @@ export const PHYSICS_QUALITY_PRESET_CODE: Record<PhysicsQualityPreset, number> =
   esport: 3,
 } as const;
 
-export interface PhysicsCompatFlags {
-  /** Keep legacy top-level prefab collider props (`hw/hh/radius`) enabled. @default true */
-  legacyPrefabColliderProps?: boolean;
-  /** Keep legacy JSON collision parser helper enabled. @default true */
-  legacyCollisionJsonParser?: boolean;
-}
-
 export interface Physics2DConfig {
   /**
    * Gravity on the Y axis in m/s². Negative = downward.
@@ -54,11 +47,6 @@ export interface Physics2DConfig {
    * @default 'pull'
    */
   eventMode?: PhysicsEventMode;
-  /**
-   * Compatibility switches for transitional releases.
-   * @default { legacyPrefabColliderProps: true, legacyCollisionJsonParser: true }
-   */
-  compat?: PhysicsCompatFlags;
   /**
    * Enable Physics2D debug logs in the browser console.
    * When `false` (default), the plugin stays silent.
@@ -147,29 +135,18 @@ export interface ColliderOptions {
  * A contact event emitted by the physics simulation each frame.
  * Retrieved via `api.services.get('physics').getCollisionEvents()`.
  *
- * ## ⚠️ IMPORTANT — slotA/slotB are raw slot indices, NOT packed EntityId
- *
- * Rapier stores and returns raw ECS slot indices (0–maxEntities), not the
- * 64-bit `EntityId` (bigint) used by the GWEN TypeScript ECS.
- *
- * To use these values with `api.getComponent()` or `api.destroyEntity()`,
- * you MUST reconstruct the EntityId using `createEntityId`:
+ * **Prefer the `physics:collision` hook** for EntityId-native collision handling:
  *
  * ```typescript
- * import { createEntityId } from '@djodjonx/gwen-engine-core';
- *
- * for (const { slotA, slotB, started } of physics.getCollisionEvents()) {
- *   const entityA = createEntityId(slotA, api.getEntityGeneration(slotA));
- *   const entityB = createEntityId(slotB, api.getEntityGeneration(slotB));
- *   const tagA = api.getComponent(entityA, Tag);
- * }
+ * api.hooks.hook('physics:collision', (contacts) => {
+ *   for (const { entityA, entityB, started } of contacts) {
+ *     if (!started) continue;
+ *     const tag = api.getComponent(entityA, Tag);
+ *   }
+ * });
  * ```
  */
 export interface CollisionEvent {
-  /** Raw ECS slot index of the first participant. NOT a packed EntityId. */
-  slotA: number;
-  /** Raw ECS slot index of the second participant. NOT a packed EntityId. */
-  slotB: number;
   /** Numeric collider id on A side (stable within a prefab declaration). */
   aColliderId?: number;
   /** Numeric collider id on B side (stable within a prefab declaration). */
@@ -231,10 +208,6 @@ export interface CollisionContact {
   entityA: EntityId;
   /** Resolved packed EntityId of the second participant. */
   entityB: EntityId;
-  /** Raw slot index of `entityA` (for `physics.removeBody()`). */
-  slotA: number;
-  /** Raw slot index of `entityB`. */
-  slotB: number;
   /** Collider id on A side when available (multi-colliders path). */
   aColliderId?: number;
   /** Collider id on B side when available (multi-colliders path). */
@@ -251,7 +224,7 @@ export interface CollisionContact {
  *
  * @example
  * ```ts
- * const foot = physics.getSensorState(slot, SENSOR_FOOT);
+ * const foot = physics.getSensorState(entityId, SENSOR_FOOT);
  * if (foot.isActive) allowJump();
  * ```
  */
@@ -287,8 +260,12 @@ export interface Physics2DPluginHooks {
   /**
    * Emitted once per sensor state transition (inactive -> active or active -> inactive).
    * Never emitted on stable "stay" frames.
+   *
+   * @param entityId - Packed EntityId of the entity whose sensor state changed.
+   * @param sensorId - Stable sensor identifier (e.g. `SENSOR_ID_FOOT`).
+   * @param state    - Updated sensor state after the transition.
    */
-  'physics:sensor:changed': (entityIndex: number, sensorId: number, state: SensorState) => void;
+  'physics:sensor:changed': (entityId: EntityId, sensorId: number, state: SensorState) => void;
 }
 
 // ─── Prefab extensions ────────────────────────────────────────────────────────
@@ -400,8 +377,8 @@ export interface Physics2DHelperContext {
 
 /** Read-only physics snapshot for one entity slot. */
 export interface PhysicsEntitySnapshot {
-  /** Raw ECS slot index (not packed EntityId). */
-  slot: number;
+  /** Packed EntityId — primary key. */
+  entityId: EntityId;
   /** Position in world meters + rotation in radians, when available. */
   position: { x: number; y: number; rotation: number } | null;
   /** Linear velocity in m/s, when available. */
@@ -414,10 +391,6 @@ export interface ResolvedCollisionContact {
   entityA: EntityId;
   /** Packed EntityId for participant B. */
   entityB: EntityId;
-  /** Raw ECS slot index for participant A. */
-  slotA: number;
-  /** Raw ECS slot index for participant B. */
-  slotB: number;
   /** `true` when contact started, `false` when it ended. */
   started: boolean;
   /** Optional stable collider id for side A. */
@@ -484,26 +457,9 @@ export interface Physics2DPrefabExtension {
 
   /**
    * Preferred vNext collider schema.
-   * If omitted, legacy top-level collider props are adapted automatically.
+   * This is the only supported collider schema in v2.
    */
   colliders?: PhysicsColliderDef[];
-
-  // ── Legacy mono-collider props (deprecated, TS compatibility only) ──
-  /** @deprecated Since 0.4.0. Use `colliders[0].radius`. Removal planned in 1.0.0. */
-  radius?: number;
-  /** @deprecated Since 0.4.0. Use `colliders[0].hw`. Removal planned in 1.0.0. */
-  hw?: number;
-  /** @deprecated Since 0.4.0. Use `colliders[0].hh`. Removal planned in 1.0.0. */
-  hh?: number;
-
-  /** @deprecated Since 0.4.0. Use `colliders[].restitution`. Removal planned in 1.0.0. */
-  restitution?: number;
-  /** @deprecated Since 0.4.0. Use `colliders[].friction`. Removal planned in 1.0.0. */
-  friction?: number;
-  /** @deprecated Since 0.4.0. Use `colliders[].isSensor`. Removal planned in 1.0.0. */
-  isSensor?: boolean;
-  /** @deprecated Since 0.4.0. Use `colliders[].density`. Removal planned in 1.0.0. */
-  density?: number;
 
   // ── Rigid body properties ─────────────────────────────────────────────
   /**
@@ -540,20 +496,7 @@ export const PHYSICS2D_BRIDGE_SCHEMA_VERSION = 2;
 /** Binary ring format version for the `events` channel. */
 export const PHYSICS2D_EVENTS_RING_FORMAT_VERSION = 2;
 
-/** Raw JSON shape returned by the legacy Rust `get_collision_events()` export. */
-interface RawCollisionEvent {
-  a: number;
-  b: number;
-  started: boolean;
-}
-
 // ─── Collision event parsing ─────────────────────────────────────────────────
-
-/** @deprecated Since 0.4.0. Use `readCollisionEventsFromBuffer` with typed views. Removal planned in 1.0.0. */
-export function parseCollisionEvents(json: string): CollisionEvent[] {
-  const raw: RawCollisionEvent[] = JSON.parse(json);
-  return raw.map((e) => ({ slotA: e.a, slotB: e.b, started: e.started }));
-}
 
 // ─── Binary event reader ──────────────────────────────────────────────────────
 
@@ -573,6 +516,7 @@ const COLLIDER_ID_ABSENT = 0xffffffff;
  *   - collider id = 0xFFFFFFFF means absent
  *
  * Advances `read_head` to `write_head` (marks the buffer as consumed).
+ * Slot indices are consumed internally and not exposed on the returned events.
  */
 export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView): CollisionEvent[] {
   void PHYSICS2D_EVENTS_RING_FORMAT_VERSION;
@@ -590,22 +534,18 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
 
   while (idx !== writeHead) {
     const offset = EVENT_HEADER_BYTES + idx * stride;
-    const slotA = view.getUint32(offset + 2, true);
-    const slotB = view.getUint32(offset + 6, true);
     if (stride === EVENT_STRIDE) {
       const rawA = view.getUint32(offset + 10, true);
       const rawB = view.getUint32(offset + 14, true);
       const flags = view.getUint8(offset + 18);
       events.push({
-        slotA,
-        slotB,
         aColliderId: rawA === COLLIDER_ID_ABSENT ? undefined : rawA,
         bColliderId: rawB === COLLIDER_ID_ABSENT ? undefined : rawB,
         started: (flags & 1) === 1,
       });
     } else {
       const flags = view.getUint8(offset + 10);
-      events.push({ slotA, slotB, started: (flags & 1) === 1 });
+      events.push({ started: (flags & 1) === 1 });
     }
     idx = (idx + 1) % capacity;
   }
@@ -639,19 +579,19 @@ export interface Physics2DAPI {
 
   /**
    * Register a rigid body for an entity.
-   * @param entityIndex  Raw `EntityId.index` (slot only — not packed).
-   * @param type         Body simulation type.
-   * @param x            Initial world position X in metres.
-   * @param y            Initial world position Y in metres.
-   * @param opts         Optional body properties (mass, gravityScale, damping, initialVelocity).
+   * @param entityId  Packed EntityId — the engine's primary entity key.
+   * @param type      Body simulation type.
+   * @param x         Initial world position X in metres.
+   * @param y         Initial world position Y in metres.
+   * @param opts      Optional body properties.
    * @returns Opaque `bodyHandle` to pass to `addBoxCollider` / `addBallCollider`.
    */
   addRigidBody(
-    entityIndex: number,
+    entityId: EntityId,
     type: RigidBodyType,
     x: number,
     y: number,
-    opts?: Pick<ColliderOptions, never> & {
+    opts?: {
       mass?: number;
       gravityScale?: number;
       linearDamping?: number;
@@ -665,72 +605,70 @@ export interface Physics2DAPI {
   /**
    * Add an axis-aligned box collider to a body.
    * @param bodyHandle  Return value of `addRigidBody`.
-   * @param hw          Half-width in metres.
-   * @param hh          Half-height in metres.
-   * @param opts        Optional material, sensor and density overrides.
    */
   addBoxCollider(bodyHandle: number, hw: number, hh: number, opts?: ColliderOptions): void;
 
   /**
    * Add a ball (circle) collider to a body.
    * @param bodyHandle  Return value of `addRigidBody`.
-   * @param radius      Radius in metres.
-   * @param opts        Optional material, sensor and density overrides.
    */
   addBallCollider(bodyHandle: number, radius: number, opts?: ColliderOptions): void;
 
   /** Remove the rigid body (and all its colliders) for an entity. */
-  removeBody(entityIndex: number): void;
+  removeBody(entityId: EntityId): void;
 
   /** Directly set the position of a kinematic body (metres). */
-  setKinematicPosition(entityIndex: number, x: number, y: number): void;
+  setKinematicPosition(entityId: EntityId, x: number, y: number): void;
 
   /** Apply an instantaneous linear impulse to a body (N·s). */
-  applyImpulse(entityIndex: number, x: number, y: number): void;
+  applyImpulse(entityId: EntityId, x: number, y: number): void;
 
   /** Set the linear velocity of a body directly (m/s). */
-  setLinearVelocity(entityIndex: number, vx: number, vy: number): void;
+  setLinearVelocity(entityId: EntityId, vx: number, vy: number): void;
 
   /** Read current linear velocity (m/s). */
-  getLinearVelocity(entityIndex: number): { x: number; y: number } | null;
+  getLinearVelocity(entityId: EntityId): { x: number; y: number } | null;
 
   /**
-   * Pull-first collision API. Equivalent to `getCollisionEvents()` but explicit.
-   *
-   * `coalesced` is reserved for future behavior and currently ignored.
+   * Pull-first collision API.
    */
   getCollisionEventsBatch(opts?: { max?: number; coalesced?: boolean }): CollisionEventsBatch;
 
   /**
-   * @deprecated Since 0.4.0. Use `getCollisionEventsBatch().events` instead. Removal planned in 1.0.0.
+   * Pull-first collision API resolved to packed EntityIds.
+   *
+   * Skips contacts for which entity generation cannot be resolved.
    */
-  getCollisionEvents(): CollisionEvent[];
+  getCollisionContacts(opts?: { max?: number }): ReadonlyArray<ResolvedCollisionContact>;
 
   /** Return current world position and rotation of an entity. */
-  getPosition(entityIndex: number): { x: number; y: number; rotation: number } | null;
+  getPosition(entityId: EntityId): { x: number; y: number; rotation: number } | null;
 
   /**
-   * Read the current sensor contact state for (entityIndex, sensorId).
-   *
+   * Read the current sensor contact state for (entityId, sensorId).
    * Returns `{ contactCount: 0, isActive: false }` if the sensor was never registered.
-   * Latency: at most 1 frame (updated after each `onStep`).
-   *
-   * @param entityIndex  Raw ECS slot index (not a packed EntityId).
-   * @param sensorId     Opaque u32 identifier — use a layer bit index or any stable constant.
    */
-  getSensorState(entityIndex: number, sensorId: number): SensorState;
+  getSensorState(entityId: EntityId, sensorId: number): SensorState;
 
   /**
    * Manually update a sensor contact state.
-   *
-   * Useful when the game drives sensor transitions from collision events
-   * without waiting for the next step (zero-latency path).
-   *
-   * @param entityIndex  Raw ECS slot index.
-   * @param sensorId     Opaque sensor identifier.
-   * @param started      `true` = contact started (increment), `false` = contact ended (decrement).
    */
-  updateSensorState(entityIndex: number, sensorId: number, started: boolean): void;
+  updateSensorState(entityId: EntityId, sensorId: number, started: boolean): void;
+
+  /**
+   * Bake a navigation mesh based on currently loaded static geometry and tilemap chunks.
+   * Pathfinding queries will use the state as of the last call to this method.
+   */
+  buildNavmesh?(): void;
+
+  /**
+   * Find a path between two points in world space (metres).
+   * Returns an array of waypoints or an empty array if no path is found.
+   */
+  findPath?(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+  ): Array<{ x: number; y: number }>;
 
   /** Load or replace one baked tilemap physics chunk at world origin `(x, y)` in metres. */
   loadTilemapPhysicsChunk(

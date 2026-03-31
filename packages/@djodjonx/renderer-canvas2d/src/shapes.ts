@@ -8,7 +8,7 @@
  * ```typescript
  * import { ShapeRenderer } from '@djodjonx/gwen-renderer-canvas2d';
  *
- * // Dans onRender d'un TsPlugin custom :
+ * // Dans onRender d'un GwenPlugin custom :
  * ShapeRenderer.rect(ctx, { x: 100, y: 100, width: 50, height: 50, color: 'red' });
  * ShapeRenderer.circle(ctx, { x: 200, y: 200, radius: 25, color: 'blue' });
  * ```

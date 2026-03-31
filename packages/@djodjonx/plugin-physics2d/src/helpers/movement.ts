@@ -1,3 +1,4 @@
+import type { EntityId } from '@djodjonx/gwen-engine-core';
 import type { Physics2DAPI } from '../types.js';
 
 /**
@@ -12,7 +13,7 @@ import type { Physics2DAPI } from '../types.js';
  * - no body registered for the given slot
  *
  * @param physics - Physics2D service instance.
- * @param entityIndex - Raw ECS slot index.
+ * @param entityId - Packed EntityId of the entity to move.
  * @param velocity - Desired velocity vector in meters/second.
  * @param dt - Delta time in seconds. Must be positive.
  *
@@ -24,14 +25,14 @@ import type { Physics2DAPI } from '../types.js';
  */
 export function moveKinematicByVelocity(
   physics: Physics2DAPI,
-  entityIndex: number,
+  entityId: EntityId,
   velocity: { x: number; y: number },
   dt: number,
 ): void {
   if (!Number.isFinite(dt) || dt <= 0) return;
-  const pos = physics.getPosition(entityIndex);
+  const pos = physics.getPosition(entityId);
   if (!pos) return;
-  physics.setKinematicPosition(entityIndex, pos.x + velocity.x * dt, pos.y + velocity.y * dt);
+  physics.setKinematicPosition(entityId, pos.x + velocity.x * dt, pos.y + velocity.y * dt);
 }
 
 /**
@@ -46,7 +47,7 @@ export function moveKinematicByVelocity(
  * - `direction` components are non-finite
  *
  * @param physics - Physics2D service instance.
- * @param entityIndex - Raw ECS slot index.
+ * @param entityId - Packed EntityId of the entity.
  * @param direction - Direction vector. Will be normalized. Zero vector is ignored.
  * @param magnitude - Impulse magnitude in N·s.
  *
@@ -58,7 +59,7 @@ export function moveKinematicByVelocity(
  */
 export function applyDirectionalImpulse(
   physics: Physics2DAPI,
-  entityIndex: number,
+  entityId: EntityId,
   direction: { x: number; y: number },
   magnitude: number,
 ): void {
@@ -66,5 +67,5 @@ export function applyDirectionalImpulse(
   if (len === 0 || !Number.isFinite(len) || !Number.isFinite(magnitude) || magnitude === 0) return;
   const nx = direction.x / len;
   const ny = direction.y / len;
-  physics.applyImpulse(entityIndex, nx * magnitude, ny * magnitude);
+  physics.applyImpulse(entityId, nx * magnitude, ny * magnitude);
 }

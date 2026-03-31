@@ -207,12 +207,31 @@ getMyEvents() {
 `readEventChannel` advances `read_head` to `write_head` after reading —
 calling it a second time within the same frame returns `[]`.
 
+### SharedArrayBuffer opt-in (`wasm.sharedMemory`)
+
+GWEN v2 utilise le **Plugin Data Bus** par defaut (pas de SAB requis).
+Un plugin active explicitement le chemin SAB via `sharedMemory: true`.
+
+```typescript
+wasm: {
+  id: 'my-plugin',
+  sharedMemory: true,      // explicit SAB opt-in
+  sharedMemoryBytes: 65536 // required when sharedMemory=true
+}
+```
+
+Rules:
+- `sharedMemory: false` (ou absent) => DataBus-only, aucun header COOP/COEP requis.
+- `sharedMemory: true` => requires cross-origin isolation (COOP/COEP).
+- si `sharedMemory: true` et `sharedMemoryBytes <= 0`, l'initialisation echoue explicitement.
+
 ### Setting `sharedMemoryBytes = 0`
 
-Plugins using the Bus should set `sharedMemoryBytes = 0`. This tells
+Plugins using the Bus should keep `sharedMemory` unset/false and set `sharedMemoryBytes = 0`. This tells
 `SharedMemoryManager` to skip allocation and passes `region = null` to `onInit()`.
 
 ```typescript
+readonly sharedMemory = false;
 readonly sharedMemoryBytes = 0;  // No legacy SAB — use the Bus
 ```
 
@@ -237,7 +256,7 @@ Enable sentinel checks with `debug: true` in your engine config:
 ```typescript
 export default defineConfig({
   engine: { debug: true },
-  wasmPlugins: [myPlugin()],
+  plugins: [myPlugin()],
 });
 ```
 
@@ -490,7 +509,7 @@ import { myPlugin } from '@djodjonx/gwen-plugin-my-plugin';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60, debug: true },
-  wasmPlugins: [myPlugin({ maxEntities: 10_000 })],
+  plugins: [myPlugin({ maxEntities: 10_000 })],
 });
 ```
 
@@ -684,7 +703,7 @@ import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60, debug: true },
-  wasmPlugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
+  plugins: [physics2D({ gravity: -9.81, maxEntities: 10_000 })],
 });
 
 // Inside a TsPlugin:
@@ -698,7 +717,7 @@ onInit(api: EngineAPI) {
 }
 
 onUpdate(api: EngineAPI) {
-  for (const ev of this.physics.getCollisionEvents()) {
+  for (const ev of this.physics.getCollisionEventsBatch().events) {
     // ev.slotA / ev.slotB are raw slot indices — reconstruct EntityId (bigint):
     const entityA = createEntityId(ev.slotA, api.getEntityGeneration(ev.slotA));
     const tagA    = api.getComponent(entityA, Tag);

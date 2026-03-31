@@ -18,7 +18,10 @@
  * ```typescript
  * export const MovementSystem = defineSystem({
  *   name: 'MovementSystem',
- *   onUpdate(api, dt) { ... },
+ *   query: [Position, Velocity],
+ *   onUpdate(api, dt, entities) {
+ *     for (const e of entities) { ... }
+ *   },
  * });
  * // Usage:
  * scene.plugins = [MovementSystem];
@@ -38,20 +41,55 @@
  * ```
  */
 
-import type { TsPlugin } from '../types';
+import type { GwenPlugin, EngineAPI } from '../types';
+import type { SystemQuery, QueryResult } from '../core/query-result';
+
+// Re-export query types so callers can import from the system module
+export type {
+  SystemQuery,
+  SystemQueryDescriptor,
+  QueryResult,
+  EntityAccessor,
+} from '../core/query-result';
 
 // ── System interface ────────────────────────────────────────────────────────
 
 /**
  * A named game system — pure logic with no service injection.
  *
- * Extends `TsPlugin` to participate in the engine game loop.
+ * Extends `GwenPlugin` to participate in the engine game loop.
  * Use `defineSystem()` to create systems; do not implement this interface directly.
  *
  * Lifecycle: `onInit` → `onBeforeUpdate` / `onUpdate` / `onRender` per frame → `onDestroy`.
  */
-export interface System extends TsPlugin {
+export interface System extends Omit<GwenPlugin, 'onUpdate'> {
   readonly name: string;
+
+  /**
+   * Static query descriptor — resolved once per frame before `onUpdate` is called.
+   *
+   * When set, `entities` is injected as the third argument to `onUpdate`.
+   * The short form `ComponentDef[]` is equivalent to `{ all: [...] }`.
+   *
+   * @example
+   * ```ts
+   * query: [Position, Velocity]
+   * // or
+   * query: { all: [Position], none: [Frozen] }
+   * ```
+   */
+  readonly query?: SystemQuery;
+
+  /**
+   * Called after the WASM step — apply game logic on the updated simulation state.
+   *
+   * If `query` is declared, `entities` is injected automatically.
+   *
+   * @param api       Active engine API.
+   * @param deltaTime Frame delta time in seconds (capped at 0.1 s).
+   * @param entities  Query result — only provided when `query` is declared.
+   */
+  onUpdate?(api: EngineAPI, deltaTime: number, entities?: QueryResult): void;
 }
 
 /**

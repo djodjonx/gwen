@@ -35,6 +35,7 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@djodjonx/gwen-kit": "workspace:*",
     "@djodjonx/gwen-schema": "workspace:*",
     "@djodjonx/gwen-vite-plugin": "workspace:*",
     "c12": "4.0.0-beta.3",
@@ -44,7 +45,8 @@
     "jiti": "^2.4.2",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
-    "pathe": "^2.0.3"
+    "pathe": "^2.0.3",
+    "ts-morph": "^25.0.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",

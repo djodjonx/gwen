@@ -25,7 +25,7 @@ import type { GwenPluginMeta } from '@djodjonx/gwen-engine-core';
  * @typeParam M - Map des services disponibles via `api.services`.
  * @typeParam H - Map des hooks disponibles via `api.hooks`.
  */
-export interface TsPluginLifecycle<M extends object = object, H extends object = object> {
+export interface GwenPluginLifecycle<M extends object = object, H extends object = object> {
   /** Appelé une fois lors de l'enregistrement du plugin. */
   onInit?(api: EngineAPI<M, H>): void;
   /** Appelé en début de frame, avant la phase WASM. */
@@ -41,12 +41,12 @@ export interface TsPluginLifecycle<M extends object = object, H extends object =
 /**
  * Hooks de cycle de vie pour un plugin WASM.
  *
- * Étend `TsPluginLifecycle` avec la phase d'initialisation WASM et le step.
+ * Étend `GwenPluginLifecycle` avec la phase d'initialisation WASM et le step.
  */
 export interface WasmPluginLifecycle<
   M extends object = object,
   H extends object = object,
-> extends TsPluginLifecycle<M, H> {
+> extends GwenPluginLifecycle<M, H> {
   /** Préchargement optionnel, exécuté en parallèle des autres plugins WASM. */
   prefetch?(): Promise<void>;
   /** Initialisation WASM (instanciation module, bus, enregistrement services). */
@@ -91,16 +91,18 @@ interface BasePluginDefinition<
 }
 
 /** Définition d'un plugin TS (sans champ `wasm`). */
-export type TsPluginDefinition<
+export type GwenPluginDefinition<
   N extends string,
   P extends Record<string, unknown>,
   H extends Record<string, any>,
-> = BasePluginDefinition<N, P, H> & TsPluginLifecycle<P, H & GwenHooks> & { wasm?: never };
+> = BasePluginDefinition<N, P, H> & GwenPluginLifecycle<P, H & GwenHooks> & { wasm?: never };
 
 /** Contexte statique WASM déclaré au niveau plugin. */
 export interface WasmPluginStaticContext {
   /** Identifiant unique du plugin WASM. */
   readonly id: string;
+  /** Opt-in explicite SharedArrayBuffer. */
+  readonly sharedMemory?: boolean;
   /** Taille mémoire partagée legacy (0 pour Data Bus only). */
   readonly sharedMemoryBytes?: number;
   /** Déclaration des channels du Plugin Data Bus. */
@@ -118,7 +120,7 @@ export type WasmPluginDefinition<
   };
 
 export type AnyPluginDefinition =
-  | TsPluginDefinition<string, Record<string, unknown>, Record<string, any>>
+  | GwenPluginDefinition<string, Record<string, unknown>, Record<string, any>>
   | WasmPluginDefinition<string, Record<string, unknown>, Record<string, any>>;
 
 // ── Returned constructor type ─────────────────────────────────────────────────
@@ -187,7 +189,7 @@ type InferFactoryOptions<F extends (...args: any[]) => any> =
 export function definePlugin<
   F extends (
     options?: any,
-  ) => TsPluginDefinition<string, Record<string, unknown>, Record<string, any>>,
+  ) => GwenPluginDefinition<string, Record<string, unknown>, Record<string, any>>,
 >(
   factory: F,
 ): PluginClass<
@@ -264,15 +266,17 @@ export function definePlugin<F extends (options?: any) => AnyPluginDefinition>(
           Record<string, unknown>,
           Record<string, any>
         >;
-        this.wasm = {
+        const wasmCtx = {
           id: wasmDef.wasm.id,
+          sharedMemory: wasmDef.wasm.sharedMemory,
           sharedMemoryBytes: wasmDef.wasm.sharedMemoryBytes,
           channels: wasmDef.wasm.channels,
           prefetch: wasmDef.prefetch?.bind(wasmDef),
-          onInit: wasmDef.onWasmInit.bind(wasmDef),
+          onInit: wasmDef.onWasmInit.bind(wasmDef) as any,
           onStep: wasmDef.onStep?.bind(wasmDef),
           onMemoryGrow: wasmDef.onMemoryGrow?.bind(wasmDef),
         };
+        this.wasm = wasmCtx as unknown as GwenPluginWasmContext;
       }
     }
 

@@ -1,7 +1,9 @@
 // Tree-shakable contact helpers entry.
 export {
-  selectContactsForEntity,
+  selectContactsForEntityId,
   dedupeContactsByPair,
   toResolvedContacts,
+  selectResolvedContactsForEntityId,
+  getEntityCollisionContacts,
 } from './helpers/contact.js';
 export type { ResolvedCollisionContact } from './types.js';

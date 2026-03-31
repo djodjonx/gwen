@@ -16,12 +16,12 @@ describe('helper contracts', () => {
 
   it('accepts nullable snapshot fields', () => {
     const snapshot: PhysicsEntitySnapshot = {
-      slot: 7,
+      entityId: BigInt(7) as import('@djodjonx/gwen-engine-core').EntityId,
       position: null,
       velocity: null,
     };
 
-    expect(snapshot.slot).toBe(7);
+    expect(snapshot.entityId).toBe(BigInt(7));
     expect(snapshot.position).toBeNull();
     expect(snapshot.velocity).toBeNull();
   });

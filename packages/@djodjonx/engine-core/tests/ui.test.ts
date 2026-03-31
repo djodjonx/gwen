@@ -105,8 +105,8 @@ describe('UIManager', () => {
     it('calls onMount once on first render', () => {
       const onMount = vi.fn();
       ui.register(defineUI({ name: 'HUD', onMount, render: vi.fn() }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       ui.onRender(api);
@@ -118,8 +118,8 @@ describe('UIManager', () => {
     it('calls render every frame', () => {
       const render = vi.fn();
       ui.register(defineUI({ name: 'HUD', render }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       ui.onRender(api);
@@ -132,7 +132,7 @@ describe('UIManager', () => {
     it('does not call onMount if no UIComponent', () => {
       const onMount = vi.fn();
       ui.register(defineUI({ name: 'HUD', onMount, render: vi.fn() }));
-      api.createEntity(); // entity without UIComponent
+      api.entity.create(); // entity without UIComponent
 
       ui.onRender(api);
       expect(onMount).not.toHaveBeenCalled();
@@ -140,8 +140,8 @@ describe('UIManager', () => {
 
     it('warns when UIDefinition not found', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'Missing' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'Missing' });
 
       ui.onRender(api);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("'Missing'"));
@@ -155,8 +155,8 @@ describe('UIManager', () => {
     it('calls onUnmount when entity is destroyed', () => {
       const onUnmount = vi.fn();
       ui.register(defineUI({ name: 'HUD', render: vi.fn(), onUnmount }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api); // mount
       api.destroyEntity(entity);
@@ -169,8 +169,8 @@ describe('UIManager', () => {
     it('calls onUnmount when UIComponent is removed', () => {
       const onUnmount = vi.fn();
       ui.register(defineUI({ name: 'HUD', render: vi.fn(), onUnmount }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       api.removeComponent(entity, UIComponent);
@@ -181,8 +181,8 @@ describe('UIManager', () => {
 
     it('removes entity from mounted set after unmount', () => {
       ui.register(defineUI({ name: 'HUD', render: vi.fn(), onUnmount: vi.fn() }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       expect((ui as any).mounted.has(entity)).toBe(true);
@@ -195,8 +195,8 @@ describe('UIManager', () => {
     it('does not call render after unmount', () => {
       const render = vi.fn();
       ui.register(defineUI({ name: 'HUD', render, onUnmount: vi.fn() }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api); // render x1
       api.destroyEntity(entity);
@@ -221,10 +221,10 @@ describe('UIManager', () => {
         }),
       );
 
-      const e1 = api.createEntity();
-      api.addComponent(e1, UIComponent, { uiName: 'HUD' });
-      const e2 = api.createEntity();
-      api.addComponent(e2, UIComponent, { uiName: 'HUD' });
+      const e1 = api.entity.create();
+      api.component.add(e1, UIComponent, { uiName: 'HUD' });
+      const e2 = api.entity.create();
+      api.component.add(e2, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       expect(renders).toContain(e1);
@@ -235,10 +235,10 @@ describe('UIManager', () => {
       const onUnmount = vi.fn();
       ui.register(defineUI({ name: 'HUD', render: vi.fn(), onUnmount }));
 
-      const e1 = api.createEntity();
-      api.addComponent(e1, UIComponent, { uiName: 'HUD' });
-      const e2 = api.createEntity();
-      api.addComponent(e2, UIComponent, { uiName: 'HUD' });
+      const e1 = api.entity.create();
+      api.component.add(e1, UIComponent, { uiName: 'HUD' });
+      const e2 = api.entity.create();
+      api.component.add(e2, UIComponent, { uiName: 'HUD' });
 
       ui.onRender(api);
       api.destroyEntity(e1);
@@ -255,8 +255,8 @@ describe('UIManager', () => {
   describe('onDestroy', () => {
     it('clears all state', () => {
       ui.register(defineUI({ name: 'HUD', render: vi.fn() }));
-      const entity = api.createEntity();
-      api.addComponent(entity, UIComponent, { uiName: 'HUD' });
+      const entity = api.entity.create();
+      api.component.add(entity, UIComponent, { uiName: 'HUD' });
       ui.onRender(api);
 
       ui.onDestroy();
@@ -286,8 +286,8 @@ describe('Scene.ui — auto-injection UIManager', () => {
       name: 'Test',
       ui: [BgUI],
       onEnter: (_api) => {
-        const e = _api.createEntity();
-        _api.addComponent(e, UIComponent, { uiName: 'BgUI' });
+        const e = _api.entity.create();
+        _api.component.add(e, UIComponent, { uiName: 'BgUI' });
       },
       onExit: () => {},
     };
@@ -331,8 +331,8 @@ describe('Scene.ui — auto-injection UIManager', () => {
       ui: [DefA, DefB, DefC],
       onEnter(_api) {
         for (const name of ['A', 'B', 'C']) {
-          const e = _api.createEntity();
-          _api.addComponent(e, UIComponent, { uiName: name });
+          const e = _api.entity.create();
+          _api.component.add(e, UIComponent, { uiName: name });
         }
       },
       onExit: () => {},
@@ -380,8 +380,8 @@ describe('Scene.ui — auto-injection UIManager', () => {
       name: 'SceneA',
       ui: [TestUI],
       onEnter(_api) {
-        const e = _api.createEntity();
-        _api.addComponent(e, UIComponent, { uiName: 'TestUI' });
+        const e = _api.entity.create();
+        _api.component.add(e, UIComponent, { uiName: 'TestUI' });
       },
       onExit: () => {},
     };
@@ -424,8 +424,8 @@ describe('UIManager — ui:extensions hook', () => {
     });
     uiManager.register(ScoreUI);
 
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'ScoreUI' });
+    const id = api.entity.create();
+    api.component.add(id, UIComponent, { uiName: 'ScoreUI' });
 
     uiManager.onRender(api); // triggers first mount
 
@@ -449,8 +449,8 @@ describe('UIManager — ui:extensions hook', () => {
     });
     uiManager.register(ScoreUI);
 
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'ScoreUI2' });
+    const id = api.entity.create();
+    api.component.add(id, UIComponent, { uiName: 'ScoreUI2' });
 
     uiManager.onRender(api);
     uiManager.onRender(api);
@@ -471,8 +471,8 @@ describe('UIManager — ui:extensions hook', () => {
     const PlainUI = defineUI({ name: 'PlainUI', render: vi.fn() });
     uiManager.register(PlainUI);
 
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'PlainUI' });
+    const id = api.entity.create();
+    api.component.add(id, UIComponent, { uiName: 'PlainUI' });
 
     uiManager.onRender(api);
 
@@ -492,8 +492,8 @@ describe('UIManager — ui:extensions hook', () => {
     });
     uiManager.register(EmptyUI);
 
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'EmptyUI' });
+    const id = api.entity.create();
+    api.component.add(id, UIComponent, { uiName: 'EmptyUI' });
 
     uiManager.onRender(api);
 
@@ -515,8 +515,8 @@ describe('UIManager — ui:extensions hook', () => {
     });
     uiManager.register(CrashUI);
 
-    const id = api.createEntity();
-    api.addComponent(id, UIComponent, { uiName: 'CrashUI' });
+    const id = api.entity.create();
+    api.component.add(id, UIComponent, { uiName: 'CrashUI' });
 
     // Should NOT throw synchronously
     expect(() => uiManager.onRender(api)).not.toThrow();

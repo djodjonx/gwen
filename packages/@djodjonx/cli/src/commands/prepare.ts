@@ -23,6 +23,10 @@ export default defineCommand({
   },
   args: {
     ...GLOBAL_ARGS,
+    strict: {
+      type: 'boolean' as const,
+      description: 'Fail on validation errors (useful for CI)',
+    },
   },
   async run({ args }) {
     setLogLevel({ verbose: args.verbose as boolean, debug: args.debug as boolean });
@@ -31,6 +35,7 @@ export default defineCommand({
 
     const result = await corePrepare({
       verbose: args.verbose as boolean,
+      strict: args.strict as boolean,
     });
 
     if (!result.success) {

@@ -55,6 +55,8 @@ export class Engine {
   private _deltaTime = 0;
   private fps = 0;
   private rafHandle = 0;
+  /** @internal Prevents re-entrant advance() calls in external loop mode. */
+  private _advancing = false;
 
   // ── Subsystems ──────────────────────────────────────────────────────────────
   private pluginManager: PluginManager;
@@ -71,9 +73,6 @@ export class Engine {
   private sharedMemoryMaxEntities = 0;
   private sharedMemoryManager: SharedMemoryManager | null = null;
   private pluginDataBus: PluginDataBus | null = null;
-
-  // ── Legacy plugin map (backward compat) ─────────────────────────────────────
-  private legacyPlugins = new Map<string, unknown>();
 
   // ────────────────────────────────────────────────────────────────────────────
 
@@ -128,6 +127,7 @@ export class Engine {
       this.hooks.callHook('engine:init');
     } catch (err) {
       console.error('[GWEN] Error in engine:init hook:', err);
+      throw err;
     }
   }
 
@@ -275,7 +275,7 @@ export class Engine {
   // ── Plugin system ─────────────────────────────────────────────────────────────
 
   /**
-   * Register a `TsPlugin` (or `System`) to participate in the game loop.
+   * Register a `GwenPlugin` (or `System`) to participate in the game loop.
    * Plugins are initialized immediately (`onInit` is called synchronously)
    * and will receive `onBeforeUpdate`, `onUpdate` and `onRender` every frame.
    *
@@ -289,7 +289,7 @@ export class Engine {
 
   /**
    * Return a registered plugin by name.
-   * @typeParam T Plugin type to cast to (defaults to `TsPlugin`).
+   * @typeParam T Plugin type to cast to (defaults to `GwenPlugin`).
    * @returns The plugin, or `undefined` if not found.
    */
   public getSystem<T extends GwenPlugin>(name: string): T | undefined {
@@ -309,28 +309,13 @@ export class Engine {
     return this.pluginManager.unregister(name, this.hooks);
   }
 
-  // ── Legacy plugin API (backward compatibility) ────────────────────────────────
-
-  /** @deprecated Use registerSystem() instead */
-  public loadPlugin(name: string, plugin: unknown): void {
-    if (this.legacyPlugins.has(name)) return;
-    try {
-      const legacy = plugin as { init?: (engine: Engine) => void };
-      if (typeof legacy.init === 'function') legacy.init(this);
-      this.legacyPlugins.set(name, plugin);
-    } catch (error) {
-      console.error(`[GWEN] Failed to load plugin '${name}':`, error);
-    }
-  }
-
-  /** @deprecated Use getSystem() instead */
-  public getPlugin(name: string): unknown {
-    return this.legacyPlugins.get(name);
-  }
-
-  /** @deprecated */
-  public hasPlugin(name: string): boolean {
-    return this.legacyPlugins.has(name);
+  /**
+   * Unregister a plugin by name — symmetrical counterpart to `registerSystem()`.
+   * Calls the plugin's `onDestroy` and removes it from the loop.
+   * @returns `true` if the plugin was found and removed.
+   */
+  public unregisterSystem(name: string): boolean {
+    return this.pluginManager.unregister(name, this.hooks);
   }
 
   // ── Entity management ─────────────────────────────────────────────────────────
@@ -487,41 +472,6 @@ export class Engine {
     return results;
   }
 
-  // ── Legacy event bridge (deprecated) ─────────────────────────────────────────
-
-  /** @deprecated Use engine.hooks.hook() instead */
-  public on(eventType: string, listener: (data?: unknown) => void): void {
-    if (this.config.debug) {
-      console.warn(
-        `[GWEN] engine.on('${eventType}') is deprecated. Use engine.hooks.hook() instead.`,
-      );
-    }
-    (this.hooks.hook as (name: string, handler: (data?: unknown) => void) => void)(
-      eventType,
-      listener,
-    );
-  }
-
-  /** @deprecated Use engine.hooks.removeHook() instead */
-  public off(eventType: string, listener: (data?: unknown) => void): void {
-    if (this.config.debug) {
-      console.warn(
-        `[GWEN] engine.off('${eventType}') is deprecated. Use engine.hooks.removeHook() instead.`,
-      );
-    }
-    (this.hooks.removeHook as (name: string, handler: (data?: unknown) => void) => void)(
-      eventType,
-      listener,
-    );
-  }
-
-  /** @deprecated Hooks are called automatically — this is a no-op */
-  public emit(eventType: string, _data?: unknown): void {
-    if (this.config.debug) {
-      console.warn(`[GWEN] engine.emit('${eventType}') is deprecated and has no effect.`);
-    }
-  }
-
   // ── Stats & debug ─────────────────────────────────────────────────────────────
 
   /** Return the measured FPS from the last sampling interval (updated every 60 frames). */
@@ -599,8 +549,15 @@ export class Engine {
   // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
   /**
-   * Start the game loop.
-   * Throws if `initWasm()` has not been called first.
+   * Start the engine.
+   *
+   * - In `loop: 'internal'` mode: fires `engine:start`, then starts the RAF loop.
+   * - In `loop: 'external'` mode: fires `engine:start` only — no RAF is started.
+   *   The caller is responsible for calling `engine.advance(delta)` each frame.
+   *
+   * @throws {Error} If `initWasm()` has not been called first.
+   * @throws {Error} If any `engine:start` hook handler throws — the promise rejects
+   *   with the original error so the caller can handle plugin init failures.
    */
   public start(): Promise<void> {
     return this._start();
@@ -614,8 +571,43 @@ export class Engine {
   }
 
   /**
-   * Manually advance one frame — useful in tests and SSR scenarios.
+   * Advance the simulation by `delta` seconds — **external loop mode only**.
+   *
+   * Call this from your renderer's frame callback (e.g. R3F's `useFrame`).
+   * The delta is capped at `maxDeltaSeconds` (default `0.1`) to prevent
+   * simulation instability after tab suspension or debugger pauses.
+   *
+   * @param delta Frame delta in seconds (e.g. `1/60` for 60 FPS).
+   * @throws {Error} If called when `loop` is not `'external'`.
+   * @throws {Error} If called re-entrantly within the same frame.
+   */
+  public advance(delta: number): Promise<void> {
+    if (this.config.loop !== 'external') {
+      throw new Error(
+        '[GWEN] engine.advance() requires loop: "external". ' +
+          'Set loop: "external" in your engine config to use an external loop.',
+      );
+    }
+    if (this._advancing) {
+      throw new Error('[GWEN] engine.advance() called re-entrantly — only one advance per frame.');
+    }
+    this._advancing = true;
+    const maxDt = this.config.maxDeltaSeconds ?? 0.1;
+    const cappedDt = Math.min(delta, maxDt);
+    // Synthesise an absolute timestamp from the last known frame time + capped delta.
+    // This keeps _tick's internal delta calculation consistent (it recomputes dt from
+    // lastFrameTime, so we must advance lastFrameTime by exactly cappedDt seconds).
+    const syntheticNow = this.lastFrameTime + cappedDt * 1000;
+    const result = this._tick(syntheticNow);
+    return result.finally(() => {
+      this._advancing = false;
+    });
+  }
+
+  /**
+   * Manually advance one frame by absolute timestamp — used by internal RAF loop.
    * @param now High-resolution timestamp (e.g. from `performance.now()`).
+   * @internal
    */
   public tick(now: number): Promise<void> {
     return this._tick(now);
@@ -633,12 +625,19 @@ export class Engine {
     this.isRunning = true;
     this.lastFrameTime = performance.now();
 
-    try {
-      await this.hooks.callHook('engine:start');
-    } catch (err) {
-      console.error('[GWEN] Error in engine:start hook:', err);
+    await this.hooks.callHook('engine:start');
+
+    if (this.config.loop === 'external') {
+      // External mode: do not start RAF — caller drives the loop via advance(delta).
+      if (this.config.debug) {
+        console.log(
+          '[GWEN] Engine started in external loop mode — call engine.advance(delta) each frame.',
+        );
+      }
+      return;
     }
 
+    // Internal mode: own the RAF loop.
     const loop = async (now: number) => {
       await this._tick(now);
       if (this.isRunning) this.rafHandle = requestAnimationFrame(loop);
@@ -652,45 +651,75 @@ export class Engine {
     this.pluginManager.destroyAll(this.hooks);
     this.pluginManager.destroyWasmPlugins();
 
-    try {
-      await this.hooks.callHook('engine:stop');
-    } catch (err) {
-      console.error('[GWEN] Error in engine:stop hook:', err);
-    }
+    await this.hooks.callHook('engine:stop');
   }
 
   public async _tick(now: number): Promise<void> {
+    this._updateFrameState(now);
+    await this._phaseEngineTick();
+    await this._phaseBeforeUpdate();
+    this._phasePhysicsStep();
+    await this._phaseWasmPluginsStep();
+    this._phaseEcsTick();
+    await this._phaseUpdate();
+    await this._phaseRender();
+  }
+
+  /** Update delta time, FPS counter and propagate state to the API. @internal */
+  private _updateFrameState(now: number): void {
     this._deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.1);
     this.lastFrameTime = now;
     this._frameCount++;
-
     if (this._frameCount % 60 === 0) {
       this.fps = this._deltaTime > 0 ? Math.round(1 / this._deltaTime) : 0;
     }
-
     this.api._updateState(this._deltaTime, this._frameCount);
+  }
 
+  /** Fire the per-frame engine:tick hook. @internal */
+  private async _phaseEngineTick(): Promise<void> {
     try {
       await this.hooks.callHook('engine:tick', this._deltaTime);
     } catch (err) {
       console.error('[GWEN] Error in engine:tick hook:', err);
     }
+  }
 
-    // 1 — Input capture
+  /** Phase 1 — input capture (TS plugins onBeforeUpdate). @internal */
+  private async _phaseBeforeUpdate(): Promise<void> {
     await this.pluginManager.dispatchBeforeUpdate(this.api, this._deltaTime, this.hooks);
+  }
 
-    // 2 — Sync ECS transforms → shared buffer (WASM plugins read from here)
-    if (this.sharedMemoryPtr !== 0) {
+  /** Phase 2 — physics step via WASM core (Rapier lives inside gwen_core, no SAB sync needed). @internal */
+  private _phasePhysicsStep(): void {
+    if (this.wasmBridge.hasPhysics()) {
+      this.pluginManager.dispatchPhysicsStep(this._deltaTime, this.api);
+    }
+  }
+
+  /** Phase 3 — third-party WASM plugins via SharedArrayBuffer path. @internal */
+  private async _phaseWasmPluginsStep(): Promise<void> {
+    const hasThirdPartyWasm = this.pluginManager.wasmPluginCount() > 0;
+    if (this.sharedMemoryPtr === 0 || !hasThirdPartyWasm) return;
+
+    // Sync ECS transforms → shared buffer
+    if (this.config.sparseTransformSync) {
+      const dirtyCount = this.wasmBridge.dirtyTransformCount();
+      if (dirtyCount > 0) {
+        this.wasmBridge.syncTransformsToBufferSparse(this.sharedMemoryPtr);
+        this.wasmBridge.clearTransformDirty();
+      }
+    } else {
       this.wasmBridge.syncTransformsToBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
     }
 
-    // 2b — Reset ring-buffers so WASM plugins write fresh events this frame
+    // Reset ring-buffers so WASM plugins write fresh events this frame
     this.pluginDataBus?.resetEventChannels();
 
-    // 3 — WASM step (physics, AI…)
+    // Run each WASM plugin's simulation step
     this.pluginManager.dispatchWasmStep(this._deltaTime, this.api, this.hooks);
 
-    // 4 — Sentinel integrity check (debug only)
+    // Sentinel integrity check (debug mode only)
     if (this.config.debug && this.sharedMemoryManager !== null) {
       this.sharedMemoryManager.checkSentinels(this.wasmBridge);
     }
@@ -698,18 +727,22 @@ export class Engine {
       this.pluginDataBus.checkSentinels();
     }
 
-    // 5 — Sync shared buffer → ECS transforms (WASM wrote new positions)
-    if (this.sharedMemoryPtr !== 0) {
-      this.wasmBridge.syncTransformsFromBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
-    }
+    // Sync shared buffer → ECS transforms (WASM plugins may have written new positions)
+    this.wasmBridge.syncTransformsFromBuffer(this.sharedMemoryPtr, this.sharedMemoryMaxEntities);
+  }
 
-    // 6 — Tick Rust game loop
+  /** Phase 4 — Rust ECS maintenance tick. @internal */
+  private _phaseEcsTick(): void {
     this.wasmBridge.tick(this._deltaTime * 1000);
+  }
 
-    // 7 — Game logic (TS)
+  /** Phase 5 — game logic (TS plugins onUpdate). @internal */
+  private async _phaseUpdate(): Promise<void> {
     await this.pluginManager.dispatchUpdate(this.api, this._deltaTime, this.hooks);
+  }
 
-    // 8 — Rendering (TS)
+  /** Phase 6 — rendering (TS plugins onRender). @internal */
+  private async _phaseRender(): Promise<void> {
     await this.pluginManager.dispatchRender(this.api, this.hooks);
   }
 }

@@ -11,9 +11,9 @@
  * const BulletPrefab = definePrefab({
  *   name: 'Bullet',
  *   create: (api, x: number, y: number) => {
- *     const id = api.createEntity();
- *     api.addComponent(id, Position, { x, y });
- *     api.addComponent(id, Velocity, { vx: 0, vy: -500 });
+ *     const id = api.entity.create();
+ *     api.component.add(id, Position, { x, y });
+ *     api.component.add(id, Velocity, { vx: 0, vy: -500 });
  *     return id;
  *   }
  * });

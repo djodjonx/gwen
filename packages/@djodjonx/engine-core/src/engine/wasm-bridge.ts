@@ -15,6 +15,14 @@
 import { createEntityId, type EntityId } from './engine-api';
 
 /**
+ * Available core WASM variants.
+ * - light: Minimal ECS core (default)
+ * - physics2d: ECS + Rapier2D + Pathfinding 2D
+ * - physics3d: ECS + Rapier3D + Pathfinding 3D
+ */
+export type CoreVariant = 'light' | 'physics2d' | 'physics3d';
+
+/**
  * Opaque entity handle from Rust (index + generation pair).
  * Both fields must be passed back to safely detect stale references.
  */
@@ -44,7 +52,8 @@ export interface GwenCoreWasm {
   memory?: WebAssembly.Memory;
 }
 
-export interface WasmEngine {
+/** Exports common to ALL core variants (light, physics2d, physics3d) */
+export interface WasmEngineBase {
   // ── Entity ──────────────────────────────────────────────────────────────
 
   /** Create a new entity and return its index + generation handle. */
@@ -114,6 +123,16 @@ export interface WasmEngine {
    */
   query_entities(typeIds: Uint32Array): Uint32Array;
   /**
+   * Execute a query and write the results into a static WASM buffer.
+   * @param typeIds Component type IDs to match.
+   * @returns Number of matching entities (capped at 10,000).
+   */
+  query_entities_to_buffer(typeIds: Uint32Array): number;
+  /**
+   * Return the pointer to the static WASM buffer used by `query_entities_to_buffer`.
+   */
+  get_query_result_ptr(): number;
+  /**
    * Return the current generation counter for a slot index.
    * Used to reconstruct a packed `EntityId` from a raw slot index.
    * @returns `0xFFFFFFFF` if the slot has never been used.
@@ -148,6 +167,19 @@ export interface WasmEngine {
    */
   sync_transforms_to_buffer(ptr: number, maxEntities: number): void;
   /**
+   * Copy ONLY dirty ECS transform data into the shared buffer.
+   * @param ptr    Pointer returned by `alloc_shared_buffer`.
+   */
+  sync_transforms_to_buffer_sparse(ptr: number): void;
+  /**
+   * Return the number of entities with dirty transforms since last clear.
+   */
+  dirty_transform_count(): number;
+  /**
+   * Clear the dirty transform set.
+   */
+  clear_transform_dirty(): void;
+  /**
    * Copy transform data from the shared buffer back into the ECS (after WASM plugins write).
    * @param ptr    Pointer returned by `alloc_shared_buffer`.
    * @param maxEntities  Number of entity slots to sync.
@@ -160,6 +192,581 @@ export interface WasmEngine {
   stats(): string;
 }
 
+/** Exports additional for the physics2d variant (Rapier2D + NavMesh) */
+export interface WasmEnginePhysics2D extends WasmEngineBase {
+  // ── Physics ──────────────────────────────────────────────────────────────
+
+  /** Initialize physics world with gravity and capacity. */
+  physics_init(gx: number, gy: number, maxEntities: number): void;
+  /** Advance physics simulation. */
+  physics_step(delta: number): void;
+  /** Set physics quality preset (0=low, 1=medium, 2=high, 3=esport). */
+  physics_set_quality(preset: number): void;
+  /** Enable/disable global CCD. */
+  physics_set_global_ccd_enabled(enabled: number): void;
+  /** Set event coalescing. */
+  physics_set_event_coalescing(enabled: number): void;
+
+  /** Add a rigid body. Returns a handle. */
+  physics_add_rigid_body(
+    slot: number,
+    x: number,
+    y: number,
+    bodyType: number,
+    mass: number,
+    gravityScale: number,
+    linearDamping: number,
+    angularDamping: number,
+    vx: number,
+    vy: number,
+    ccd?: number,
+    solverIterations?: number,
+  ): number;
+  /** Add a box collider. */
+  physics_add_box_collider(
+    bodyHandle: number,
+    hw: number,
+    hh: number,
+    restitution: number,
+    friction: number,
+    isSensor: number,
+    density: number,
+    membership: number,
+    filter: number,
+    colliderId?: number,
+    offsetX?: number,
+    offsetY?: number,
+  ): void;
+  /** Add a ball collider. */
+  physics_add_ball_collider(
+    bodyHandle: number,
+    radius: number,
+    restitution: number,
+    friction: number,
+    isSensor: number,
+    density: number,
+    membership: number,
+    filter: number,
+    colliderId?: number,
+    offsetX?: number,
+    offsetY?: number,
+  ): void;
+
+  /** Remove a rigid body. */
+  physics_remove_rigid_body(slot: number): void;
+  /** Set kinematic position. */
+  physics_set_kinematic_position(slot: number, x: number, y: number): void;
+  /** Apply impulse. */
+  physics_apply_impulse(slot: number, x: number, y: number): void;
+  /** Set linear velocity. */
+  physics_set_linear_velocity(slot: number, vx: number, vy: number): void;
+  /** Get linear velocity. Returns [vx, vy]. */
+  physics_get_linear_velocity(slot: number): Float32Array;
+  /** Get position and rotation. Returns [x, y, rotation]. */
+  physics_get_position(slot: number): Float32Array;
+  /** Get sensor state. Returns [contactCount, isActive]. */
+  physics_get_sensor_state(slot: number, sensorId: number): Int32Array;
+  /** Update sensor state manually. */
+  physics_update_sensor_state(slot: number, sensorId: number, started: number): void;
+
+  /** Load tilemap chunk. */
+  physics_load_tilemap_chunk_body(
+    chunkId: number,
+    pseudoEntityIndex: number,
+    x: number,
+    y: number,
+  ): number;
+  /** Unload tilemap chunk. */
+  physics_unload_tilemap_chunk_body(chunkId: number): void;
+
+  /** Get pointer to the static collision event buffer. */
+  physics_get_collision_events_ptr(): number;
+  /** Get number of collision events in the buffer. */
+  physics_get_collision_event_count(): number;
+  /** Consume and return event metrics [frame, droppedCritical, droppedNonCritical, coalesced]. */
+  physics_consume_event_metrics(): Int32Array;
+
+  // ── Pathfinding ──────────────────────────────────────────────────────────
+
+  /**
+   * Find a path between two points in 2D space.
+   *
+   * @returns Number of nodes in the path result buffer (up to 256).
+   * Use `path_get_result_ptr()` to read the resulting `[x, y]` pairs.
+   */
+  path_find_2d(fx: number, fy: number, tx: number, ty: number): number;
+  /**
+   * Get pointer to the static path result buffer.
+   * Each node is 8 bytes: `[x: f32, y: f32]`.
+   */
+  path_get_result_ptr(): number;
+}
+
+/**
+ * Exports additional for the physics3d variant (ECS + Rapier3D).
+ *
+ * Body kind encoding used throughout this interface:
+ * - `0` — Fixed (static, infinite mass)
+ * - `1` — Dynamic (fully simulated by Rapier)
+ * - `2` — KinematicPositionBased (position driven by explicit writes)
+ * - `255` — sentinel value returned by `physics3d_get_body_kind` when no body is registered
+ */
+export interface WasmEnginePhysics3D extends WasmEngineBase {
+  // ── World lifecycle ───────────────────────────────────────────────────────
+
+  /**
+   * Initialise the Rapier3D world with the given gravity vector.
+   *
+   * Must be called before any other `physics3d_*` method.
+   *
+   * @param gx - X component of gravity (m/s²).
+   * @param gy - Y component of gravity (m/s²). Typical value: `-9.81`.
+   * @param gz - Z component of gravity (m/s²).
+   * @param maxEntities - Reserved capacity hint (unused in current implementation).
+   */
+  physics3d_init(gx: number, gy: number, gz: number, maxEntities: number): void;
+
+  /**
+   * Advance the Rapier3D simulation by `delta` seconds.
+   *
+   * Call once per frame, before reading back body states.
+   *
+   * @param delta - Elapsed time in seconds (e.g. `1/60` for 60 Hz).
+   */
+  physics3d_step(delta: number): void;
+
+  // ── Body lifecycle ────────────────────────────────────────────────────────
+
+  /**
+   * Register a new 3D rigid body for an entity.
+   *
+   * @param entityIndex    - ECS entity slot index (stable key).
+   * @param x              - Initial world-space X position.
+   * @param y              - Initial world-space Y position.
+   * @param z              - Initial world-space Z position.
+   * @param kind           - Body kind: `0` = Fixed, `1` = Dynamic, `2` = Kinematic.
+   * @param mass           - Body mass in kg (relevant for Dynamic bodies only).
+   * @param linearDamping  - Linear velocity damping coefficient (≥ 0).
+   * @param angularDamping - Angular velocity damping coefficient (≥ 0).
+   * @returns `true` on success; `false` if `entityIndex` is already registered.
+   */
+  physics3d_add_body(
+    entityIndex: number,
+    x: number,
+    y: number,
+    z: number,
+    kind: number,
+    mass: number,
+    linearDamping: number,
+    angularDamping: number,
+  ): boolean;
+
+  /**
+   * Remove the 3D rigid body registered for an entity.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @returns `true` if a body was found and removed; `false` otherwise.
+   */
+  physics3d_remove_body(entityIndex: number): boolean;
+
+  /**
+   * Check whether a 3D body is currently registered for an entity.
+   *
+   * @param entityIndex - ECS entity slot index.
+   */
+  physics3d_has_body(entityIndex: number): boolean;
+
+  // ── State read/write ──────────────────────────────────────────────────────
+
+  /**
+   * Return the full rigid body state as a 13-element `Float32Array`.
+   *
+   * Layout: `[px, py, pz, qx, qy, qz, qw, vx, vy, vz, ax, ay, az]`
+   * - `px/py/pz`   — world-space position (metres)
+   * - `qx/qy/qz/qw` — orientation as a unit quaternion
+   * - `vx/vy/vz`   — linear velocity (m/s)
+   * - `ax/ay/az`   — angular velocity (rad/s)
+   *
+   * Returns an empty array if the entity has no registered body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   */
+  physics3d_get_body_state(entityIndex: number): Float32Array;
+
+  /**
+   * Overwrite all state fields of a 3D body in one call.
+   *
+   * More efficient than multiple separate setters when teleporting an entity.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param px  - New world-space X position.
+   * @param py  - New world-space Y position.
+   * @param pz  - New world-space Z position.
+   * @param qx  - Quaternion X component.
+   * @param qy  - Quaternion Y component.
+   * @param qz  - Quaternion Z component.
+   * @param qw  - Quaternion W component (scalar).
+   * @param vx  - New linear velocity X.
+   * @param vy  - New linear velocity Y.
+   * @param vz  - New linear velocity Z.
+   * @param ax  - New angular velocity X (rad/s).
+   * @param ay  - New angular velocity Y (rad/s).
+   * @param az  - New angular velocity Z (rad/s).
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_set_body_state(
+    entityIndex: number,
+    px: number,
+    py: number,
+    pz: number,
+    qx: number,
+    qy: number,
+    qz: number,
+    qw: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    ax: number,
+    ay: number,
+    az: number,
+  ): boolean;
+
+  // ── Linear velocity ───────────────────────────────────────────────────────
+
+  /**
+   * Return the linear velocity of a 3D body as a 3-element `Float32Array`.
+   *
+   * Layout: `[vx, vy, vz]` in m/s.
+   * Returns an empty array if the entity has no registered body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   */
+  physics3d_get_linear_velocity(entityIndex: number): Float32Array;
+
+  /**
+   * Set the linear velocity of a 3D body.
+   *
+   * Wakes the body if it is sleeping.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param vx - New linear velocity X (m/s).
+   * @param vy - New linear velocity Y (m/s).
+   * @param vz - New linear velocity Z (m/s).
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_set_linear_velocity(entityIndex: number, vx: number, vy: number, vz: number): boolean;
+
+  // ── Angular velocity ──────────────────────────────────────────────────────
+
+  /**
+   * Return the angular velocity of a 3D body as a 3-element `Float32Array`.
+   *
+   * Layout: `[ax, ay, az]` in rad/s.
+   * Returns an empty array if the entity has no registered body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   */
+  physics3d_get_angular_velocity(entityIndex: number): Float32Array;
+
+  /**
+   * Set the angular velocity of a 3D body.
+   *
+   * Wakes the body if it is sleeping.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param ax - New angular velocity X (rad/s).
+   * @param ay - New angular velocity Y (rad/s).
+   * @param az - New angular velocity Z (rad/s).
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_set_angular_velocity(entityIndex: number, ax: number, ay: number, az: number): boolean;
+
+  // ── Impulse ───────────────────────────────────────────────────────────────
+
+  /**
+   * Apply a world-space linear impulse to a 3D body at its centre of mass.
+   *
+   * Immediately changes the linear velocity by `impulse / mass`. Wakes the
+   * body if it is sleeping.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param ix - Impulse X component (N·s).
+   * @param iy - Impulse Y component (N·s).
+   * @param iz - Impulse Z component (N·s).
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_apply_impulse(entityIndex: number, ix: number, iy: number, iz: number): boolean;
+
+  // ── Body kind ─────────────────────────────────────────────────────────────
+
+  /**
+   * Return the body kind discriminant for an entity's 3D body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @returns `0` = Fixed, `1` = Dynamic, `2` = KinematicPositionBased,
+   *          `255` if no body is registered.
+   */
+  physics3d_get_body_kind(entityIndex: number): number;
+
+  /**
+   * Change the body kind of an existing 3D body at runtime.
+   *
+   * Useful for switching a body from static to dynamic (e.g. when a level
+   * piece becomes interactive).
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param kind        - `0` = Fixed, `1` = Dynamic, `2` = KinematicPositionBased.
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_set_body_kind(entityIndex: number, kind: number): boolean;
+
+  // ── Kinematic positioning ──────────────────────────────────────────────────
+
+  /**
+   * Teleport a kinematic body to an exact world-space position and rotation.
+   *
+   * Only effective for `KinematicPositionBased` bodies.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param px - Target X position (metres).
+   * @param py - Target Y position (metres).
+   * @param pz - Target Z position (metres).
+   * @param qx - Quaternion X component.
+   * @param qy - Quaternion Y component.
+   * @param qz - Quaternion Z component.
+   * @param qw - Quaternion W (scalar) component.
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_set_kinematic_position?(
+    entityIndex: number,
+    px: number,
+    py: number,
+    pz: number,
+    qx: number,
+    qy: number,
+    qz: number,
+    qw: number,
+  ): boolean;
+
+  // ── Impulse ───────────────────────────────────────────────────────────────
+
+  /**
+   * Apply a world-space angular impulse to a 3D body.
+   *
+   * Immediately changes the angular velocity. Wakes the body if sleeping.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param ax - Angular impulse X component (N·m·s).
+   * @param ay - Angular impulse Y component (N·m·s).
+   * @param az - Angular impulse Z component (N·m·s).
+   * @returns `true` on success; `false` if the entity has no registered body.
+   */
+  physics3d_apply_angular_impulse?(
+    entityIndex: number,
+    ax: number,
+    ay: number,
+    az: number,
+  ): boolean;
+
+  // ── Collider management ───────────────────────────────────────────────────
+
+  /**
+   * Attach a box-shaped collider to an existing 3D body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param halfX       - Half-extent on the X axis (metres).
+   * @param halfY       - Half-extent on the Y axis (metres).
+   * @param halfZ       - Half-extent on the Z axis (metres).
+   * @param friction    - Friction coefficient (≥ 0).
+   * @param restitution - Bounciness in [0, 1].
+   * @param density     - Collider density in kg/m³.
+   * @param isSensor    - `1` = sensor (no response), `0` = solid.
+   * @param membership  - Collision layer bitmask for this collider.
+   * @param filter      - Bitmask of layers this collider collides with.
+   * @param colliderId  - Stable numeric id propagated to collision events.
+   * @param offsetX     - Local X offset from body centre (metres).
+   * @param offsetY     - Local Y offset from body centre (metres).
+   * @param offsetZ     - Local Z offset from body centre (metres).
+   * @returns `true` on success.
+   */
+  physics3d_add_box_collider?(
+    entityIndex: number,
+    halfX: number,
+    halfY: number,
+    halfZ: number,
+    friction: number,
+    restitution: number,
+    density: number,
+    isSensor: number,
+    membership: number,
+    filter: number,
+    colliderId: number,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+  ): boolean;
+
+  /**
+   * Attach a sphere-shaped collider to an existing 3D body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param radius      - Sphere radius (metres).
+   * @param friction    - Friction coefficient (≥ 0).
+   * @param restitution - Bounciness in [0, 1].
+   * @param density     - Collider density in kg/m³.
+   * @param isSensor    - `1` = sensor, `0` = solid.
+   * @param membership  - Collision layer bitmask.
+   * @param filter      - Bitmask of layers this collider collides with.
+   * @param colliderId  - Stable numeric id.
+   * @param offsetX     - Local X offset (metres).
+   * @param offsetY     - Local Y offset (metres).
+   * @param offsetZ     - Local Z offset (metres).
+   * @returns `true` on success.
+   */
+  physics3d_add_sphere_collider?(
+    entityIndex: number,
+    radius: number,
+    friction: number,
+    restitution: number,
+    density: number,
+    isSensor: number,
+    membership: number,
+    filter: number,
+    colliderId: number,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+  ): boolean;
+
+  /**
+   * Attach a capsule-shaped collider to an existing 3D body.
+   *
+   * The capsule axis is aligned with the local Y axis of the body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param radius      - Capsule radius (metres).
+   * @param halfHeight  - Half-height of the cylindrical part (metres).
+   * @param friction    - Friction coefficient (≥ 0).
+   * @param restitution - Bounciness in [0, 1].
+   * @param density     - Collider density in kg/m³.
+   * @param isSensor    - `1` = sensor, `0` = solid.
+   * @param membership  - Collision layer bitmask.
+   * @param filter      - Bitmask of layers this collider collides with.
+   * @param colliderId  - Stable numeric id.
+   * @param offsetX     - Local X offset (metres).
+   * @param offsetY     - Local Y offset (metres).
+   * @param offsetZ     - Local Z offset (metres).
+   * @returns `true` on success.
+   */
+  physics3d_add_capsule_collider?(
+    entityIndex: number,
+    radius: number,
+    halfHeight: number,
+    friction: number,
+    restitution: number,
+    density: number,
+    isSensor: number,
+    membership: number,
+    filter: number,
+    colliderId: number,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+  ): boolean;
+
+  /**
+   * Remove a collider by its stable `colliderId` from a 3D body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param colliderId  - The stable collider id assigned when the collider was added.
+   * @returns `true` if the collider was found and removed; `false` otherwise.
+   */
+  physics3d_remove_collider?(entityIndex: number, colliderId: number): boolean;
+
+  // ── Sensor state ──────────────────────────────────────────────────────────
+
+  /**
+   * Read the contact state of a sensor collider.
+   *
+   * Returns a packed value: `[contactCount: u32, isActive: u32]` as a
+   * `BigInt64Array` or plain `number[]`.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param sensorId    - Stable sensor id (same as the collider's `colliderId`).
+   */
+  physics3d_get_sensor_state?(entityIndex: number, sensorId: number): BigInt64Array | number[];
+
+  /**
+   * Manually update the sensor state for a (entity, sensor) pair.
+   *
+   * Intended for TS-side sensor tracking and test helpers.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param sensorId    - Stable sensor id.
+   * @param isActive    - `1` = active, `0` = inactive.
+   * @param count       - Number of overlapping contacts.
+   */
+  physics3d_update_sensor_state?(
+    entityIndex: number,
+    sensorId: number,
+    isActive: number,
+    count: number,
+  ): void;
+
+  // ── Quality & coalescing ──────────────────────────────────────────────────
+
+  /**
+   * Set the physics solver quality preset.
+   *
+   * @param preset - `0` = low, `1` = medium, `2` = high, `3` = esport.
+   */
+  physics3d_set_quality?(preset: number): void;
+
+  /**
+   * Enable or disable same-frame collision event coalescing.
+   *
+   * When enabled, duplicate events for the same contact pair within a single
+   * frame are deduplicated on the Rust side before being written to the buffer.
+   *
+   * @param enabled - `1` = enabled, `0` = disabled.
+   */
+  physics3d_set_event_coalescing?(enabled: number): void;
+
+  // ── Collision event ring buffer ───────────────────────────────────────────
+
+  /**
+   * Return the pointer to the start of the collision event ring buffer in WASM linear memory.
+   *
+   * The buffer layout is: `[slotA: u32][slotB: u32][colliderIdA: u32][colliderIdB: u32][flags: u8]`
+   * per event slot (17 bytes per event).
+   *
+   * @returns Raw byte offset into `WebAssembly.Memory`.
+   */
+  physics3d_get_collision_events_ptr?(): number;
+
+  /**
+   * Return the number of unread collision events currently in the ring buffer.
+   */
+  physics3d_get_collision_event_count?(): number;
+
+  /**
+   * Mark all buffered collision events as consumed (advances the read head).
+   *
+   * Must be called once after reading all events for the current frame to
+   * prevent stale events from being re-processed on the next frame.
+   */
+  physics3d_consume_events?(): void;
+}
+
+/**
+ * Runtime engine contract:
+ * - Base exports are always present.
+ * - Physics-specific exports are present only in matching variants.
+ */
+export type WasmEngine = WasmEngineBase &
+  Partial<Omit<WasmEnginePhysics2D, keyof WasmEngineBase>> &
+  Partial<Omit<WasmEnginePhysics3D, keyof WasmEngineBase>>;
+
 // ── Internal state ────────────────────────────────────────────────────────────
 
 let _wasmEngine: WasmEngine | null = null;
@@ -167,9 +774,18 @@ let _wasmModule: GwenCoreWasm | null = null;
 let _wasmExports: { memory?: WebAssembly.Memory } | null = null; // raw WASM instance exports
 let _initPromise: Promise<void> | null = null;
 let _maxEntities = 10_000;
+let _activeVariant: CoreVariant = 'light';
 
 /** Track the last seen ArrayBuffer to detect memory.grow() events. */
 let _lastMemoryBuffer: ArrayBuffer | null = null;
+
+/** Static view for zero-alloc query results. Recreated on memory.grow(). */
+let _queryResultView: Uint32Array | null = null;
+
+/** Static buffer for type IDs to avoid allocations on every query. */
+const _typeIdBuffer = new Uint32Array(16);
+/** Pre-allocated views for common type ID counts (0-16). */
+const _typeIdViews = Array.from({ length: 17 }, (_, i) => _typeIdBuffer.subarray(0, i));
 
 /**
  * Base URL for WASM artifacts (auto-resolved in browser, null in Node).
@@ -195,60 +811,62 @@ const _pkgWasmBase: string | null = (() => {
 // ── Initialization ────────────────────────────────────────────────────────────
 
 /**
+ * Options for WASM initialization.
+ */
+export interface InitWasmOptions {
+  /** Max number of entities the engine can track (default: 10,000). */
+  maxEntities?: number;
+  /** Optional URL to the wasm-bindgen glue (gwen_core.js). */
+  jsUrl?: string;
+  /** Optional URL to the WASM binary (gwen_core_bg.wasm). */
+  wasmUrl?: string;
+  /**
+   * Whether SharedArrayBuffer is strictly required (default: false).
+   * If true and SAB is unavailable, `initWasm` will throw.
+   */
+  requireSAB?: boolean;
+}
+
+/**
  * Load and initialize the gwen_core WASM module. **REQUIRED** before any Engine usage.
  *
- * **Without arguments**: Auto-resolves from `@djodjonx/gwen-engine-core/wasm/`
+ * **Without arguments**: Auto-resolves from `@djodjonx/gwen-engine-core/wasm/light/`
  * (pre-compiled artifacts published in the package — no Rust build needed).
  *
- * @param jsUrl Optional URL to the wasm-bindgen glue (gwen_core.js)
- * @param wasmUrl Optional URL to the WASM binary (gwen_core_bg.wasm)
- * @param maxEntities Max number of entities the engine can track (default: 10,000)
+ * @param variant The core variant to load ('light', 'physics2d', 'physics3d')
+ * @param options Initialization options (urls, max entities, SAB requirement)
  * @throws {Error} If WASM cannot be loaded or has invalid format
- *
- * @example
- * ```typescript
- * // Standard usage — zero config
- * await initWasm();
- *
- * // Explicit URLs (custom path, CDN, etc.)
- * await initWasm('/custom/gwen_core.js', '/custom/gwen_core_bg.wasm');
- * ```
  */
 export async function initWasm(
-  jsUrl?: string,
-  wasmUrl?: string,
-  maxEntities = 10_000,
+  variant: CoreVariant = 'light',
+  options: InitWasmOptions = {},
 ): Promise<void> {
   if (_wasmEngine) return;
   if (_initPromise) return _initPromise;
 
+  const { maxEntities = 10_000, requireSAB = false, jsUrl, wasmUrl } = options;
+
   // ── P0: Validate SharedArrayBuffer availability ────────────────────────────
-  // Required for WASM plugin communication via zero-copy shared memory.
-  // Without this, physics and other WASM plugins will fail at runtime.
-  if (typeof SharedArrayBuffer === 'undefined') {
+  if (requireSAB && typeof SharedArrayBuffer === 'undefined') {
     throw new Error(
-      '[GWEN] SharedArrayBuffer is not available.\n\n' +
-        'GWEN requires SharedArrayBuffer for WASM plugin communication.\n' +
-        'Your server MUST send these HTTP headers:\n\n' +
-        '  Cross-Origin-Embedder-Policy: require-corp\n' +
-        '  Cross-Origin-Opener-Policy: same-origin\n\n' +
-        'See deployment guide: https://github.com/djodjonx/gwen/blob/main/docs/DEPLOYMENT.md\n\n' +
-        'Platform-specific configs:\n' +
-        '  • Vercel: Add to vercel.json\n' +
-        '  • Netlify: Add to netlify.toml\n' +
-        '  • Cloudflare: Add to _headers file\n' +
-        '  • Nginx/Apache: Add to server config\n',
+      '[GWEN] SharedArrayBuffer is required by a WASM plugin but not available.\n' +
+        'Your server MUST send COOP/COEP headers to enable SharedArrayBuffer.\n' +
+        'See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer',
     );
   }
 
   _maxEntities = maxEntities;
+  _activeVariant = variant;
 
-  const resolvedJsUrl = jsUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core.js` : null);
-  const resolvedWasmUrl = wasmUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}gwen_core_bg.wasm` : null);
+  const variantPath = `${variant}/`;
+  const resolvedJsUrl =
+    jsUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}${variantPath}gwen_core.js` : null);
+  const resolvedWasmUrl =
+    wasmUrl ?? (_pkgWasmBase ? `${_pkgWasmBase}${variantPath}gwen_core_bg.wasm` : null);
 
   if (!resolvedJsUrl) {
     throw new Error(
-      '[GWEN] initWasm(): unable to resolve WASM glue URL.\n' +
+      `[GWEN] initWasm(): unable to resolve WASM glue URL for variant "${variant}".\n` +
         'Make sure @djodjonx/gwen-engine-core is correctly installed.',
     );
   }
@@ -278,7 +896,13 @@ export async function initWasm(
     _wasmModule = glue as GwenCoreWasm;
     _wasmEngine = new glue.Engine(maxEntities);
 
-    console.log('[GWEN] WASM core loaded — Rust ECS active');
+    if (variant === 'physics2d') {
+      console.log('[GWEN] WASM core loaded — Physics2D variant active');
+    } else if (variant === 'physics3d') {
+      console.log('[GWEN] WASM core loaded — Physics3D variant active');
+    } else {
+      console.log('[GWEN] WASM core loaded — Light variant active');
+    }
   })().catch((err) => {
     _initPromise = null;
     _wasmEngine = null;
@@ -372,6 +996,18 @@ export interface WasmBridge {
   /** True if Rust/WASM core is initialized and ready. */
   isActive(): boolean;
 
+  /** Active WASM variant. */
+  readonly variant: CoreVariant;
+
+  /** Whether physics exports are available (variant is 'physics2d' or 'physics3d'). */
+  hasPhysics(): boolean;
+
+  /**
+   * Get physics-specific bridge.
+   * @throws {Error} If the active variant is 'light'.
+   */
+  getPhysicsBridge(): WasmEnginePhysics2D | WasmEnginePhysics3D;
+
   /** Direct access to the Rust WasmEngine instance. Throws if not initialized. */
   engine(): WasmEngine;
 
@@ -446,6 +1082,18 @@ export interface WasmBridge {
    */
   queryEntities(typeIds: number[]): EntityId[];
   /**
+   * Zero-alloc query — writes results to a static WASM buffer.
+   * @param typeIds - Component type IDs to match
+   * @returns The number of matching entities (capped at 10,000)
+   */
+  queryEntitiesRaw(typeIds: number[]): number;
+  /**
+   * Iterate query results without creating any objects.
+   * @param typeIds - Component type IDs to match
+   * @param callback - Function called for each raw entity index
+   */
+  forEachQueryResultRaw(typeIds: number[], callback: (entityIndex: number) => void): void;
+  /**
    * Return the current generation counter for a raw slot index.
    * Used to reconstruct a packed `EntityId` from a WASM-side slot index
    * (e.g. `slotA` / `slotB` from physics collision events).
@@ -474,6 +1122,22 @@ export interface WasmBridge {
    * Called each frame **before** `dispatchWasmStep`.
    */
   syncTransformsToBuffer(ptr: number, maxEntities: number): void;
+
+  /**
+   * Copy ONLY dirty ECS Transform data → shared buffer.
+   * Uses the Rust-side dirty set to avoid iterating over all entities.
+   */
+  syncTransformsToBufferSparse(ptr: number): void;
+
+  /**
+   * Return the number of entities that have changed since the last sync.
+   */
+  dirtyTransformCount(): number;
+
+  /**
+   * Clear the dirty transform flag for all entities.
+   */
+  clearTransformDirty(): void;
 
   /**
    * Copy shared buffer → ECS Transform data after WASM plugins have written it.
@@ -578,6 +1242,24 @@ class WasmBridgeImpl implements WasmBridge {
     return _wasmEngine !== null;
   }
 
+  get variant(): CoreVariant {
+    return _activeVariant;
+  }
+
+  hasPhysics(): boolean {
+    return _activeVariant === 'physics2d' || _activeVariant === 'physics3d';
+  }
+
+  getPhysicsBridge(): WasmEnginePhysics2D | WasmEnginePhysics3D {
+    if (!this.hasPhysics()) {
+      throw new Error(
+        `[GWEN] getPhysicsBridge(): physics is not available in variant "${_activeVariant}". ` +
+          'Use "physics2d" or "physics3d" variant instead.',
+      );
+    }
+    return requireWasm() as WasmEnginePhysics2D | WasmEnginePhysics3D;
+  }
+
   engine(): WasmEngine {
     return requireWasm();
   }
@@ -650,6 +1332,44 @@ class WasmBridgeImpl implements WasmBridge {
     });
   }
 
+  queryEntitiesRaw(typeIds: number[]): number {
+    const count = typeIds.length;
+    // Fast path for common component counts (0-16) using zero-alloc views
+    if (count <= 16) {
+      for (let i = 0; i < count; i++) {
+        _typeIdBuffer[i] = typeIds[i];
+      }
+      return requireWasm().query_entities_to_buffer(_typeIdViews[count]);
+    }
+    // Fallback for very complex queries (rare in game engines)
+    return requireWasm().query_entities_to_buffer(new Uint32Array(typeIds));
+  }
+
+  forEachQueryResultRaw(typeIds: number[], callback: (entityIndex: number) => void): void {
+    const count = this.queryEntitiesRaw(typeIds);
+    const view = this._getQueryResultView();
+    for (let i = 0; i < count; i++) {
+      callback(view[i]);
+    }
+  }
+
+  /**
+   * Helper to get or refresh the static query result view.
+   * Recreates the view if WASM memory has grown.
+   * @internal
+   */
+  private _getQueryResultView(): Uint32Array {
+    const mem = _wasmExports?.memory;
+    if (!mem) {
+      throw new Error('[GWEN] Cannot access WASM memory (not initialized or mock).');
+    }
+
+    if (!_queryResultView || _queryResultView.buffer !== mem.buffer) {
+      _queryResultView = new Uint32Array(mem.buffer, requireWasm().get_query_result_ptr(), 10_000);
+    }
+    return _queryResultView;
+  }
+
   getEntityGeneration(index: number): number {
     return requireWasm().get_entity_generation(index);
   }
@@ -668,6 +1388,18 @@ class WasmBridgeImpl implements WasmBridge {
 
   syncTransformsToBuffer(ptr: number, maxEntities: number): void {
     requireWasm().sync_transforms_to_buffer(ptr, maxEntities);
+  }
+
+  syncTransformsToBufferSparse(ptr: number): void {
+    requireWasm().sync_transforms_to_buffer_sparse(ptr);
+  }
+
+  dirtyTransformCount(): number {
+    return requireWasm().dirty_transform_count();
+  }
+
+  clearTransformDirty(): void {
+    requireWasm().clear_transform_dirty();
   }
 
   syncTransformsFromBuffer(ptr: number, maxEntities: number): void {
@@ -811,4 +1543,5 @@ export function _resetWasmBridge(): void {
   _wasmExports = null;
   _initPromise = null;
   _lastMemoryBuffer = null;
+  _queryResultView = null;
 }

@@ -4,6 +4,8 @@
 > **Date :** 3 mars 2026
 > **Statut :** ✅ Architecture validée et gravée dans le marbre
 
+> **Canonical execution contract:** [`specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md`](specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md) is the authoritative source for frozen architecture decisions, ordered PR backlog, and implementation gates. This document provides the architectural overview; the playbook governs execution.
+
 ---
 
 ## 1. Vision et Philosophie
@@ -91,7 +93,12 @@ import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
 import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 
 export default defineConfig({
-  core: { maxEntities: 10_000, targetFPS: 60 },
+  core: {
+    maxEntities: 10_000,
+    targetFPS: 60,
+    // loop: 'internal'  ← default: engine owns RAF
+    // loop: 'external'  ← JS calls engine.advance(delta) each frame; delta capped at maxDeltaSeconds (default 0.1)
+  },
 
   // Plugins WASM — artefacts pré-compilés dans le package npm.
   // Aucune installation de Rust. Le CLI charge le .wasm au démarrage.
@@ -196,10 +203,11 @@ export class PlayerController implements GwenPlugin {
   constructor(private audio: IAudioService) {} // Pure DI par constructeur
 
   onUpdate(api: EngineAPI, deltaTime: number) {
-    const players = api.query(['PlayerInput', 'Velocity']);
+    const players = api.query([PlayerInput, Velocity]);
     for (const id of players) {
-      if (api.components.PlayerInput.getIsJumping(id)) {
-        api.components.Velocity.setY(id, -500); // Écriture → mémoire WASM
+      const input = api.component.get(id, PlayerInput);
+      if (input.isJumping) {
+        api.component.set(id, Velocity, { y: -500 }); // Écriture → mémoire WASM
         this.audio.playSound('jump.mp3');
       }
     }
@@ -211,17 +219,33 @@ export class PlayerController implements GwenPlugin {
 
 ## 7. Séquençage de la Boucle de Jeu (60 FPS)
 
+Two loop modes are supported. See [External Loop Contract](specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md#3-final-runtime-contract-external-loop) for the authoritative specification.
+
+### Mode `loop: 'internal'` (default)
+The engine owns `requestAnimationFrame`. Delta is computed internally and capped at `maxDeltaSeconds` (default `0.1`).
+
 ```
-1. Temps           → calcul du deltaTime (WasmBridge.tick)           ~0.001ms
-2. onBeforeUpdate  → TsPlugins : capture inputs, intentions           ~0.1ms
-3. WasmStep        → physics.step(), ai.step() (Rust, SharedMem)     ~0.5ms
-4. onUpdate        → TsPlugins : logique métier                       ~1ms
-5. UI.render       → UIManager : DOM dirty-check                      ~0.1ms
-6. onRender        → TsPlugins : dessin Canvas/WebGL                  ~5ms
+RAF(now) → calcul ΔT (capped) → onBeforeUpdate → engine.advance(ΔT) → onUpdate → onRender
+```
+
+### Mode `loop: 'external'`
+JS controls timing. The engine never starts RAF. The caller must invoke `engine.advance(delta)` each frame.
+
+```
+JS tick → engine.advance(delta) → [onBeforeUpdate → Core reset channels → Rust step → onUpdate → onRender]
+```
+
+Frame sequence detail:
+```
+1. onBeforeUpdate  → TsPlugins : capture inputs, intentions           ~0.1ms
+2. Core            → reset event channels (Data Bus protocol)         ~0.001ms
+3. Rust/core step  → physics.step(), ai.step() (SharedMem)            ~0.5ms
+4. onUpdate        → TsPlugins : logique métier post-step             ~1ms
+5. onRender        → TsPlugins : dessin Canvas/WebGL                  ~5ms
                                                          Total : ~7ms (60 FPS ✅)
 ```
 
-**Règle d'or :** le WASM est **authoritative** sur ses données. Après `WasmStep`, les positions physiques Rust écrasent tout. Ne jamais écrire depuis TypeScript un composant piloté par la physique Rust.
+**Règle d'or :** le WASM est **authoritative** sur ses données. Après le Rust step, les positions physiques Rust écrasent tout. Ne jamais écrire depuis TypeScript un composant piloté par la physique Rust.
 
 ---
 
@@ -253,7 +277,7 @@ export const Velocity = defineComponent({
 });
 ```
 
-**Types disponibles :** `f32, f64, i32, i64, u32, u64, bool, string`
+**Types disponibles :** `f32, f64, i32, i64, u32, u64, bool, string`, **`vec2, vec3, vec4, quat, color`** (primitives spatiales et de couleur — présentes dans core, ne pas redéfinir dans les plugins)
 
 ---
 

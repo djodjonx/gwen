@@ -18,6 +18,9 @@ export const defaultConfig: EngineConfig = {
   targetFPS: 60,
   debug: false,
   enableStats: true,
+  sparseTransformSync: true,
+  loop: 'internal',
+  maxDeltaSeconds: 0.1,
   plugins: [],
 };
 
@@ -29,8 +32,6 @@ export function mergeConfigs(defaults: EngineConfig, user: Partial<EngineConfig>
     ...defaults,
     ...user,
     plugins: [...(defaults.plugins ?? []), ...(user.plugins ?? [])],
-    wasmPlugins: [...(defaults.wasmPlugins ?? []), ...(user.wasmPlugins ?? [])],
-    tsPlugins: [...(defaults.tsPlugins ?? []), ...(user.tsPlugins ?? [])],
   };
 }
 
@@ -52,6 +53,9 @@ export async function createEngine(
     targetFPS: resolved.engine.targetFPS,
     debug: resolved.engine.debug,
     enableStats: resolved.engine.enableStats,
+    sparseTransformSync: resolved.engine.sparseTransformSync,
+    loop: resolved.engine.loop,
+    maxDeltaSeconds: resolved.engine.maxDeltaSeconds,
   });
 
   const api = engine.getAPI();
@@ -62,6 +66,8 @@ export async function createEngine(
   const wasmPlugins = allPlugins.filter(isWasmPlugin);
   const tsOnlyPlugins = allPlugins.filter((p) => !isWasmPlugin(p));
 
+  const sabPlugins = wasmPlugins.filter((p) => p.wasm?.sharedMemory === true);
+
   if (wasmPlugins.length > 0) {
     const bridge = getWasmBridge();
 
@@ -69,6 +75,20 @@ export async function createEngine(
       throw new Error(
         '[GWEN] createEngine(): WASM core not initialized.\n' +
           'Call `await initWasm()` before `await createEngine()`.',
+      );
+    }
+
+    if (
+      sabPlugins.length > 0 &&
+      typeof crossOriginIsolated !== 'undefined' &&
+      !crossOriginIsolated
+    ) {
+      const names = sabPlugins.map((p) => `'${p.name}'`).join(', ');
+      throw new Error(
+        `[GWEN] SharedArrayBuffer is required by plugin(s): ${names}.\n` +
+          'Enable cross-origin isolation with headers:\n' +
+          '  Cross-Origin-Opener-Policy: same-origin\n' +
+          '  Cross-Origin-Embedder-Policy: require-corp',
       );
     }
 
@@ -108,9 +128,19 @@ export async function createEngine(
     );
 
     for (const plugin of wasmPlugins) {
+      const wantsSab = plugin.wasm?.sharedMemory === true;
       const sharedMemBytes = plugin.wasm?.sharedMemoryBytes ?? 0;
+
+      if (wantsSab && sharedMemBytes <= 0) {
+        throw new Error(
+          `[GWEN] WASM plugin '${plugin.name}' sets wasm.sharedMemory=true but sharedMemoryBytes is missing or zero.`,
+        );
+      }
+
       const region =
-        sharedMemBytes > 0 ? sharedMemory.allocateRegion(plugin.wasm!.id, sharedMemBytes) : null;
+        wantsSab && sharedMemBytes > 0
+          ? sharedMemory.allocateRegion(plugin.wasm!.id, sharedMemBytes)
+          : null;
 
       // Use a scoped API so any hooks.hook() calls inside onWasmInit are
       // tracked by PluginManager and cleaned up on unregister() / destroyAll().

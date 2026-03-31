@@ -108,61 +108,6 @@ export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
   import('../hooks').GwenHooks &
     AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
-// ── Legacy helpers (deprecated) ───────────────────────────────────────────────
-
-/**
- * @deprecated Use `MergePluginsProvides` instead.
- *
- * Merges `provides` from a list of TS-only plugins.
- * No longer necessary — `MergePluginsProvides` handles both families.
- */
-export type MergeProvides<Plugins extends readonly GwenPlugin[]> = MergePluginsProvides<Plugins>;
-
-/**
- * @deprecated Use `MergePluginsHooks` instead.
- *
- * Merges `providesHooks` from a list of TS-only plugins.
- */
-export type MergeHooks<Plugins extends readonly GwenPlugin[]> = AsObject<
-  UnionToIntersection<PluginProvidesHooks<Plugins[number]>>
->;
-
-/**
- * @deprecated Use `MergePluginsProvides` instead.
- *
- * Extracts `provides` from a legacy WASM plugin shape.
- */
-export type WasmPluginProvides<T> = T extends { wasm?: GwenPluginWasmContext } & GwenPlugin<
-  string,
-  infer P
->
-  ? P
-  : Record<string, unknown>;
-
-/**
- * @deprecated Use `MergePluginsProvides` instead.
- *
- * Merges `provides` from a list of legacy WASM plugins.
- */
-export type MergeWasmProvides<Plugins extends readonly GwenPlugin[]> =
-  MergePluginsProvides<Plugins>;
-
-/**
- * @deprecated Use `MergePluginsProvides<Plugins>` with a single unified array.
- *
- * Previously required two separate arrays for TS and WASM plugins.
- * Now both live in one `plugins` array and use `MergePluginsProvides`.
- */
-export type MergeAllProvides<
-  TsPlugins extends readonly GwenPlugin[],
-  WasmPlugins extends readonly GwenPlugin[],
-> = MergePluginsProvides<[...TsPlugins, ...WasmPlugins]>;
-
-/**
- * @deprecated Use `MergePluginsHooks` instead.
- */
-export type MergeAllHooks<TsPlugins extends readonly GwenPlugin[]> = MergePluginsHooks<TsPlugins>;
-
 // ── GwenPlugin re-exported for convenience ────────────────────────────────────
 // (Consumers may import GwenPlugin directly from here or from '@djodjonx/gwen-engine-core')
 

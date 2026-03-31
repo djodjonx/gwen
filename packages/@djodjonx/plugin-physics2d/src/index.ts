@@ -3,66 +3,57 @@
 /**
  * @djodjonx/gwen-plugin-physics2d
  *
- * 2D physics plugin for GWEN — powered by Rapier2D compiled to WASM.
- *
- * ## Usage
- * ```typescript
- * // gwen.config.ts
- * import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
- *
- * export default defineConfig({
- *   plugins: [new Physics2D({ gravity: -9.81, maxEntities: 10_000 })],
- * });
- * ```
- *
- * ## Accessing the API in a plugin
- * ```typescript
- * onInit(api) {
- *   const physics = api.services.get('physics');
- *   const h = physics.addRigidBody(entityIndex, 'dynamic', x, y);
- *   physics.addBoxCollider(h, 0.5, 0.5);
- * }
- * ```
+ * 2D physics plugin for GWEN — pure adapter providing 2D rigid-body physics via the core WASM.
  */
 
-import { definePlugin, loadWasmPlugin } from '@djodjonx/gwen-kit';
-import { unpackEntityId, createEntityId } from '@djodjonx/gwen-engine-core';
-import type { PluginChannel, GwenPluginMeta } from '@djodjonx/gwen-kit';
+import { definePlugin } from '@djodjonx/gwen-kit';
+import { unpackEntityId, createEntityId, getWasmBridge } from '@djodjonx/gwen-engine-core';
+import type { EngineAPI } from '@djodjonx/gwen-engine-core';
+import type { GwenPluginMeta } from '@djodjonx/gwen-kit';
 
 import type {
   Physics2DConfig,
   Physics2DAPI,
-  Physics2DWasmModule,
-  WasmPhysics2DPlugin,
   CollisionEvent,
   CollisionEventsBatch,
   ColliderOptions,
   RigidBodyType,
   Physics2DPrefabExtension,
-  CollisionContact,
   Physics2DPluginHooks,
-  PhysicsCompatFlags,
-  PhysicsColliderDef,
-  PhysicsEventMode,
+  CollisionContact,
   PhysicsQualityPreset,
   PhysicsColliderShape,
   SensorState,
-  BuildTilemapPhysicsChunksInput,
-  PatchTilemapPhysicsChunkInput,
-  TilemapPhysicsChunk,
-  TilemapPhysicsChunkMap,
-  TilemapChunkRect,
-  Physics2DHelperContext,
-  PhysicsEntitySnapshot,
-  ResolvedCollisionContact,
-  TilemapChunkOrchestrator,
 } from './types';
+
+import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE } from './types';
+
+// ─── Internal types ──────────────────────────────────────────────────────────
+
+/**
+ * Internal representation of a raw WASM collision event.
+ * Carries slot indices that are never exposed on the public `CollisionEvent` type.
+ * Used exclusively within this file for event pool management and resolution.
+ */
+type InternalCollisionEvent = {
+  slotA: number;
+  slotB: number;
+  aColliderId?: number;
+  bColliderId?: number;
+  started: boolean;
+};
+
 import {
-  BODY_TYPE,
-  PHYSICS2D_BRIDGE_SCHEMA_VERSION,
-  PHYSICS_MATERIAL_PRESETS,
-  PHYSICS_QUALITY_PRESET_CODE,
-} from './types';
+  normalizeConfig,
+  LayerRegistry,
+  resolveGlobalCcdEnabled,
+  PIXELS_PER_METER,
+} from './config';
+
+import { addPrefabCollider } from './prefab';
+import { tilemapChunkIdFromKey, tilemapPseudoEntityFromChunkId } from './utils';
+
+// Public exports
 export {
   createPhysicsKinematicSyncSystem,
   createPlatformerGroundedSystem,
@@ -82,286 +73,26 @@ export type {
   RigidBodyType,
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
-  PhysicsCompatFlags,
-  PhysicsColliderDef,
-  PhysicsEventMode,
   PhysicsQualityPreset,
   PhysicsColliderShape,
   SensorState,
-  BuildTilemapPhysicsChunksInput,
-  PatchTilemapPhysicsChunkInput,
-  TilemapPhysicsChunk,
-  TilemapPhysicsChunkMap,
-  TilemapChunkRect,
-  Physics2DHelperContext,
-  PhysicsEntitySnapshot,
-  ResolvedCollisionContact,
-  TilemapChunkOrchestrator,
-};
-export { PHYSICS2D_BRIDGE_SCHEMA_VERSION } from './types';
-export { PHYSICS_QUALITY_PRESET_CODE } from './types';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const PIXELS_PER_METER = 50;
-const EVENT_HEADER_BYTES = 8;
-const EVENT_STRIDE = 19;
-const LEGACY_EVENT_STRIDE = 11;
-const COLLIDER_ID_ABSENT = 0xffffffff;
-const LAYER_ALL = 0xffffffff;
-const MAX_LAYERS = 32;
-
-function fnv1a32(input: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
-function tilemapChunkIdFromKey(key: string): number {
-  return fnv1a32(`tilemap:${key}`);
-}
-
-function tilemapPseudoEntityFromChunkId(chunkId: number): number {
-  return (chunkId | 0x80000000) >>> 0;
-}
-
-// ─── Configuration normalization ───────────────────────────────────────────────
-
-type NormalizedPhysics2DConfig = {
-  gravity: number;
-  gravityX: number;
-  maxEntities: number;
-  qualityPreset: PhysicsQualityPreset;
-  eventMode: PhysicsEventMode;
-  compat: Required<PhysicsCompatFlags>;
-  debug: boolean;
-  coalesceEvents: boolean;
-  ccdEnabled?: boolean;
-  layers: Record<string, number>;
 };
 
-function normalizeConfig(config: Physics2DConfig): NormalizedPhysics2DConfig {
-  const layers: Record<string, number> = {};
-  if (config.layers) {
-    for (const [name, bit] of Object.entries(config.layers)) {
-      if (bit < 0 || bit >= MAX_LAYERS || !Number.isInteger(bit)) {
-        throw new Error(
-          `[Physics2D] Layer "${name}" has invalid bit index ${bit}. Must be an integer in [0, ${MAX_LAYERS - 1}].`,
-        );
-      }
-      layers[name] = bit;
-    }
-  }
-  return {
-    gravity: config.gravity ?? -9.81,
-    gravityX: config.gravityX ?? 0,
-    maxEntities: config.maxEntities ?? 10_000,
-    qualityPreset: config.qualityPreset ?? 'medium',
-    eventMode: config.eventMode ?? 'pull',
-    compat: {
-      legacyPrefabColliderProps: config.compat?.legacyPrefabColliderProps ?? true,
-      legacyCollisionJsonParser: config.compat?.legacyCollisionJsonParser ?? true,
-    },
-    debug: config.debug ?? false,
-    coalesceEvents: config.coalesceEvents ?? true,
-    ccdEnabled: config.ccdEnabled,
-    layers,
-  };
-}
+export { PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE };
 
-function resolveGlobalCcdEnabled(cfg: NormalizedPhysics2DConfig): boolean {
-  if (cfg.ccdEnabled !== undefined) return cfg.ccdEnabled;
-  return cfg.qualityPreset === 'high' || cfg.qualityPreset === 'esport';
-}
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-// ─── Layer registry ───────────────────────────────────────────────────────────
+const EVENT_STRIDE = 16;
+const MAX_EVENTS = 512;
 
-/**
- * Resolves named layers to a u32 bitmask.
- * Created once per plugin instance at init time.
- */
-class LayerRegistry {
-  private readonly bits: Record<string, number>;
-
-  constructor(layers: Record<string, number>) {
-    if (Object.keys(layers).length > MAX_LAYERS) {
-      throw new Error(
-        `[Physics2D] Too many layers declared: ${Object.keys(layers).length}. Maximum is ${MAX_LAYERS}.`,
-      );
-    }
-    this.bits = layers;
-  }
-
-  /**
-   * Resolve a `membershipLayers` or `filterLayers` value to a raw u32 bitmask.
-   * - `undefined` → all layers (0xFFFFFFFF)
-   * - `number` → used as-is (raw bitmask)
-   * - `string[]` → each name resolved; throws on unknown name
-   */
-  resolve(value: string[] | number | undefined, role: 'membership' | 'filter'): number {
-    if (value === undefined) return LAYER_ALL;
-    if (typeof value === 'number') return value >>> 0;
-
-    let mask = 0;
-    for (const name of value) {
-      const bit = this.bits[name];
-      if (bit === undefined) {
-        const known = Object.keys(this.bits).join(', ');
-        throw new Error(
-          `[Physics2D] Unknown layer "${name}" in ${role}. Declared layers: [${known}]. ` +
-            `Add it to Physics2DConfig.layers or fix the typo.`,
-        );
-      }
-      mask |= 1 << bit;
-    }
-    return mask >>> 0;
-  }
-}
-
-function warnDeprecation(message: string) {
-  if (import.meta.env.DEV) {
-    console.warn(`[Physics2D][deprecated] ${message}`);
-  }
-}
-
-function resolveMaterial(
-  material: PhysicsColliderDef['material'] | Physics2DPrefabExtension['material'] | undefined,
-  overrides: Pick<PhysicsColliderDef, 'friction' | 'restitution' | 'density'>,
-  fallback: { friction: number; restitution: number; density: number },
-) {
-  const base =
-    typeof material === 'string' ? PHYSICS_MATERIAL_PRESETS[material] : (material ?? fallback);
-
-  return {
-    friction: overrides.friction ?? base.friction ?? fallback.friction,
-    restitution: overrides.restitution ?? base.restitution ?? fallback.restitution,
-    density: overrides.density ?? base.density ?? fallback.density,
-  };
-}
-
-function addPrefabCollider(
-  service: Physics2DAPI,
-  bodyHandle: number,
-  collider: PhysicsColliderDef,
-  registry: LayerRegistry,
-  colliderId?: number,
-): void {
-  /**
-   * PhysicsColliderDef values are authored in pixels at prefab/tilemap level.
-   * Convert exactly once here before forwarding to runtime Physics2D API.
-   */
-  const material = resolveMaterial(collider.material, collider, {
-    friction: 0,
-    restitution: 0,
-    density: 1.0,
-  });
-  const colliderOpts: ColliderOptions = {
-    restitution: material.restitution,
-    friction: material.friction,
-    isSensor: collider.isSensor ?? false,
-    density: material.density,
-    membershipLayers: registry.resolve(collider.membershipLayers, 'membership'),
-    filterLayers: registry.resolve(collider.filterLayers, 'filter'),
-    colliderId,
-  };
-
-  // Apply offsets if provided
-  if (collider.offsetX !== undefined || collider.offsetY !== undefined) {
-    if (collider.offsetX !== undefined) {
-      colliderOpts.offsetX = collider.offsetX / PIXELS_PER_METER;
-    }
-    if (collider.offsetY !== undefined) {
-      colliderOpts.offsetY = collider.offsetY / PIXELS_PER_METER;
-    }
-  }
-
-  if (collider.shape === 'ball') {
-    if (collider.radius === undefined) {
-      throw new Error(
-        `[Physics2D] Invalid collider config: shape="ball" requires \`radius\` (collider id: ${collider.id ?? '<unnamed>'}).`,
-      );
-    }
-    service.addBallCollider(bodyHandle, collider.radius / PIXELS_PER_METER, colliderOpts);
-    return;
-  }
-
-  if (collider.shape === 'box') {
-    if (collider.hw === undefined || collider.hh === undefined) {
-      throw new Error(
-        `[Physics2D] Invalid collider config: shape="box" requires both \`hw\` and \`hh\` (collider id: ${collider.id ?? '<unnamed>'}).`,
-      );
-    }
-    service.addBoxCollider(
-      bodyHandle,
-      collider.hw / PIXELS_PER_METER,
-      collider.hh / PIXELS_PER_METER,
-      colliderOpts,
-    );
-    return;
-  }
-
-  throw new Error(
-    `[Physics2D] Invalid collider shape \`${String((collider as { shape?: unknown }).shape)}\` (collider id: ${collider.id ?? '<unnamed>'}).`,
-  );
-}
-
-function addLegacyPrefabCollider(
-  service: Physics2DAPI,
-  bodyHandle: number,
-  ext: Physics2DPrefabExtension,
-  compat: Required<PhysicsCompatFlags>,
-  registry: LayerRegistry,
-): void {
-  if (!compat.legacyPrefabColliderProps) {
-    return;
-  }
-
-  const hasLegacyShape = ext.radius !== undefined || ext.hw !== undefined || ext.hh !== undefined;
-  if (!hasLegacyShape) {
-    return;
-  }
-
-  warnDeprecation(
-    'Top-level `extensions.physics.radius/hw/hh` is legacy since 0.4.0. Use `extensions.physics.colliders[]`. Removal planned in 1.0.0.',
-  );
-
-  const material = resolveMaterial(ext.material, ext, {
-    friction: 0,
-    restitution: 0,
-    density: 1.0,
-  });
-  const colliderOpts: ColliderOptions = {
-    restitution: material.restitution,
-    friction: material.friction,
-    isSensor: ext.isSensor ?? false,
-    density: material.density,
-    membershipLayers: registry.resolve(undefined, 'membership'),
-    filterLayers: registry.resolve(undefined, 'filter'),
-  };
-
-  if (ext.radius !== undefined) {
-    service.addBallCollider(bodyHandle, ext.radius / PIXELS_PER_METER, colliderOpts);
-    return;
-  }
-
-  if (ext.hw !== undefined && ext.hh !== undefined) {
-    service.addBoxCollider(
-      bodyHandle,
-      ext.hw / PIXELS_PER_METER,
-      ext.hh / PIXELS_PER_METER,
-      colliderOpts,
-    );
-  }
-}
-
-// ─── Plugin metadata ───────────────────────────────────────────────────────────
+// ─── Plugin metadata ─────────────────────────────────────────────────────────
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    physics: { from: '@djodjonx/gwen-plugin-physics2d', exportName: 'Physics2DAPI' },
+    physics: {
+      from: '@djodjonx/gwen-plugin-physics2d',
+      exportName: 'Physics2DAPI',
+    },
   },
   hookTypes: {
     'physics:collision': {
@@ -385,449 +116,100 @@ export const pluginMeta: GwenPluginMeta = {
   },
 };
 
-// ─── Physics2DPlugin ──────────────────────────────────────────────────────────
+// ─── Plugin implementation ───────────────────────────────────────────────────
 
 /**
- * GWEN plugin that provides 2D rigid-body physics via Rapier2D.
- *
- * Uses the Plugin Data Bus for zero-SAB communication:
- * - "transform" channel: TS → Rapier (kinematic body positions)
- * - "events"    channel: Rapier → TS (collision events, binary ring buffer)
+ * GWEN plugin providing 2D rigid-body physics via Rapier2D integrated in the core WASM.
  */
 export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   const cfg = normalizeConfig(config);
-  const isDebug = cfg.debug;
   const layerRegistry = new LayerRegistry(cfg.layers);
 
-  /**
-   * Debug logger gated by plugin option `debug: true`.
-   * Keep callsites strategic to preserve runtime performance in hot paths.
-   */
-  const debugLog = (...args: unknown[]) => {
-    if (!isDebug) return;
-    console.log('[Physics2D]', ...args);
-  };
-
-  let wasmPlugin: WasmPhysics2DPlugin | null = null;
-  let eventsView: DataView | null = null;
-  let cachedCollisionBatch: CollisionEventsBatch | null = null;
-  let cachedCollisionEventCount = 0;
-  let debugFrameCount = 0;
-  let physicsService: Physics2DAPI | null = null;
-  const pooledCollisionEvents: CollisionEvent[] = [];
-  const pooledCollisionBatch: CollisionEventsBatch = {
-    frame: 0,
-    count: 0,
-    droppedSinceLastRead: 0,
-    droppedCritical: 0,
-    droppedNonCritical: 0,
-    coalesced: cfg.coalesceEvents,
-    events: pooledCollisionEvents,
-  };
-
-  /**
-   * Per-slot collision callbacks registered via prefab extensions.
-   * Key = entity slot index, Value = onCollision handler.
-   */
-  const collisionCallbacks = new Map<
+  // State management
+  const loadedTilemapChunks = new Map<string, { chunkId: number; checksum: string }>();
+  const activeSensors = new Map<number, Set<number>>();
+  const entityCollisionCallbacks = new Map<
     number,
     NonNullable<Physics2DPrefabExtension['onCollision']>
   >();
-  const sensorColliderIdsBySlot = new Map<number, Set<number>>();
-  const loadedTilemapChunks = new Map<string, { chunkId: number; checksum: string }>();
 
-  // ── Service factory ──────────────────────────────────────────────────
+  // Kept as `any` to remain compatible with cross-package type lag in monorepo builds.
+  let bridge: any = null;
+  let physicsService: Physics2DAPI | null = null;
 
-  function createAPI(): Physics2DAPI {
-    function materializeCollisionBatch(max?: number): CollisionEventsBatch {
-      if (!eventsView) {
-        pooledCollisionEvents.length = 0;
-        pooledCollisionBatch.count = 0;
-        pooledCollisionBatch.events = pooledCollisionEvents;
-        cachedCollisionEventCount = 0;
-        cachedCollisionBatch = pooledCollisionBatch;
-        return pooledCollisionBatch;
-      }
+  // Binary buffer state (encapsulated per plugin instance)
+  let eventsView: DataView | null = null;
+  let eventsBufferRef: ArrayBuffer | null = null;
+  const pooledCollisionEvents: InternalCollisionEvent[] = [];
+  let cachedCollisionBatch: CollisionEventsBatch | null = null;
 
-      if (!cachedCollisionBatch) {
-        const writeHead = eventsView.getUint32(0, true);
-        const readHead = eventsView.getUint32(4, true);
-        const payloadBytes = eventsView.byteLength - EVENT_HEADER_BYTES;
-        const stride = payloadBytes % EVENT_STRIDE === 0 ? EVENT_STRIDE : LEGACY_EVENT_STRIDE;
-        const capacity = Math.floor(payloadBytes / stride);
-
-        let idx = readHead;
-        let eventCount = 0;
-
-        while (capacity > 0 && idx !== writeHead) {
-          const offset = EVENT_HEADER_BYTES + idx * stride;
-          const event =
-            pooledCollisionEvents[eventCount] ??
-            (pooledCollisionEvents[eventCount] = {
-              slotA: 0,
-              slotB: 0,
-              aColliderId: undefined,
-              bColliderId: undefined,
-              started: false,
-            });
-          event.slotA = eventsView.getUint32(offset + 2, true);
-          event.slotB = eventsView.getUint32(offset + 6, true);
-          if (stride === EVENT_STRIDE) {
-            const rawA = eventsView.getUint32(offset + 10, true);
-            const rawB = eventsView.getUint32(offset + 14, true);
-            event.aColliderId = rawA === COLLIDER_ID_ABSENT ? undefined : rawA;
-            event.bColliderId = rawB === COLLIDER_ID_ABSENT ? undefined : rawB;
-            event.started = (eventsView.getUint8(offset + 18) & 1) === 1;
-          } else {
-            event.aColliderId = undefined;
-            event.bColliderId = undefined;
-            event.started = (eventsView.getUint8(offset + 10) & 1) === 1;
-          }
-          eventCount++;
-          idx = (idx + 1) % capacity;
-        }
-
-        eventsView.setUint32(4, writeHead, true);
-        cachedCollisionEventCount = eventCount;
-
-        const [frame, droppedCritical, droppedNonCritical, coalescedFlag] =
-          wasmPlugin?.consume_event_metrics?.() ?? [0, 0, 0, cfg.coalesceEvents ? 1 : 0];
-
-        pooledCollisionBatch.frame = frame;
-        pooledCollisionBatch.droppedCritical = droppedCritical;
-        pooledCollisionBatch.droppedNonCritical = droppedNonCritical;
-        pooledCollisionBatch.droppedSinceLastRead = droppedCritical + droppedNonCritical;
-        pooledCollisionBatch.coalesced = coalescedFlag === 1;
-        pooledCollisionBatch.events = pooledCollisionEvents;
-        cachedCollisionBatch = pooledCollisionBatch;
-      }
-
-      const visibleCount =
-        max === undefined || max < 0
-          ? cachedCollisionEventCount
-          : Math.min(max, cachedCollisionEventCount);
-      pooledCollisionEvents.length = visibleCount;
-      pooledCollisionBatch.count = visibleCount;
-
-      if (isDebug && import.meta.env.DEV) {
-        const f = debugFrameCount;
-        if (f <= 300 && f % 60 === 0 && f > 0 && wasmPlugin) {
-          const stats = wasmPlugin.stats();
-          console.log(
-            `[Physics2D] frame=${f} stats=${stats} events=${visibleCount} dropped=${pooledCollisionBatch.droppedSinceLastRead} preset=${cfg.qualityPreset} mode=${cfg.eventMode}`,
-          );
-        }
-      }
-
-      return pooledCollisionBatch;
+  /**
+   * Reads pending collision events from the static WASM buffer.
+   */
+  function readCollisionEvents(max?: number): CollisionEventsBatch {
+    if (cachedCollisionBatch && max === undefined) {
+      return cachedCollisionBatch;
     }
 
-    return {
-      isDebugEnabled() {
-        return isDebug;
-      },
+    const pb = bridge!.getPhysicsBridge() as any;
+    const memory = bridge!.getLinearMemory();
+    if (!memory) {
+      return {
+        frame: 0,
+        count: 0,
+        droppedSinceLastRead: 0,
+        droppedCritical: 0,
+        droppedNonCritical: 0,
+        coalesced: false,
+        events: [],
+      };
+    }
+    const ptr = pb.physics_get_collision_events_ptr();
+    const count = pb.physics_get_collision_event_count();
 
-      addRigidBody(entityIndex, type, x, y, opts = {}) {
-        if (!wasmPlugin) throw new Error('[Physics2D] not initialized');
-        const ccd = opts.ccdEnabled;
-        const additionalSolverIterations = opts.additionalSolverIterations;
-        const handle =
-          ccd === undefined && additionalSolverIterations === undefined
-            ? wasmPlugin.add_rigid_body(
-                entityIndex,
-                x,
-                y,
-                BODY_TYPE[type],
-                opts.mass ?? 1.0,
-                opts.gravityScale ?? 1.0,
-                opts.linearDamping ?? 0.0,
-                opts.angularDamping ?? 0.0,
-                opts.initialVelocity?.vx ?? 0.0,
-                opts.initialVelocity?.vy ?? 0.0,
-              )
-            : wasmPlugin.add_rigid_body(
-                entityIndex,
-                x,
-                y,
-                BODY_TYPE[type],
-                opts.mass ?? 1.0,
-                opts.gravityScale ?? 1.0,
-                opts.linearDamping ?? 0.0,
-                opts.angularDamping ?? 0.0,
-                opts.initialVelocity?.vx ?? 0.0,
-                opts.initialVelocity?.vy ?? 0.0,
-                ccd === undefined ? undefined : ccd ? 1 : 0,
-                additionalSolverIterations,
-              );
-        debugLog(
-          `addRigidBody entity=${entityIndex} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} -> handle=${handle}`,
-        );
-        return handle;
-      },
+    if (!eventsView || eventsBufferRef !== memory.buffer || eventsView.byteLength === 0) {
+      eventsBufferRef = memory.buffer;
+      eventsView = new DataView(memory.buffer, ptr, MAX_EVENTS * EVENT_STRIDE);
+    }
 
-      addBoxCollider(bodyHandle, hw, hh, opts: ColliderOptions = {}) {
-        debugLog(
-          `addBoxCollider handle=${bodyHandle} hw=${hw} hh=${hh} offsetX=${opts.offsetX} offsetY=${opts.offsetY} isSensor=${opts.isSensor} colliderId=${opts.colliderId}`,
-        );
-        const membership =
-          typeof opts.membershipLayers === 'number'
-            ? opts.membershipLayers >>> 0
-            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership');
-        const filter =
-          typeof opts.filterLayers === 'number'
-            ? opts.filterLayers >>> 0
-            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
-        const hasOffset = opts.offsetX !== undefined || opts.offsetY !== undefined;
+    const visibleCount = max !== undefined && max >= 0 ? Math.min(max, count) : count;
 
-        if (opts.colliderId === undefined && !hasOffset) {
-          wasmPlugin?.add_box_collider(
-            bodyHandle,
-            hw,
-            hh,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-          );
-        } else if (hasOffset) {
-          wasmPlugin?.add_box_collider(
-            bodyHandle,
-            hw,
-            hh,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-            opts.colliderId,
-            opts.offsetX,
-            opts.offsetY,
-          );
-        } else {
-          wasmPlugin?.add_box_collider(
-            bodyHandle,
-            hw,
-            hh,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-            opts.colliderId,
-          );
-        }
-      },
+    pooledCollisionEvents.length = visibleCount;
+    for (let i = 0; i < visibleCount; i++) {
+      const offset = i * EVENT_STRIDE;
+      const type = eventsView.getUint32(offset + 8, true);
 
-      addBallCollider(bodyHandle, radius, opts: ColliderOptions = {}) {
-        debugLog(
-          `addBallCollider handle=${bodyHandle} radius=${radius} offsetX=${opts.offsetX} offsetY=${opts.offsetY} isSensor=${opts.isSensor} colliderId=${opts.colliderId}`,
-        );
-        const membership =
-          typeof opts.membershipLayers === 'number'
-            ? opts.membershipLayers >>> 0
-            : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership');
-        const filter =
-          typeof opts.filterLayers === 'number'
-            ? opts.filterLayers >>> 0
-            : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter');
-        const hasOffset = opts.offsetX !== undefined || opts.offsetY !== undefined;
+      let ev = pooledCollisionEvents[i];
+      if (!ev) {
+        ev = { slotA: 0, slotB: 0, started: false } satisfies InternalCollisionEvent;
+        pooledCollisionEvents[i] = ev;
+      }
 
-        if (opts.colliderId === undefined && !hasOffset) {
-          wasmPlugin?.add_ball_collider(
-            bodyHandle,
-            radius,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-          );
-        } else if (hasOffset) {
-          wasmPlugin?.add_ball_collider(
-            bodyHandle,
-            radius,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-            opts.colliderId,
-            opts.offsetX,
-            opts.offsetY,
-          );
-        } else {
-          wasmPlugin?.add_ball_collider(
-            bodyHandle,
-            radius,
-            opts.restitution ?? 0,
-            opts.friction ?? 0.5,
-            opts.isSensor ? 1 : 0,
-            opts.density ?? 1.0,
-            membership,
-            filter,
-            opts.colliderId,
-          );
-        }
-      },
+      ev.slotA = eventsView.getUint32(offset, true);
+      ev.slotB = eventsView.getUint32(offset + 4, true);
+      ev.started = type === 0 || type === 2;
 
-      removeBody(entityIndex) {
-        if (isDebug) {
-          console.log(`[Physics2D] removeBody entity=${entityIndex}`);
-        }
-        wasmPlugin?.remove_rigid_body(entityIndex);
-      },
+      const aId = eventsView.getUint16(offset + 12, true);
+      const bId = eventsView.getUint16(offset + 14, true);
+      ev.aColliderId = aId === 0xffff ? undefined : aId;
+      ev.bColliderId = bId === 0xffff ? undefined : bId;
+    }
 
-      setKinematicPosition(entityIndex, x, y) {
-        wasmPlugin?.set_kinematic_position(entityIndex, x, y);
-      },
-
-      applyImpulse(entityIndex, x, y) {
-        wasmPlugin?.apply_impulse(entityIndex, x, y);
-      },
-
-      setLinearVelocity(entityIndex, vx, vy) {
-        wasmPlugin?.set_linear_velocity(entityIndex, vx, vy);
-      },
-
-      getLinearVelocity(entityIndex) {
-        const result = wasmPlugin?.get_linear_velocity(entityIndex);
-        if (!result || result.length < 2) return null;
-        return { x: result[0], y: result[1] };
-      },
-
-      getCollisionEventsBatch(opts = {}) {
-        return materializeCollisionBatch(opts.max);
-      },
-
-      getCollisionEvents(): CollisionEvent[] {
-        return this.getCollisionEventsBatch().events as CollisionEvent[];
-      },
-
-      getPosition(entityIndex) {
-        const result = wasmPlugin?.get_position(entityIndex);
-        if (!result || result.length < 3) return null;
-        return { x: result[0], y: result[1], rotation: result[2] };
-      },
-
-      getSensorState(entityIndex, sensorId): SensorState {
-        const result = wasmPlugin?.get_sensor_state?.(entityIndex, sensorId);
-        if (!result || result.length < 2) return { contactCount: 0, isActive: false };
-        return { contactCount: result[0], isActive: result[1] !== 0 };
-      },
-
-      updateSensorState(entityIndex, sensorId, started) {
-        wasmPlugin?.update_sensor_state?.(entityIndex, sensorId, started ? 1 : 0);
-      },
-
-      loadTilemapPhysicsChunk(chunk, x, y, opts = {}) {
-        if (!wasmPlugin?.load_tilemap_chunk_body) {
-          throw new Error('[Physics2D] Tilemap chunk runtime requires a compatible WASM build.');
-        }
-
-        const existing = loadedTilemapChunks.get(chunk.key);
-        if (existing?.checksum === chunk.checksum) {
-          debugLog(`loadTilemapPhysicsChunk skip key=${chunk.key} reason=unchanged`);
-          return;
-        }
-        if (existing) {
-          debugLog(
-            `loadTilemapPhysicsChunk replace key=${chunk.key} oldChecksum=${existing.checksum}`,
-          );
-          wasmPlugin.unload_tilemap_chunk_body?.(existing.chunkId);
-          loadedTilemapChunks.delete(chunk.key);
-        }
-
-        const chunkId = tilemapChunkIdFromKey(chunk.key);
-        const pseudoEntityIndex = tilemapPseudoEntityFromChunkId(chunkId);
-        const bodyHandle = wasmPlugin.load_tilemap_chunk_body(chunkId, pseudoEntityIndex, x, y);
-        const source: ReadonlyArray<PhysicsColliderDef> = opts.debugNaive
-          ? chunk.rects.map((rect, index) => ({
-              shape: 'box',
-              hw: (rect.w * 16) / 2,
-              hh: (rect.h * 16) / 2,
-              offsetX: (rect.x + rect.w / 2) * 16,
-              offsetY: (rect.y + rect.h / 2) * 16,
-              id: `rect_${index}`,
-            }))
-          : chunk.colliders;
-
-        debugLog(
-          `loadTilemapPhysicsChunk key=${chunk.key} bodyHandle=${bodyHandle} world=(${x.toFixed(3)},${y.toFixed(3)}) colliders=${source.length} naive=${opts.debugNaive === true}`,
-        );
-
-        for (const [colliderIndex, collider] of source.entries()) {
-          const material = resolveMaterial(collider.material, collider, {
-            friction: 0.5,
-            restitution: 0,
-            density: 1.0,
-          });
-          const runtimeOpts: ColliderOptions = {
-            restitution: material.restitution,
-            friction: material.friction,
-            isSensor: collider.isSensor ?? false,
-            density: material.density,
-            membershipLayers:
-              typeof collider.membershipLayers === 'number'
-                ? collider.membershipLayers >>> 0
-                : layerRegistry.resolve(collider.membershipLayers, 'membership'),
-            filterLayers:
-              typeof collider.filterLayers === 'number'
-                ? collider.filterLayers >>> 0
-                : layerRegistry.resolve(collider.filterLayers, 'filter'),
-            colliderId: colliderIndex,
-            offsetX:
-              collider.offsetX === undefined ? undefined : collider.offsetX / PIXELS_PER_METER,
-            offsetY:
-              collider.offsetY === undefined ? undefined : collider.offsetY / PIXELS_PER_METER,
-          };
-
-          if (collider.shape === 'box') {
-            if (collider.hw === undefined || collider.hh === undefined) {
-              throw new Error(
-                `[Physics2D] Tilemap chunk collider \`${collider.id ?? colliderIndex}\` requires hw/hh.`,
-              );
-            }
-            this.addBoxCollider(
-              bodyHandle,
-              collider.hw / PIXELS_PER_METER,
-              collider.hh / PIXELS_PER_METER,
-              runtimeOpts,
-            );
-          } else {
-            if (collider.radius === undefined) {
-              throw new Error(
-                `[Physics2D] Tilemap chunk collider \`${collider.id ?? colliderIndex}\` requires radius.`,
-              );
-            }
-            this.addBallCollider(bodyHandle, collider.radius / PIXELS_PER_METER, runtimeOpts);
-          }
-        }
-
-        loadedTilemapChunks.set(chunk.key, { chunkId, checksum: chunk.checksum });
-      },
-
-      unloadTilemapPhysicsChunk(key) {
-        const loaded = loadedTilemapChunks.get(key);
-        if (!loaded) return;
-        debugLog(`unloadTilemapPhysicsChunk key=${key}`);
-        wasmPlugin?.unload_tilemap_chunk_body?.(loaded.chunkId);
-        loadedTilemapChunks.delete(key);
-      },
-
-      patchTilemapPhysicsChunk(chunk, x, y, opts = {}) {
-        debugLog(
-          `patchTilemapPhysicsChunk key=${chunk.key} world=(${x.toFixed(3)},${y.toFixed(3)})`,
-        );
-        this.unloadTilemapPhysicsChunk(chunk.key);
-        this.loadTilemapPhysicsChunk(chunk, x, y, opts);
-      },
+    const metrics = pb.physics_consume_event_metrics
+      ? pb.physics_consume_event_metrics()
+      : [0, 0, 0, 0];
+    const batch: CollisionEventsBatch = {
+      frame: metrics[0] ?? 0,
+      count: visibleCount,
+      droppedSinceLastRead: (metrics[1] ?? 0) + (metrics[2] ?? 0),
+      droppedCritical: metrics[1] ?? 0,
+      droppedNonCritical: metrics[2] ?? 0,
+      coalesced: metrics[3] === 1,
+      events: pooledCollisionEvents,
     };
+
+    if (max === undefined) cachedCollisionBatch = batch;
+    return batch;
   }
 
   return {
@@ -835,122 +217,43 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     meta: pluginMeta,
     provides: { physics: {} as Physics2DAPI },
     providesHooks: {} as Physics2DPluginHooks,
-    /**
-     * Phantom type — consumed by `gwen prepare` to enrich `GwenPrefabExtensions`
-     * with `{ physics: Physics2DPrefabExtension }`.
-     * Values are never read at runtime.
-     */
-    extensions: {
-      prefab: {} as Physics2DPrefabExtension,
-    },
-    wasm: {
-      id: 'physics2d',
-      /** No legacy SAB — Plugin Data Bus is used exclusively. */
-      sharedMemoryBytes: 0,
-      channels: [
-        {
-          name: 'transform',
-          direction: 'read',
-          strideBytes: 20, // pos_x, pos_y, rotation, scale_x, scale_y (5 × f32)
-          bufferType: 'f32',
-        } satisfies PluginChannel,
-        {
-          name: 'events',
-          direction: 'write',
-          bufferType: 'ring',
-          capacityEvents: 256,
-        } satisfies PluginChannel,
-      ],
-    },
+    extensions: { prefab: {} as Physics2DPrefabExtension },
 
-    // ── WASM lifecycle ─────────────────────────────────────────────────
+    // ── Lifecycle ──────────────────────────────────────────────────────
 
-    /**
-     * Load the `.wasm` module, instantiate the Rapier2D simulation, and
-     * register the `physics` service in `api.services`.
-     */
-    async onWasmInit(_bridge, _region, api, bus): Promise<void> {
-      const transformChannel = bus.get('physics2d', 'transform');
-      const eventsChannel = bus.get('physics2d', 'events');
+    onInit(api: EngineAPI): void {
+      bridge = getWasmBridge();
 
-      const transformBuf: ArrayBuffer =
-        transformChannel?.buffer ?? new ArrayBuffer(cfg.maxEntities * 20);
-      const resolvedEventsBuf: ArrayBuffer =
-        eventsChannel?.buffer ?? new ArrayBuffer(8 + 256 * EVENT_STRIDE);
-      eventsView = new DataView(resolvedEventsBuf);
-      cachedCollisionBatch = null;
-      cachedCollisionEventCount = 0;
-
-      // DataBus allocates channels with engine.maxEntities. Keep the WASM plugin
-      // in sync with the actual channel capacity to avoid Uint8Array.copy_from panics.
-      const channelMaxEntities = Math.floor(transformBuf.byteLength / 20);
-      const runtimeMaxEntities = channelMaxEntities > 0 ? channelMaxEntities : cfg.maxEntities;
-      if (runtimeMaxEntities !== cfg.maxEntities) {
-        console.warn(
-          `[Physics2D] maxEntities mismatch: plugin=${cfg.maxEntities}, channel=${runtimeMaxEntities}. Using channel capacity.`,
-        );
+      if (!bridge.hasPhysics()) {
+        throw new Error('[Physics2D] Core WASM variant does not include physics.');
       }
 
-      const wasm = await loadWasmPlugin<Physics2DWasmModule>({
-        jsUrl: '/wasm/gwen_physics2d.js',
-        wasmUrl: '/wasm/gwen_physics2d_bg.wasm',
-        name: 'Physics2D',
-      });
+      const pb = bridge.getPhysicsBridge() as any;
+      pb.physics_init(cfg.gravityX, cfg.gravity, cfg.maxEntities);
+      pb.physics_set_quality(PHYSICS_QUALITY_PRESET_CODE[cfg.qualityPreset]);
+      pb.physics_set_event_coalescing(cfg.coalesceEvents ? 1 : 0);
+      pb.physics_set_global_ccd_enabled(resolveGlobalCcdEnabled(cfg) ? 1 : 0);
 
-      const instantiatedPlugin = new wasm.Physics2DPlugin(
-        cfg.gravityX,
-        cfg.gravity,
-        new Uint8Array(transformBuf),
-        new Uint8Array(resolvedEventsBuf),
-        runtimeMaxEntities,
-      );
+      physicsService = (this as any).createAPI(api);
+      api.services.register('physics', physicsService!);
 
-      const bridgeVersion = instantiatedPlugin.bridge_schema_version?.();
-      if (bridgeVersion !== undefined && bridgeVersion !== PHYSICS2D_BRIDGE_SCHEMA_VERSION) {
-        instantiatedPlugin.free?.();
-        throw new Error(
-          `[Physics2D] Bridge schema mismatch: TS=${PHYSICS2D_BRIDGE_SCHEMA_VERSION}, WASM=${bridgeVersion}. Rebuild the physics wasm package before running this build.`,
-        );
-      }
-
-      wasmPlugin = instantiatedPlugin;
-      wasmPlugin.set_event_coalescing?.(cfg.coalesceEvents ? 1 : 0);
-      wasmPlugin.set_quality_preset?.(PHYSICS_QUALITY_PRESET_CODE[cfg.qualityPreset]);
-      wasmPlugin.set_global_ccd_enabled?.(resolveGlobalCcdEnabled(cfg) ? 1 : 0);
-
-      physicsService = createAPI();
-      api.services.register('physics', physicsService);
-      debugLog(
-        `initialized qualityPreset=${cfg.qualityPreset} eventMode=${cfg.eventMode} coalesced=${cfg.coalesceEvents} ccdGlobal=${resolveGlobalCcdEnabled(cfg)}`,
-      );
-
-      // Local non-null alias used inside hook closures — TypeScript cannot narrow
-      // the outer `physicsService` variable through a closure boundary.
-      const svc = physicsService;
-
-      // Souscription au hook prefab:instantiate — le scopedApi garantit
-      // le nettoyage automatique à l'unregister() du plugin.
-      api.hooks.hook('prefab:instantiate', (entityId, extensions) => {
+      api.hooks.hook('prefab:instantiate', (entityId: any, extensions: any) => {
         const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
         if (!ext) return;
 
-        const bodyType = ext.bodyType ?? 'dynamic';
         const { index: slot } = unpackEntityId(entityId);
-        const pos = api.getComponent?.(entityId, 'position') as
-          | { x: number; y: number }
-          | null
-          | undefined;
+        const pos = api.getComponent?.(entityId, 'position') as { x: number; y: number } | null;
 
-        const handle = svc.addRigidBody(
-          slot,
-          bodyType,
+        const handle = physicsService!.addRigidBody(
+          entityId,
+          ext.bodyType ?? 'dynamic',
           (pos?.x ?? 0) / PIXELS_PER_METER,
           (pos?.y ?? 0) / PIXELS_PER_METER,
           {
-            mass: ext.mass ?? 1.0,
-            gravityScale: ext.gravityScale ?? 1.0,
-            linearDamping: ext.linearDamping ?? 0.0,
-            angularDamping: ext.angularDamping ?? 0.0,
+            mass: ext.mass,
+            gravityScale: ext.gravityScale,
+            linearDamping: ext.linearDamping,
+            angularDamping: ext.angularDamping,
             initialVelocity: ext.initialVelocity
               ? {
                   vx: ext.initialVelocity.vx / PIXELS_PER_METER,
@@ -962,203 +265,260 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           },
         );
 
-        const hasNextColliders = Array.isArray(ext.colliders) && ext.colliders.length > 0;
-        if (hasNextColliders) {
-          const seenIds = new Set<string>();
-          const sensorIds = new Set<number>();
-          for (const [colliderIndex, collider] of ext.colliders!.entries()) {
-            if (collider.id) {
-              if (seenIds.has(collider.id)) {
-                throw new Error(
-                  `[Physics2D] Duplicate collider id \`${collider.id}\` in prefab entity slot=${slot}. ` +
-                    'Collider ids must be unique per prefab declaration.',
-                );
-              }
-              seenIds.add(collider.id);
-            }
-            addPrefabCollider(
-              svc,
-              handle,
-              collider,
-              layerRegistry,
-              collider.colliderId ?? colliderIndex,
-            );
-
-            if (collider.isSensor) {
-              sensorIds.add(collider.colliderId ?? colliderIndex);
-            }
+        if (Array.isArray(ext.colliders)) {
+          const sensors = new Set<number>();
+          for (const [idx, collider] of ext.colliders.entries()) {
+            const colliderId = collider.colliderId ?? idx;
+            addPrefabCollider(physicsService!, handle, collider, layerRegistry, colliderId, 0);
+            if (collider.isSensor) sensors.add(colliderId);
           }
-
-          if (sensorIds.size > 0) {
-            sensorColliderIdsBySlot.set(slot, sensorIds);
-          }
+          if (sensors.size > 0) activeSensors.set(slot, sensors);
         } else {
-          addLegacyPrefabCollider(svc, handle, ext, cfg.compat, layerRegistry);
+          throw new Error(
+            '[Physics2D] Prefab extension must declare `extensions.physics.colliders[]` in v2.',
+          );
         }
 
-        // Register the per-entity onCollision callback if declared in the extension.
-        if (ext.onCollision) {
-          collisionCallbacks.set(slot, ext.onCollision);
-        }
-
-        debugLog(
-          `prefab:instantiate slot=${slot} bodyType=${bodyType} handle=${handle} colliders=${ext.colliders?.length ?? 0} hasLegacy=${!hasNextColliders}`,
-        );
+        if (ext.onCollision) entityCollisionCallbacks.set(slot, ext.onCollision);
       });
 
-      // Clean up callbacks and rigid bodies when an entity is destroyed.
-      api.hooks.hook('entity:destroy', (entityId) => {
+      api.hooks.hook('entity:destroy', (entityId: any) => {
         const { index: slot } = unpackEntityId(entityId);
-        collisionCallbacks.delete(slot);
-        sensorColliderIdsBySlot.delete(slot);
-        // Important: keep Rapier in sync with ECS lifecycle.
-        // Without this, stale bodies can survive scene transitions and trigger
-        // immediate phantom collisions on next game start.
-        svc.removeBody(slot);
-        debugLog(`entity:destroy slot=${slot} bodyRemoved=true`);
+        entityCollisionCallbacks.delete(slot);
+        activeSensors.delete(slot);
+        physicsService?.removeBody(entityId);
       });
     },
 
-    /**
-     * Resolve raw collision events into enriched `CollisionContact`s and emit the
-     * `physics:collision` hook. Also dispatches per-entity `onCollision` callbacks
-     * declared in prefab extensions.
-     *
-     * Called every frame after `onStep`.
-     */
-    onUpdate(api): void {
-      if (!wasmPlugin || !physicsService) return;
+    onBeforeUpdate(_api: EngineAPI, deltaTime: number): void {
+      cachedCollisionBatch = null;
+      (bridge?.getPhysicsBridge() as any)?.physics_step(deltaTime);
+    },
 
+    onUpdate(api: EngineAPI): void {
+      if (!physicsService) return;
       const batch = physicsService.getCollisionEventsBatch();
       if (batch.count === 0) return;
 
-      if (cfg.eventMode === 'hybrid') {
-        void api.hooks.callHook('physics:collision:batch', batch);
-      }
+      if (cfg.eventMode === 'hybrid') void api.hooks.callHook('physics:collision:batch', batch);
 
-      // Update sensor states from events, emitting physics:sensor:changed on transitions.
-      for (const { slotA, slotB, aColliderId, bColliderId, started } of batch.events) {
-        const resolveTrackedSensorId = (
-          slot: number,
-          colliderId: number | undefined,
-        ): number | undefined => {
-          const knownSensors = sensorColliderIdsBySlot.get(slot);
-          if (!knownSensors || knownSensors.size === 0) {
-            // For non-prefab or external callers, collider ids are still a valid
-            // direct sensor key in v2 payloads.
-            return colliderId;
-          }
+      // Cast to internal type to access slot indices, which are not on the public CollisionEvent.
+      const internalEvents = batch.events as unknown as InternalCollisionEvent[];
 
-          // Event payload v2: only trust explicit ids that were declared as sensors.
-          if (colliderId !== undefined) {
-            return knownSensors.has(colliderId) ? colliderId : undefined;
-          }
-
-          // Legacy payload fallback (no collider ids): only when unambiguous.
-          if (knownSensors.size === 1) {
-            return [...knownSensors][0];
-          }
-
-          return undefined;
+      for (const event of internalEvents) {
+        const processSensor = (slot: number, reportedId?: number) => {
+          const entitySensors = activeSensors.get(slot);
+          if (!entitySensors) return reportedId;
+          if (reportedId !== undefined)
+            return entitySensors.has(reportedId) ? reportedId : undefined;
+          return entitySensors.size === 1 ? [...entitySensors][0] : undefined;
         };
 
-        const sensorPairs: Array<{ slot: number; sensorId: number }> = [];
-        const sensorIdA = resolveTrackedSensorId(slotA, aColliderId);
-        if (sensorIdA !== undefined) {
-          sensorPairs.push({ slot: slotA, sensorId: sensorIdA });
-        }
-        const sensorIdB = resolveTrackedSensorId(slotB, bColliderId);
-        if (sensorIdB !== undefined) {
-          sensorPairs.push({ slot: slotB, sensorId: sensorIdB });
-        }
-
-        for (const { slot, sensorId } of sensorPairs) {
-          const prevState = physicsService.getSensorState(slot, sensorId);
-          physicsService.updateSensorState(slot, sensorId, started);
-          const nextState = physicsService.getSensorState(slot, sensorId);
-          if (prevState.isActive !== nextState.isActive) {
-            debugLog(
-              `sensor:changed slot=${slot} sensorId=${sensorId} active=${nextState.isActive} count=${nextState.contactCount} started=${started}`,
-            );
-            void api.hooks.callHook('physics:sensor:changed', slot, sensorId, nextState);
-          }
+        for (const item of [
+          { slot: event.slotA, id: processSensor(event.slotA, event.aColliderId) },
+          { slot: event.slotB, id: processSensor(event.slotB, event.bColliderId) },
+        ]) {
+          if (item.id === undefined) continue;
+          const generation = api.getEntityGeneration(item.slot);
+          if (generation === undefined) continue;
+          const entityId = createEntityId(item.slot, generation);
+          const prevState = physicsService.getSensorState(entityId, item.id);
+          physicsService.updateSensorState(entityId, item.id, event.started);
+          const nextState = physicsService.getSensorState(entityId, item.id);
+          if (prevState.isActive !== nextState.isActive)
+            void api.hooks.callHook('physics:sensor:changed', entityId, item.id, nextState);
         }
       }
 
-      // Resolve slot indices -> packed EntityIds
-      const contacts: CollisionContact[] = [];
-      for (const { slotA, slotB, aColliderId, bColliderId, started } of batch.events) {
-        const genA = api.getEntityGeneration(slotA);
-        const genB = api.getEntityGeneration(slotB);
-        const entityA = createEntityId(slotA, genA);
-        const entityB = createEntityId(slotB, genB);
-        contacts.push({
-          entityA,
-          entityB,
-          slotA,
-          slotB,
-          aColliderId,
-          bColliderId,
-          started,
-        });
-      }
+      const contacts: CollisionContact[] = internalEvents.map((ev) => ({
+        entityA: createEntityId(ev.slotA, api.getEntityGeneration(ev.slotA)),
+        entityB: createEntityId(ev.slotB, api.getEntityGeneration(ev.slotB)),
+        aColliderId: ev.aColliderId,
+        bColliderId: ev.bColliderId,
+        started: ev.started,
+      }));
 
-      const frozenContacts: ReadonlyArray<CollisionContact> = contacts;
-      void api.hooks.callHook('physics:collision', frozenContacts);
-
+      void api.hooks.callHook('physics:collision', contacts);
       for (const contact of contacts) {
-        const cbA = collisionCallbacks.get(contact.slotA);
-        if (cbA) cbA(contact.entityA, contact.entityB, contact, api);
-
-        const cbB = collisionCallbacks.get(contact.slotB);
-        if (cbB) cbB(contact.entityB, contact.entityA, contact, api);
+        const slotA = unpackEntityId(contact.entityA).index;
+        const slotB = unpackEntityId(contact.entityB).index;
+        entityCollisionCallbacks.get(slotA)?.(contact.entityA, contact.entityB, contact, api);
+        entityCollisionCallbacks.get(slotB)?.(contact.entityB, contact.entityA, contact, api);
       }
     },
 
-    /**
-     * Advance the Rapier2D simulation by `deltaTime` seconds.
-     * Called each frame before `onUpdate`.
-     */
-    onStep(deltaTime: number): void {
-      cachedCollisionBatch = null;
-      cachedCollisionEventCount = 0;
-      wasmPlugin?.step(deltaTime);
-      debugFrameCount++;
+    createAPI(api: EngineAPI): Physics2DAPI {
+      const pb = bridge!.getPhysicsBridge() as any;
+      /** Extract raw slot index from packed EntityId (bigint) or legacy raw slot number. */
+      const slot = (id: import('@djodjonx/gwen-engine-core').EntityId | number) =>
+        typeof id === 'number' ? id : unpackEntityId(id).index;
+      const resolveContacts = (
+        events: ReadonlyArray<InternalCollisionEvent>,
+      ): CollisionContact[] => {
+        const out: CollisionContact[] = [];
+        for (const ev of events) {
+          const genA = api.getEntityGeneration(ev.slotA);
+          const genB = api.getEntityGeneration(ev.slotB);
+          if (genA === undefined || genB === undefined) continue;
+          out.push({
+            entityA: createEntityId(ev.slotA, genA),
+            entityB: createEntityId(ev.slotB, genB),
+            aColliderId: ev.aColliderId,
+            bColliderId: ev.bColliderId,
+            started: ev.started,
+          });
+        }
+        return out;
+      };
+      return {
+        isDebugEnabled: () => cfg.debug,
+        addRigidBody: (entityId, type, x, y, opts = {}) => {
+          const s = slot(entityId);
+          const handle = pb.physics_add_rigid_body(
+            s,
+            x,
+            y,
+            BODY_TYPE[type],
+            opts.mass ?? 1.0,
+            opts.gravityScale ?? 1.0,
+            opts.linearDamping ?? 0.0,
+            opts.angularDamping ?? 0.0,
+            opts.initialVelocity?.vx ?? 0.0,
+            opts.initialVelocity?.vy ?? 0.0,
+            opts.ccdEnabled === undefined ? undefined : opts.ccdEnabled ? 1 : 0,
+            opts.additionalSolverIterations,
+          );
+          if (cfg.debug)
+            console.log(
+              `[Physics2D] addRigidBody entity=${s} type=${type} x=${x.toFixed(3)} y=${y.toFixed(3)} -> handle=${handle}`,
+            );
+          return handle;
+        },
+        addBoxCollider: (handle, hw, hh, opts = {}) =>
+          pb.physics_add_box_collider(
+            handle,
+            hw,
+            hh,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            typeof opts.membershipLayers === 'number'
+              ? opts.membershipLayers
+              : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+            typeof opts.filterLayers === 'number'
+              ? opts.filterLayers
+              : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
+            opts.colliderId,
+            opts.offsetX,
+            opts.offsetY,
+          ),
+        addBallCollider: (handle, radius, opts = {}) =>
+          pb.physics_add_ball_collider(
+            handle,
+            radius,
+            opts.restitution ?? 0,
+            opts.friction ?? 0.5,
+            opts.isSensor ? 1 : 0,
+            opts.density ?? 1.0,
+            typeof opts.membershipLayers === 'number'
+              ? opts.membershipLayers
+              : layerRegistry.resolve(opts.membershipLayers as string[] | undefined, 'membership'),
+            typeof opts.filterLayers === 'number'
+              ? opts.filterLayers
+              : layerRegistry.resolve(opts.filterLayers as string[] | undefined, 'filter'),
+            opts.colliderId,
+            opts.offsetX,
+            opts.offsetY,
+          ),
+        removeBody: (entityId) => pb.physics_remove_rigid_body(slot(entityId)),
+        setKinematicPosition: (entityId, x, y) =>
+          pb.physics_set_kinematic_position(slot(entityId), x, y),
+        applyImpulse: (entityId, x, y) => pb.physics_apply_impulse(slot(entityId), x, y),
+        setLinearVelocity: (entityId, vx, vy) =>
+          pb.physics_set_linear_velocity(slot(entityId), vx, vy),
+        getLinearVelocity: (entityId) => {
+          const res = pb.physics_get_linear_velocity(slot(entityId));
+          return res ? { x: res[0], y: res[1] } : null;
+        },
+        getPosition: (entityId) => {
+          const res = pb.physics_get_position(slot(entityId));
+          if (!res || res.length === 0) return null;
+          return { x: res[0], y: res[1], rotation: res[2] };
+        },
+        getSensorState: (entityId, colliderId) => {
+          const res = pb.physics_get_sensor_state(slot(entityId), colliderId);
+          if (!res || res.length === 0) return { contactCount: 0, isActive: false };
+          return { contactCount: res[0], isActive: res[1] !== 0 };
+        },
+        updateSensorState: (entityId, colliderId, active) =>
+          pb.physics_update_sensor_state(slot(entityId), colliderId, active ? 1 : 0),
+        getCollisionEventsBatch: (opts) => readCollisionEvents(opts?.max),
+        getCollisionContacts: (opts) => {
+          const batch = readCollisionEvents(opts?.max);
+          return resolveContacts(batch.events as unknown as InternalCollisionEvent[]);
+        },
+        buildNavmesh: () =>
+          pb.physics_build_navmesh ? pb.physics_build_navmesh() : pb.build_navmesh?.(),
+        findPath: (from, to) => {
+          const count = pb.path_find_2d(from.x, from.y, to.x, to.y);
+          const ptr = pb.path_get_result_ptr();
+          const memory = bridge!.getLinearMemory();
+          if (!memory) return [];
+          const view = new Float32Array(memory.buffer, ptr, count * 2);
+          const path: Array<{ x: number; y: number }> = [];
+          for (let i = 0; i < count; i++) path.push({ x: view[i * 2], y: view[i * 2 + 1] });
+          return path;
+        },
+        loadTilemapPhysicsChunk(chunk, x, y, opts = {}) {
+          const existing = loadedTilemapChunks.get(chunk.key);
+          if (existing?.checksum === chunk.checksum) return;
+          if (existing) {
+            pb.physics_unload_tilemap_chunk_body(existing.chunkId);
+            loadedTilemapChunks.delete(chunk.key);
+          }
+          const chunkId = tilemapChunkIdFromKey(chunk.key);
+          const pseudoEntityIndex = tilemapPseudoEntityFromChunkId(chunkId);
+          const bodyHandle = pb.physics_load_tilemap_chunk_body(chunkId, pseudoEntityIndex, x, y);
+          if (!opts.debugNaive) {
+            for (const [colliderIndex, collider] of chunk.colliders.entries())
+              addPrefabCollider(
+                physicsService!,
+                bodyHandle,
+                collider,
+                layerRegistry,
+                colliderIndex,
+                0.5,
+              );
+          }
+          loadedTilemapChunks.set(chunk.key, { chunkId, checksum: chunk.checksum });
+        },
+        unloadTilemapPhysicsChunk(key) {
+          const loaded = loadedTilemapChunks.get(key);
+          if (!loaded) return;
+          pb.physics_unload_tilemap_chunk_body(loaded.chunkId);
+          loadedTilemapChunks.delete(key);
+        },
+        patchTilemapPhysicsChunk(chunk, x, y, opts) {
+          this.unloadTilemapPhysicsChunk(chunk.key);
+          this.loadTilemapPhysicsChunk(chunk, x, y, opts);
+        },
+      };
     },
 
-    /** Free the WASM instance when the engine stops. */
     onDestroy(): void {
-      wasmPlugin?.free?.();
-      wasmPlugin = null;
       eventsView = null;
-      cachedCollisionBatch = null;
-      cachedCollisionEventCount = 0;
+      eventsBufferRef = null;
       physicsService = null;
-      collisionCallbacks.clear();
-      sensorColliderIdsBySlot.clear();
+      entityCollisionCallbacks.clear();
+      activeSensors.clear();
       loadedTilemapChunks.clear();
+      bridge = null;
     },
   };
 });
 
-// ─── Helper factory ───────────────────────────────────────────────────────────
-
-/** Preferred constructor-style alias for config usage: `new Physics2D({...})`. */
 export const Physics2D = Physics2DPlugin;
-
-/**
- * Create a `Physics2DPlugin` instance.
- *
- * ```typescript
- * import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
- *
- * export default defineConfig({
- *   plugins: [new Physics2D({ gravity: -9.81 })],
- * });
- * ```
- *
- * @deprecated Use `new Physics2D(config)` instead.
- */
-export function physics2D(config: Physics2DConfig = {}): InstanceType<typeof Physics2DPlugin> {
+export function physics2D(config: Physics2DConfig = {}) {
   return new Physics2DPlugin(config);
 }

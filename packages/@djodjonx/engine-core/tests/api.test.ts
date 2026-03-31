@@ -99,43 +99,121 @@ describe('EngineAPIImpl', () => {
   });
 
   describe('Entity operations', () => {
-    it('should create entity via API', () => {
-      const id = api.createEntity();
+    it('should create entity via api.entity.create()', () => {
+      const id = api.entity.create();
       expect(em.isAlive(id)).toBe(true);
     });
 
-    it('should destroy entity via API', () => {
-      const id = api.createEntity();
-      expect(api.destroyEntity(id)).toBe(true);
+    it('should destroy entity via api.entity.destroy()', () => {
+      const id = api.entity.create();
+      expect(api.entity.destroy(id)).toBe(true);
       expect(em.isAlive(id)).toBe(false);
     });
 
     it('should return false destroying non-existent entity', () => {
+      const id = api.entity.create();
+      api.entity.destroy(id);
+      expect(api.entity.destroy(id)).toBe(false);
+    });
+
+    it('api.entity.isAlive() returns correct liveness', () => {
+      const id = api.entity.create();
+      expect(api.entity.isAlive(id)).toBe(true);
+      api.entity.destroy(id);
+      expect(api.entity.isAlive(id)).toBe(false);
+    });
+
+    it('api.entity.tag / hasTag / untag work correctly', () => {
+      const id = api.entity.create();
+      expect(api.entity.hasTag(id, 'grounded')).toBe(false);
+      api.entity.tag(id, 'grounded');
+      expect(api.entity.hasTag(id, 'grounded')).toBe(true);
+      api.entity.untag(id, 'grounded');
+      expect(api.entity.hasTag(id, 'grounded')).toBe(false);
+    });
+
+    it('api.entity.getGeneration() returns the slot generation', () => {
+      api.entity.create();
+      // Generation 0 for a fresh entity
+      expect(api.entity.getGeneration(0)).toBe(0);
+    });
+
+    // ── Internal helpers still accessible on EngineAPIImpl ─────────────────
+    it('createEntity() / destroyEntity() still work as internal helpers', () => {
       const id = api.createEntity();
-      api.destroyEntity(id);
-      expect(api.destroyEntity(id)).toBe(false);
+      expect(em.isAlive(id)).toBe(true);
+      expect(api.destroyEntity(id)).toBe(true);
+      expect(em.isAlive(id)).toBe(false);
     });
   });
 
   describe('Component operations', () => {
-    it('should add and get component', () => {
+    it('api.component.add / get should store and retrieve component', () => {
+      const e = api.entity.create();
+      const Position = defineComponent({
+        name: 'Position',
+        schema: { x: Types.f32, y: Types.f32 },
+      });
+      api.component.add(e, Position, { x: 5, y: 10 });
+      expect(api.component.get(e, Position)).toEqual({ x: 5, y: 10 });
+    });
+
+    it('api.component.has returns correct boolean', () => {
+      const e = api.entity.create();
+      const Pos = defineComponent({ name: 'Pos', schema: { x: Types.f32 } });
+      expect(api.component.has(e, Pos)).toBe(false);
+      api.component.add(e, Pos, { x: 0 });
+      expect(api.component.has(e, Pos)).toBe(true);
+    });
+
+    it('api.component.remove removes the component', () => {
+      const e = api.entity.create();
+      const Tag = defineComponent({ name: 'Tag', schema: {} });
+      api.component.add(e, Tag, {});
+      expect(api.component.remove(e, Tag)).toBe(true);
+      expect(api.component.has(e, Tag)).toBe(false);
+    });
+
+    it('api.component.set merges patch onto existing value', () => {
+      const e = api.entity.create();
+      const HP = defineComponent({ name: 'HP', schema: { current: Types.f32, max: Types.f32 } });
+      api.component.add(e, HP, { current: 100, max: 100 });
+      api.component.set(e, HP, { current: 60 });
+      expect(api.component.get(e, HP)).toEqual({ current: 60, max: 100 });
+    });
+
+    it('api.component.set creates with defaults when component absent', () => {
+      const e = api.entity.create();
+      const HP = defineComponent({
+        name: 'HP2',
+        schema: { current: Types.f32, max: Types.f32 },
+        defaults: { current: 50, max: 50 },
+      });
+      api.component.set(e, HP, { current: 30 });
+      expect(api.component.get(e, HP)).toEqual({ current: 30, max: 50 });
+    });
+
+    it('api.component.getOrThrow throws when absent', () => {
+      const e = api.entity.create();
+      const Absent = defineComponent({ name: 'Absent', schema: {} });
+      expect(() => api.component.getOrThrow(e, Absent)).toThrow('[GWEN]');
+    });
+
+    it('api.component.getOrThrow returns value when present', () => {
+      const e = api.entity.create();
+      const Present = defineComponent({ name: 'Present', schema: { v: Types.f32 } });
+      api.component.add(e, Present, { v: 42 });
+      expect(api.component.getOrThrow(e, Present)).toEqual({ v: 42 });
+    });
+
+    // ── Internal helpers still accessible on EngineAPIImpl ─────────────────
+    it('addComponent() / getComponent() / hasComponent() / removeComponent() still work as internal helpers', () => {
       const e = api.createEntity();
       api.addComponent(e, 'position', { x: 5, y: 10 });
       expect(api.getComponent(e, 'position')).toEqual({ x: 5, y: 10 });
-    });
-
-    it('should check hasComponent', () => {
-      const e = api.createEntity();
-      expect(api.hasComponent(e, 'position')).toBe(false);
-      api.addComponent(e, 'position', {});
       expect(api.hasComponent(e, 'position')).toBe(true);
-    });
-
-    it('should remove component', () => {
-      const e = api.createEntity();
-      api.addComponent(e, 'tag', 'player');
-      expect(api.removeComponent(e, 'tag')).toBe(true);
-      expect(api.hasComponent(e, 'tag')).toBe(false);
+      expect(api.removeComponent(e, 'position')).toBe(true);
+      expect(api.hasComponent(e, 'position')).toBe(false);
     });
   });
 
@@ -151,8 +229,8 @@ describe('EngineAPIImpl', () => {
     });
 
     it('should query entities with component', () => {
-      const e1 = api.createEntity();
-      const e2 = api.createEntity();
+      const e1 = api.entity.create();
+      const e2 = api.entity.create();
       api.addComponent(e1, 'position', {});
 
       const results = api.query(['position']);
@@ -161,8 +239,8 @@ describe('EngineAPIImpl', () => {
     });
 
     it('should query with multiple required components', () => {
-      const e1 = api.createEntity();
-      const e2 = api.createEntity();
+      const e1 = api.entity.create();
+      const e2 = api.entity.create();
       api.addComponent(e1, 'position', {});
       api.addComponent(e1, 'velocity', {});
       api.addComponent(e2, 'position', {});
@@ -173,17 +251,17 @@ describe('EngineAPIImpl', () => {
     });
 
     it('should return the same results for definition and name queries', () => {
-      const id = api.createEntity();
-      api.addComponent(id, Position, { x: 1, y: 2 });
+      const id = api.entity.create();
+      api.component.add(id, Position, { x: 1, y: 2 });
 
       expect(api.query([Position])).toEqual(api.query([Position.name]));
       expect(api.query([Position])).toContain(id);
     });
 
     it('should support mixed component references in query', () => {
-      const id = api.createEntity();
-      api.addComponent(id, Position, { x: 0, y: 0 });
-      api.addComponent(id, Velocity, { vx: 1, vy: 0 });
+      const id = api.entity.create();
+      api.component.add(id, Position, { x: 0, y: 0 });
+      api.component.add(id, Velocity, { vx: 1, vy: 0 });
 
       const mixed = api.query([Position, Velocity.name]);
       const byName = api.query([Position.name, Velocity.name]);
@@ -228,9 +306,10 @@ describe('createEngineAPI', () => {
     const qe = new QueryEngine();
     const api = createEngineAPI(em, reg, qe);
 
-    const e = api.createEntity();
-    api.addComponent(e, 'health', { hp: 100 });
-    expect(api.getComponent(e, 'health')).toEqual({ hp: 100 });
+    const Health = defineComponent({ name: 'health', schema: { hp: Types.f32 } });
+    const e = api.entity.create();
+    api.component.add(e, Health, { hp: 100 });
+    expect(api.component.get(e, Health)).toEqual({ hp: 100 });
     expect(api.query(['health'])).toContain(e);
   });
 

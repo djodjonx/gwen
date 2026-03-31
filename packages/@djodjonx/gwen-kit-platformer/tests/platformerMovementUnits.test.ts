@@ -73,8 +73,8 @@ describe('PlatformerMovementSystem units conversion', () => {
       1 / 60,
     );
 
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 8, -12);
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 8, -15);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0n, 8, -12);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0n, 8, -15);
   });
 
   it('keeps movement values unchanged when units is meters', () => {
@@ -112,8 +112,8 @@ describe('PlatformerMovementSystem units conversion', () => {
       1 / 60,
     );
 
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 8, 0);
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 8, -15);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0n, 8, 0);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0n, 8, -15);
   });
 
   it('applies horizontal movement without jump when jumpJustPressed is false', () => {
@@ -153,7 +153,7 @@ describe('PlatformerMovementSystem units conversion', () => {
 
     // Only one setLinearVelocity call — no jump triggered
     expect(physics.setLinearVelocity).toHaveBeenCalledTimes(1);
-    expect(physics.setLinearVelocity).toHaveBeenCalledWith(0, -6, 0);
+    expect(physics.setLinearVelocity).toHaveBeenCalledWith(0n, -6, 0);
   });
 
   it('respects custom pixelsPerMeter in pixels mode', () => {
@@ -192,11 +192,11 @@ describe('PlatformerMovementSystem units conversion', () => {
     );
 
     // speed=400/100=4, maxFallSpeed=500/100=5 -> clamp(-100, -5)=-5, jumpVelocity=600/100=6
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 4, -5);
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 4, -6);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0n, 4, -5);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0n, 4, -6);
   });
 
-  it('supports deprecated jump aliases from legacy controllers', () => {
+  it('uses jump fields from PlatformerController v2 schema', () => {
     const physics = makePhysics();
     const system = PlatformerMovementSystem();
 
@@ -214,10 +214,10 @@ describe('PlatformerMovementSystem units conversion', () => {
               units: 'meters',
               pixelsPerMeter: 50,
               speed: 8,
-              jumpForce: 16,
+              jumpVelocity: 16,
               maxFallSpeed: 12,
-              coyoteMs: 120,
-              jumpBufferMs: 120,
+              jumpCoyoteMs: 120,
+              jumpBufferWindowMs: 120,
             };
           }
           if (def === PlatformerIntent)
@@ -228,7 +228,7 @@ describe('PlatformerMovementSystem units conversion', () => {
       1 / 60,
     );
 
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0, 8, 0);
-    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0, 8, -16);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(1, 0n, 8, 0);
+    expect(physics.setLinearVelocity).toHaveBeenNthCalledWith(2, 0n, 8, -16);
   });
 });

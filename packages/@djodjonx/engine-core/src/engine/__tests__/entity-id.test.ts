@@ -17,8 +17,6 @@ import {
   entityIdEqual,
   entityIdToString,
   entityIdFromString,
-  packId,
-  unpackId,
   type EntityId,
 } from '../engine-api';
 
@@ -220,21 +218,6 @@ describe('EntityId (64-bit BigInt with brand)', () => {
       expect(() => entityIdFromString(':')).toThrow();
       expect(() => entityIdFromString('5:')).toThrow();
       expect(() => entityIdFromString(':42')).toThrow();
-    });
-  });
-
-  describe('Backward compatibility (deprecated packId / unpackId)', () => {
-    it('packId should work identically to createEntityId', () => {
-      const id1 = packId({ index: 5, generation: 42 });
-      const id2 = createEntityId(5, 42);
-      expect(entityIdEqual(id1, id2)).toBe(true);
-    });
-
-    it('unpackId should work identically to unpackEntityId', () => {
-      const id = createEntityId(5, 42);
-      const result1 = unpackId(id);
-      const result2 = unpackEntityId(id);
-      expect(result1).toEqual(result2);
     });
   });
 

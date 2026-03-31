@@ -39,6 +39,7 @@
 
 import type { EngineAPI } from './engine-api';
 import type { PluginChannel } from './plugin-channel';
+import type { SystemQuery, QueryResult } from '../core/query-result';
 
 // ── WASM context ──────────────────────────────────────────────────────────────
 
@@ -58,6 +59,14 @@ export interface GwenPluginWasmContext {
    * @example `'physics2d'`, `'ai-navigation'`
    */
   readonly id: string;
+
+  /**
+   * Explicit SharedArrayBuffer opt-in for this plugin.
+   *
+   * - `false` (default): DataBus-only path, no SAB requirement.
+   * - `true`: plugin expects a SAB region and requires COOP/COEP headers.
+   */
+  readonly sharedMemory?: boolean;
 
   /**
    * Bytes to reserve in the legacy shared transform buffer (SAB).
@@ -113,7 +122,7 @@ export interface GwenPluginWasmContext {
   ): Promise<void>;
 
   /**
-   * Per-frame WASM simulation tick — called **before** `TsPlugin.onUpdate`.
+   * Per-frame WASM simulation tick — called **before** `GwenPlugin.onUpdate`.
    *
    * Run `this._wasmInstance.step(deltaTime)` here. Keep this method as lean
    * as possible; heavy JS work should go in `onUpdate` instead.
@@ -217,6 +226,35 @@ export interface GwenPlugin<
   readonly version?: string;
 
   /**
+   * Static query descriptor — when declared, a `QueryResult` is resolved
+   * each frame and injected as the third argument to `onUpdate`.
+   *
+   * Short form: `ComponentDef[]` — treated as `{ all: [...] }`.
+   *
+   * @example
+   * ```ts
+   * query: [Position, Velocity]
+   * // or
+   * query: { all: [Position], none: [Frozen] }
+   * ```
+   */
+  readonly query?: SystemQuery;
+
+  /**
+   * Plugin names that must be registered before this one.
+   *
+   * `PluginManager.register()` throws immediately if any listed name is not yet
+   * registered, surfacing dependency errors at registration time instead of inside
+   * `onInit` where they would produce harder-to-diagnose runtime failures.
+   *
+   * @example
+   * ```ts
+   * readonly dependencies = ['Physics2D'] as const;
+   * ```
+   */
+  readonly dependencies?: readonly string[];
+
+  /**
    * Services this plugin registers in `api.services`.
    *
    * Phantom type — values are never read at runtime. Set them to
@@ -280,10 +318,14 @@ export interface GwenPlugin<
   /**
    * Called after the WASM step — apply game logic on the updated simulation state.
    *
+   * If a `query` descriptor is declared on the plugin/system, the resolved
+   * `QueryResult` is injected as the third argument.
+   *
    * @param api       Active engine API.
    * @param deltaTime Frame delta time in seconds (capped at 0.1 s).
+   * @param entities  Query result — only provided when `query` is declared.
    */
-  onUpdate?(api: EngineAPI, deltaTime: number): void;
+  onUpdate?(api: EngineAPI, deltaTime: number, entities?: QueryResult): void;
 
   /**
    * Called at the end of each frame — draw, update DOM, sync UI.
@@ -322,20 +364,9 @@ export interface GwenPlugin<
  */
 export type PluginEntry = GwenPlugin | (() => GwenPlugin);
 
-// ── Legacy aliases (deprecated) ───────────────────────────────────────────────
+// ── Aliases ──────────────────────────────────────────────────────────────────
 
 /**
- * @deprecated Use `GwenPlugin` instead.
- *
- * Legacy base plugin interface kept for backward compatibility.
- * All fields are available on the unified `GwenPlugin` interface.
+ * WASM-capable plugin alias.
  */
-export type TsPlugin = GwenPlugin;
-
-/**
- * @deprecated Use `GwenPlugin` with a `wasm` sub-object instead.
- *
- * Legacy WASM plugin interface kept for backward compatibility.
- * Migrate to `GwenPlugin & { readonly wasm: GwenPluginWasmContext }`.
- */
-export type LegacyWasmPlugin = GwenPlugin & { readonly wasm: GwenPluginWasmContext };
+export type GwenWasmPlugin = GwenPlugin & { readonly wasm: GwenPluginWasmContext };

@@ -156,7 +156,7 @@ fn wasm_get_component_raw_returns_bytes() {
 
     let value: u32 = 0xDEAD_BEEF;
     let data = value.to_le_bytes();
-    engine.add_component(id.index(), id.generation(), type_id, &data);
+    engine.add_component(id.index(), id.generation(), type_id, &data[..]);
 
     let raw = engine.get_component_raw(id.index(), id.generation(), type_id);
     assert_eq!(raw.len(), 4);

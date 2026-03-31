@@ -267,7 +267,7 @@ Use domain subpaths when possible to keep bundle size minimal.
 ```ts
 import { getBodySnapshot } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
 import { moveKinematicByVelocity } from '@djodjonx/gwen-plugin-physics2d/helpers/movement';
-import { selectContactsForEntity } from '@djodjonx/gwen-plugin-physics2d/helpers/contact';
+import { selectContactsForEntityId, getEntityCollisionContacts } from '@djodjonx/gwen-plugin-physics2d/helpers/contact';
 import { buildStaticGeometryChunk } from '@djodjonx/gwen-plugin-physics2d/helpers/static-geometry';
 import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/helpers/orchestration';
 ```
@@ -282,7 +282,7 @@ import { createTilemapChunkOrchestrator } from '@djodjonx/gwen-plugin-physics2d/
 
 - `helpers/queries`: read helpers (`getBodySnapshot`, `isSensorActive`, `getSpeed`).
 - `helpers/movement`: generic movement helpers (`moveKinematicByVelocity`, `applyDirectionalImpulse`).
-- `helpers/contact`: event filtering/resolution (`selectContactsForEntity`, `dedupeContactsByPair`, `toResolvedContacts`).
+- `helpers/contact`: event filtering/resolution (`selectContactsForEntityId`, `getEntityCollisionContacts`, `dedupeContactsByPair`, `toResolvedContacts`). Note: `selectContactsForEntity` (slot-based) is deprecated — use EntityId-first alternatives.
 - `helpers/static-geometry`: baked chunk wrappers (`buildStaticGeometryChunk`, `loadStaticGeometryChunk`).
 - `helpers/orchestration`: runtime chunk lifecycle orchestrator.
 

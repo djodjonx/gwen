@@ -95,9 +95,9 @@ mod tests {
 
         let ids: Vec<_> = em.iter_entities().collect();
         assert_eq!(ids.len(), 2);
-        assert!(ids.iter().any(|&id| id == e1));
-        assert!(ids.iter().any(|&id| id == e3));
-        assert!(!ids.iter().any(|&id| id == e2));
+        assert!(ids.contains(&e1));
+        assert!(ids.contains(&e3));
+        assert!(!ids.contains(&e2));
     }
 
     #[test]

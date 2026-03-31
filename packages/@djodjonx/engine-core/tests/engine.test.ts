@@ -75,6 +75,16 @@ function createMockWasmEngine(): WasmEngine {
       }
       return new Uint32Array(result);
     }),
+    query_entities_to_buffer: vi.fn((typeIds: Uint32Array): number => {
+      const needed = Array.from(typeIds);
+      let count = 0;
+      for (const [index] of entities) {
+        const arch = archetypes.get(index) ?? [];
+        if (needed.every((t) => arch.includes(t))) count++;
+      }
+      return count;
+    }),
+    get_query_result_ptr: vi.fn(() => 0),
     get_entity_generation: vi.fn((index: number): number => {
       return entities.get(index) ?? 0xffffffff;
     }),
@@ -85,6 +95,9 @@ function createMockWasmEngine(): WasmEngine {
     total_time: vi.fn(() => 0),
     alloc_shared_buffer: vi.fn(() => 4096),
     sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_to_buffer_sparse: vi.fn(),
+    dirty_transform_count: vi.fn(() => 0),
+    clear_transform_dirty: vi.fn(),
     sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{"entities":0}'),
   };
@@ -159,6 +172,18 @@ function createReusableSlotMockWasmEngine(): WasmEngine {
       }
       return new Uint32Array(result);
     }),
+    query_entities_to_buffer: vi.fn((typeIds: Uint32Array): number => {
+      const needed = Array.from(typeIds);
+      let count = 0;
+      for (const [index, generation] of entities) {
+        if (free.includes(index)) continue;
+        if (generation === undefined) continue;
+        const arch = archetypes.get(index) ?? [];
+        if (needed.every((t) => arch.includes(t))) count++;
+      }
+      return count;
+    }),
+    get_query_result_ptr: vi.fn(() => 0),
     get_entity_generation: vi.fn((index: number): number => {
       return entities.get(index) ?? 0xffffffff;
     }),
@@ -169,6 +194,9 @@ function createReusableSlotMockWasmEngine(): WasmEngine {
     total_time: vi.fn(() => 0),
     alloc_shared_buffer: vi.fn(() => 4096),
     sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_to_buffer_sparse: vi.fn(),
+    dirty_transform_count: vi.fn(() => 0),
+    clear_transform_dirty: vi.fn(),
     sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{"entities":0}'),
   };
@@ -225,6 +253,43 @@ describe('Engine', () => {
       _resetWasmBridge(); // retire le mock
       const e = new Engine({ maxEntities: 100 });
       await expect(e.start()).rejects.toThrow('WASM');
+    });
+
+    it('external loop start does not schedule RAF and advance() uses maxDeltaSeconds cap', async () => {
+      const prevRaf = (globalThis as any).requestAnimationFrame;
+      const prevCancel = (globalThis as any).cancelAnimationFrame;
+      const rafSpy = vi.fn(() => 1);
+      const cancelSpy = vi.fn();
+      (globalThis as any).requestAnimationFrame = rafSpy;
+      (globalThis as any).cancelAnimationFrame = cancelSpy;
+
+      try {
+        const ext = new Engine({
+          maxEntities: 1000,
+          targetFPS: 60,
+          loop: 'external',
+          maxDeltaSeconds: 0.05,
+        });
+
+        let seenDt = -1;
+        ext.registerSystem({
+          name: 'capture-dt',
+          onBeforeUpdate: (_api, dt) => {
+            seenDt = dt;
+          },
+        });
+
+        await ext.start();
+        expect(rafSpy).not.toHaveBeenCalled();
+
+        await ext.advance(1.0);
+        expect(seenDt).toBeCloseTo(0.05, 5);
+
+        await ext.stop();
+      } finally {
+        (globalThis as any).requestAnimationFrame = prevRaf;
+        (globalThis as any).cancelAnimationFrame = prevCancel;
+      }
     });
   });
 
@@ -405,7 +470,7 @@ describe('Engine', () => {
       expect(engine.query([Position.name])).not.toContain(e);
     });
 
-    it('should keep archetype/cache consistent when using EngineAPI destroy + slot reuse', async () => {
+    it('should keep archetype/cache consistent when using api.entity.destroy + slot reuse', async () => {
       _resetWasmBridge();
       const reusable = createReusableSlotMockWasmEngine();
       _injectMockWasmEngine(reusable);
@@ -413,14 +478,14 @@ describe('Engine', () => {
       const api = e.getAPI();
 
       // First game: slot gets Position and is destroyed via API path.
-      const e1 = api.createEntity();
-      api.addComponent(e1, Position, { x: 1, y: 1 });
+      const e1 = api.entity.create();
+      api.component.add(e1, Position, { x: 1, y: 1 });
       expect(api.query([Position.name])).toContain(e1);
-      expect(api.destroyEntity(e1)).toBe(true);
+      expect(api.entity.destroy(e1)).toBe(true);
 
       // Second game: same slot reused, only Velocity is added.
-      const e2 = api.createEntity();
-      api.addComponent(e2, Velocity, { vx: 2, vy: 3 });
+      const e2 = api.entity.create();
+      api.component.add(e2, Velocity, { vx: 2, vy: 3 });
 
       // Regression guard: reused entity must NOT inherit stale Position archetype.
       expect(api.query([Position.name])).not.toContain(e2);
@@ -432,14 +497,14 @@ describe('Engine', () => {
       e.stop();
     });
 
-    it('should keep removeComponent consistent through EngineAPI shim path', async () => {
+    it('should keep removeComponent consistent through api.component.remove path', async () => {
       const api = engine.getAPI();
-      const id = api.createEntity();
+      const id = api.entity.create();
 
-      api.addComponent(id, Position, { x: 0, y: 0 });
+      api.component.add(id, Position, { x: 0, y: 0 });
       expect(api.query([Position.name])).toContain(id);
 
-      expect(api.removeComponent(id, Position)).toBe(true);
+      expect(api.component.remove(id, Position)).toBe(true);
       expect(api.query([Position.name])).not.toContain(id);
     });
   });
@@ -477,7 +542,7 @@ describe('Engine', () => {
 
   // ============= Plugin System =============
 
-  describe('Plugin System (TsPlugin lifecycle)', () => {
+  describe('Plugin System (GwenPlugin lifecycle)', () => {
     it('should call onInit when plugin is registered', () => {
       let initCalled = false;
       engine.registerSystem({
@@ -528,27 +593,6 @@ describe('Engine', () => {
       });
       engine.stop();
       expect(destroyed).toBe(true);
-    });
-  });
-
-  // ============= Legacy Plugin API =============
-
-  describe('Legacy Plugin API', () => {
-    it('should load plugin and call init', () => {
-      let initCalled = false;
-      engine.loadPlugin('legacy', {
-        init: () => {
-          initCalled = true;
-        },
-      });
-      expect(initCalled).toBe(true);
-      expect(engine.hasPlugin('legacy')).toBe(true);
-    });
-
-    it('should retrieve loaded plugin', () => {
-      const plugin = { name: 'old', version: '1.0.0' };
-      engine.loadPlugin('old', plugin);
-      expect(engine.getPlugin('old')).toBe(plugin);
     });
   });
 

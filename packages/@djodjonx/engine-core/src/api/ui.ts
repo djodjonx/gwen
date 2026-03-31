@@ -36,7 +36,7 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI } from '../types';
+import type { GwenPlugin, EngineAPI } from '../types';
 import type { EntityId } from '../types/entity';
 import { defineComponent, Types } from '../schema';
 
@@ -158,10 +158,10 @@ export function defineUI<Services extends object = GwenDefaultServices>(
  * Plugin that dispatches UIDefinition lifecycle hooks.
  * Renderer-agnostic — pure dispatch, no rendering knowledge.
  *
- * Registered as a TsPlugin so it runs automatically each frame via `onRender`.
+ * Registered as a GwenPlugin so it runs automatically each frame via `onRender`.
  * Mount order follows UIDefinition registration order (first-registered, first-rendered).
  */
-export class UIManager implements TsPlugin {
+export class UIManager implements GwenPlugin {
   readonly name = 'UIManager';
 
   private definitions = new Map<string, UIDefinition<any>>();
@@ -188,7 +188,7 @@ export class UIManager implements TsPlugin {
     // This avoids O(n log n) WASM calls in the sort comparator
     const uiNames = new Map<EntityId, string>();
     for (const id of entities) {
-      const data = api.getComponent(id, UIComponent);
+      const data = api.component.get(id, UIComponent);
       if (data) {
         uiNames.set(id, data.uiName);
       }

@@ -47,23 +47,13 @@ jobs:
       - name: WASM tests — gwen-core
         run: wasm-pack test --node crates/gwen-core
 
-      - name: Build WASM — gwen-core
+      - name: Build WASM — engine-core
         run: |
           wasm-pack build --target web --release \
             --out-dir $GITHUB_WORKSPACE/packages/@gwen/engine-core/wasm \
             crates/gwen-core
 
-      - name: Rust tests — gwen-plugin-physics2d
-        run: cargo test -p gwen-plugin-physics2d
-
-      - name: Build WASM — gwen-plugin-physics2d
-        run: |
-          wasm-pack build --target web --release \
-            --out-dir $GITHUB_WORKSPACE/packages/@gwen/plugin-physics2d/wasm \
-            --out-name gwen_physics2d \
-            crates/gwen-plugin-physics2d
-
-  # ── TypeScript : build → typecheck → test ────────────────────────────────
+      # ── TypeScript : build → typecheck → test ────────────────────────────────
   typescript:
     name: TypeScript
     runs-on: ubuntu-latest

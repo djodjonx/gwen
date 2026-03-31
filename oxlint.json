@@ -5,7 +5,15 @@
     "no-var": "error",
     "prefer-const": "error",
     "eqeqeq": "error",
-    "no-console": "off"
+    "no-console": "off",
+    "no-restricted-imports": ["error", {
+      "patterns": [
+        "*/wasm/gwen_core*",
+        "*/wasm/gwen-core*",
+        "gwen_core",
+        "gwen-core"
+      ]
+    }]
   },
   "env": {
     "browser": true,

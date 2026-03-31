@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Engine, SceneManager, type Scene, type TsPlugin } from '../src/index';
+import { Engine, SceneManager, type Scene, type GwenPlugin } from '../src/index';
 import { _injectMockWasmEngine, _resetWasmBridge } from '../src/engine/wasm-bridge';
 
 function makeMock() {
@@ -15,17 +15,22 @@ function makeMock() {
     get_component_raw: vi.fn(() => new Uint8Array(0)),
     update_entity_archetype: vi.fn(),
     query_entities: vi.fn(() => new Uint32Array(0)),
+    query_entities_to_buffer: vi.fn(() => 0),
+    get_query_result_ptr: vi.fn(() => 0),
     tick: vi.fn(),
     frame_count: vi.fn(() => BigInt(0)),
     delta_time: vi.fn(() => 0.016),
     total_time: vi.fn(() => 0),
     alloc_shared_buffer: vi.fn(() => 4096),
     sync_transforms_to_buffer: vi.fn(),
+    sync_transforms_to_buffer_sparse: vi.fn(),
+    dirty_transform_count: vi.fn(() => 0),
+    clear_transform_dirty: vi.fn(),
     sync_transforms_from_buffer: vi.fn(),
     stats: vi.fn(() => '{}'),
     remove_entity_from_query: vi.fn(),
     get_entity_generation: vi.fn(() => 0),
-  };
+  } as import('../src/engine/wasm-bridge').WasmEngine;
 }
 
 describe('SceneManager + Local Plugins', () => {
@@ -40,7 +45,7 @@ describe('SceneManager + Local Plugins', () => {
     const scenes = new SceneManager();
     engine.registerSystem(scenes);
 
-    const activePlugin: TsPlugin = {
+    const activePlugin: GwenPlugin = {
       name: 'GameSystem',
       onInit: vi.fn(),
       onDestroy: vi.fn(),

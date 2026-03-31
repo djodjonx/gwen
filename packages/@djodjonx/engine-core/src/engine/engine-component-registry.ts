@@ -14,7 +14,7 @@
 
 import type { ComponentType } from '../types';
 import type { WasmBridge } from './wasm-bridge';
-import { unpackId, type EntityId } from './engine-api';
+import { unpackEntityId, type EntityId } from './engine-api';
 
 export class EngineComponentRegistry {
   /** TS component name → Rust numeric typeId */
@@ -116,7 +116,7 @@ export class EngineComponentRegistry {
    * The cache is maintained by trackAdd/trackRemove called from Engine.
    */
   getEntityTypeIds(id: EntityId): number[] {
-    const { index } = unpackId(id);
+    const { index } = unpackEntityId(id);
     const types = this.entityTypeCache.get(index);
     return types ? Array.from(types) : [];
   }

@@ -4,40 +4,37 @@
 /// together as they would in a real game frame.
 #[cfg(test)]
 mod tests {
-    use gwen_core::component::*;
-    use gwen_core::entity::*;
-    use gwen_core::gameloop::*;
-    use gwen_core::query::*;
+    use bytemuck::{Pod, Zeroable};
+    use gwen_core::*;
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    #[derive(Clone, Copy, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
     #[repr(C)]
     struct Position {
         x: f32,
         y: f32,
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
     #[repr(C)]
     struct Velocity {
         dx: f32,
         dy: f32,
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
     #[repr(C)]
     struct Health {
         hp: f32,
     }
 
-    fn as_bytes<T: Copy>(v: &T) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
+    fn as_bytes<T: Pod>(v: &T) -> &[u8] {
+        bytemuck::bytes_of(v)
     }
 
-    fn read_as<T: Copy>(bytes: &[u8]) -> T {
-        assert_eq!(bytes.len(), std::mem::size_of::<T>());
-        unsafe { *(bytes.as_ptr() as *const T) }
+    fn read_as<T: Pod>(bytes: &[u8]) -> T {
+        *bytemuck::from_bytes(bytes)
     }
 
     // ── Scenario 1: spawn → attach components → query → tick ─────────────
@@ -45,7 +42,7 @@ mod tests {
     #[test]
     fn test_full_spawn_update_cycle() {
         let mut em = EntityManager::new(100);
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut qs = QuerySystem::new();
         let mut gameloop = GameLoop::new(60);
 
@@ -68,8 +65,8 @@ mod tests {
         }
 
         // Query entities with both components
-        let query = QueryId::new(vec![pos_handle.type_id(), vel_handle.type_id()]);
-        let result = qs.query(query.clone());
+        let query = QueryId::new(vec![pos_handle.type_id(), vel_handle.type_id()], storage.registry());
+        let result = qs.query(&storage, query.clone());
         assert_eq!(result.len(), 3);
 
         // Simulate one frame: apply velocity to position
@@ -110,7 +107,7 @@ mod tests {
     #[test]
     fn test_entity_delete_removes_from_query() {
         let mut em = EntityManager::new(100);
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut qs = QuerySystem::new();
 
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
@@ -123,23 +120,28 @@ mod tests {
         }
 
         // Both visible
-        let query = QueryId::new(vec![pos_handle.type_id()]);
-        assert_eq!(qs.query(query.clone()).len(), 2);
+        let query = QueryId::new(vec![pos_handle.type_id()], storage.registry());
+        assert_eq!(qs.query(&storage, query.clone()).len(), 2);
 
         // Delete e1
-        storage.remove_component(e1.index(), pos_handle.type_id());
+        if let Some(migration) = storage.remove_component(e1.index(), pos_handle.type_id()) {
+            qs.on_archetype_change(migration.to);
+            if let Some(from) = migration.from {
+                qs.on_archetype_change(from);
+            }
+        }
         qs.remove_entity(e1.index());
         em.delete_entity(e1);
 
         // Only e2 remains
-        assert_eq!(qs.query(query).len(), 1);
+        assert_eq!(qs.query(&storage, query).len(), 1);
     }
 
     // ── Scenario 3: component removal updates archetype & cache ──────────
 
     #[test]
     fn test_archetype_update_on_component_removal() {
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut qs = QuerySystem::new();
 
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
@@ -149,18 +151,23 @@ mod tests {
         vel_handle.add(&mut storage, 0, Velocity { dx: 1.0, dy: 0.0 });
         qs.update_entity_archetype(0, vec![pos_handle.type_id(), vel_handle.type_id()]);
 
-        let full_query = QueryId::new(vec![pos_handle.type_id(), vel_handle.type_id()]);
-        let pos_only = QueryId::new(vec![pos_handle.type_id()]);
+        let full_query = QueryId::new(vec![pos_handle.type_id(), vel_handle.type_id()], storage.registry());
+        let pos_only = QueryId::new(vec![pos_handle.type_id()], storage.registry());
 
-        assert_eq!(qs.query(full_query.clone()).len(), 1);
-        assert_eq!(qs.query(pos_only.clone()).len(), 1);
+        assert_eq!(qs.query(&storage, full_query.clone()).len(), 1);
+        assert_eq!(qs.query(&storage, pos_only.clone()).len(), 1);
 
         // Remove Velocity from entity 0
-        storage.remove_component(0, vel_handle.type_id());
+        if let Some(migration) = storage.remove_component(0, vel_handle.type_id()) {
+            qs.on_archetype_change(migration.to);
+            if let Some(from) = migration.from {
+                qs.on_archetype_change(from);
+            }
+        }
         qs.update_entity_archetype(0, vec![pos_handle.type_id()]);
 
-        assert_eq!(qs.query(full_query).len(), 0);
-        assert_eq!(qs.query(pos_only).len(), 1);
+        assert_eq!(qs.query(&storage, full_query).len(), 0);
+        assert_eq!(qs.query(&storage, pos_only).len(), 1);
     }
 
     // ── Scenario 4: stale entity ID is correctly rejected ────────────────
@@ -183,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_mixed_archetype_query() {
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut qs = QuerySystem::new();
 
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
@@ -213,16 +220,16 @@ mod tests {
         qs.update_entity_archetype(2, vec![pos_handle.type_id()]);
 
         // All 3 have Position
-        assert_eq!(qs.query(QueryId::new(vec![pos_handle.type_id()])).len(), 3);
+        assert_eq!(qs.query(&storage, QueryId::new(vec![pos_handle.type_id()], storage.registry())).len(), 3);
         // 2 have Velocity
-        assert_eq!(qs.query(QueryId::new(vec![vel_handle.type_id()])).len(), 2);
+        assert_eq!(qs.query(&storage, QueryId::new(vec![vel_handle.type_id()], storage.registry())).len(), 2);
         // 1 has all three
         assert_eq!(
-            qs.query(QueryId::new(vec![
+            qs.query(&storage, QueryId::new(vec![
                 pos_handle.type_id(),
                 vel_handle.type_id(),
                 hp_handle.type_id()
-            ]))
+            ], storage.registry()))
             .len(),
             1
         );
@@ -233,7 +240,7 @@ mod tests {
     #[test]
     fn test_gameloop_frame_accumulation_with_ecs() {
         let mut em = EntityManager::new(100);
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut gameloop = GameLoop::new(60);
 
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
@@ -280,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_query_cache_partial_invalidation() {
-        let mut storage = ComponentStorage::new();
+        let mut storage = ArchetypeStorage::new();
         let mut qs = QuerySystem::new();
 
         let pos_handle = ComponentHandle::<Position>::new(&mut storage);
@@ -288,21 +295,32 @@ mod tests {
         let hp_handle = ComponentHandle::<Health>::new(&mut storage);
 
         // Two entities: 0 has Pos+Vel, 1 has Pos+Health
+        pos_handle.add(&mut storage, 0, Position { x: 0.0, y: 0.0 });
+        vel_handle.add(&mut storage, 0, Velocity { dx: 1.0, dy: 0.0 });
+        pos_handle.add(&mut storage, 1, Position { x: 0.0, y: 0.0 });
+        hp_handle.add(&mut storage, 1, Health { hp: 100.0 });
+
         qs.update_entity_archetype(0, vec![pos_handle.type_id(), vel_handle.type_id()]);
         qs.update_entity_archetype(1, vec![pos_handle.type_id(), hp_handle.type_id()]);
 
         // Warm up two independent queries
-        let q_vel = QueryId::new(vec![vel_handle.type_id()]);
-        let q_hp = QueryId::new(vec![hp_handle.type_id()]);
-        assert_eq!(qs.query(q_vel.clone()).len(), 1);
-        assert_eq!(qs.query(q_hp.clone()).len(), 1);
+        let q_vel = QueryId::new(vec![vel_handle.type_id()], storage.registry());
+        let q_hp = QueryId::new(vec![hp_handle.type_id()], storage.registry());
+        assert_eq!(qs.query(&storage, q_vel.clone()).len(), 1);
+        assert_eq!(qs.query(&storage, q_hp.clone()).len(), 1);
         assert_eq!(qs.cache_size(), 2);
 
-        // Mutate entity 0's archetype – should only evict q_vel, not q_hp
+        // Mutate entity 0's archetype
+        if let Some(migration) = storage.remove_component(0, vel_handle.type_id()) {
+            qs.on_archetype_change(migration.to);
+            if let Some(from) = migration.from {
+                qs.on_archetype_change(from);
+            }
+        }
         qs.update_entity_archetype(0, vec![pos_handle.type_id()]);
 
-        // q_vel cache entry was evicted (entity 0 had Vel), q_hp intact
-        assert_eq!(qs.query(q_vel).len(), 0);
-        assert_eq!(qs.query(q_hp).len(), 1);
+        // Query results should be correct
+        assert_eq!(qs.query(&storage, q_vel).len(), 0);
+        assert_eq!(qs.query(&storage, q_hp).len(), 1);
     }
 }

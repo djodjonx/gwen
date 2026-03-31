@@ -1,10 +1,15 @@
 //! Transform math - 2D vectors and matrices
 
+use bytemuck::{Pod, Zeroable};
+use std::ops::{Add, Mul, Sub};
+
 /// 2D vector
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vec2 {
+    /// X coordinate
     pub x: f32,
+    /// Y coordinate
     pub y: f32,
 }
 
@@ -24,28 +29,14 @@ impl Vec2 {
         Vec2 { x: 1.0, y: 1.0 }
     }
 
-    /// Add two vectors
-    pub fn add(self, other: Vec2) -> Vec2 {
-        Vec2 {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
-
     /// Subtract vectors
     pub fn subtract(self, other: Vec2) -> Vec2 {
-        Vec2 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
+        self - other
     }
 
     /// Scale vector
     pub fn scale(self, scalar: f32) -> Vec2 {
-        Vec2 {
-            x: self.x * scalar,
-            y: self.y * scalar,
-        }
+        self * scalar
     }
 
     /// Dot product
@@ -83,7 +74,7 @@ impl Vec2 {
 
     /// Distance to another vector
     pub fn distance(self, other: Vec2) -> f32 {
-        self.subtract(other).length()
+        (self - other).length()
     }
 
     /// Lerp (linear interpolation)
@@ -95,8 +86,41 @@ impl Vec2 {
     }
 }
 
+impl Add for Vec2 {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Vec2 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub for Vec2 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Vec2 {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl Mul<f32> for Vec2 {
+    type Output = Self;
+
+    fn mul(self, scalar: f32) -> Self {
+        Vec2 {
+            x: self.x * scalar,
+            y: self.y * scalar,
+        }
+    }
+}
+
 /// 3x3 matrix for 2D transformations
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Mat3 {
     // Row-major: m[row][col]
@@ -234,7 +258,7 @@ mod tests {
     fn test_vec2_add() {
         let a = Vec2::new(1.0, 2.0);
         let b = Vec2::new(3.0, 4.0);
-        let c = a.add(b);
+        let c = a + b;
         assert_eq!(c.x, 4.0);
         assert_eq!(c.y, 6.0);
     }

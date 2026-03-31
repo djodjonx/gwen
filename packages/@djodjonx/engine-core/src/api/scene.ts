@@ -4,7 +4,7 @@
  * A Scene encapsulates a self-contained game state (main menu, gameplay, etc.).
  * SceneManager handles transitions: onExit → purge entities → onEnter.
  *
- * SceneManager implements TsPlugin and participates in the game loop.
+ * SceneManager implements GwenPlugin and participates in the game loop.
  * It should be registered FIRST to ensure scenes update before other plugins.
  *
  * @example
@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { TsPlugin, EngineAPI, PluginEntry, SceneNavigator } from '../types';
+import type { GwenPlugin, EngineAPI, PluginEntry, SceneNavigator } from '../types';
 import { UIManager, type UIDefinition } from './ui';
 import type { ReloadContext, ReloadEvaluator } from './scene-context';
 import { GlobalStringPoolManager } from '../utils/string-pool.js';
@@ -239,7 +239,7 @@ export function defineScene<Args extends unknown[]>(
 
 // ============= SceneManager =============
 
-export class SceneManager implements TsPlugin, SceneNavigator {
+export class SceneManager implements GwenPlugin, SceneNavigator {
   readonly name = 'SceneManager';
 
   private scenes = new Map<string, Scene>();
@@ -266,7 +266,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     this.loadScene(name, data);
   }
 
-  // ── TsPlugin lifecycle ─────────────────────────────────────────────────
+  // ── GwenPlugin lifecycle ───────────────────────────────────────────────
 
   onInit(api: EngineAPI): void {
     this.api = api;
@@ -500,7 +500,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
     }
 
     // Resolve system entries: direct object or no-arg factory
-    const resolvedSystems: TsPlugin[] = (next.systems ?? []).map((s) =>
+    const resolvedSystems: GwenPlugin[] = (next.systems ?? []).map((s) =>
       typeof s === 'function' ? s() : s,
     );
 
@@ -562,7 +562,7 @@ export class SceneManager implements TsPlugin, SceneNavigator {
   private purgeEntities(api: EngineAPI): void {
     const all = api.query([]);
     for (const id of all) {
-      api.destroyEntity(id);
+      api.entity.destroy(id);
     }
 
     // Clear scene-scoped string pool to prevent memory leak
