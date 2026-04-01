@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenengine/core';
 
 // ── Position (lue par le hook physics:instantiate via string 'position') ──────
 export const Position = defineComponent({

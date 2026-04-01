@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenengine/core';
 
 /**
  * Pixel-space rectangle used by block UI entities.

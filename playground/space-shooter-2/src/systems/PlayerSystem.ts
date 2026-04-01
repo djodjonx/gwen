@@ -1,4 +1,4 @@
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@gwenengine/core';
 import { Tag, Position, Velocity, ShootTimer } from '../components';
 
 const SPEED = 260;

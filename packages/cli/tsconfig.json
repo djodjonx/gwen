@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@gwenengine/kit": ["../kit/src/index.ts"],
+      "@gwenengine/schema": ["../schema/src/index.ts"],
+      "@gwenengine/vite": ["../vite-plugin/src/index.ts"],
+      "@gwenengine/core": ["../engine-core/src/index.ts"]
+    },
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests"],
+  "extends": "../../tsconfig.base.json"
+}

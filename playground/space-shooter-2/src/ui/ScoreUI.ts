@@ -1,4 +1,4 @@
-import { defineUI } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@gwenengine/core';
 import scoreHtml from './score.html?raw';
 import { Score } from '../components';
 

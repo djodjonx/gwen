@@ -15,20 +15,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@djodjonx/gwen-engine-core": "workspace:*",
-    "@djodjonx/gwen-kit": "workspace:*",
-    "@djodjonx/gwen-plugin-audio": "workspace:*",
-    "@djodjonx/gwen-plugin-html-ui": "workspace:*",
-    "@djodjonx/gwen-plugin-input": "workspace:*",
-    "@djodjonx/gwen-plugin-physics2d": "workspace:*",
-    "@djodjonx/gwen-plugin-sprite-anim": "workspace:*",
-    "@djodjonx/gwen-renderer-canvas2d": "workspace:*"
+    "@gwenengine/core": "workspace:*",
+    "@gwenengine/kit": "workspace:*",
+    "@gwenengine/physics2d": "workspace:*",
+    "@gwenengine/input": "workspace:*",
+    "@gwenengine/audio": "workspace:*",
+    "@gwenengine/ui": "workspace:*",
+    "@gwenengine/sprite-anim": "workspace:*",
+    "@gwenengine/renderer-canvas2d": "workspace:*"
   },
   "devDependencies": {
-    "@djodjonx/gwen-cli": "workspace:*",
-    "@djodjonx/gwen-vite-plugin": "workspace:*",
     "oxlint": "^1.51.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "@gwenengine/cli": "workspace:*",
+    "@gwenengine/vite": "workspace:*"
   }
 }

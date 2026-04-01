@@ -1,9 +1,0 @@
-{
-  "indent": {
-    "style": "space",
-    "width": 2
-  },
-  "lineWidth": 100,
-  "trailingComma": "all",
-  "singleQuote": true
-}

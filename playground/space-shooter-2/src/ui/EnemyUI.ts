@@ -1,4 +1,4 @@
-import { defineUI } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@gwenengine/core';
 import { Position } from '../components';
 
 export const EnemyUI = defineUI({

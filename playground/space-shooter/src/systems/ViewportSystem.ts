@@ -1,4 +1,4 @@
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@gwenengine/core';
 
 export const ViewportSystem = defineSystem('ViewportSystem', () => {
   let onResize: (() => void) | null = null;

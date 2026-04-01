@@ -1,7 +1,7 @@
 {
   "name": "@playground/snake-html",
   "version": "0.1.0",
-  "description": "GWEN Playground — Snake HTML/CSS demo",
+  "description": "GWEN Playground \u2014 Snake HTML/CSS demo",
   "type": "module",
   "private": true,
   "scripts": {
@@ -11,12 +11,12 @@
     "preview": "gwen preview"
   },
   "dependencies": {
-    "@djodjonx/gwen-engine-core": "workspace:*",
-    "@djodjonx/gwen-kit": "workspace:*",
-    "@djodjonx/gwen-plugin-html-ui": "workspace:*",
-    "@djodjonx/gwen-plugin-input": "workspace:*",
-    "@djodjonx/gwen-vite-plugin": "workspace:*",
-    "@djodjonx/gwen-cli": "workspace:*"
+    "@gwenengine/core": "workspace:*",
+    "@gwenengine/kit": "workspace:*",
+    "@gwenengine/cli": "workspace:*",
+    "@gwenengine/vite": "workspace:*",
+    "@gwenengine/input": "workspace:*",
+    "@gwenengine/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
@@ -24,4 +24,3 @@
     "vite": "^5.0.0"
   }
 }
-

@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/math" },
+    { "path": "packages/schema" },
+    { "path": "packages/core" },
+    { "path": "packages/kit" }
+  ]
+}
+

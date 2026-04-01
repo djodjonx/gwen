@@ -37,27 +37,15 @@ importers:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.49.1)(@types/node@25.3.3)(postcss@8.5.8)(search-insights@2.17.3)(typescript@5.9.3)
 
-  packages/@djodjonx/adapter-r3f:
+  packages/audio:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
+        version: link:../core
+      '@gwenengine/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
-      '@react-three/fiber':
-        specifier: ^9.4.0
-        version: 9.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
-      '@types/react':
-        specifier: ^19.1.16
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.1.9
-        version: 19.2.3(@types/react@19.2.14)
-      react:
-        specifier: ^19.2.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.2.0
-        version: 19.2.4(react@19.2.4)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -71,17 +59,17 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/cli:
+  packages/cli:
     dependencies:
-      '@djodjonx/gwen-kit':
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
-      '@djodjonx/gwen-schema':
+      '@gwenengine/schema':
         specifier: workspace:*
         version: link:../schema
-      '@djodjonx/gwen-vite-plugin':
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../vite-plugin
+        version: link:../vite
       c12:
         specifier: 4.0.0-beta.3
         version: 4.0.0-beta.3(dotenv@8.6.0)(jiti@2.6.1)(magicast@0.5.2)
@@ -126,9 +114,9 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/engine-core:
+  packages/core:
     dependencies:
-      '@djodjonx/gwen-schema':
+      '@gwenengine/schema':
         specifier: workspace:*
         version: link:../schema
       hookable:
@@ -148,40 +136,14 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/engine-core/wasm: {}
-
-  packages/@djodjonx/gwen-kit-platformer:
+  packages/debug:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../core
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
-      '@djodjonx/gwen-plugin-input':
-        specifier: workspace:*
-        version: link:../plugin-input
-      '@djodjonx/gwen-plugin-physics2d':
-        specifier: workspace:*
-        version: link:../plugin-physics2d
-    devDependencies:
-      '@djodjonx/gwen-cli':
-        specifier: workspace:*
-        version: link:../cli
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
-
-  packages/@djodjonx/gwen-math:
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -196,12 +158,34 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/kit:
+  packages/input:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-schema':
+        version: link:../core
+      '@gwenengine/kit':
+        specifier: workspace:*
+        version: link:../kit
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+
+  packages/kit:
+    dependencies:
+      '@gwenengine/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gwenengine/schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
@@ -218,14 +202,38 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/plugin-audio:
+  packages/kit-platformer:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../core
+      '@gwenengine/input':
+        specifier: workspace:*
+        version: link:../input
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
+      '@gwenengine/physics2d':
+        specifier: workspace:*
+        version: link:../physics2d
+    devDependencies:
+      '@gwenengine/cli':
+        specifier: workspace:*
+        version: link:../cli
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+
+  packages/math:
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -240,84 +248,12 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/plugin-debug:
+  packages/physics2d:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
-        specifier: workspace:*
-        version: link:../kit
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
-
-  packages/@djodjonx/plugin-html-ui:
-    dependencies:
-      '@djodjonx/gwen-kit':
-        specifier: workspace:*
-        version: link:../kit
-    devDependencies:
-      '@djodjonx/gwen-engine-core':
-        specifier: workspace:*
-        version: link:../engine-core
-      '@types/jsdom':
-        specifier: ^28.0.0
-        version: 28.0.0
-      jsdom:
-        specifier: ^28.1.0
-        version: 28.1.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
-
-  packages/@djodjonx/plugin-input:
-    dependencies:
-      '@djodjonx/gwen-engine-core':
-        specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
-        specifier: workspace:*
-        version: link:../kit
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
-
-  packages/@djodjonx/plugin-physics2d:
-    dependencies:
-      '@djodjonx/gwen-engine-core':
-        specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../core
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -337,12 +273,12 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/plugin-physics3d:
+  packages/physics3d:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../core
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -359,12 +295,46 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/plugin-sprite-anim:
+  packages/r3f:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../core
+    devDependencies:
+      '@react-three/fiber':
+        specifier: ^9.4.0
+        version: 9.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.2)
+      '@types/react':
+        specifier: ^19.1.16
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.1.9
+        version: 19.2.3(@types/react@19.2.14)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.4(react@19.2.4)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+
+  packages/renderer-canvas2d:
+    dependencies:
+      '@gwenengine/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gwenengine/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -381,29 +351,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/renderer-canvas2d:
-    dependencies:
-      '@djodjonx/gwen-engine-core':
-        specifier: workspace:*
-        version: link:../engine-core
-      '@djodjonx/gwen-kit':
-        specifier: workspace:*
-        version: link:../kit
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
-
-  packages/@djodjonx/schema:
+  packages/schema:
     dependencies:
       defu:
         specifier: ^6.1.4
@@ -422,7 +370,14 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/@djodjonx/vite-plugin:
+  packages/sprite-anim:
+    dependencies:
+      '@gwenengine/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gwenengine/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -437,51 +392,82 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
-  packages/create-gwen-app:
+  packages/ui:
+    dependencies:
+      '@gwenengine/kit':
+        specifier: workspace:*
+        version: link:../kit
     devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.35
+      '@gwenengine/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/jsdom':
+        specifier: ^28.0.0
+        version: 28.0.0
+      jsdom:
+        specifier: ^28.1.0
+        version: 28.1.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
       vitest:
         specifier: ^4.0.18
-        version: 4.0.18(@types/node@20.19.35)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
+
+  packages/vite:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2)
 
   playground/mario-css:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/audio':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../../packages/audio
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/kit
-      '@djodjonx/gwen-plugin-audio':
+        version: link:../../packages/core
+      '@gwenengine/input':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-audio
-      '@djodjonx/gwen-plugin-html-ui':
+        version: link:../../packages/input
+      '@gwenengine/kit':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-html-ui
-      '@djodjonx/gwen-plugin-input':
+        version: link:../../packages/kit
+      '@gwenengine/physics2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-input
-      '@djodjonx/gwen-plugin-physics2d':
+        version: link:../../packages/physics2d
+      '@gwenengine/renderer-canvas2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-physics2d
-      '@djodjonx/gwen-plugin-sprite-anim':
+        version: link:../../packages/renderer-canvas2d
+      '@gwenengine/sprite-anim':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-sprite-anim
-      '@djodjonx/gwen-renderer-canvas2d':
+        version: link:../../packages/sprite-anim
+      '@gwenengine/ui':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/renderer-canvas2d
+        version: link:../../packages/ui
     devDependencies:
-      '@djodjonx/gwen-cli':
+      '@gwenengine/cli':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/cli
-      '@djodjonx/gwen-vite-plugin':
+        version: link:../../packages/cli
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/vite-plugin
+        version: link:../../packages/vite
       oxlint:
         specifier: ^1.51.0
         version: 1.51.0
@@ -494,37 +480,37 @@ importers:
 
   playground/platformer-kit-css:
     dependencies:
-      '@djodjonx/gwen-engine-core':
+      '@gwenengine/audio':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../../packages/audio
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/kit
-      '@djodjonx/gwen-kit-platformer':
+        version: link:../../packages/core
+      '@gwenengine/input':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/gwen-kit-platformer
-      '@djodjonx/gwen-plugin-audio':
+        version: link:../../packages/input
+      '@gwenengine/kit':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-audio
-      '@djodjonx/gwen-plugin-html-ui':
+        version: link:../../packages/kit
+      '@gwenengine/kit-platformer':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-html-ui
-      '@djodjonx/gwen-plugin-input':
+        version: link:../../packages/kit-platformer
+      '@gwenengine/physics2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-input
-      '@djodjonx/gwen-plugin-physics2d':
+        version: link:../../packages/physics2d
+      '@gwenengine/renderer-canvas2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-physics2d
-      '@djodjonx/gwen-renderer-canvas2d':
+        version: link:../../packages/renderer-canvas2d
+      '@gwenengine/ui':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/renderer-canvas2d
+        version: link:../../packages/ui
     devDependencies:
-      '@djodjonx/gwen-cli':
+      '@gwenengine/cli':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/cli
-      '@djodjonx/gwen-vite-plugin':
+        version: link:../../packages/cli
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/vite-plugin
+        version: link:../../packages/vite
       oxlint:
         specifier: ^1.51.0
         version: 1.51.0
@@ -537,24 +523,24 @@ importers:
 
   playground/snake-html:
     dependencies:
-      '@djodjonx/gwen-cli':
+      '@gwenengine/cli':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/cli
-      '@djodjonx/gwen-engine-core':
+        version: link:../../packages/cli
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../../packages/core
+      '@gwenengine/input':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/kit
-      '@djodjonx/gwen-plugin-html-ui':
+        version: link:../../packages/input
+      '@gwenengine/kit':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-html-ui
-      '@djodjonx/gwen-plugin-input':
+        version: link:../../packages/kit
+      '@gwenengine/ui':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-input
-      '@djodjonx/gwen-vite-plugin':
+        version: link:../../packages/ui
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/vite-plugin
+        version: link:../../packages/vite
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
@@ -568,36 +554,36 @@ importers:
 
   playground/space-shooter:
     dependencies:
-      '@djodjonx/gwen-cli':
+      '@gwenengine/audio':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/cli
-      '@djodjonx/gwen-engine-core':
+        version: link:../../packages/audio
+      '@gwenengine/cli':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../../packages/cli
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/kit
-      '@djodjonx/gwen-plugin-audio':
+        version: link:../../packages/core
+      '@gwenengine/debug':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-audio
-      '@djodjonx/gwen-plugin-debug':
+        version: link:../../packages/debug
+      '@gwenengine/input':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-debug
-      '@djodjonx/gwen-plugin-html-ui':
+        version: link:../../packages/input
+      '@gwenengine/kit':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-html-ui
-      '@djodjonx/gwen-plugin-input':
+        version: link:../../packages/kit
+      '@gwenengine/physics2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-input
-      '@djodjonx/gwen-plugin-physics2d':
+        version: link:../../packages/physics2d
+      '@gwenengine/renderer-canvas2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-physics2d
-      '@djodjonx/gwen-renderer-canvas2d':
+        version: link:../../packages/renderer-canvas2d
+      '@gwenengine/ui':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/renderer-canvas2d
-      '@djodjonx/gwen-vite-plugin':
+        version: link:../../packages/ui
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/vite-plugin
+        version: link:../../packages/vite
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
@@ -611,39 +597,39 @@ importers:
 
   playground/space-shooter-2:
     dependencies:
-      '@djodjonx/gwen-cli':
+      '@gwenengine/audio':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/cli
-      '@djodjonx/gwen-engine-core':
+        version: link:../../packages/audio
+      '@gwenengine/cli':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/engine-core
-      '@djodjonx/gwen-kit':
+        version: link:../../packages/cli
+      '@gwenengine/core':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/kit
-      '@djodjonx/gwen-plugin-audio':
+        version: link:../../packages/core
+      '@gwenengine/debug':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-audio
-      '@djodjonx/gwen-plugin-debug':
+        version: link:../../packages/debug
+      '@gwenengine/input':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-debug
-      '@djodjonx/gwen-plugin-html-ui':
+        version: link:../../packages/input
+      '@gwenengine/kit':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-html-ui
-      '@djodjonx/gwen-plugin-input':
+        version: link:../../packages/kit
+      '@gwenengine/physics2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-input
-      '@djodjonx/gwen-plugin-physics2d':
+        version: link:../../packages/physics2d
+      '@gwenengine/renderer-canvas2d':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-physics2d
-      '@djodjonx/gwen-plugin-sprite-anim':
+        version: link:../../packages/renderer-canvas2d
+      '@gwenengine/sprite-anim':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/plugin-sprite-anim
-      '@djodjonx/gwen-renderer-canvas2d':
+        version: link:../../packages/sprite-anim
+      '@gwenengine/ui':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/renderer-canvas2d
-      '@djodjonx/gwen-vite-plugin':
+        version: link:../../packages/ui
+      '@gwenengine/vite':
         specifier: workspace:*
-        version: link:../../packages/@djodjonx/vite-plugin
+        version: link:../../packages/vite
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
@@ -1764,9 +1750,6 @@ packages:
 
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
-
-  '@types/node@20.19.35':
-    resolution: {integrity: sha512-Uarfe6J91b9HAUXxjvSOdiO2UPOKLm07Q1oh0JHxoZ1y8HoqxDAu3gVrsrOHeiio0kSsoVBt4wFrKOm0dKxVPQ==}
 
   '@types/node@25.3.3':
     resolution: {integrity: sha512-DpzbrH7wIcBaJibpKo9nnSQL0MTRdnWttGyE5haGwK86xgMOkFLp7vEyfQPGLOJh5wNYiJ3V9PmUMDhV9u8kkQ==}
@@ -3124,9 +3107,6 @@ packages:
   ufo@1.6.3:
     resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
@@ -4343,10 +4323,6 @@ snapshots:
 
   '@types/node@12.20.55': {}
 
-  '@types/node@20.19.35':
-    dependencies:
-      undici-types: 6.21.0
-
   '@types/node@25.3.3':
     dependencies:
       undici-types: 7.18.2
@@ -4400,14 +4376,6 @@ snapshots:
       '@vitest/utils': 4.0.18
       chai: 6.2.2
       tinyrainbow: 3.0.3
-
-  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@20.19.35)(jiti@2.6.1)(yaml@2.8.2))':
-    dependencies:
-      '@vitest/spy': 4.0.18
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 7.3.1(@types/node@20.19.35)(jiti@2.6.1)(yaml@2.8.2)
 
   '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2))':
     dependencies:
@@ -5755,8 +5723,6 @@ snapshots:
 
   ufo@1.6.3: {}
 
-  undici-types@6.21.0: {}
-
   undici-types@7.18.2: {}
 
   undici-types@7.22.0: {}
@@ -5834,20 +5800,6 @@ snapshots:
       '@types/node': 25.3.3
       fsevents: 2.3.3
 
-  vite@7.3.1(@types/node@20.19.35)(jiti@2.6.1)(yaml@2.8.2):
-    dependencies:
-      esbuild: 0.27.3
-      fdir: 6.5.0(picomatch@4.0.3)
-      picomatch: 4.0.3
-      postcss: 8.5.8
-      rollup: 4.59.0
-      tinyglobby: 0.2.15
-    optionalDependencies:
-      '@types/node': 20.19.35
-      fsevents: 2.3.3
-      jiti: 2.6.1
-      yaml: 2.8.2
-
   vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2):
     dependencies:
       esbuild: 0.27.3
@@ -5910,44 +5862,6 @@ snapshots:
       - terser
       - typescript
       - universal-cookie
-
-  vitest@4.0.18(@types/node@20.19.35)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2):
-    dependencies:
-      '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@20.19.35)(jiti@2.6.1)(yaml@2.8.2))
-      '@vitest/pretty-format': 4.0.18
-      '@vitest/runner': 4.0.18
-      '@vitest/snapshot': 4.0.18
-      '@vitest/spy': 4.0.18
-      '@vitest/utils': 4.0.18
-      es-module-lexer: 1.7.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.1
-      pathe: 2.0.3
-      picomatch: 4.0.3
-      std-env: 3.10.0
-      tinybench: 2.9.0
-      tinyexec: 1.0.2
-      tinyglobby: 0.2.15
-      tinyrainbow: 3.0.3
-      vite: 7.3.1(@types/node@20.19.35)(jiti@2.6.1)(yaml@2.8.2)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 20.19.35
-      jsdom: 28.1.0
-    transitivePeerDependencies:
-      - jiti
-      - less
-      - lightningcss
-      - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
 
   vitest@4.0.18(@types/node@25.3.3)(jiti@2.6.1)(jsdom@28.1.0)(yaml@2.8.2):
     dependencies:

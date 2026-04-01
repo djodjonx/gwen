@@ -1,4 +1,4 @@
-import { defineUI } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@gwenengine/core';
 import sceneChromeHtml from './templates/sceneChrome.html?raw';
 import sceneChromeCss from './styles/sceneChrome.css?inline';
 

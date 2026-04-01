@@ -1,7 +1,7 @@
 {
   "name": "@playground/space-shooter-2",
   "version": "0.1.0",
-  "description": "GWEN Playground — Space Shooter 2 (sprite animation plugin demo)",
+  "description": "GWEN Playground \u2014 Space Shooter 2 (sprite animation plugin demo)",
   "type": "module",
   "private": true,
   "scripts": {
@@ -11,17 +11,17 @@
     "preview": "gwen preview"
   },
   "dependencies": {
-    "@djodjonx/gwen-engine-core": "workspace:*",
-    "@djodjonx/gwen-kit": "workspace:*",
-    "@djodjonx/gwen-plugin-audio": "workspace:*",
-    "@djodjonx/gwen-plugin-debug": "workspace:*",
-    "@djodjonx/gwen-plugin-html-ui": "workspace:*",
-    "@djodjonx/gwen-plugin-input": "workspace:*",
-    "@djodjonx/gwen-plugin-physics2d": "workspace:*",
-    "@djodjonx/gwen-plugin-sprite-anim": "workspace:*",
-    "@djodjonx/gwen-renderer-canvas2d": "workspace:*",
-    "@djodjonx/gwen-vite-plugin": "workspace:*",
-    "@djodjonx/gwen-cli": "workspace:*"
+    "@gwenengine/core": "workspace:*",
+    "@gwenengine/kit": "workspace:*",
+    "@gwenengine/cli": "workspace:*",
+    "@gwenengine/vite": "workspace:*",
+    "@gwenengine/physics2d": "workspace:*",
+    "@gwenengine/input": "workspace:*",
+    "@gwenengine/audio": "workspace:*",
+    "@gwenengine/debug": "workspace:*",
+    "@gwenengine/ui": "workspace:*",
+    "@gwenengine/sprite-anim": "workspace:*",
+    "@gwenengine/renderer-canvas2d": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

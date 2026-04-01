@@ -1,4 +1,4 @@
-import { defineSystem, type EntityId } from '@djodjonx/gwen-engine-core';
+import { defineSystem, type EntityId } from '@gwenengine/core';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem('MovementSystem', () => {

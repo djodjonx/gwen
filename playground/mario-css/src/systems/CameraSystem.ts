@@ -1,5 +1,5 @@
-import { defineSystem } from '@djodjonx/gwen-engine-core';
-import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
+import { defineSystem } from '@gwenengine/core';
+import type { Physics2DAPI } from '@gwenengine/physics2d';
 import { clamp } from '../utils.ts';
 import { LEVEL_WIDTH, VIEWPORT_W } from '../level/levelMap.ts';
 

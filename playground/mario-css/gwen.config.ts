@@ -1,8 +1,8 @@
-import { defineConfig } from '@djodjonx/gwen-kit';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
-import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
-import { HtmlUIPlugin } from '@djodjonx/gwen-plugin-html-ui';
-import { Physics2D } from '@djodjonx/gwen-plugin-physics2d';
+import { defineConfig } from '@gwenengine/kit';
+import { InputPlugin } from '@gwenengine/input';
+import { AudioPlugin } from '@gwenengine/audio';
+import { HtmlUIPlugin } from '@gwenengine/ui';
+import { Physics2D } from '@gwenengine/physics2d';
 
 /**
  * GWEN Project Configuration

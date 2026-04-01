@@ -1,4 +1,4 @@
-import { defineUI } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@gwenengine/core';
 import { drawStars } from './helpers/drawStars';
 
 export const MainMenuUI = defineUI('MainMenuUI', () => {

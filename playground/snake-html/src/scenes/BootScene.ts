@@ -1,6 +1,6 @@
-import { defineScene, UIComponent } from '@djodjonx/gwen-engine-core';
-import type { SceneManager } from '@djodjonx/gwen-engine-core';
-import type { KeyboardInput } from '@djodjonx/gwen-plugin-input';
+import { defineScene, UIComponent } from '@gwenengine/core';
+import type { SceneManager } from '@gwenengine/core';
+import type { KeyboardInput } from '@gwenengine/input';
 import { BootUI } from '../ui/BootUI';
 
 export const BootScene = defineScene('Boot', (scenes: SceneManager) => {

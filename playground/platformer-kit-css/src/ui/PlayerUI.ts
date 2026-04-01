@@ -1,6 +1,6 @@
-import { defineUI } from '@djodjonx/gwen-engine-core';
-import { PlatformerIntent } from '@djodjonx/gwen-kit-platformer';
-import { getBodySnapshot } from '@djodjonx/gwen-plugin-physics2d/helpers/queries';
+import { defineUI } from '@gwenengine/core';
+import { PlatformerIntent } from '@gwenengine/kit-platformer';
+import { getBodySnapshot } from '@gwenengine/physics2d/helpers/queries';
 import {
   VIEWPORT_OFFSET_X_PX,
   VIEWPORT_OFFSET_Y_PX,

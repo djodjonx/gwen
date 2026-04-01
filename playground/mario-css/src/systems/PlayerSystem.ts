@@ -1,7 +1,7 @@
-import { defineSystem } from '@djodjonx/gwen-engine-core';
-import type { EntityId } from '@djodjonx/gwen-engine-core';
-import type { Physics2DAPI } from '@djodjonx/gwen-plugin-physics2d';
-import type { KeyboardInput } from '@djodjonx/gwen-plugin-input';
+import { defineSystem } from '@gwenengine/core';
+import type { EntityId } from '@gwenengine/core';
+import type { Physics2DAPI } from '@gwenengine/physics2d';
+import type { KeyboardInput } from '@gwenengine/input';
 import { PlayerState } from '../components/index.ts';
 import { moveTowards } from '../utils.ts';
 

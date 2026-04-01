@@ -1,6 +1,6 @@
-import { defineSystem, unpackEntityId } from '@djodjonx/gwen-engine-core';
-import type { EntityId } from '@djodjonx/gwen-engine-core';
-import type { CollisionContact } from '@djodjonx/gwen-plugin-physics2d';
+import { defineSystem, unpackEntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenengine/core';
+import type { CollisionContact } from '@gwenengine/physics2d';
 import { Tag, PlayerState, BoxState } from '../components/index.ts';
 
 /**

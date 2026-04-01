@@ -28,9 +28,9 @@ mario-css/
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@djodjonx/gwen-kit';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
-import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
+import { defineConfig } from '@gwenengine/kit';
+import { InputPlugin } from '@gwenengine/input';
+import { AudioPlugin } from '@gwenengine/audio';
 
 export default defineConfig({
   plugins: [new InputPlugin(), new AudioPlugin()],

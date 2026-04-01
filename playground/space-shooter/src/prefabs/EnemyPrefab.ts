@@ -1,5 +1,5 @@
-import { definePrefab, UIComponent } from '@djodjonx/gwen-engine-core';
-import type { EngineAPI } from '@djodjonx/gwen-engine-core';
+import { definePrefab, UIComponent } from '@gwenengine/core';
+import type { EngineAPI } from '@gwenengine/core';
 import { Position, Velocity, Tag, ShootTimer, Health, Collider, Score } from '../components';
 import { destroyWithPhysics } from './utils';
 
