@@ -1,12 +1,16 @@
 import { createEntityId, unpackEntityId } from '@gwenengine/core';
 import type { EntityId } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
 import type {
   CollisionEvent,
   CollisionEventsBatch,
   Physics2DAPI,
   ResolvedCollisionContact,
 } from '../types.js';
+
+/** Minimal interface needed to resolve entity generation numbers. */
+interface GenerationSource {
+  getEntityGeneration(slot: number): number | undefined;
+}
 
 /**
  * Internal structural type used by slot-dependent helpers.
@@ -104,14 +108,14 @@ export function dedupeContactsByPair(events: ReadonlyArray<CollisionEvent>): Col
  * ```
  */
 export function toResolvedContacts(
-  api: EngineAPI,
+  source: GenerationSource,
   events: ReadonlyArray<SlottedEvent>,
 ): ResolvedCollisionContact[] {
   const out: ResolvedCollisionContact[] = [];
 
   for (const ev of events) {
-    const genA = api.getEntityGeneration(ev.slotA);
-    const genB = api.getEntityGeneration(ev.slotB);
+    const genA = source.getEntityGeneration(ev.slotA);
+    const genB = source.getEntityGeneration(ev.slotB);
     if (genA === undefined || genB === undefined) continue;
 
     out.push({

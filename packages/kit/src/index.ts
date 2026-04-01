@@ -14,71 +14,65 @@
  *   these are game development primitives, not plugin authoring tools.
  *   Import them from `@gwenengine/core`.
  * - `defineConfig()`, `createEngine()` — project bootstrap, not authoring.
- *   Import `defineConfig` from `@gwenengine/kit` and `createEngine` from `@gwenengine/core`.
+ *   Import `defineConfig` from `@gwenengine/app` and `createEngine` from `@gwenengine/core`.
  */
 
-// ── Project config helper ─────────────────────────────────────────────────────
+// ── RFC-004: Module system ────────────────────────────────────────────────────
 
-export { defineConfig } from './config';
+export { defineGwenModule } from './define-module';
 export type {
-  TypedEngineConfig,
-  GwenConfig,
-  MergePluginsProvides,
-  MergePluginsHooks,
-  MergePluginsPrefabExtensions,
-  MergePluginsSceneExtensions,
-  MergePluginsUIExtensions,
-} from './config';
+  GwenModule,
+  GwenModuleDefinition,
+  GwenKit,
+  GwenBuildHooks,
+  GwenBaseConfig,
+  AutoImport,
+  GwenTypeTemplate,
+  VitePlugin,
+  ViteUserConfig,
+  DeepPartial,
+} from './define-module';
+
+// ── Project config helper ─────────────────────────────────────────────────────
+// defineConfig has moved to `@gwenengine/app` (RFC-004). Do not re-export here.
+
+// ── RFC-002: Plugin contract helpers ─────────────────────────────────────────
+
+export { satisfiesPluginContract, definePluginTypes } from './plugin-types';
+export type { PluginTypesOptions } from './plugin-types';
 
 // ── Plugin authoring helper ───────────────────────────────────────────────────
 
 export { definePlugin } from './define-plugin';
-export type {
-  GwenPluginDefinition,
-  WasmPluginDefinition,
-  WasmPluginStaticContext,
-  GwenPluginLifecycle,
-  WasmPluginLifecycle,
-  PluginClass,
-  GwenPluginInstance,
-} from './define-plugin';
+export type { GwenPluginFactory } from './define-plugin';
 
 // ── Type re-exports from @gwenengine/core ────────────────────────────────────
 // Only types necessary to *author* a plugin are re-exported here.
 // Game-loop primitives (defineSystem, defineScene, etc.) are intentionally omitted.
 
 export type {
-  // Plugin interfaces
+  // Plugin interfaces (RFC-001 V2 GwenPlugin is the canonical interface)
   GwenPlugin,
-  GwenPluginWasmContext,
-  PluginEntry,
   GwenPluginMeta,
 
-  // Engine API — received in every lifecycle callback
-  EngineAPI,
+  // Engine interface — received in setup()
+  GwenEngine,
+  GwenProvides,
 
-  // WASM plugin infrastructure
-  PluginChannel,
-  DataChannel,
-  EventChannel,
-  GwenEvent,
+  // WASM infrastructure
   WasmBridge,
   MemoryRegion,
-  WasmPluginLoadOptions,
+  WasmModuleOptions,
 
   // Entity / component primitives needed in plugin implementations
   EntityId,
   ComponentType,
 
   // Hooks
-  GwenHooks,
+  GwenRuntimeHooks,
   GwenHookable,
 } from '@gwenengine/core';
 
-export type { AllocatedChannel, PluginDataBus } from '@gwenengine/core';
-
 // ── Runtime re-exports (values, not types) ────────────────────────────────────
 
-export { loadWasmPlugin } from '@gwenengine/core';
-export { isWasmPlugin } from '@gwenengine/core';
 export { createEntityId, unpackEntityId } from '@gwenengine/core';

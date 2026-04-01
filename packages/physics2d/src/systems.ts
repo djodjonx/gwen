@@ -1,5 +1,4 @@
-import { defineSystem } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import type { GwenEngine, EntityId } from '@gwenengine/core';
 import type { Physics2DAPI, SensorState } from './types';
 
 const DEFAULT_PIXELS_PER_METER = 50;
@@ -19,40 +18,40 @@ export interface PhysicsKinematicSyncSystemOptions {
 }
 
 /**
- * Create a reusable system that syncs ECS position -> Rapier kinematic bodies.
+ * Create a reusable plugin that syncs ECS position -> Rapier kinematic bodies.
  *
  * Bodies/colliders lifecycle remains handled by prefab `extensions.physics`
  * in the Physics2D plugin.
+ *
+ * @note ECS query integration pending RFC-006. The `onBeforeUpdate` phase
+ * fires but entity iteration requires a live query once the ECS composables
+ * are wired into the V2 engine.
  */
 export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSystemOptions = {}) {
   const pixelsPerMeter = options.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER;
-  const positionComponent = options.positionComponent ?? DEFAULT_POSITION_COMPONENT;
+  const _positionComponent = options.positionComponent ?? DEFAULT_POSITION_COMPONENT;
 
-  return defineSystem('PhysicsKinematicSyncSystem', () => {
-    let physics: Physics2DAPI | null = null;
+  let _physics: Physics2DAPI | null = null;
 
-    return {
-      onInit(api) {
-        physics = api.services.get('physics') as Physics2DAPI;
-      },
+  return {
+    name: 'PhysicsKinematicSyncSystem',
 
-      onBeforeUpdate(api) {
-        if (!physics) return;
+    setup(engine: GwenEngine) {
+      _physics = engine.inject(
+        'physics2d' as keyof import('@gwenengine/core').GwenProvides,
+      ) as unknown as Physics2DAPI;
+    },
 
-        const entities = api.query([positionComponent]);
-        for (const id of entities) {
-          const pos = api.getComponent<{ x: number; y: number }>(id, positionComponent);
-          if (!pos) continue;
-          // id is already an EntityId — pass directly
-          physics.setKinematicPosition(id, pos.x / pixelsPerMeter, pos.y / pixelsPerMeter);
-        }
-      },
+    onBeforeUpdate(_dt: number) {
+      if (!_physics) return;
+      // TODO(RFC-006): iterate entities using engine.createLiveQuery([positionComponent])
+      // and call _physics.setKinematicPosition(id, pos.x / pixelsPerMeter, pos.y / pixelsPerMeter)
+    },
 
-      onDestroy() {
-        physics = null;
-      },
-    };
-  });
+    teardown() {
+      _physics = null;
+    },
+  };
 }
 
 // ─── Platformer grounded helper ──────────────────────────────────────────────

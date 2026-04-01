@@ -1,4 +1,5 @@
 import { definePlugin } from '@gwenengine/kit';
+import type { GwenEngine } from '@gwenengine/kit';
 import type { ComponentDefinition } from '@gwenengine/core';
 import { Position } from './components/StandardComponents.js';
 
@@ -50,10 +51,12 @@ export const PlatformerKitPlugin = definePlugin((config: PlatformerKitConfig = {
     },
   };
 
+  const service: PlatformerKitService = { config: resolvedConfig };
+
   return {
     name: 'PlatformerKit',
-    provides: {
-      platformerKit: { config: resolvedConfig } as PlatformerKitService,
+    setup(engine: GwenEngine): void {
+      engine.provide('platformerKit' as any, service);
     },
   };
 });

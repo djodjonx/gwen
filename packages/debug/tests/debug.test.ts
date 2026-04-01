@@ -4,33 +4,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FpsTracker } from '../src/fps-tracker';
 import { DebugPlugin } from '../src/index';
-import type { EngineAPI } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenengine/core';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Mock GwenEngine ───────────────────────────────────────────────────────────
 
-function makeAPI(overrides: Partial<EngineAPI> = {}): EngineAPI {
+function createMockEngine(overrides: Partial<{ frameCount: number }> = {}): GwenEngine {
+  const services = new Map<string, unknown>();
   return {
-    frameCount: 0,
-    deltaTime: 0,
-    query: vi.fn(() => []),
-    createEntity: vi.fn(() => 1),
-    destroyEntity: vi.fn(() => true),
-    addComponent: vi.fn(),
-    getComponent: vi.fn(),
-    hasComponent: vi.fn(() => false),
-    removeComponent: vi.fn(() => false),
-    services: {
-      register: vi.fn(),
-      get: vi.fn(),
-      has: vi.fn(() => false),
+    provide: (key: string, value: unknown) => {
+      services.set(key, value);
     },
-    prefabs: {
-      define: vi.fn(),
-      instantiate: vi.fn(() => 1),
-      has: vi.fn(() => false),
-    } as unknown as EngineAPI['prefabs'],
-    ...overrides,
-  } as unknown as EngineAPI;
+    inject: (key: string) => {
+      const v = services.get(key);
+      if (v === undefined) throw new Error(`[mock] No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => services.get(key),
+    use: vi.fn().mockResolvedValue(undefined),
+    unuse: vi.fn().mockResolvedValue(undefined),
+    hooks: {} as GwenEngine['hooks'],
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    startExternal: vi.fn().mockResolvedValue(undefined),
+    advance: vi.fn().mockResolvedValue(undefined),
+    run: (fn: () => unknown) => fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    maxEntities: 1000,
+    targetFPS: 60,
+    maxDeltaSeconds: 0.1,
+    variant: 'light',
+    deltaTime: 0,
+    frameCount: overrides.frameCount ?? 0,
+    getFPS: () => 0,
+    getStats: () => ({ fps: 0, deltaTime: 0, frameCount: 0 }),
+    loadWasmModule: vi.fn().mockResolvedValue({}),
+    getWasmModule: vi.fn(),
+    createLiveQuery: () => [][Symbol.iterator](),
+    wasmBridge: {
+      physics2d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+      physics3d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+    },
+  } as unknown as GwenEngine;
 }
 
 // ── FpsTracker ────────────────────────────────────────────────────────────────
@@ -112,40 +127,30 @@ describe('FpsTracker', () => {
 // ── DebugPlugin ───────────────────────────────────────────────────────────────
 
 describe('DebugPlugin', () => {
-  let api: EngineAPI;
+  let engine: GwenEngine;
 
   beforeEach(() => {
-    api = makeAPI({ frameCount: 42 });
+    engine = createMockEngine({ frameCount: 42 });
   });
 
   it('a le nom correct', () => {
     expect(new DebugPlugin().name).toBe('DebugPlugin');
   });
 
-  it("enregistre le service debug dans api.services à l'init", () => {
+  it("enregistre le service debug via engine.provide() à l'init", () => {
     const plugin = new DebugPlugin();
-    plugin.onInit(api);
-    expect(api.services.register).toHaveBeenCalledWith('debug', expect.any(Object));
+    plugin.setup(engine);
+    expect(engine.tryInject('debug' as any)).toBeDefined();
   });
 
   it('getMetrics() retourne des métriques avec des valeurs initiales', () => {
-    const registeredServices = new Map<string, unknown>();
-    const api2 = makeAPI({
-      frameCount: 10,
-      services: {
-        register: (name: string, instance: unknown) => {
-          registeredServices.set(name, instance);
-        },
-        get: (name: string) => registeredServices.get(name),
-        has: (name: string) => registeredServices.has(name),
-      } as unknown as EngineAPI['services'],
-    });
+    const engine2 = createMockEngine({ frameCount: 10 });
 
     const plugin = new DebugPlugin({ updateInterval: 1 });
-    plugin.onInit(api2);
-    plugin.onBeforeUpdate(api2, 1 / 60);
+    plugin.setup(engine2);
+    plugin.onBeforeUpdate!(1 / 60);
 
-    const service = registeredServices.get('debug') as {
+    const service = engine2.inject('debug' as any) as {
       getMetrics: () => import('../src/types').DebugMetrics;
     };
     const m = service.getMetrics();
@@ -157,31 +162,21 @@ describe('DebugPlugin', () => {
   });
 
   it('détecte une chute de FPS après la grace period', () => {
-    const registeredServices = new Map<string, unknown>();
+    const engine2 = createMockEngine({ frameCount: 100 });
     const onDrop = vi.fn();
-    const api2 = makeAPI({
-      frameCount: 100,
-      services: {
-        register: (name: string, instance: unknown) => {
-          registeredServices.set(name, instance);
-        },
-        get: (name: string) => registeredServices.get(name),
-        has: (name: string) => registeredServices.has(name),
-      } as unknown as EngineAPI['services'],
-    });
 
     const plugin = new DebugPlugin({
       updateInterval: 1,
       fpsDrop: { threshold: 50, gracePeriodFrames: 3, onDrop },
     });
-    plugin.onInit(api2);
+    plugin.setup(engine2);
 
-    const slowDelta = 1 / 20; // 20 FPS → sous le seuil de 50
-    plugin.onBeforeUpdate(api2, slowDelta); // frame 1 : consecutiveDropFrames=1 — pas encore
-    plugin.onBeforeUpdate(api2, slowDelta); // frame 2 : consecutiveDropFrames=2 — pas encore
-    plugin.onBeforeUpdate(api2, slowDelta); // frame 3 : consecutiveDropFrames=3 — 1er déclenchement
-    plugin.onBeforeUpdate(api2, slowDelta); // frame 4 : consecutiveDropFrames=4 — 2ème déclenchement
-    plugin.onBeforeUpdate(api2, slowDelta); // frame 5 : consecutiveDropFrames=5 — 3ème déclenchement
+    const slowDelta = 1 / 20; // 20 FPS — below 50 threshold
+    plugin.onBeforeUpdate!(slowDelta); // frame 1: consecutiveDropFrames=1 — not yet
+    plugin.onBeforeUpdate!(slowDelta); // frame 2: consecutiveDropFrames=2 — not yet
+    plugin.onBeforeUpdate!(slowDelta); // frame 3: consecutiveDropFrames=3 — 1st trigger
+    plugin.onBeforeUpdate!(slowDelta); // frame 4: consecutiveDropFrames=4 — 2nd trigger
+    plugin.onBeforeUpdate!(slowDelta); // frame 5: consecutiveDropFrames=5 — 3rd trigger
 
     expect(onDrop).toHaveBeenCalledTimes(3);
   });
@@ -192,42 +187,33 @@ describe('DebugPlugin', () => {
       updateInterval: 1,
       fpsDrop: { threshold: 30, onDrop },
     });
-    plugin.onInit(api);
-    plugin.onBeforeUpdate(api, 1 / 60); // 60 FPS > 30
-    plugin.onBeforeUpdate(api, 1 / 60);
-    plugin.onBeforeUpdate(api, 1 / 60);
+    plugin.setup(engine);
+    plugin.onBeforeUpdate!(1 / 60); // 60 FPS > 30
+    plugin.onBeforeUpdate!(1 / 60);
+    plugin.onBeforeUpdate!(1 / 60);
     expect(onDrop).not.toHaveBeenCalled();
   });
 
   it('reset remet le tracker à zéro', () => {
-    const registeredServices = new Map<string, unknown>();
-    const api2 = makeAPI({
-      services: {
-        register: (name: string, instance: unknown) => {
-          registeredServices.set(name, instance);
-        },
-        get: (name: string) => registeredServices.get(name),
-        has: (name: string) => registeredServices.has(name),
-      } as unknown as EngineAPI['services'],
-    });
+    const engine2 = createMockEngine();
 
     const plugin = new DebugPlugin({ updateInterval: 1 });
-    plugin.onInit(api2);
-    plugin.onBeforeUpdate(api2, 1 / 60);
+    plugin.setup(engine2);
+    plugin.onBeforeUpdate!(1 / 60);
 
-    const service = registeredServices.get('debug') as {
+    const service = engine2.inject('debug' as any) as {
       reset: () => void;
       getMetrics: () => import('../src/types').DebugMetrics;
     };
     service.reset();
     const m = service.getMetrics();
-    // Après reset, les métriques restent le dernier snapshot (reset ne les efface pas)
+    // After reset, metrics remain as the last snapshot (reset does not clear them)
     expect(m).toBeDefined();
   });
 
-  it("onDestroy ne jette pas d'erreur", () => {
+  it("teardown ne jette pas d'erreur", () => {
     const plugin = new DebugPlugin();
-    plugin.onInit(api);
-    expect(() => plugin.onDestroy()).not.toThrow();
+    plugin.setup(engine);
+    expect(() => plugin.teardown!()).not.toThrow();
   });
 });

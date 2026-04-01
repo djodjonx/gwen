@@ -8,68 +8,52 @@ export * from './schema';
 export { createGwenHooks } from './hooks';
 export type { GwenHooks, GwenHookable } from './hooks';
 
-// Config runtime helpers
-export { defaultConfig, mergeConfigs, createEngine } from './config/config';
-export { ConfigBuilder } from './config/config-builder';
-export type { GwenConfigServices, GwenConfigHooks } from './config/config';
-
-// Unified plugin system — GwenPlugin, GwenPluginWasmContext, isWasmPlugin
-// isWasmPlugin is a runtime function living in plugin-system/plugin-utils.ts
-// so Vite does not tree-shake it when bundling.
-export { isWasmPlugin } from './plugin-system/plugin-utils';
-export type { GwenPlugin, GwenPluginWasmContext, PluginEntry } from './types/plugin';
-
-// Plugin system utilities — type helpers for defineConfig() inference
+// RFC-001: New GwenEngine interface & createEngine() factory
+export { createEngine, GwenPluginNotFoundError } from './engine/gwen-engine';
 export type {
-  GwenPluginMeta,
-  // Primary
-  MergePluginsProvides,
-  MergePluginsHooks,
-  PluginProvides,
-  PluginProvidesHooks,
-  UnionToIntersection,
-} from './plugin-system/plugin';
+  GwenEngine,
+  // GwenPlugin is the RFC-001 interface (setup/teardown) — the primary plugin contract.
+  GwenPlugin,
+  GwenProvides,
+  GwenEngineOptions,
+  GwenPluginNotFoundErrorOptions,
+  EngineStats,
+  WasmModuleHandle,
+  WasmModuleOptions,
+  WasmRegionView,
+  WasmRingBuffer,
+} from './engine/gwen-engine';
+export type { WasmMemoryRegion, WasmMemoryOptions, WasmChannelOptions } from './engine/gwen-engine';
 
-// System definition — defineSystem() for game logic
-export { defineSystem } from './plugin-system/system';
-export type {
-  System,
-  SystemBody,
-  SystemFactory,
-  SystemQuery,
-  SystemQueryDescriptor,
-  QueryResult,
-  EntityAccessor,
-} from './plugin-system/system';
+// RFC-003: Runtime hooks interface (augmentable)
+export type { GwenRuntimeHooks } from './engine/runtime-hooks';
 
-// Query result builder (for advanced use)
-export { buildQueryResult, resolveSystemQueryIds } from './core/query-result';
+// RFC-005: Composable context system (unctx-backed)
+export { engineContext, useEngine, GwenContextError } from './context';
+export {
+  defineSystem,
+  onUpdate,
+  onBeforeUpdate,
+  onAfterUpdate,
+  onRender,
+  useQuery,
+  useWasmModule,
+} from './system';
+export type { LiveQuery, ComponentDef } from './system';
 
-// ECS internals (kept for tests / advanced usage)
-export { EntityManager, ComponentRegistry, QueryEngine } from './core/ecs';
+// Plugin metadata type (used by plugin packages to declare service/hook types)
+export type { GwenPluginMeta } from './plugin-system/plugin';
 
-// Engine
-export { Engine } from './engine/engine';
-export { getEngine, useEngine, resetEngine } from './engine/engine-globals';
-export type { EntityId } from './engine/engine-api';
-
-// API & ServiceLocator
-export { ServiceLocator, EngineAPIImpl, createEngineAPI } from './api/api';
-export type { EngineState } from './api/api';
-
-// Plugin manager
-export { PluginManager } from './plugin-system/plugin-manager';
-
-// Scene system
+// Scene system (V1 game framework — kept for kit-platformer compatibility)
 export { SceneManager, defineScene } from './api/scene';
 export type { Scene, SceneBody } from './api/scene';
 export type { ReloadContext, ReloadEvaluator } from './api/scene-context';
 
-// UI system
+// UI system (V1 game framework)
 export { UIManager, defineUI, UIComponent } from './api/ui';
 export type { UIDefinition } from './api/ui';
 
-// Prefab system
+// Prefab system (V1 game framework)
 export { definePrefab, PrefabManager } from './core/prefab';
 export type { PrefabDefinition } from './core/prefab';
 
@@ -89,7 +73,7 @@ export type {
   InitWasmOptions,
 } from './engine/wasm-bridge';
 
-// WASM Plugin Infrastructure
+// WASM shared memory
 export {
   SharedMemoryManager,
   TRANSFORM_STRIDE,
@@ -112,17 +96,6 @@ export {
   writeTransform3DScale,
 } from './components/transform3d';
 export type { MemoryRegion } from './wasm/shared-memory';
-export { loadWasmPlugin } from './wasm/wasm-plugin-loader';
-export type { WasmPluginLoadOptions } from './wasm/wasm-plugin-loader';
-
-// Plugin Data Bus — channel-based WASM ↔ TS communication
-export {
-  PluginDataBus,
-  readEventChannel,
-  writeEventToChannel,
-  getDataChannelView,
-} from './wasm/plugin-data-bus';
-export type { AllocatedChannel } from './wasm/plugin-data-bus';
 
 // String Pool — memory-efficient string storage for ECS
 export { GlobalStringPoolManager, StringPoolManager, StringPool } from './utils/string-pool';

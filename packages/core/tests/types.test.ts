@@ -2,16 +2,9 @@
  * Type Definitions and Validation Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import type {
-  EngineConfig,
-  EntityId,
-  Color,
-  Vector2D,
-  EngineStats,
-  GwenPlugin,
-} from '../src/types';
-import { createEntityId } from '../src/engine/engine-api';
+import { describe, it, expect } from 'vitest';
+import type { EngineConfig, EntityId, Color, Vector2D } from '../src/types';
+import { createEntityId } from '../src/types/entity';
 
 describe('Types', () => {
   describe('EntityId', () => {
@@ -91,47 +84,6 @@ describe('Types', () => {
         targetFPS: 60,
       };
       expect(config).toBeDefined();
-    });
-  });
-
-  describe('EngineStats', () => {
-    it('should have all stats fields', () => {
-      const stats: EngineStats = {
-        fps: 60,
-        frameCount: 1000,
-        deltaTime: 0.016,
-        entityCount: 50,
-        isRunning: true,
-      };
-
-      expect(stats.fps).toBe(60);
-      expect(stats.frameCount).toBe(1000);
-      expect(stats.deltaTime).toBeCloseTo(0.016);
-      expect(stats.entityCount).toBe(50);
-      expect(stats.isRunning).toBe(true);
-    });
-  });
-
-  describe('GwenPlugin', () => {
-    it('should have required name field', () => {
-      const plugin: GwenPlugin = {
-        name: 'my-plugin',
-      };
-
-      expect(plugin.name).toBe('my-plugin');
-    });
-
-    it('should have optional lifecycle methods', () => {
-      const plugin: GwenPlugin = {
-        name: 'my-plugin',
-        onInit: vi.fn(),
-        onUpdate: vi.fn(),
-        onDestroy: vi.fn(),
-      };
-
-      expect(typeof plugin.onInit).toBe('function');
-      expect(typeof plugin.onUpdate).toBe('function');
-      expect(typeof plugin.onDestroy).toBe('function');
     });
   });
 

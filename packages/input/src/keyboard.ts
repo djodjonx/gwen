@@ -35,14 +35,14 @@ export class KeyboardInput {
 
   /**
    * Attach event listeners to a target (window or a specific element).
-   * Called by InputPlugin.onInit().
+   * Called by InputPlugin.setup().
    */
   attach(target: EventTarget = window): void {
     target.addEventListener('keydown', this.onKeyDown as EventListener);
     target.addEventListener('keyup', this.onKeyUp as EventListener);
   }
 
-  /** Remove event listeners. Called by InputPlugin.onDestroy(). */
+  /** Remove event listeners. Called by InputPlugin.teardown(). */
   detach(target: EventTarget = window): void {
     target.removeEventListener('keydown', this.onKeyDown as EventListener);
     target.removeEventListener('keyup', this.onKeyUp as EventListener);

@@ -14,7 +14,7 @@
  */
 
 import { definePlugin } from '@gwenengine/kit';
-import type { EntityId, GwenPluginMeta } from '@gwenengine/kit';
+import type { EntityId, GwenEngine, GwenPluginMeta } from '@gwenengine/kit';
 
 // ── Component types ───────────────────────────────────────────────────────────
 
@@ -114,6 +114,8 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
   let _ctx!: CanvasRenderingContext2D;
   let camera: Camera = { x: 0, y: 0, zoom: 1 };
   const imageCache = new Map<string, HTMLImageElement>();
+  /** Stored engine reference — set in setup(), used in onRender(). */
+  let _engine: GwenEngine | null = null;
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -227,9 +229,9 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
   return {
     name: 'Canvas2DRenderer',
     meta: pluginMeta,
-    provides: { renderer: {} as RendererService },
 
-    onInit(api): void {
+    setup(engine: GwenEngine): void {
+      _engine = engine;
       if (typeof config.canvas === 'string') {
         const el = document.getElementById(config.canvas);
         if (!el || el.tagName.toLowerCase() !== 'canvas') {
@@ -254,11 +256,11 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx = ctx;
       applyPixelRatio();
 
-      api.services.register('renderer', service);
+      engine.provide('renderer' as any, service);
     },
 
-    onRender(api): void {
-      if (manualRender) return;
+    onRender(): void {
+      if (manualRender || !_engine) return;
 
       const { width, height } = _canvas;
       _ctx.fillStyle = background;
@@ -268,17 +270,17 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
       _ctx.scale(camera.zoom, camera.zoom);
 
-      const entities = api.query(['transform']);
+      const entities = [..._engine.createLiveQuery(['transform'])] as EntityId[];
       const sorted = entities.slice().sort((a: EntityId, b: EntityId) => {
-        const sa = api.getComponent<SpriteComponent>(a, 'sprite');
-        const sb = api.getComponent<SpriteComponent>(b, 'sprite');
+        const sa = (_engine as any).getComponent<SpriteComponent>(a, 'sprite');
+        const sb = (_engine as any).getComponent<SpriteComponent>(b, 'sprite');
         return (sa?.zOrder ?? 0) - (sb?.zOrder ?? 0);
       });
 
       for (const id of sorted) {
-        const transform = api.getComponent<TransformComponent>(id, 'transform');
+        const transform = (_engine as any).getComponent<TransformComponent>(id, 'transform');
         if (!transform) continue;
-        const sprite = api.getComponent<SpriteComponent>(id, 'sprite');
+        const sprite = (_engine as any).getComponent<SpriteComponent>(id, 'sprite');
         if (sprite?.visible === false) continue;
         drawEntity(_ctx, id, transform, sprite);
       }
@@ -286,8 +288,9 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx.restore();
     },
 
-    onDestroy(): void {
+    teardown(): void {
       imageCache.clear();
+      _engine = null;
     },
   };
 });

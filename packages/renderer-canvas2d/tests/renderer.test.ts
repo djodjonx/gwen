@@ -7,8 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Canvas2DRenderer } from '../src/renderer';
 import { ShapeRenderer } from '../src/shapes';
 import type { SpriteComponent, TransformComponent, RendererService } from '../src/renderer';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenengine/core';
 
 // ── Canvas mock ──────────────────────────────────────────────────────────
 
@@ -45,162 +44,248 @@ function makeCanvasMock(width = 800, height = 600) {
   return { canvas, ctx };
 }
 
-function makeAPI(): EngineAPI {
-  return createEngineAPI(new EntityManager(100), new ComponentRegistry(), new QueryEngine());
+// ── V2 Mock engine factory ──────────────────────────────────────────────
+
+function createMockEngine(
+  overrides: Partial<{
+    entities: any[];
+    getComponent: (id: any, name: string) => any;
+  }> = {},
+): GwenEngine {
+  const svc = new Map<string, unknown>();
+  const entities = overrides.entities ?? [];
+  const getComponentFn = overrides.getComponent ?? (() => undefined);
+
+  return {
+    provide: (key: string, value: unknown) => {
+      svc.set(key, value);
+    },
+    inject: (key: string) => {
+      const v = svc.get(key);
+      if (v === undefined) throw new Error(`No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => svc.get(key),
+    use: vi.fn().mockResolvedValue(undefined),
+    unuse: vi.fn().mockResolvedValue(undefined),
+    hooks: {
+      hook: vi.fn(),
+      callHook: vi.fn(),
+    } as any,
+    run: (fn: () => any) => fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    maxEntities: 1000,
+    targetFPS: 60,
+    maxDeltaSeconds: 0.1,
+    variant: 'light' as const,
+    deltaTime: 0,
+    frameCount: 0,
+    getFPS: () => 0,
+    getStats: () => ({ fps: 0, deltaTime: 0, frameCount: 0 }),
+    loadWasmModule: vi.fn().mockResolvedValue({}),
+    getWasmModule: vi.fn(),
+    createLiveQuery: vi.fn(() => entities[Symbol.iterator]()),
+    getComponent: vi.fn(getComponentFn),
+    wasmBridge: {
+      physics2d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+      physics3d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+    },
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    startExternal: vi.fn().mockResolvedValue(undefined),
+    advance: vi.fn().mockResolvedValue(undefined),
+  } as unknown as GwenEngine;
 }
 
-function getRendererService(api: EngineAPI): RendererService {
-  return api.services.get('renderer') as RendererService;
+function getRendererService(engine: GwenEngine): RendererService {
+  return (engine as any).inject('renderer') as RendererService;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe('Canvas2DRenderer', () => {
-  let api: EngineAPI;
+  let engine: GwenEngine;
 
   beforeEach(() => {
-    api = makeAPI();
+    engine = createMockEngine();
   });
 
-  describe('onInit', () => {
+  describe('setup', () => {
     it('should initialize with canvas element', () => {
       const { canvas } = makeCanvasMock();
-      const renderer = new Canvas2DRenderer({ canvas, pixelRatio: 1 });
-      expect(() => renderer.onInit(api)).not.toThrow();
+      const renderer = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      expect(() => renderer.setup(engine)).not.toThrow();
     });
 
     it('should throw if canvas element is not found in DOM', () => {
       const origGetById = (globalThis as any).document?.getElementById;
       (globalThis as any).document = { getElementById: () => null };
-      const renderer = new Canvas2DRenderer({ canvas: 'non-existent', pixelRatio: 1 });
-      expect(() => renderer.onInit(api)).toThrow('not found');
+      const renderer = Canvas2DRenderer({ canvas: 'non-existent', pixelRatio: 1 });
+      expect(() => renderer.setup(engine)).toThrow('not found');
       if (origGetById !== undefined) {
         (globalThis as any).document.getElementById = origGetById;
       }
     });
 
     it('should have name "Canvas2DRenderer"', () => {
-      const renderer = new Canvas2DRenderer({ canvas: 'x', pixelRatio: 1 });
+      const renderer = Canvas2DRenderer({ canvas: 'x', pixelRatio: 1 });
       expect(renderer.name).toBe('Canvas2DRenderer');
     });
   });
 
   describe('onRender', () => {
-    let renderer: InstanceType<typeof Canvas2DRenderer>;
+    let renderer: ReturnType<typeof Canvas2DRenderer>;
     let ctx: ReturnType<typeof makeCtxMock>;
 
     beforeEach(() => {
       const { canvas, ctx: c } = makeCanvasMock();
       ctx = c;
-      renderer = new Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
-      renderer.onInit(api);
+      renderer = Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
+      renderer.setup(engine);
     });
 
     it('should clear canvas with background color', () => {
-      renderer.onRender(api);
+      renderer.onRender!();
       expect(ctx.fillRect).toHaveBeenCalled();
     });
 
     it('should not throw with no entities', () => {
-      expect(() => renderer.onRender(api)).not.toThrow();
+      expect(() => renderer.onRender!()).not.toThrow();
     });
 
     it('should draw entity with transform but no sprite (white dot)', () => {
-      const e = api.createEntity();
-      api.addComponent<TransformComponent>(e, 'transform', { x: 100, y: 100 });
-      renderer.onRender(api);
-      expect(ctx.fillRect).toHaveBeenCalled();
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'transform') return { x: 100, y: 100 };
+          return undefined;
+        },
+      });
+      const { canvas, ctx: c } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
+      r.setup(mockEngine);
+      r.onRender!();
+      expect(c.fillRect).toHaveBeenCalled();
     });
 
     it('should draw rect sprite', () => {
-      const e = api.createEntity();
-      api.addComponent<TransformComponent>(e, 'transform', { x: 50, y: 50 });
-      api.addComponent<SpriteComponent>(e, 'sprite', {
-        shape: 'rect',
-        width: 32,
-        height: 32,
-        color: '#ff0000',
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'transform') return { x: 50, y: 50 };
+          if (name === 'sprite') return { shape: 'rect', width: 32, height: 32, color: '#ff0000' };
+          return undefined;
+        },
       });
-      renderer.onRender(api);
-      expect(ctx.fillRect).toHaveBeenCalled();
+      const { canvas, ctx: c } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
+      r.setup(mockEngine);
+      r.onRender!();
+      expect(c.fillRect).toHaveBeenCalled();
     });
 
     it('should draw circle sprite', () => {
-      const e = api.createEntity();
-      api.addComponent<TransformComponent>(e, 'transform', { x: 200, y: 200 });
-      api.addComponent<SpriteComponent>(e, 'sprite', {
-        shape: 'circle',
-        width: 20,
-        color: '#00ff00',
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'transform') return { x: 200, y: 200 };
+          if (name === 'sprite') return { shape: 'circle', width: 20, color: '#00ff00' };
+          return undefined;
+        },
       });
-      renderer.onRender(api);
-      expect(ctx.beginPath).toHaveBeenCalled();
-      expect(ctx.arc).toHaveBeenCalled();
+      const { canvas, ctx: c } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
+      r.setup(mockEngine);
+      r.onRender!();
+      expect(c.beginPath).toHaveBeenCalled();
+      expect(c.arc).toHaveBeenCalled();
     });
 
     it('should skip invisible sprites', () => {
-      const e = api.createEntity();
-      api.addComponent<TransformComponent>(e, 'transform', { x: 0, y: 0 });
-      api.addComponent<SpriteComponent>(e, 'sprite', {
-        shape: 'rect',
-        width: 10,
-        height: 10,
-        visible: false,
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'transform') return { x: 0, y: 0 };
+          if (name === 'sprite') return { shape: 'rect', width: 10, height: 10, visible: false };
+          return undefined;
+        },
       });
-      renderer.onRender(api);
-      expect(ctx.fillRect).toHaveBeenCalledTimes(1); // only background
+      const { canvas, ctx: c } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, background: '#111', pixelRatio: 1 });
+      r.setup(mockEngine);
+      r.onRender!();
+      // Only background fillRect, no entity rect
+      expect(c.fillRect).toHaveBeenCalledTimes(1);
     });
 
     it('should apply transform (translate/rotate/scale)', () => {
-      const e = api.createEntity();
-      api.addComponent<TransformComponent>(e, 'transform', {
-        x: 100,
-        y: 200,
-        rotation: Math.PI / 4,
-        scaleX: 2,
-        scaleY: 2,
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'transform')
+            return { x: 100, y: 200, rotation: Math.PI / 4, scaleX: 2, scaleY: 2 };
+          return undefined;
+        },
       });
-      renderer.onRender(api);
-      expect(ctx.translate).toHaveBeenCalled();
-      expect(ctx.rotate).toHaveBeenCalled();
-      expect(ctx.scale).toHaveBeenCalled();
+      const { canvas, ctx: c } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      r.setup(mockEngine);
+      r.onRender!();
+      expect(c.translate).toHaveBeenCalled();
+      expect(c.rotate).toHaveBeenCalled();
+      expect(c.scale).toHaveBeenCalled();
     });
 
     it('should ignore entity without transform', () => {
-      const e = api.createEntity();
-      api.addComponent<SpriteComponent>(e, 'sprite', { shape: 'rect', width: 10, height: 10 });
-      expect(() => renderer.onRender(api)).not.toThrow();
+      const entityId = 1n as any;
+      const mockEngine = createMockEngine({
+        entities: [entityId],
+        getComponent: (_id: any, name: string) => {
+          if (name === 'sprite') return { shape: 'rect', width: 10, height: 10 };
+          return undefined; // no transform
+        },
+      });
+      const { canvas } = makeCanvasMock();
+      const r = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      r.setup(mockEngine);
+      expect(() => r.onRender!()).not.toThrow();
     });
   });
 
   describe('Camera', () => {
-    let renderer: InstanceType<typeof Canvas2DRenderer>;
+    let renderer: ReturnType<typeof Canvas2DRenderer>;
 
     beforeEach(() => {
       const { canvas } = makeCanvasMock();
-      renderer = new Canvas2DRenderer({ canvas, pixelRatio: 1 });
-      renderer.onInit(api);
+      renderer = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      renderer.setup(engine);
     });
 
     it('should have default camera at origin', () => {
-      const cam = getRendererService(api).getCamera();
+      const cam = getRendererService(engine).getCamera();
       expect(cam).toEqual({ x: 0, y: 0, zoom: 1 });
     });
 
     it('should update camera with setCamera()', () => {
-      const svc = getRendererService(api);
+      const svc = getRendererService(engine);
       svc.setCamera({ x: 100, y: 50, zoom: 2 });
       expect(svc.getCamera()).toEqual({ x: 100, y: 50, zoom: 2 });
     });
 
     it('should snap to target with lerp=1', () => {
-      const svc = getRendererService(api);
+      const svc = getRendererService(engine);
       svc.followTarget(300, 200, 1);
       expect(svc.getCamera()).toMatchObject({ x: 300, y: 200 });
     });
 
     it('should partially follow target with lerp < 1', () => {
-      const svc = getRendererService(api);
+      const svc = getRendererService(engine);
       svc.setCamera({ x: 0, y: 0 });
       svc.followTarget(100, 100, 0.5);
       expect(svc.getCamera()).toMatchObject({ x: 50, y: 50 });
@@ -210,20 +295,20 @@ describe('Canvas2DRenderer', () => {
   describe('resize()', () => {
     it('should update canvas dimensions', () => {
       const { canvas } = makeCanvasMock();
-      const renderer = new Canvas2DRenderer({ canvas, pixelRatio: 1 });
-      renderer.onInit(api);
-      getRendererService(api).resize(1920, 1080);
+      const renderer = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      renderer.setup(engine);
+      getRendererService(engine).resize(1920, 1080);
       expect(canvas.width).toBe(1920);
       expect(canvas.height).toBe(1080);
     });
   });
 
-  describe('onDestroy', () => {
-    it('should not throw on destroy', () => {
+  describe('teardown', () => {
+    it('should not throw on teardown', () => {
       const { canvas } = makeCanvasMock();
-      const renderer = new Canvas2DRenderer({ canvas, pixelRatio: 1 });
-      renderer.onInit(api);
-      expect(() => renderer.onDestroy()).not.toThrow();
+      const renderer = Canvas2DRenderer({ canvas, pixelRatio: 1 });
+      renderer.setup(engine);
+      expect(() => renderer.teardown!()).not.toThrow();
     });
   });
 });

@@ -10,7 +10,7 @@
 
 import { definePlugin } from '@gwenengine/kit';
 import { getWasmBridge, createEntityId, unpackEntityId } from '@gwenengine/core';
-import type { EngineAPI, EntityId } from '@gwenengine/core';
+import type { EntityId, GwenEngine } from '@gwenengine/core';
 import type { GwenPluginMeta } from '@gwenengine/kit';
 
 import type {
@@ -253,6 +253,8 @@ interface Physics3DBridgeRuntime {
   variant: 'light' | 'physics2d' | 'physics3d';
   getPhysicsBridge(): Physics3DWasmBridge;
   getLinearMemory?(): WebAssembly.Memory | null;
+  /** Returns the current generation counter for an entity slot index. */
+  getEntityGeneration?(index: number): number | undefined;
 }
 
 // ─── Plugin implementation ──────────────────────────────────────────────────────
@@ -280,6 +282,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   let wasmBridge: Physics3DWasmBridge | null = null;
   /** Bridge runtime for memory access. */
   let bridgeRuntime: Physics3DBridgeRuntime | null = null;
+  /** Stored GwenEngine reference — set in setup(), used by lifecycle hooks. */
+  let _engine: GwenEngine | null = null;
 
   // Body registry — used in both modes as the metadata store
   const bodyByEntity = new Map<number, Physics3DBodyHandle>();
@@ -1068,11 +1072,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   return {
     name: 'Physics3D',
     meta: pluginMeta,
-    provides: { physics3d: {} as Physics3DAPI },
-    providesHooks: {} as Physics3DPluginHooks,
-    extensions: { prefab: {} as Physics3DPrefabExtension },
 
-    onInit(api: EngineAPI): void {
+    setup(engine: GwenEngine): void {
+      _engine = engine;
       const bridge = getWasmBridge() as unknown as Physics3DBridgeRuntime;
       _variant = bridge.variant;
       bridgeRuntime = bridge;
@@ -1113,7 +1115,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       ready = true;
 
       // Register prefab extension handler
-      api.hooks.hook('prefab:instantiate' as string, (entityId: unknown, extensions: unknown) => {
+      (engine.hooks as any).hook('prefab:instantiate', (entityId: unknown, extensions: unknown) => {
         const ext = (extensions as Record<string, unknown>)?.physics3d as
           | Physics3DPrefabExtension
           | undefined;
@@ -1133,7 +1135,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         }
       });
 
-      offEntityDestroyed = api.hooks.hook('entity:destroyed' as string, (entityId: unknown) => {
+      offEntityDestroyed = engine.hooks.hook('entity:destroy', (entityId: EntityId) => {
         if (
           typeof entityId === 'bigint' ||
           typeof entityId === 'number' ||
@@ -1153,7 +1155,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         }
       });
 
-      api.services.register('physics3d', service);
+      engine.provide('physics3d' as any, service);
 
       if (cfg.debug) {
         console.log(
@@ -1162,7 +1164,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       }
     },
 
-    onBeforeUpdate(_api: EngineAPI, deltaTime: number): void {
+    onBeforeUpdate(deltaTime: number): void {
       if (!ready || !stepFn) return;
       if (!(deltaTime > 0)) return;
       stepFn(deltaTime);
@@ -1171,8 +1173,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       }
     },
 
-    onUpdate(api: EngineAPI): void {
-      if (!ready) return;
+    onUpdate(): void {
+      if (!ready || !_engine) return;
 
       // Invalidate DataView if memory buffer changed (memory.grow event)
       if (eventsView && backendMode === 'wasm') {
@@ -1188,8 +1190,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
       // Build resolved contacts
       const contacts: Physics3DCollisionContact[] = rawEvents.map((ev) => {
-        const genA = api.getEntityGeneration(ev.slotA);
-        const genB = api.getEntityGeneration(ev.slotB);
+        const genA = bridgeRuntime?.getEntityGeneration?.(ev.slotA);
+        const genB = bridgeRuntime?.getEntityGeneration?.(ev.slotB);
         return {
           entityA:
             genA !== undefined ? createEntityId(ev.slotA, genA) : (BigInt(ev.slotA) as EntityId),
@@ -1206,7 +1208,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       if (contacts.length === 0) return;
 
       // Dispatch hook
-      void api.hooks.callHook('physics3d:collision', contacts);
+      void (_engine.hooks as any).callHook('physics3d:collision', contacts);
 
       // Update sensor states and dispatch sensor:changed hook
       for (const ev of rawEvents) {
@@ -1217,7 +1219,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           if (colliderId === undefined) continue;
 
           // Find the entity this slot corresponds to
-          const generation = api.getEntityGeneration(slot);
+          const generation = bridgeRuntime?.getEntityGeneration?.(slot);
           if (generation === undefined) continue;
           const eid = createEntityId(slot, generation);
 
@@ -1234,7 +1236,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           sensorMap.set(colliderId, next);
 
           if (prev.isActive !== newActive) {
-            void api.hooks.callHook('physics3d:sensor:changed', eid, colliderId, next);
+            void (_engine.hooks as any).callHook('physics3d:sensor:changed', eid, colliderId, next);
           }
         }
       }
@@ -1243,12 +1245,12 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       for (const contact of contacts) {
         const slotA = unpackEntityId(contact.entityA).index;
         const slotB = unpackEntityId(contact.entityB).index;
-        entityCollisionCallbacks.get(slotA)?.(contact.entityA, contact.entityB, contact, api);
-        entityCollisionCallbacks.get(slotB)?.(contact.entityB, contact.entityA, contact, api);
+        entityCollisionCallbacks.get(slotA)?.(contact.entityA, contact.entityB, contact);
+        entityCollisionCallbacks.get(slotB)?.(contact.entityB, contact.entityA, contact);
       }
     },
 
-    onDestroy(): void {
+    teardown(): void {
       if (offEntityDestroyed) {
         offEntityDestroyed();
         offEntityDestroyed = null;
@@ -1258,6 +1260,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       backendMode = 'local';
       wasmBridge = null;
       bridgeRuntime = null;
+      _engine = null;
       eventsView = null;
       eventsBufferRef = null;
       bodyByEntity.clear();

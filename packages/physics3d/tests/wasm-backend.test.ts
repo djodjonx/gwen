@@ -100,6 +100,7 @@ vi.mock('@gwenengine/core', () => ({
 }));
 
 import { Physics3DPlugin, type Physics3DAPI } from '../src/index';
+import type { GwenEngine } from '@gwenengine/core';
 
 describe('Physics3D plugin — WASM backend mode', () => {
   beforeEach(() => {
@@ -116,14 +117,22 @@ describe('Physics3D plugin — WASM backend mode', () => {
   });
 
   function setup() {
-    const plugin = new Physics3DPlugin();
-    const registeredServices = new Map<string, unknown>();
-    const api = {
-      services: { register: vi.fn((name: string, v: unknown) => registeredServices.set(name, v)) },
-      hooks: { hook: vi.fn(() => vi.fn()) },
-    } as any;
-    plugin.onInit(api);
-    const service = registeredServices.get('physics3d') as Physics3DAPI;
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
     return { plugin, service };
   }
 

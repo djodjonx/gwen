@@ -1,0 +1,302 @@
+/**
+ * @file RFC-005 — Composable-first system definition for @gwenengine/core
+ *
+ * Provides `defineSystem()` and the lifecycle composables (`onUpdate`, `onBeforeUpdate`,
+ * `onAfterUpdate`, `onRender`) for writing game systems without class boilerplate.
+ *
+ * Systems register their lifecycle callbacks during a synchronous `setup()` phase.
+ * Composables (`useEngine()`, `usePhysics2D()`, etc.) are resolved during setup
+ * and remain available inside the registered callbacks.
+ *
+ * @example
+ * ```typescript
+ * export const playerSystem = defineSystem(() => {
+ *   const input = useInput()         // resolved once at setup
+ *   const physics = usePhysics2D()   // resolved once at setup
+ *   const entities = useQuery([Position, PlayerTag])
+ *
+ *   onUpdate((dt) => {
+ *     for (const e of entities) {
+ *       if (input.keyboard.isDown('ArrowRight')) {
+ *         physics.setLinearVelocity(e.id, { x: 200 * dt, y: 0 })
+ *       }
+ *     }
+ *   })
+ * })
+ * ```
+ */
+
+import { useEngine } from './context.js';
+import type { GwenPlugin, WasmModuleHandle } from './engine/gwen-engine.js';
+import type { ComponentDefinition, ComponentSchema } from './schema.js';
+
+/** A component selector accepted by {@link useQuery}. */
+export type ComponentDef = ComponentDefinition<ComponentSchema>;
+
+// ─── Internal types ──────────────────────────────────────────────────────────
+
+/** A frame update callback receiving delta time in seconds. */
+type UpdateFn = (dt: number) => void;
+
+/** A render callback (no delta time — called every frame at render phase). */
+type RenderFn = () => void;
+
+/**
+ * Context used internally by `defineSystem()` to collect lifecycle registrations.
+ * Only valid while a `defineSystem()` setup function is executing.
+ * @internal
+ */
+interface SystemContext {
+  onBeforeUpdate(fn: UpdateFn): void;
+  onUpdate(fn: UpdateFn): void;
+  onAfterUpdate(fn: UpdateFn): void;
+  onRender(fn: RenderFn): void;
+}
+
+// ─── Module-level context slot ───────────────────────────────────────────────
+
+/** @internal Active system context — set during defineSystem setup, cleared after. */
+let _currentSystemContext: SystemContext | null = null;
+
+/**
+ * Returns the active system registration context.
+ * @internal
+ * @throws {Error} If called outside a `defineSystem()` setup function.
+ */
+function _getSystemContext(): SystemContext {
+  if (!_currentSystemContext) {
+    throw new Error(
+      '[GWEN] onUpdate/onRender/onBeforeUpdate/onAfterUpdate must be called ' +
+        'inside a defineSystem() setup callback, not inside the lifecycle function itself.',
+    );
+  }
+  return _currentSystemContext;
+}
+
+// ─── Lifecycle composables ───────────────────────────────────────────────────
+
+/**
+ * Registers a callback to run every frame **before** the physics/WASM step.
+ *
+ * Must be called synchronously inside a {@link defineSystem} setup callback.
+ *
+ * @param fn - Callback receiving delta time in seconds
+ *
+ * @example
+ * ```typescript
+ * defineSystem(() => {
+ *   onBeforeUpdate((dt) => {
+ *     // runs before physics each frame
+ *   })
+ * })
+ * ```
+ */
+export function onBeforeUpdate(fn: UpdateFn): void {
+  _getSystemContext().onBeforeUpdate(fn);
+}
+
+/**
+ * Registers a callback to run every frame **during** the update phase
+ * (after the physics/WASM step).
+ *
+ * Must be called synchronously inside a {@link defineSystem} setup callback.
+ *
+ * @param fn - Callback receiving delta time in seconds
+ *
+ * @example
+ * ```typescript
+ * defineSystem(() => {
+ *   onUpdate((dt) => {
+ *     // main game logic here
+ *   })
+ * })
+ * ```
+ */
+export function onUpdate(fn: UpdateFn): void {
+  _getSystemContext().onUpdate(fn);
+}
+
+/**
+ * Registers a callback to run every frame **after** the update phase.
+ *
+ * Must be called synchronously inside a {@link defineSystem} setup callback.
+ *
+ * @param fn - Callback receiving delta time in seconds
+ *
+ * @example
+ * ```typescript
+ * defineSystem(() => {
+ *   onAfterUpdate((dt) => {
+ *     // post-update cleanup or sync here
+ *   })
+ * })
+ * ```
+ */
+export function onAfterUpdate(fn: UpdateFn): void {
+  _getSystemContext().onAfterUpdate(fn);
+}
+
+/**
+ * Registers a callback to run every frame during the **render** phase.
+ * No delta time is provided — use for drawing operations only.
+ *
+ * Must be called synchronously inside a {@link defineSystem} setup callback.
+ *
+ * @param fn - Render callback
+ *
+ * @example
+ * ```typescript
+ * defineSystem(() => {
+ *   onRender(() => {
+ *     canvas.drawSprite(...)
+ *   })
+ * })
+ * ```
+ */
+export function onRender(fn: RenderFn): void {
+  _getSystemContext().onRender(fn);
+}
+
+// ─── defineSystem ─────────────────────────────────────────────────────────────
+
+/**
+ * Defines a game system using the composable pattern.
+ *
+ * The `setup` function runs **once** when the plugin is registered via `engine.use()`.
+ * During setup the engine context is active — composables (`useEngine()`, plugin
+ * composables, `useQuery()`) may be called to capture references used inside
+ * the registered lifecycle callbacks.
+ *
+ * Returns a {@link GwenPlugin} that can be passed directly to `engine.use()`.
+ *
+ * @param setup - System setup function. Called once synchronously in engine context.
+ * @returns A `GwenPlugin` representing the system.
+ *
+ * @example
+ * ```typescript
+ * export const moveSystem = defineSystem(function moveSystem() {
+ *   // Composables resolved at setup time:
+ *   const entities = useQuery([Position, Velocity])
+ *
+ *   // Lifecycle callbacks registered at setup time:
+ *   onUpdate((dt) => {
+ *     for (const e of entities) {
+ *       const pos = e.get(Position)
+ *       const vel = e.get(Velocity)
+ *       e.set(Position, { x: pos.x + vel.vx * dt, y: pos.y + vel.vy * dt })
+ *     }
+ *   })
+ * })
+ * ```
+ */
+export function defineSystem(setup: () => void): GwenPlugin {
+  const _beforeUpdate: UpdateFn[] = [];
+  const _update: UpdateFn[] = [];
+  const _afterUpdate: UpdateFn[] = [];
+  const _render: RenderFn[] = [];
+
+  return {
+    name: setup.name || 'anonymous-system',
+
+    setup(_engine): void {
+      // The engine context is already set by engine.use() wrapping.
+      // Activate the system registration context and run the user's setup.
+      const ctx: SystemContext = {
+        onBeforeUpdate: (fn) => _beforeUpdate.push(fn),
+        onUpdate: (fn) => _update.push(fn),
+        onAfterUpdate: (fn) => _afterUpdate.push(fn),
+        onRender: (fn) => _render.push(fn),
+      };
+      _currentSystemContext = ctx;
+      try {
+        setup();
+      } finally {
+        _currentSystemContext = null;
+      }
+    },
+
+    onBeforeUpdate(dt: number): void {
+      for (let i = 0; i < _beforeUpdate.length; i++) _beforeUpdate[i]!(dt);
+    },
+
+    onUpdate(dt: number): void {
+      for (let i = 0; i < _update.length; i++) _update[i]!(dt);
+    },
+
+    onAfterUpdate(dt: number): void {
+      for (let i = 0; i < _afterUpdate.length; i++) _afterUpdate[i]!(dt);
+    },
+
+    onRender(): void {
+      for (let i = 0; i < _render.length; i++) _render[i]!();
+    },
+  };
+}
+
+// ─── useQuery ─────────────────────────────────────────────────────────────────
+
+/**
+ * A live query result — an iterable of entity accessors updated each frame.
+ * Returned by {@link useQuery} inside a {@link defineSystem} setup callback.
+ *
+ * @typeParam T - Entity accessor type (implementation-dependent)
+ */
+export type LiveQuery<T = unknown> = Iterable<T>;
+
+/**
+ * Defines a reactive entity query inside a {@link defineSystem} setup callback.
+ *
+ * The returned iterable is re-evaluated every frame and reflects the current
+ * set of entities matching the component filter.
+ *
+ * @param _components - List of component definitions to match
+ * @returns A live query iterable
+ *
+ * @throws {GwenContextError} If called outside an active engine context
+ *
+ * @example
+ * ```typescript
+ * defineSystem(() => {
+ *   const enemies = useQuery([Position, EnemyTag])
+ *
+ *   onUpdate(() => {
+ *     for (const entity of enemies) {
+ *       // entity.id, entity.get(Position), ...
+ *     }
+ *   })
+ * })
+ * ```
+ *
+ * @remarks
+ * Full ECS integration is implemented in RFC-006.
+ * This stub validates the engine context is active.
+ */
+export function useQuery(components: ComponentDef[]): LiveQuery {
+  const engine = useEngine();
+  return engine.createLiveQuery(components);
+}
+
+// ─── useWasmModule ────────────────────────────────────────────────────────────
+
+/**
+ * Returns the handle for a WASM module loaded via the engine.
+ *
+ * In most cases you should use the plugin's composable (e.g. `usePhysics2D()`)
+ * instead of this low-level accessor.
+ *
+ * @param name - The module name as registered with the engine
+ * @returns The WASM module exports
+ * @throws {GwenContextError} If called outside an active engine context
+ *
+ * @example
+ * ```typescript
+ * const wasm = useWasmModule<PathfinderExports>('pathfinder')
+ * wasm.exports.findPath(fromX, fromY, toX, toY)
+ * ```
+ */
+export function useWasmModule<Exports extends WebAssembly.Exports = WebAssembly.Exports>(
+  name: string,
+): WasmModuleHandle<Exports> {
+  const engine = useEngine();
+  return engine.getWasmModule<Exports>(name);
+}

@@ -1,5 +1,5 @@
 import { definePlugin } from '@gwenengine/kit';
-import type { EntityId, GwenPluginMeta } from '@gwenengine/kit';
+import type { EntityId, GwenEngine, GwenPluginMeta } from '@gwenengine/kit';
 import { SpriteAnimRuntime } from './runtime';
 import type {
   SpriteAnimPluginConfig,
@@ -63,6 +63,7 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
   const maxSubSteps = Math.max(1, Math.floor(config.maxSubSteps ?? 8));
 
   let accumulator = 0;
+  let _engine: GwenEngine | null = null;
 
   let runtime = new SpriteAnimRuntime(
     { logger: debug ? undefined : { warn: () => {} } },
@@ -135,15 +136,14 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
   return {
     name: 'SpriteAnimPlugin',
     meta: pluginMeta,
-    provides: { animator: {} as SpriteAnimatorService },
-    providesHooks: {} as SpriteAnimPluginHooks,
 
-    onInit(api): void {
+    setup(engine: GwenEngine): void {
+      _engine = engine;
       runtime = new SpriteAnimRuntime(
         {
           events: {
             onFrame(entityId, clip, state, frameCursor, frameIndex) {
-              void api.hooks.callHook(
+              void (_engine?.hooks as any)?.callHook(
                 'spriteAnim:frame',
                 entityId,
                 clip,
@@ -153,10 +153,15 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
               );
             },
             onComplete(entityId, clip, state) {
-              void api.hooks.callHook('spriteAnim:complete', entityId, clip, state);
+              void (_engine?.hooks as any)?.callHook('spriteAnim:complete', entityId, clip, state);
             },
             onTransition(entityId, fromState, toState) {
-              void api.hooks.callHook('spriteAnim:transition', entityId, fromState, toState);
+              void (_engine?.hooks as any)?.callHook(
+                'spriteAnim:transition',
+                entityId,
+                fromState,
+                toState,
+              );
             },
           },
           logger: debug ? undefined : { warn: () => {} },
@@ -164,20 +169,25 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
         { maxFrameAdvancesPerEntity: config.maxFrameAdvancesPerEntity },
       );
 
-      api.services.register('animator', service);
+      engine.provide('animator' as any, service);
 
-      api.hooks.hook('ui:extensions', (uiName, entityId, extensions) => {
-        const ext = extensions?.spriteAnim as SpriteAnimUIExtension | undefined;
-        if (!ext) return;
-        runtime.attach(uiName, entityId, ext);
-      });
+      engine.hooks.hook(
+        'ui:extensions' as any,
+        (uiName: unknown, entityId: unknown, extensions: unknown) => {
+          const ext = (extensions as Record<string, unknown>)?.spriteAnim as
+            | SpriteAnimUIExtension
+            | undefined;
+          if (!ext) return;
+          runtime.attach(uiName as string, entityId as EntityId, ext);
+        },
+      );
 
-      api.hooks.hook('entity:destroy', (entityId) => {
+      engine.hooks.hook('entity:destroy', (entityId: EntityId) => {
         runtime.detach(entityId);
       });
     },
 
-    onUpdate(_api, dt): void {
+    onUpdate(dt: number): void {
       if (!autoUpdate) return;
 
       if (!fixedDelta || fixedDelta <= 0) {
@@ -198,9 +208,10 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
       }
     },
 
-    onDestroy(): void {
+    teardown(): void {
       runtime.clear();
       accumulator = 0;
+      _engine = null;
     },
   };
 });

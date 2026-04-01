@@ -5,8 +5,49 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AudioPlugin } from '../src/index';
 import type { AudioService } from '../src/index';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenengine/core';
+
+// ── Mock GwenEngine ──────────────────────────────────────────────────────
+
+function createMockEngine(overrides: Partial<{ frameCount: number }> = {}): GwenEngine {
+  const services = new Map<string, unknown>();
+  return {
+    provide: (key: string, value: unknown) => {
+      services.set(key, value);
+    },
+    inject: (key: string) => {
+      const v = services.get(key);
+      if (v === undefined) throw new Error(`[mock] No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => services.get(key),
+    use: vi.fn().mockResolvedValue(undefined),
+    unuse: vi.fn().mockResolvedValue(undefined),
+    hooks: {} as GwenEngine['hooks'],
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    startExternal: vi.fn().mockResolvedValue(undefined),
+    advance: vi.fn().mockResolvedValue(undefined),
+    run: (fn: () => unknown) => fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    maxEntities: 1000,
+    targetFPS: 60,
+    maxDeltaSeconds: 0.1,
+    variant: 'light',
+    deltaTime: 0,
+    frameCount: overrides.frameCount ?? 0,
+    getFPS: () => 0,
+    getStats: () => ({ fps: 0, deltaTime: 0, frameCount: 0 }),
+    loadWasmModule: vi.fn().mockResolvedValue({}),
+    getWasmModule: vi.fn(),
+    createLiveQuery: () => [][Symbol.iterator](),
+    wasmBridge: {
+      physics2d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+      physics3d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+    },
+  } as unknown as GwenEngine;
+}
 
 // ── AudioContext Mock ────────────────────────────────────────────────────
 
@@ -51,7 +92,7 @@ function makeAudioContextMock() {
 function installAudioContextMock() {
   const mock = makeAudioContextMock();
 
-  // Vitest 4 exige un mock constructible pour `new AudioContext()`.
+  // Vitest 4 requires a constructable mock for `new AudioContext()`.
   const MockAudioContext = vi.fn(function MockAudioContext(this: Record<string, unknown>) {
     Object.assign(this, mock);
   });
@@ -60,30 +101,25 @@ function installAudioContextMock() {
   return mock;
 }
 
-function makeAPI(): EngineAPI {
-  return createEngineAPI(new EntityManager(50), new ComponentRegistry(), new QueryEngine());
-}
-
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe('AudioPlugin', () => {
-  let api: EngineAPI;
+  let engine: GwenEngine;
   let ctxMock: ReturnType<typeof makeAudioContextMock>;
 
   beforeEach(() => {
-    api = makeAPI();
+    engine = createMockEngine();
     ctxMock = installAudioContextMock();
   });
 
-  describe('onInit', () => {
+  describe('setup', () => {
     it('should create AudioContext and register service', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
+      plugin.setup(engine);
 
-      expect(api.services.has('audio')).toBe(true);
-      expect(api.services.get('audio')).toBeDefined();
+      expect(engine.tryInject('audio' as any)).toBeDefined();
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should have name "AudioPlugin"', () => {
@@ -92,19 +128,19 @@ describe('AudioPlugin', () => {
 
     it('should apply master volume on init', () => {
       const plugin = new AudioPlugin({ masterVolume: 0.5 });
-      plugin.onInit(api);
+      plugin.setup(engine);
 
-      const audio = api.services.get('audio') as AudioService;
+      const audio = engine.inject('audio' as any) as AudioService;
       expect(audio.getMasterVolume()).toBe(0.5);
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
   describe('preloadBuffer + play', () => {
     it('should play a preloaded buffer sound', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       const fakeBuffer = { duration: 1 } as unknown as AudioBuffer;
       audio.preloadBuffer('jump', fakeBuffer);
@@ -114,24 +150,24 @@ describe('AudioPlugin', () => {
       expect(ctxMock.createBufferSource).toHaveBeenCalled();
       expect(ctxMock.createGain).toHaveBeenCalled();
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should return null for unknown sound', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       const result = audio.play('unknown');
       expect(result).toBeNull();
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should apply volume option', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       const fakeBuffer = { duration: 1 } as unknown as AudioBuffer;
       audio.preloadBuffer('sfx', fakeBuffer);
@@ -140,71 +176,71 @@ describe('AudioPlugin', () => {
       const gainMock = ctxMock.createGain.mock.results[1]?.value;
       expect(gainMock?.gain?.value).toBe(0.3);
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should resume suspended context on play', () => {
       (ctxMock as any).state = 'suspended';
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       const fakeBuffer = { duration: 1 } as unknown as AudioBuffer;
       audio.preloadBuffer('bg', fakeBuffer);
       audio.play('bg');
 
       expect(ctxMock.resume).toHaveBeenCalled();
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
   describe('isLoaded', () => {
     it('should return false before preload', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
       expect(audio.isLoaded('jump')).toBe(false);
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should return true after preloadBuffer', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
       audio.preloadBuffer('jump', {} as AudioBuffer);
       expect(audio.isLoaded('jump')).toBe(true);
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
   describe('stop', () => {
     it('should stop all instances of a sound', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
       audio.preloadBuffer('sfx', {} as AudioBuffer);
 
       const source = audio.play('sfx') as any;
       audio.stop('sfx');
 
       expect(source.stop).toHaveBeenCalled();
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should not throw when stopping unknown sound', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
       expect(() => audio.stop('ghost')).not.toThrow();
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
   describe('setMasterVolume', () => {
     it('should clamp volume between 0 and 1', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       audio.setMasterVolume(2);
       expect(audio.getMasterVolume()).toBe(1);
@@ -212,16 +248,16 @@ describe('AudioPlugin', () => {
       audio.setMasterVolume(-1);
       expect(audio.getMasterVolume()).toBe(0);
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should set mid-range volume', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
       audio.setMasterVolume(0.7);
       expect(audio.getMasterVolume()).toBeCloseTo(0.7);
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
@@ -232,13 +268,13 @@ describe('AudioPlugin', () => {
       );
 
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       await audio.preload('bg', '/sounds/bg.mp3');
       expect(audio.isLoaded('bg')).toBe(true);
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
 
     it('should not double-load the same sound', async () => {
@@ -247,38 +283,38 @@ describe('AudioPlugin', () => {
       );
 
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      const audio = api.services.get('audio') as AudioService;
+      plugin.setup(engine);
+      const audio = engine.inject('audio' as any) as AudioService;
 
       await audio.preload('bg', '/sounds/bg.mp3');
       await audio.preload('bg', '/sounds/bg.mp3');
 
       expect((globalThis as any).fetch).toHaveBeenCalledTimes(1);
 
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 
-  describe('onDestroy', () => {
-    it('should close AudioContext on destroy', () => {
+  describe('teardown', () => {
+    it('should close AudioContext on teardown', () => {
       const plugin = new AudioPlugin();
-      plugin.onInit(api);
-      plugin.onDestroy();
+      plugin.setup(engine);
+      plugin.teardown!();
       expect(ctxMock.close).toHaveBeenCalled();
     });
   });
 
   describe('DI pattern', () => {
-    it('should allow another plugin to consume AudioPlugin via services', () => {
+    it('should allow another plugin to consume AudioPlugin via inject', () => {
       const audio = new AudioPlugin();
-      audio.onInit(api);
+      audio.setup(engine);
 
-      const retrieved = api.services.get('audio') as AudioService;
+      const retrieved = engine.inject('audio' as any) as AudioService;
       retrieved.preloadBuffer('hit', {} as AudioBuffer);
       const result = retrieved.play('hit');
 
       expect(result).not.toBeNull();
-      audio.onDestroy();
+      audio.teardown!();
     });
   });
 });

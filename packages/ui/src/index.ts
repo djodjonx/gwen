@@ -2,24 +2,24 @@
  * @gwenengine/gwen-plugin-html-ui
  *
  * GWEN plugin for HTML DOM-based UI rendering.
- * Exposes a `HtmlUI` service in `api.services` as `'htmlUI'`.
+ * Exposes a `HtmlUI` service via the engine's provide/inject registry as `'htmlUI'`.
  *
  * @example
  * ```ts
  * import { HtmlUIPlugin } from '@gwenengine/gwen-plugin-html-ui';
- * export default defineConfig({ plugins: [new HtmlUIPlugin()] });
+ * export default defineConfig({ plugins: [HtmlUIPlugin()] });
  *
  * // src/ui/ScoreUI.ts
  * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
- *   onMount(api, entityId) {
- *     api.services.get('htmlUI').mount(entityId, scoreHtml);
+ *   onMount(engine, entityId) {
+ *     (engine.inject('htmlUI' as any) as HtmlUI).mount(entityId, scoreHtml);
  *   },
- *   render(api, entityId) {
- *     api.services.get('htmlUI').text(entityId, 'score', `${score.value}`);
+ *   render(engine, entityId) {
+ *     (engine.inject('htmlUI' as any) as HtmlUI).text(entityId, 'score', `${score.value}`);
  *   },
- *   onUnmount(api, entityId) {
- *     api.services.get('htmlUI').unmount(entityId);
+ *   onUnmount(engine, entityId) {
+ *     (engine.inject('htmlUI' as any) as HtmlUI).unmount(entityId);
  *   },
  * });
  * ```
@@ -27,6 +27,7 @@
 
 import { definePlugin } from '@gwenengine/kit';
 import type { EntityId, GwenPluginMeta } from '@gwenengine/kit';
+import type { GwenEngine } from '@gwenengine/core';
 
 // ── Plugin metadata ───────────────────────────────────────────────────────────
 
@@ -163,9 +164,8 @@ export const HtmlUIPlugin = definePlugin(() => {
   return {
     name: 'HtmlUIPlugin',
     meta: pluginMeta,
-    provides: { htmlUI: {} as HtmlUI },
 
-    onInit(api): void {
+    setup(engine: GwenEngine): void {
       if (typeof document !== 'undefined') {
         let elem = document.getElementById('gwen-html-ui');
         if (!elem) {
@@ -176,10 +176,10 @@ export const HtmlUIPlugin = definePlugin(() => {
         }
         container = elem;
       }
-      api.services.register('htmlUI', service);
+      engine.provide('htmlUI' as any, service);
     },
 
-    onDestroy(): void {
+    teardown(): void {
       for (const ctx of instances.values()) {
         ctx.root.parentNode?.removeChild(ctx.root);
       }

@@ -1,35 +1,38 @@
-import { describe, expect, it, expectTypeOf } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  defineConfig,
   type GwenPlugin,
   type MergePluginsPrefabExtensions,
   type MergePluginsSceneExtensions,
   type MergePluginsUIExtensions,
 } from '../src';
+import { defineConfig } from '@gwenengine/app';
 
-const PluginA = {} as GwenPlugin<'A', { a: string }>;
-const PluginB = {} as GwenPlugin<'B', { b: number }, { 'b:tick': (dt: number) => void }>;
+// V2 GwenPlugin instances (setup/teardown, no generics)
+const PluginA: GwenPlugin = { name: 'A', setup(_engine) {} };
+const PluginB: GwenPlugin = { name: 'B', setup(_engine) {} };
 
-// Plugins with extension schemas
+// Plugins with extension schemas (structural extension pattern)
 const PhysicsPlugin = {
   name: 'physics' as const,
+  setup(_engine: import('@gwenengine/core').GwenEngine) {},
   extensions: {
     prefab: {} as { mass: number; isStatic: boolean },
     scene: {} as { gravity: number },
   },
-} as GwenPlugin & {
+} satisfies GwenPlugin & {
   extensions: { prefab: { mass: number; isStatic: boolean }; scene: { gravity: number } };
 };
 
 const AudioPlugin = {
   name: 'audio' as const,
+  setup(_engine: import('@gwenengine/core').GwenEngine) {},
   extensions: {
     prefab: {} as { volume: number },
     ui: {} as { layer: string },
   },
-} as GwenPlugin & { extensions: { prefab: { volume: number }; ui: { layer: string } } };
+} satisfies GwenPlugin & { extensions: { prefab: { volume: number }; ui: { layer: string } } };
 
-describe('@gwenengine/kit defineConfig', () => {
+describe('@gwenengine/app defineConfig', () => {
   it('keeps runtime payload unchanged', () => {
     const conf = defineConfig({
       engine: { maxEntities: 10_000 },
@@ -41,15 +44,10 @@ describe('@gwenengine/kit defineConfig', () => {
     expect((conf.plugins ?? []).length).toBe(2);
   });
 
-  it('infers services from declared plugins', () => {
-    const conf = defineConfig({ plugins: [PluginA, PluginB] });
-    expectTypeOf(conf._services).toMatchTypeOf<{ a: string; b: number }>();
-  });
-
-  it('infers hooks from declared plugins', () => {
-    const conf = defineConfig({ plugins: [PluginB] });
-    expectTypeOf(conf._hooks).toHaveProperty('b:tick');
-    expectTypeOf(conf._hooks).toHaveProperty('engine:tick');
+  it('returns the same config object', () => {
+    const input = { engine: { maxEntities: 5_000 } };
+    const conf = defineConfig(input);
+    expect(conf).toEqual(input);
   });
 });
 

@@ -1,18 +1,18 @@
 /**
  * AudioPlugin — wraps the Web Audio API.
  *
- * Registers an `AudioService` in `api.services` as `'audio'`.
+ * Registers an `AudioService` in the engine's provide/inject registry as `'audio'`.
  *
  * @example
  * ```typescript
  * import { AudioPlugin } from '@gwenengine/audio';
  *
  * export default defineConfig({
- *   plugins: [new AudioPlugin({ masterVolume: 0.8 })],
+ *   plugins: [AudioPlugin({ masterVolume: 0.8 })],
  * });
  *
- * // In any plugin onInit():
- * const audio = api.services.get('audio') as AudioService;
+ * // In any plugin setup():
+ * const audio = engine.inject('audio' as any) as AudioService;
  * await audio.preload('jump', '/sounds/jump.wav');
  * audio.play('jump');
  * ```
@@ -20,6 +20,7 @@
 
 import { definePlugin } from '@gwenengine/kit';
 import type { GwenPluginMeta } from '@gwenengine/kit';
+import type { GwenEngine } from '@gwenengine/core';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ interface SoundTrack {
 }
 
 /**
- * Service exposed by AudioPlugin via `api.services.get('audio')`.
+ * Service exposed by AudioPlugin via `engine.inject('audio' as any)`.
  */
 export interface AudioService {
   /**
@@ -98,7 +99,7 @@ export interface AudioService {
    */
   isLoaded(id: string): boolean;
 
-  /** Returns the underlying AudioContext, or `null` before `onInit`. */
+  /** Returns the underlying AudioContext, or `null` before `setup`. */
   getContext(): AudioContext | null;
 }
 
@@ -205,17 +206,16 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
   return {
     name: 'AudioPlugin',
     meta: pluginMeta,
-    provides: { audio: {} as AudioService },
 
-    onInit(api): void {
+    setup(engine: GwenEngine): void {
       context = new AudioContext();
       masterGain = context.createGain();
       masterGain.gain.value = masterVolume;
       masterGain.connect(context.destination);
-      api.services.register('audio', service);
+      engine.provide('audio' as any, service);
     },
 
-    onDestroy(): void {
+    teardown(): void {
       service.stopAll();
       context?.close();
       context = null;

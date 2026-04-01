@@ -4,7 +4,6 @@
  */
 
 import type { EntityId } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -133,12 +132,12 @@ export interface ColliderOptions {
 
 /**
  * A contact event emitted by the physics simulation each frame.
- * Retrieved via `api.services.get('physics').getCollisionEvents()`.
+ * Retrieved via `engine.inject('physics2d').getCollisionEvents()`.
  *
  * **Prefer the `physics:collision` hook** for EntityId-native collision handling:
  *
  * ```typescript
- * api.hooks.hook('physics:collision', (contacts) => {
+ * engine.hooks.hook('physics:collision', (contacts) => {
  *   for (const { entityA, entityB, started } of contacts) {
  *     if (!started) continue;
  *     const tag = api.getComponent(entityA, Tag);
@@ -194,7 +193,7 @@ export interface CollisionEventsBatch {
  *
  * @example
  * ```typescript
- * api.hooks.hook('physics:collision', (contacts) => {
+ * engine.hooks.hook('physics:collision', (contacts) => {
  *   for (const { entityA, entityB, started } of contacts) {
  *     if (!started) continue;
  *     const tagA = api.getComponent(entityA, Tag);
@@ -242,7 +241,7 @@ export interface SensorState {
  *
  * Declared as `providesHooks` on the plugin so that `gwen prepare` can
  * augment `GwenDefaultHooks` — giving full type-safety on
- * `api.hooks.hook('physics:collision', ...)` without any cast.
+ * `engine.hooks.hook('physics:collision', ...)` without any cast.
  */
 export interface Physics2DPluginHooks {
   /**
@@ -369,7 +368,7 @@ export interface PatchTilemapPhysicsChunkInput {
 
 /** Shared context object passed to high-level helpers. */
 export interface Physics2DHelperContext {
-  /** Physics service instance resolved from `api.services.get('physics')`. */
+  /** Physics service instance resolved from `engine.inject('physics2d')`. */
   physics: Physics2DAPI;
   /** Optional pixel-to-meter ratio used by helpers performing conversions. */
   pixelsPerMeter?: number;
@@ -483,12 +482,7 @@ export interface Physics2DPrefabExtension {
   initialVelocity?: { vx: number; vy: number };
 
   // ── Collision callback ────────────────────────────────────────────────────
-  onCollision?: (
-    self: EntityId,
-    other: EntityId,
-    contact: CollisionContact,
-    api: EngineAPI,
-  ) => void;
+  onCollision?: (self: EntityId, other: EntityId, contact: CollisionContact) => void;
 }
 
 /** Bridge schema version shared by TS and Rust wasm-bindgen exports. */
@@ -557,17 +551,17 @@ export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView)
 // ─── Physics2D service API ────────────────────────────────────────────────────
 
 /**
- * Service exposed in `api.services.get('physics')` after the plugin is initialized.
+ * Service exposed via `engine.inject('physics2d')` after the plugin is initialized.
  *
  * @example
  * ```typescript
- * onInit(api) {
- *   const physics = api.services.get('physics');
+ * setup(engine: GwenEngine) {
+ *   const physics = engine.inject('physics2d');
  *   const handle = physics.addRigidBody(entityIndex, 'dynamic', 0, 10);
  *   physics.addBoxCollider(handle, 0.5, 0.5);
  * }
- * onUpdate(api) {
- *   for (const ev of api.services.get('physics').getCollisionEvents()) {
+ * onUpdate(_dt: number) {
+ *   for (const ev of physics.getCollisionEvents()) {
  *     console.log('collision', ev.entityA, ev.entityB);
  *   }
  * }

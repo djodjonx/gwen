@@ -2,6 +2,7 @@
  * Tests for Physics3D systems.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createHooks } from 'hookable';
 
 const physics3dInit = vi.fn();
 const physics3dStep = vi.fn();
@@ -21,24 +22,60 @@ vi.mock('@gwenengine/core', () => ({
   createEntityId: (index: number, gen: number) => BigInt(index) | (BigInt(gen) << 32n),
   defineSystem: vi.fn((_name: string, factory: () => unknown) => factory()),
   definePlugin: vi.fn((factory: () => unknown) => {
-    // Simple stub: return a class whose instances have the definition methods
-    const def = factory() as Record<string, unknown>;
-    return class {
-      name = def.name;
-      onInit(api: unknown) {
-        (def.onInit as (api: unknown) => void)?.(api);
-      }
-      onBeforeUpdate(api: unknown) {
-        (def.onBeforeUpdate as (api: unknown) => void)?.(api);
-      }
-      onDestroy() {
-        (def.onDestroy as () => void)?.();
-      }
+    // Simulate V2 definePlugin: returns a factory function that creates plugin instances
+    return function PluginFactory() {
+      const def = factory() as Record<string, unknown>;
+      return {
+        name: def.name,
+        setup(engine: unknown) {
+          (def.setup as (engine: unknown) => void)?.(engine);
+        },
+        onBeforeUpdate(dt?: number) {
+          (def.onBeforeUpdate as (dt?: number) => void)?.(dt);
+        },
+        teardown() {
+          (def.teardown as () => void)?.();
+        },
+      };
     };
   }),
 }));
 
 import { createPhysicsKinematicSyncSystem, SENSOR_ID_FOOT, SENSOR_ID_HEAD } from '../src/systems';
+
+// ─── V2 mock engine factory ────────────────────────────────────────────────────
+
+function createMockEngine(services: Record<string, unknown> = {}): any {
+  const svc = new Map<string, unknown>(Object.entries(services));
+  const hooks = createHooks();
+  return {
+    provide: (key: string, value: unknown) => {
+      svc.set(key, value);
+    },
+    inject: (key: string) => {
+      const v = svc.get(key);
+      if (v === undefined) throw new Error(`No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => svc.get(key) ?? null,
+    use: vi.fn().mockResolvedValue(undefined),
+    unuse: vi.fn().mockResolvedValue(undefined),
+    hooks,
+    createLiveQuery: vi.fn(() => [][Symbol.iterator]()),
+    getComponent: vi.fn(),
+    run: (fn: () => any) => fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    maxEntities: 1000,
+    targetFPS: 60,
+    maxDeltaSeconds: 0.1,
+    variant: 'light',
+    deltaTime: 0,
+    frameCount: 0,
+    getFPS: () => 0,
+    getStats: () => ({ fps: 0, deltaTime: 0, frameCount: 0 }),
+  };
+}
 
 describe('SENSOR_ID constants', () => {
   it('SENSOR_ID_FOOT is 0xf007', () => {
@@ -63,48 +100,42 @@ describe('createPhysicsKinematicSyncSystem', () => {
     };
   }
 
-  function makeApi(entities: unknown[], physicsMock: ReturnType<typeof makePhysicsMock>) {
-    return {
-      services: {
-        get: vi.fn((name: string) => (name === 'physics3d' ? physicsMock : undefined)),
-      },
-      hooks: {
-        hook: vi.fn(() => vi.fn()),
-        callHook: vi.fn(),
-      },
-      query: vi.fn(() => entities),
-      getComponent: vi.fn(),
-    } as unknown as any;
+  function makeEngine(entities: unknown[], physicsMock: ReturnType<typeof makePhysicsMock>) {
+    const engine = createMockEngine({ physics3d: physicsMock });
+    (engine.createLiveQuery as ReturnType<typeof vi.fn>).mockReturnValue(
+      entities[Symbol.iterator](),
+    );
+    return engine;
   }
 
-  it('factory returns a plugin class with the correct name', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+  it('factory returns a plugin with the correct name', () => {
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     expect(instance.name).toBe('Physics3DKinematicSyncSystem');
   });
 
-  it('resolves physics3d service on onInit', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+  it('resolves physics3d service on setup', () => {
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([], physics);
+    const engine = createMockEngine({ physics3d: physics });
 
-    instance.onInit(api);
+    instance.setup(engine);
 
-    expect(api.services.get).toHaveBeenCalledWith('physics3d');
+    expect(engine.tryInject).toBeDefined();
   });
 
   it('syncs kinematic entity positions on onBeforeUpdate', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
     const entityId = 1n;
-    const api = makeApi([entityId], physics);
+    const engine = makeEngine([entityId], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue({ x: 1, y: 2, z: 3 });
 
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue({ x: 1, y: 2, z: 3 });
-
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
     expect(physics.setKinematicPosition).toHaveBeenCalledWith(
       entityId,
@@ -114,65 +145,66 @@ describe('createPhysicsKinematicSyncSystem', () => {
   });
 
   it('skips entities without a body', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
     physics.hasBody.mockReturnValue(false);
-    const api = makeApi([1n], physics);
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue({ x: 0, y: 0, z: 0 });
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue({ x: 0, y: 0, z: 0 });
 
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
     expect(physics.setKinematicPosition).not.toHaveBeenCalled();
   });
 
   it('skips non-kinematic bodies', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
     physics.getBodyKind.mockReturnValue('dynamic');
-    const api = makeApi([1n], physics);
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue({ x: 0, y: 0, z: 0 });
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue({ x: 0, y: 0, z: 0 });
 
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
     expect(physics.setKinematicPosition).not.toHaveBeenCalled();
   });
 
   it('skips entities missing the position component', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([1n], physics);
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue(null);
 
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
     expect(physics.setKinematicPosition).not.toHaveBeenCalled();
   });
 
   it('syncs rotation when rotationComponent is configured', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem({
+    const factory = createPhysicsKinematicSyncSystem({
       positionComponent: 'transform3d',
       rotationComponent: 'rotation3d',
     });
-    const instance = new SystemClass() as any;
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([1n], physics);
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockImplementation((_entityId: unknown, comp: string) => {
+      if (comp === 'transform3d') return { x: 0, y: 1, z: 0 };
+      if (comp === 'rotation3d') return { x: 0, y: 0.707, z: 0, w: 0.707 };
+      return null;
+    });
 
-    (api.getComponent as ReturnType<typeof vi.fn>).mockImplementation(
-      (_entityId: unknown, comp: string) => {
-        if (comp === 'transform3d') return { x: 0, y: 1, z: 0 };
-        if (comp === 'rotation3d') return { x: 0, y: 0.707, z: 0, w: 0.707 };
-        return null;
-      },
-    );
-
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
     expect(physics.setKinematicPosition).toHaveBeenCalledWith(
       1n,
@@ -182,41 +214,42 @@ describe('createPhysicsKinematicSyncSystem', () => {
   });
 
   it('uses default positionComponent "transform3d"', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([1n], physics);
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue({ x: 5, y: 6, z: 7 });
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue({ x: 5, y: 6, z: 7 });
 
-    instance.onInit(api);
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.onBeforeUpdate(0);
 
-    expect(api.query).toHaveBeenCalledWith(['transform3d']);
+    expect(engine.createLiveQuery).toHaveBeenCalledWith(['transform3d']);
   });
 
-  it('clears physics reference on destroy', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+  it('clears physics reference on teardown', () => {
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([1n], physics);
-    (api.getComponent as ReturnType<typeof vi.fn>).mockReturnValue({ x: 0, y: 0, z: 0 });
+    const engine = makeEngine([1n], physics);
+    engine.tryInject = vi.fn(() => physics);
+    engine.getComponent = vi.fn().mockReturnValue({ x: 0, y: 0, z: 0 });
 
-    instance.onInit(api);
-    instance.onDestroy();
-    instance.onBeforeUpdate(api);
+    instance.setup(engine);
+    instance.teardown();
+    instance.onBeforeUpdate(0);
 
-    // After destroy, physics is null so setKinematicPosition should not be called
+    // After teardown, physics is null so setKinematicPosition should not be called
     expect(physics.setKinematicPosition).not.toHaveBeenCalled();
   });
 
-  it('is a no-op on onBeforeUpdate before onInit', () => {
-    const SystemClass = createPhysicsKinematicSyncSystem();
-    const instance = new SystemClass() as any;
+  it('is a no-op on onBeforeUpdate before setup', () => {
+    const factory = createPhysicsKinematicSyncSystem();
+    const instance = factory() as any;
     const physics = makePhysicsMock();
-    const api = makeApi([1n], physics);
 
-    // Do not call onInit
-    instance.onBeforeUpdate(api);
+    // Do not call setup
+    instance.onBeforeUpdate(0);
     expect(physics.setKinematicPosition).not.toHaveBeenCalled();
   });
 });

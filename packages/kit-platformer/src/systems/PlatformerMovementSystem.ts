@@ -1,6 +1,5 @@
-import { defineSystem } from '@gwenengine/core';
+import type { EntityId, GwenEngine, GwenPlugin } from '@gwenengine/core';
 import { createPlatformerGroundedSystem } from '@gwenengine/physics2d/core';
-import type { EntityId } from '@gwenengine/core';
 import type { Physics2DAPI } from '@gwenengine/physics2d/core';
 import {
   PlatformerController,
@@ -71,9 +70,9 @@ function resolveMovementConfig(ctrl: ControllerLike): ControllerMovementConfig {
 }
 
 /**
- * Reads PlatformerIntent and applies movement via Physics2DAPI.
+ * Factory that creates a system reading PlatformerIntent and applying movement via Physics2DAPI.
  */
-export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem', () => {
+export function PlatformerMovementSystem(): GwenPlugin {
   const RESTING_VY_EPSILON = 0.08;
   const RESTING_DY_EPSILON = 0.0015;
   const RESTING_GROUNDED_DELAY_MS = 120;
@@ -83,6 +82,7 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
   let grounded: ReturnType<typeof createPlatformerGroundedSystem>;
   let debug = false;
   let debugTick = 0;
+  let _engine: GwenEngine | null = null;
 
   const groundStates = new Map<bigint, ReturnType<typeof createGroundHysteresisState>>();
   const jumpStates = new Map<bigint, ReturnType<typeof createJumpResolverState>>();
@@ -90,12 +90,15 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
   const lastYByEntity = new Map<bigint, number>();
 
   return {
-    onInit(api) {
-      physics = api.services.get('physics') as Physics2DAPI;
+    name: 'PlatformerMovementSystem',
+
+    setup(engine: GwenEngine): void {
+      _engine = engine;
+      physics = engine.inject('physics' as any) as Physics2DAPI;
       grounded = createPlatformerGroundedSystem({ physics });
       debug = physics.isDebugEnabled?.() ?? false;
 
-      api.hooks.hook('entity:destroy', (eid: EntityId) => {
+      engine.hooks.hook('entity:destroy', (eid: EntityId) => {
         groundStates.delete(eid);
         jumpStates.delete(eid);
         nearStillAirMs.delete(eid);
@@ -103,13 +106,21 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
       });
     },
 
-    onUpdate(api, dt) {
-      const dtMs = dt * 1000;
-      const entities = api.query([PlatformerController, PlatformerIntent]);
+    onUpdate(_apiOrDt: unknown, dt?: number): void {
+      // V2 engine calls onUpdate(dt) directly; dt is the first argument
+      const deltaTime = typeof _apiOrDt === 'number' ? _apiOrDt : (dt ?? 0);
+      const dtMs = deltaTime * 1000;
+      if (!_engine) return;
+
+      const entities = [
+        ..._engine.createLiveQuery([PlatformerController, PlatformerIntent]),
+      ] as EntityId[];
 
       for (const eid of entities) {
-        const ctrl = api.getComponent(eid, PlatformerController) ?? PLATFORMER_CONTROLLER_DEFAULTS;
-        const intent = api.getComponent(eid, PlatformerIntent);
+        const ctrl =
+          (_engine as any).getComponent(eid, PlatformerController) ??
+          PLATFORMER_CONTROLLER_DEFAULTS;
+        const intent = (_engine as any).getComponent(eid, PlatformerIntent);
         if (!intent) continue;
 
         const vel = physics.getLinearVelocity(eid);
@@ -211,5 +222,5 @@ export const PlatformerMovementSystem = defineSystem('PlatformerMovementSystem',
         }
       }
     },
-  };
-});
+  } as any;
+}

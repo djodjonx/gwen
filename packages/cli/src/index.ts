@@ -16,6 +16,13 @@ export { loadGwenConfig, findConfigFile, type LoadConfigResult } from './core/co
 export { logger, setLogLevel, type LogLevelConfig } from './utils/logger.js';
 export { GLOBAL_ARGS } from './utils/args.js';
 export { VERSION, PACKAGE_NAME, ExitCode } from './utils/constants.js';
+export { appendModuleToConfig, type ConfigWriterOptions } from './utils/config-writer.js';
+export {
+  detectPackageManager,
+  runInstall,
+  type PackageManager,
+  type RunInstallOptions,
+} from './utils/package-manager.js';
 export type { GwenOptions as GwenConfig } from '@gwenengine/schema';
 
 // Core types

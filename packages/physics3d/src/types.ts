@@ -4,7 +4,6 @@
  */
 
 import type { EntityId } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
 
 // ─── Primitive types ───────────────────────────────────────────────────────────
 
@@ -351,12 +350,7 @@ export interface Physics3DPrefabExtension {
    * Optional per-entity collision callback.
    * Called during `onUpdate` for every contact event involving this entity.
    */
-  onCollision?: (
-    entityA: EntityId,
-    entityB: EntityId,
-    contact: Physics3DCollisionContact,
-    api: EngineAPI,
-  ) => void;
+  onCollision?: (entityA: EntityId, entityB: EntityId, contact: Physics3DCollisionContact) => void;
 }
 
 // ─── Plugin hooks ──────────────────────────────────────────────────────────────
@@ -391,11 +385,11 @@ export interface Physics3DPluginHooks {
 // ─── Service API ───────────────────────────────────────────────────────────────
 
 /**
- * Service exposed in `api.services.get('physics3d')` after plugin initialization.
+ * Service exposed via `engine.inject('physics3d')` after plugin initialization.
  *
  * @example
  * ```ts
- * const physics3d = api.services.get('physics3d');
+ * const physics3d = engine.inject('physics3d' as any) as Physics3DAPI;
  * physics3d.createBody(entityId, { kind: 'dynamic' });
  * physics3d.addCollider(entityId, { shape: { type: 'box', halfX: 0.5, halfY: 0.5, halfZ: 0.5 } });
  * ```

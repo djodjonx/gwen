@@ -36,6 +36,7 @@
     "@gwenengine/schema": "workspace:*"
   },
   "devDependencies": {
+    "@gwenengine/app": "workspace:*",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-dts": "^4.5.4",

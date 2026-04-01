@@ -8,7 +8,7 @@
 import { dirname, join, resolve } from 'pathe';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { GwenConfig } from '@gwenengine/kit';
+import type { GwenOptions as GwenConfig } from '@gwenengine/schema';
 
 /**
  * Available core WASM variants.

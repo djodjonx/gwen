@@ -24,18 +24,18 @@ vi.mock('@gwenengine/core', () => ({
 }));
 
 import { Physics3DPlugin, type Physics3DAPI } from '../src/index';
+import type { GwenEngine } from '@gwenengine/core';
 import type { Physics3DColliderOptions } from '../src/types';
 
-function makeApi() {
-  const registeredServices = new Map<string, unknown>();
+function makeEngine() {
+  const services = new Map<string, unknown>();
   const hookMap = new Map<string, (...args: unknown[]) => unknown>();
 
-  const api = {
-    services: {
-      register: vi.fn((name: string, value: unknown) => {
-        registeredServices.set(name, value);
-      }),
-    },
+  const engine = {
+    provide: vi.fn((name: string, value: unknown) => {
+      services.set(name, value);
+    }),
+    inject: vi.fn((name: string) => services.get(name)),
     hooks: {
       hook: vi.fn((name: string, callback: (...args: unknown[]) => unknown) => {
         hookMap.set(name, callback);
@@ -46,9 +46,10 @@ function makeApi() {
     getEntityGeneration: vi.fn(() => 0),
     query: vi.fn(() => []),
     getComponent: vi.fn(),
-  } as unknown as any;
+    wasmBridge: null,
+  } as unknown as GwenEngine;
 
-  return { api, registeredServices };
+  return { engine, services, hookMap };
 }
 
 describe('Physics3D colliders — local mode', () => {
@@ -59,11 +60,11 @@ describe('Physics3D colliders — local mode', () => {
   });
 
   function setup() {
-    const { api, registeredServices } = makeApi();
-    const plugin = new Physics3DPlugin();
-    plugin.onInit(api);
-    const service = registeredServices.get('physics3d') as Physics3DAPI;
-    return { plugin, service, api };
+    const { engine, services } = makeEngine();
+    const plugin = Physics3DPlugin();
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
+    return { plugin, service, engine };
   }
 
   // ─── addCollider ────────────────────────────────────────────────────────────
@@ -171,12 +172,12 @@ describe('Physics3D colliders — local mode', () => {
   // ─── Layer resolution ─────────────────────────────────────────────────────────
 
   it('accepts layer and mask options on collider', () => {
-    const plugin = new Physics3DPlugin({
+    const plugin = Physics3DPlugin({
       layers: ['default', 'player', 'enemy'],
     });
-    const { api, registeredServices } = makeApi();
-    plugin.onInit(api);
-    const service = registeredServices.get('physics3d') as Physics3DAPI;
+    const { engine, services } = makeEngine();
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
 
     service.createBody(30n);
     expect(

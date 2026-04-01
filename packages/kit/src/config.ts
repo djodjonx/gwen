@@ -1,12 +1,11 @@
 /**
- * Typed project configuration helper for GWEN apps.
+ * Typed project configuration helper for GWEN plugins.
  *
- * `defineConfig()` lives in `@gwenengine/kit` and carries plugin-derived service/hook
- * types for `gwen prepare`.
+ * Provides plugin extension-merging utilities and type re-exports.
+ * `defineConfig()` lives in `@gwenengine/app` — not here.
  */
 
-import type { GwenConfigInput, GwenOptions } from '@gwenengine/schema';
-import type { GwenPlugin } from '@gwenengine/core';
+import type { GwenOptions } from '@gwenengine/schema';
 
 /**
  * Re-export GwenOptions as GwenConfig for easier usage in CLI and tools.
@@ -20,25 +19,8 @@ type UnionToIntersection<U> = (U extends unknown ? (arg: U) => void : never) ext
   ? I
   : never;
 
-/** Extract `provides` map from a plugin. */
-type PluginProvides<T> = T extends GwenPlugin<string, infer P, any> ? P : Record<string, never>;
-
-/** Extract `providesHooks` map from a plugin. */
-type PluginProvidesHooks<T> =
-  T extends GwenPlugin<string, any, infer H> ? H : Record<string, never>;
-
 /** Normalize unresolved unions to an object map. */
 type AsObject<T> = T extends object ? T : Record<string, never>;
-
-/** Merge all services from a plugins tuple. */
-export type MergePluginsProvides<Plugins extends readonly GwenPlugin[]> = AsObject<
-  UnionToIntersection<PluginProvides<Plugins[number]>>
->;
-
-/** Merge all hooks from a plugins tuple and include core hooks. */
-export type MergePluginsHooks<Plugins extends readonly GwenPlugin[]> =
-  import('@gwenengine/schema').GwenHooks &
-    AsObject<UnionToIntersection<PluginProvidesHooks<Plugins[number]>>>;
 
 // ── Extension merging ─────────────────────────────────────────────────────────
 
@@ -65,51 +47,18 @@ type PluginUIExt<T> = T extends { extensions?: { ui?: infer E } }
 
 /**
  * Merges the prefab extension shapes from all plugins.
- * Same mechanics as `MergePluginsProvides` — uses `Plugins[number]` and
- * `UnionToIntersection`, never `any[]`, never `never` cascade.
+ * Works with any plugins that declare an `extensions.prefab` property.
  */
-export type MergePluginsPrefabExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+export type MergePluginsPrefabExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginPrefabExt<Plugins[number]>>
 >;
 
 /** Merges the scene extension shapes from all plugins. */
-export type MergePluginsSceneExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+export type MergePluginsSceneExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginSceneExt<Plugins[number]>>
 >;
 
 /** Merges the UI extension shapes from all plugins. */
-export type MergePluginsUIExtensions<Plugins extends readonly GwenPlugin[]> = AsObject<
+export type MergePluginsUIExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginUIExt<Plugins[number]>>
 >;
-
-/**
- * Typed shape returned by `defineConfig()`.
- *
- * Phantom fields are used only for type extraction in the CLI generator.
- */
-export interface TypedEngineConfig<
-  Services extends object = Record<string, unknown>,
-  Hooks extends object = Record<string, never>,
-> extends GwenConfigInput {
-  /** @internal compile-time marker */
-  readonly _services: Services;
-  /** @internal compile-time marker */
-  readonly _hooks: Hooks;
-}
-
-/**
- * Define a GWEN config with strict plugin-based type inference.
- *
- * @param config User config input.
- * @returns Config carrying inferred service/hook maps.
- */
-export function defineConfig<const Plugins extends readonly GwenPlugin[] = []>(
-  config: Omit<GwenConfigInput, 'plugins'> & {
-    plugins?: readonly [...Plugins];
-  },
-): TypedEngineConfig<MergePluginsProvides<Plugins>, MergePluginsHooks<Plugins>> {
-  return config as unknown as TypedEngineConfig<
-    MergePluginsProvides<Plugins>,
-    MergePluginsHooks<Plugins>
-  >;
-}

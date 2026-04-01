@@ -3,16 +3,53 @@
  * All tests run headlessly (no real events, tested via synthetic dispatch).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { KeyboardInput } from '../src/keyboard';
 import { MouseInput } from '../src/mouse';
 import { GamepadInput } from '../src/gamepad';
 import { InputPlugin } from '../src/index';
-import { EntityManager, ComponentRegistry, QueryEngine, createEngineAPI } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenengine/core';
 
-function makeAPI(): EngineAPI {
-  return createEngineAPI(new EntityManager(50), new ComponentRegistry(), new QueryEngine());
+// ── Mock GwenEngine ──────────────────────────────────────────────────────
+
+function createMockEngine(): GwenEngine {
+  const services = new Map<string, unknown>();
+  return {
+    provide: (key: string, value: unknown) => {
+      services.set(key, value);
+    },
+    inject: (key: string) => {
+      const v = services.get(key);
+      if (v === undefined) throw new Error(`[mock] No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => services.get(key),
+    use: vi.fn().mockResolvedValue(undefined),
+    unuse: vi.fn().mockResolvedValue(undefined),
+    hooks: {} as GwenEngine['hooks'],
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    startExternal: vi.fn().mockResolvedValue(undefined),
+    advance: vi.fn().mockResolvedValue(undefined),
+    run: (fn: () => unknown) => fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    maxEntities: 1000,
+    targetFPS: 60,
+    maxDeltaSeconds: 0.1,
+    variant: 'light',
+    deltaTime: 0,
+    frameCount: 0,
+    getFPS: () => 0,
+    getStats: () => ({ fps: 0, deltaTime: 0, frameCount: 0 }),
+    loadWasmModule: vi.fn().mockResolvedValue({}),
+    getWasmModule: vi.fn(),
+    createLiveQuery: () => [][Symbol.iterator](),
+    wasmBridge: {
+      physics2d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+      physics3d: { enabled: false, enable: vi.fn(), disable: vi.fn(), step: vi.fn() },
+    },
+  } as unknown as GwenEngine;
 }
 
 // ── KeyboardInput ────────────────────────────────────────────────────────
@@ -217,55 +254,55 @@ describe('GamepadInput', () => {
 // ── InputPlugin ──────────────────────────────────────────────────────────
 
 describe('InputPlugin', () => {
-  let api: EngineAPI;
+  let engine: GwenEngine;
   let target: EventTarget;
 
   beforeEach(() => {
-    api = makeAPI();
+    engine = createMockEngine();
     target = new EventTarget();
   });
 
-  it('should register keyboard, mouse, gamepad services on init', () => {
+  it('should register keyboard, mouse, gamepad services on setup', () => {
     const plugin = new InputPlugin({ eventTarget: target });
-    plugin.onInit(api);
+    plugin.setup(engine);
 
-    expect(api.services.has('keyboard')).toBe(true);
-    expect(api.services.has('mouse')).toBe(true);
-    expect(api.services.has('gamepad')).toBe(true);
+    expect(engine.tryInject('keyboard' as any)).toBeDefined();
+    expect(engine.tryInject('mouse' as any)).toBeDefined();
+    expect(engine.tryInject('gamepad' as any)).toBeDefined();
 
-    plugin.onDestroy();
+    plugin.teardown!();
   });
 
-  it('should retrieve KeyboardInput from services', () => {
+  it('should retrieve KeyboardInput via inject', () => {
     const plugin = new InputPlugin({ eventTarget: target });
-    plugin.onInit(api);
+    plugin.setup(engine);
 
-    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
+    const kb = engine.inject('keyboard' as any) as KeyboardInput;
     expect(kb).toBeInstanceOf(KeyboardInput);
 
-    plugin.onDestroy();
+    plugin.teardown!();
   });
 
   it('should update keyboard state in onBeforeUpdate', () => {
     const plugin = new InputPlugin({ eventTarget: target });
-    plugin.onInit(api);
+    plugin.setup(engine);
 
-    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
+    const kb = engine.inject('keyboard' as any) as KeyboardInput;
     target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'KeyA' }));
-    plugin.onBeforeUpdate(api, 0.016);
+    plugin.onBeforeUpdate!(0.016);
 
     expect(kb.isJustPressed('KeyA')).toBe(true);
-    plugin.onDestroy();
+    plugin.teardown!();
   });
 
-  it('should clean up listeners on destroy', () => {
+  it('should clean up listeners on teardown', () => {
     const plugin = new InputPlugin({ eventTarget: target });
-    plugin.onInit(api);
-    plugin.onDestroy();
+    plugin.setup(engine);
+    plugin.teardown!();
 
-    const kb = api.services.get('keyboard') as unknown as KeyboardInput;
+    const kb = engine.inject('keyboard' as any) as KeyboardInput;
     target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'KeyA' }));
-    plugin.onBeforeUpdate(api, 0.016); // update after destroy
+    plugin.onBeforeUpdate!(0.016); // update after teardown
     // After detach, key presses should be ignored
     expect(kb.isJustPressed('KeyA')).toBe(false);
   });
@@ -275,20 +312,20 @@ describe('InputPlugin', () => {
   });
 
   describe('DI pattern — PlayerController consuming InputPlugin', () => {
-    it('should allow another plugin to use keyboard via services', () => {
+    it('should allow another plugin to use keyboard via inject', () => {
       const plugin = new InputPlugin({ eventTarget: target });
-      plugin.onInit(api);
+      plugin.setup(engine);
 
-      // Simulate PlayerController resolving input in onInit
-      const kb = api.services.get('keyboard') as unknown as KeyboardInput;
+      // Simulate PlayerController resolving input in setup
+      const kb = engine.inject('keyboard' as any) as KeyboardInput;
 
       // Simulate a keypress
       target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'ArrowRight' }));
-      plugin.onBeforeUpdate(api, 0.016);
+      plugin.onBeforeUpdate!(0.016);
 
       // PlayerController reads in onUpdate
       expect(kb.isPressed('ArrowRight')).toBe(true);
-      plugin.onDestroy();
+      plugin.teardown!();
     });
   });
 });

@@ -6,6 +6,7 @@
  */
 
 import { definePlugin } from '@gwenengine/kit';
+import type { GwenEngine } from '@gwenengine/core';
 import type { Physics3DAPI } from './types.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -58,30 +59,32 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
 
   return definePlugin(() => {
     let physics: Physics3DAPI | null = null;
+    let _engine: GwenEngine | null = null;
 
     return {
       name: 'Physics3DKinematicSyncSystem',
 
-      onInit(api) {
-        physics = api.services.get('physics3d') as Physics3DAPI;
+      setup(engine: GwenEngine): void {
+        _engine = engine;
+        physics = (engine.tryInject('physics3d' as any) as Physics3DAPI | null) ?? null;
       },
 
-      onBeforeUpdate(api) {
-        if (!physics) return;
+      onBeforeUpdate(): void {
+        if (!physics || !_engine) return;
 
-        const entities = api.query([positionComponent]);
+        const entities = [...(_engine as any).createLiveQuery([positionComponent])] as any[];
         for (const entityId of entities) {
           if (!physics.hasBody(entityId)) continue;
           if (physics.getBodyKind(entityId) !== 'kinematic') continue;
 
-          const pos = api.getComponent<{ x: number; y: number; z: number }>(
+          const pos = (_engine as any).getComponent<{ x: number; y: number; z: number }>(
             entityId,
             positionComponent,
           );
           if (!pos) continue;
 
           const rot = rotationComponent
-            ? (api.getComponent<{ x: number; y: number; z: number; w: number }>(
+            ? ((_engine as any).getComponent<{ x: number; y: number; z: number; w: number }>(
                 entityId,
                 rotationComponent,
               ) ?? undefined)
@@ -91,8 +94,9 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
         }
       },
 
-      onDestroy() {
+      teardown(): void {
         physics = null;
+        _engine = null;
       },
     };
   });

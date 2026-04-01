@@ -1,4 +1,5 @@
 import { defineSystem } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenengine/core';
 import type { SpriteAnimatorService } from './types';
 
 export interface SpriteAnimSystemOptions {
@@ -13,22 +14,25 @@ export function createSpriteAnimSystem(options: SpriteAnimSystemOptions = {}) {
   const maxSubSteps = Math.max(1, Math.floor(options.maxSubSteps ?? 8));
 
   let accumulator = 0;
+  let _animator: SpriteAnimatorService | undefined;
 
   return defineSystem({
     name: 'SpriteAnimSystem' as const,
-    onUpdate(api, dt) {
-      const animator = api.services.get(serviceName) as SpriteAnimatorService | undefined;
-      if (!animator) return;
+    setup(engine: GwenEngine): void {
+      _animator = engine.tryInject(serviceName as any) as SpriteAnimatorService | undefined;
+    },
+    onUpdate(_api: unknown, dt: number): void {
+      if (!_animator) return;
 
       if (!fixedDelta || fixedDelta <= 0) {
-        animator.tick(dt);
+        _animator.tick(dt);
         return;
       }
 
       accumulator += dt;
       let steps = 0;
       while (accumulator >= fixedDelta && steps < maxSubSteps) {
-        animator.tick(fixedDelta);
+        _animator.tick(fixedDelta);
         accumulator -= fixedDelta;
         steps += 1;
       }
@@ -37,5 +41,5 @@ export function createSpriteAnimSystem(options: SpriteAnimSystemOptions = {}) {
         accumulator = 0;
       }
     },
-  });
+  } as any);
 }

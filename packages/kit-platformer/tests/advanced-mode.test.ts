@@ -25,6 +25,23 @@ const makeApi = (servicesMap = new Map()) => {
   };
 };
 
+/** Creates a minimal V2 mock engine for plugin setup. */
+function createMockEngine() {
+  const svc = new Map<string, unknown>();
+  return {
+    provide: (key: string, value: unknown) => {
+      svc.set(key, value);
+    },
+    inject: (key: string) => {
+      const v = svc.get(key);
+      if (v === undefined) throw new Error(`No service: ${key}`);
+      return v;
+    },
+    tryInject: (key: string) => svc.get(key),
+    hooks: { hook: vi.fn(), callHook: vi.fn() },
+  };
+}
+
 describe('Advanced Mode — Component Overrides', () => {
   it('uses default Position when no overrides provided', () => {
     const prefab = createPlayerPrefab();
@@ -46,11 +63,14 @@ describe('Advanced Mode — Component Overrides', () => {
   });
 
   it('uses global override via PlatformerKitPlugin', () => {
-    const plugin = new PlatformerKitPlugin({
-      components: { position: CustomPosition },
-    });
+    // Create plugin, set up with mock engine to register the service
+    const plugin = PlatformerKitPlugin({ components: { position: CustomPosition } });
+    const mockEngine = createMockEngine();
+    plugin.setup(mockEngine as any);
+    const platformerKitService = mockEngine.inject('platformerKit');
+
     const services = new Map();
-    services.set('platformerKit', plugin.provides?.platformerKit);
+    services.set('platformerKit', platformerKitService);
 
     const prefab = createPlayerPrefab();
     const api = makeApi(services);
@@ -63,11 +83,13 @@ describe('Advanced Mode — Component Overrides', () => {
     const GlobalPosition = defineComponent({ name: 'pos_global', schema: {} });
     const LocalPosition = defineComponent({ name: 'pos_local', schema: {} });
 
-    const plugin = new PlatformerKitPlugin({
-      components: { position: GlobalPosition as any },
-    });
+    const plugin = PlatformerKitPlugin({ components: { position: GlobalPosition as any } });
+    const mockEngine = createMockEngine();
+    plugin.setup(mockEngine as any);
+    const platformerKitService = mockEngine.inject('platformerKit');
+
     const services = new Map();
-    services.set('platformerKit', plugin.provides?.platformerKit);
+    services.set('platformerKit', platformerKitService);
 
     const prefab = createPlayerPrefab({
       components: { position: LocalPosition as any },

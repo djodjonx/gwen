@@ -9,6 +9,7 @@ const mockBridge = {
     physics3d_init: physics3dInit,
     physics3d_step: physics3dStep,
   })),
+  getEntityGeneration: vi.fn((_index: number) => 0),
 };
 
 vi.mock('@gwenengine/core', () => ({
@@ -16,6 +17,7 @@ vi.mock('@gwenengine/core', () => ({
 }));
 
 import { Physics3DPlugin, type Physics3DAPI, type Physics3DConfig } from '../src/index';
+import type { GwenEngine } from '@gwenengine/core';
 
 describe('Physics3D entity API (foundation)', () => {
   beforeEach(() => {
@@ -25,29 +27,33 @@ describe('Physics3D entity API (foundation)', () => {
   });
 
   function setup(config?: Physics3DConfig) {
-    const plugin = new Physics3DPlugin(config);
+    const plugin = Physics3DPlugin(config);
 
-    const registeredServices = new Map<string, unknown>();
+    const services = new Map<string, unknown>();
     const hookMap = new Map<string, (...args: unknown[]) => unknown>();
     const offSpy = vi.fn();
 
-    const api = {
-      services: {
-        register: vi.fn((name: string, value: unknown) => {
-          registeredServices.set(name, value);
-        }),
-      },
+    const engine = {
+      provide: vi.fn((name: string, value: unknown) => {
+        services.set(name, value);
+      }),
+      inject: vi.fn((name: string) => services.get(name)),
       hooks: {
         hook: vi.fn((name: string, callback: (...args: unknown[]) => unknown) => {
           hookMap.set(name, callback);
           return offSpy;
         }),
+        callHook: vi.fn(),
       },
-    } as any;
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
 
-    plugin.onInit(api);
+    plugin.setup(engine);
 
-    const service = registeredServices.get('physics3d') as Physics3DAPI;
+    const service = services.get('physics3d') as Physics3DAPI;
     if (!service) {
       throw new Error('physics3d service not registered');
     }
@@ -241,7 +247,7 @@ describe('Physics3D entity API (foundation)', () => {
     service.createBody(99n, { kind: 'kinematic' });
     expect(service.hasBody(99n)).toBe(true);
 
-    const onDestroyed = hookMap.get('entity:destroyed');
+    const onDestroyed = hookMap.get('entity:destroy');
     expect(onDestroyed).toBeTypeOf('function');
 
     onDestroyed?.(99n);
@@ -256,7 +262,7 @@ describe('Physics3D entity API (foundation)', () => {
     service.createBody(7n);
     expect(service.getBodyCount()).toBe(1);
 
-    plugin.onDestroy();
+    plugin.teardown!();
 
     expect(offSpy).toHaveBeenCalledTimes(1);
     expect(service.getBodyCount()).toBe(0);
@@ -283,7 +289,7 @@ describe('Physics3D entity API (foundation)', () => {
       initialLinearVelocity: { x: 0, y: -2, z: 0 },
     });
 
-    plugin.onBeforeUpdate?.({} as any, 1 / 120);
+    plugin.onBeforeUpdate!(1 / 120);
     expect(physics3dStep).toHaveBeenCalledWith(1 / 120);
     expect(service.getBodyState(51n)?.position.y).toBeCloseTo(1 - 2 / 120, 6);
   });
@@ -389,16 +395,16 @@ describe('Physics3D entity API (foundation)', () => {
   it('does not auto-step for zero or negative delta', () => {
     const { plugin } = setup();
 
-    plugin.onBeforeUpdate?.({} as any, 0);
-    plugin.onBeforeUpdate?.({} as any, -0.01);
+    plugin.onBeforeUpdate!(0);
+    plugin.onBeforeUpdate!(-0.01);
     expect(physics3dStep).not.toHaveBeenCalled();
   });
 
   it('does not auto-step after destroy', () => {
     const { plugin } = setup();
-    plugin.onDestroy();
+    plugin.teardown!();
 
-    plugin.onBeforeUpdate?.({} as any, 1 / 60);
+    plugin.onBeforeUpdate!(1 / 60);
     expect(physics3dStep).not.toHaveBeenCalled();
   });
 });

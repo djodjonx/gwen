@@ -1,24 +1,24 @@
 /**
  * DebugPlugin — performance monitoring and FPS tracking.
  *
- * Exposes a `DebugService` in `api.services` as `'debug'`.
- * Optionally renders an on-screen overlay.
+ * Exposes a `DebugService` via the engine's provide/inject registry as `'debug'`.
  *
  * @example
  * ```typescript
  * import { DebugPlugin } from '@gwenengine/debug';
  *
  * export default defineConfig({
- *   plugins: [new DebugPlugin({ overlay: true })],
+ *   plugins: [DebugPlugin({ overlay: true })],
  * });
  *
  * // In any plugin:
- * const debug = api.services.get('debug') as DebugService;
+ * const debug = engine.inject('debug' as any) as DebugService;
  * console.log(debug.getMetrics());
  * ```
  */
 
 import { definePlugin } from '@gwenengine/kit';
+import type { GwenEngine } from '@gwenengine/core';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
 import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';
@@ -28,7 +28,7 @@ export type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig
 // ── DebugService ──────────────────────────────────────────────────────────────
 
 /**
- * Service exposed by DebugPlugin via `api.services.get('debug')`.
+ * Service exposed by DebugPlugin via `engine.inject('debug' as any)`.
  */
 export interface DebugService {
   /** Get the latest metrics snapshot (updated every frame). */
@@ -90,12 +90,13 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
   let consecutiveDropFrames = 0;
   let lastDropAt = 0;
   let framesSinceUpdate = 0;
+  let _engine: GwenEngine;
 
   return {
     name: 'DebugPlugin',
-    provides: { debug: {} as DebugService },
 
-    onInit(api): void {
+    setup(engine: GwenEngine): void {
+      _engine = engine;
       tracker = new FpsTracker(windowSize);
 
       if (overlayConfig !== false && typeof document !== 'undefined') {
@@ -111,10 +112,10 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
         setOverlayVisible: (v: boolean) => overlay?.setVisible(v),
       };
 
-      api.services.register('debug', service);
+      engine.provide('debug' as any, service);
     },
 
-    onBeforeUpdate(api, dt): void {
+    onBeforeUpdate(dt: number): void {
       tracker.push(dt);
       framesSinceUpdate++;
 
@@ -142,10 +143,10 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
           maxFps: tracker.maxFps(),
           jitter: tracker.jitter(),
           frameTimeMs: dt * 1000,
-          frameCount: api.frameCount,
+          frameCount: _engine.frameCount,
           entityCount: (() => {
             try {
-              return api.query([]).length;
+              return [..._engine.createLiveQuery([])].length;
             } catch {
               return 0;
             }
@@ -161,7 +162,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
       }
     },
 
-    onDestroy(): void {
+    teardown(): void {
       overlay?.destroy();
       overlay = null;
       tracker.reset();

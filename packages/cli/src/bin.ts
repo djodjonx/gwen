@@ -45,6 +45,10 @@ import previewCommand from './commands/preview.js';
 import lintCommand from './commands/lint.js';
 import formatCommand from './commands/format.js';
 import infoCommand from './commands/info.js';
+import { initCommand } from './commands/init.js';
+import { addCommand } from './commands/add.js';
+import scaffoldCommand from './commands/scaffold/index.js';
+import { doctorCommand } from './commands/doctor.js';
 
 /**
  * Graceful shutdown handler
@@ -69,13 +73,17 @@ const main = defineCommand({
     description: 'GWEN Game Engine CLI — dev, build, and manage game projects',
   },
   subCommands: {
+    init: initCommand,
     dev: devCommand,
     build: buildCommand,
     prepare: prepareCommand,
     preview: previewCommand,
+    add: addCommand,
+    scaffold: scaffoldCommand,
     lint: lintCommand,
     format: formatCommand,
     info: infoCommand,
+    doctor: doctorCommand,
   },
 });
 
