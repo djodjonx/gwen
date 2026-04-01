@@ -37,7 +37,7 @@ packages/@djodjonx/*/wasm/
 crates/*/pkg/
 
 # Documentation (not committed to repo)
-/specs/
+/specs/*
 /archived/
 
 docs/.vitepress/cache/
