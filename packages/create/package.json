@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/create",
+  "name": "create-gwen-app",
   "version": "1.0.0",
   "description": "Scaffold a new GWEN Engine project — thin shim around `gwen init`",
   "bin": {

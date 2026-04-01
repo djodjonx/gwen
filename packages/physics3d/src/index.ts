@@ -1070,7 +1070,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   // ─── Plugin lifecycle ─────────────────────────────────────────────────────────
 
   return {
-    name: 'Physics3D',
+    name: '@gwenengine/physics3d',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
