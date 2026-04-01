@@ -256,7 +256,7 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx = ctx;
       applyPixelRatio();
 
-      engine.provide('renderer' as any, service);
+      (engine as any).provide('renderer', service);
     },
 
     onRender(): void {
@@ -270,17 +270,19 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
       _ctx.scale(camera.zoom, camera.zoom);
 
+      const getComp = (_engine as any).getComponent as (id: EntityId, name: string) => unknown;
+
       const entities = [..._engine.createLiveQuery(['transform'])] as EntityId[];
       const sorted = entities.slice().sort((a: EntityId, b: EntityId) => {
-        const sa = (_engine as any).getComponent<SpriteComponent>(a, 'sprite');
-        const sb = (_engine as any).getComponent<SpriteComponent>(b, 'sprite');
+        const sa = getComp(a, 'sprite') as SpriteComponent | undefined;
+        const sb = getComp(b, 'sprite') as SpriteComponent | undefined;
         return (sa?.zOrder ?? 0) - (sb?.zOrder ?? 0);
       });
 
       for (const id of sorted) {
-        const transform = (_engine as any).getComponent<TransformComponent>(id, 'transform');
+        const transform = getComp(id, 'transform') as TransformComponent | undefined;
         if (!transform) continue;
-        const sprite = (_engine as any).getComponent<SpriteComponent>(id, 'sprite');
+        const sprite = getComp(id, 'sprite') as SpriteComponent | undefined;
         if (sprite?.visible === false) continue;
         drawEntity(_ctx, id, transform, sprite);
       }

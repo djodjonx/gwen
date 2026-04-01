@@ -1155,7 +1155,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         }
       });
 
-      engine.provide('physics3d' as any, service);
+      (engine as any).provide('physics3d', service);
 
       if (cfg.debug) {
         console.log(

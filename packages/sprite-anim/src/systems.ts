@@ -19,7 +19,7 @@ export function createSpriteAnimSystem(options: SpriteAnimSystemOptions = {}) {
   return defineSystem({
     name: 'SpriteAnimSystem' as const,
     setup(engine: GwenEngine): void {
-      _animator = engine.tryInject(serviceName as any) as SpriteAnimatorService | undefined;
+      _animator = (engine as any).tryInject(serviceName) as SpriteAnimatorService | undefined;
     },
     onUpdate(_api: unknown, dt: number): void {
       if (!_animator) return;

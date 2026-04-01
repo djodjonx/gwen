@@ -169,7 +169,7 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
         { maxFrameAdvancesPerEntity: config.maxFrameAdvancesPerEntity },
       );
 
-      engine.provide('animator' as any, service);
+      (engine as any).provide('animator', service);
 
       engine.hooks.hook(
         'ui:extensions' as any,
@@ -217,5 +217,5 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
 });
 
 export function spriteAnim(config: SpriteAnimPluginConfig = {}) {
-  return new SpriteAnimPlugin(config);
+  return SpriteAnimPlugin(config);
 }

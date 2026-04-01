@@ -66,7 +66,7 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
 
       setup(engine: GwenEngine): void {
         _engine = engine;
-        physics = (engine.tryInject('physics3d' as any) as Physics3DAPI | null) ?? null;
+        physics = ((engine as any).tryInject('physics3d') as Physics3DAPI | undefined) ?? null;
       },
 
       onBeforeUpdate(): void {
@@ -77,17 +77,21 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
           if (!physics.hasBody(entityId)) continue;
           if (physics.getBodyKind(entityId) !== 'kinematic') continue;
 
-          const pos = (_engine as any).getComponent<{ x: number; y: number; z: number }>(
-            entityId,
-            positionComponent,
-          );
+          const pos = (
+            (_engine as any).getComponent as (
+              id: any,
+              name: any,
+            ) => { x: number; y: number; z: number } | null
+          )(entityId, positionComponent);
           if (!pos) continue;
 
           const rot = rotationComponent
-            ? ((_engine as any).getComponent<{ x: number; y: number; z: number; w: number }>(
-                entityId,
-                rotationComponent,
-              ) ?? undefined)
+            ? ((
+                (_engine as any).getComponent as (
+                  id: any,
+                  name: any,
+                ) => { x: number; y: number; z: number; w: number } | null
+              )(entityId, rotationComponent) ?? undefined)
             : undefined;
 
           physics.setKinematicPosition(entityId, pos, rot);
