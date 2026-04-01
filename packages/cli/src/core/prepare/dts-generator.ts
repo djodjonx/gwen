@@ -179,20 +179,14 @@ export async function generateDts(
  * Generated from plugin metadata (services, hooks, extensions).
  * This avoids circular typing between gwen.config.ts and .gwen/gwen.d.ts.
  */
-${refBlock}${directImportBlock}import type { EngineAPI } from '@gwenengine/schema';
+${refBlock}${directImportBlock}import type { GwenEngine } from '@gwenengine/core';
 
 declare global {
   interface GwenDefaultServices {${serviceBody}  }
 
   interface GwenDefaultHooks${hookExtendsClause} {  }
 
-  interface GwenPrefabExtensions {${prefabBody}  }
-
-  interface GwenSceneExtensions {${sceneBody}  }
-
-  interface GwenUIExtensions {${uiBody}  }
-
-  type GwenAPI = EngineAPI<GwenDefaultServices, GwenDefaultHooks>;
+  type GwenAPI = GwenEngine;
   type GwenServices = GwenDefaultServices;
 
   const __GWEN_VERSION__: string;

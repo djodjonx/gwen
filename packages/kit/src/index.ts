@@ -53,7 +53,6 @@ export type { GwenPluginFactory } from './define-plugin';
 export type {
   // Plugin interfaces (RFC-001 V2 GwenPlugin is the canonical interface)
   GwenPlugin,
-  GwenPluginMeta,
 
   // Engine interface — received in setup()
   GwenEngine,

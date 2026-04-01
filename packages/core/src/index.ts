@@ -41,22 +41,6 @@ export {
 } from './system';
 export type { LiveQuery, ComponentDef } from './system';
 
-// Plugin metadata type (used by plugin packages to declare service/hook types)
-export type { GwenPluginMeta } from './plugin-system/plugin';
-
-// Scene system (V1 game framework — kept for kit-platformer compatibility)
-export { SceneManager, defineScene } from './api/scene';
-export type { Scene, SceneBody } from './api/scene';
-export type { ReloadContext, ReloadEvaluator } from './api/scene-context';
-
-// UI system (V1 game framework)
-export { UIManager, defineUI, UIComponent } from './api/ui';
-export type { UIDefinition } from './api/ui';
-
-// Prefab system (V1 game framework)
-export { definePrefab, PrefabManager } from './core/prefab';
-export type { PrefabDefinition } from './core/prefab';
-
 // WASM Bridge
 export {
   initWasm,

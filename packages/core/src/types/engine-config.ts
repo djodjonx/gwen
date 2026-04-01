@@ -2,7 +2,7 @@
  * Engine configuration and runtime stats.
  */
 
-import type { GwenPlugin } from './plugin';
+import type { GwenPlugin } from '../engine/gwen-engine';
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 

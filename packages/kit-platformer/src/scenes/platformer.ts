@@ -1,6 +1,5 @@
-import { defineScene } from '@gwenengine/core';
-import type { EngineAPI, UIDefinition } from '@gwenengine/core';
-import type { PluginEntry } from '@gwenengine/core';
+import { defineScene } from '../scene-utils.js';
+import type { SceneCallbackApi, LocalPluginEntry } from '../scene-utils.js';
 import { PlatformerInputSystem } from '../systems/PlatformerInputSystem.js';
 import { PlatformerMovementSystem } from '../systems/PlatformerMovementSystem.js';
 import {
@@ -15,7 +14,7 @@ import { type PlatformerKitComponents } from '../plugin.js';
  * Options for creating a turnkey platformer scene.
  */
 export interface PlatformerSceneOptions {
-  /** Scene name — used by api.scene.load(). Default: 'Main' */
+  /** Scene name — used by scene.load(). Default: 'Main' */
   name?: string;
   /** Gravity force (depends on `units`). Default: 20 */
   gravity?: number;
@@ -24,16 +23,11 @@ export interface PlatformerSceneOptions {
   /** Conversion ratio used when `units` is `pixels`. @default 50 */
   pixelsPerMeter?: number;
   /** Custom logic called when entering the scene. */
-  onEnter?(api: EngineAPI): void | Promise<void>;
+  onEnter?(api: SceneCallbackApi): void | Promise<void>;
   /** Custom logic called when exiting the scene. */
-  onExit?(api: EngineAPI): void | Promise<void>;
+  onExit?(api: SceneCallbackApi): void | Promise<void>;
   /** Scene-specific systems (in addition to platformer defaults). */
-  systems?: PluginEntry[];
-  /**
-   * Scene-specific UI definitions.
-   * These are automatically registered with a scene-scoped UIManager.
-   */
-  ui?: UIDefinition<any>[];
+  systems?: LocalPluginEntry[];
   /**
    * Advanced: Local component overrides for this scene.
    */

@@ -1,5 +1,6 @@
-import { definePrefab } from '@gwenengine/core';
-import type { EngineAPI, EntityId } from '@gwenengine/core';
+import { definePrefab } from '../scene-utils.js';
+import type { PrefabCallbackApi } from '../scene-utils.js';
+import type { EntityId } from '@gwenengine/core';
 import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@gwenengine/physics2d/core';
 import {
   PlatformerController,
@@ -40,7 +41,7 @@ export interface PlayerPrefabOptions {
   components?: Partial<PlatformerKitComponents>;
   extraColliders?: PhysicsColliderDef[];
   physics?: Record<string, unknown>;
-  onCreated?: (api: EngineAPI, id: EntityId) => void;
+  onCreated?: (api: PrefabCallbackApi, id: EntityId) => void;
 }
 
 export function createPlayerPrefab(options: PlayerPrefabOptions = {}) {

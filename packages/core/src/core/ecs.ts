@@ -5,7 +5,7 @@
  * Uses the same patterns: generation counter, free list, SoA-style storage.
  */
 
-import type { ComponentDefinition } from '../schema';
+import type { ComponentDefinition, ComponentSchema } from '../schema';
 import type { EntityId } from '../types/entity';
 import {
   buildQueryCacheKey,
@@ -13,10 +13,37 @@ import {
   type ComponentTypeInput,
 } from './component-type-normalizer';
 import { createEntityId, unpackEntityId } from '../types/entity';
-import type { SystemQuery, SystemQueryDescriptor } from './query-result';
 
 // Re-export EntityId as part of the ECS module's public API
 export type { EntityId } from '../types/entity';
+
+/** A single component definition — shorthand for use in query descriptors. */
+export type ComponentDef = ComponentDefinition<ComponentSchema>;
+
+/**
+ * Descriptor-based query — fine-grained filter over the entity set.
+ *
+ * @example
+ * ```ts
+ * query: { all: [Position, Velocity], none: [Frozen] }
+ * ```
+ */
+export interface SystemQueryDescriptor {
+  /** Entities that have ALL of these components. */
+  all?: ComponentDef[];
+  /** Entities that have AT LEAST ONE of these components. */
+  any?: ComponentDef[];
+  /** Entities that have NONE of these components. */
+  none?: ComponentDef[];
+  /**
+   * Entities that carry this tag (marker-component name).
+   * Tags are zero-data components registered as strings.
+   */
+  tag?: string;
+}
+
+/** Query type accepted by systems. */
+export type SystemQuery = ComponentDef[] | SystemQueryDescriptor;
 
 // ============= Entity Manager =============
 
