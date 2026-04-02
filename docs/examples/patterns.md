@@ -30,7 +30,7 @@ Use `api.query([...])` for a single snapshot — for example, to find all enemie
 // One-shot — fine for onEnter, event handlers, etc.
 const enemies = api.query([Position, EnemyTag])
 
-// Live query — use inside defineSystem; auto-updates every frame
+// Live query — use inside defineSystem; reflects current ECS state at each iteration
 const movables = useQuery([Position, Velocity])
 ```
 

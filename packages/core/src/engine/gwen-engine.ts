@@ -25,6 +25,10 @@ import { createHooks, type Hookable } from 'hookable';
 import type { GwenRuntimeHooks } from './runtime-hooks.js';
 import { engineContext } from '../context.js';
 import { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
+import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs.js';
+import type { EntityId } from './engine-api.js';
+import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema.js';
+import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
 export type {
   WasmMemoryRegion,
   WasmMemoryOptions,
@@ -396,14 +400,81 @@ export interface GwenEngine {
   ): WasmModuleHandle<Exports>;
 
   // ─── ECS (RFC-005) ──────────────────────────────────────────────────────
+  // ─── Entity management ──────────────────────────────────────────────────
+  /**
+   * Create a new entity and return its unique ID.
+   * @returns A fresh {@link EntityId} guaranteed to be alive.
+   */
+  createEntity(): EntityId;
+
+  /**
+   * Destroy an entity and remove all its components.
+   *
+   * @param id - The entity to destroy
+   * @returns `true` if the entity was alive and has been destroyed, `false` if it was already dead
+   */
+  destroyEntity(id: EntityId): boolean;
+
+  /**
+   * Check whether an entity is still alive (i.e. has not been destroyed).
+   *
+   * @param id - The entity to check
+   * @returns `true` if alive
+   */
+  isAlive(id: EntityId): boolean;
+
+  // ─── Component management ────────────────────────────────────────────────
+  /**
+   * Attach a component to an entity, merging supplied data over the definition defaults.
+   *
+   * @param id - Target entity
+   * @param def - Component definition produced by {@link defineComponent}
+   * @param data - Partial component data — merged with `def.defaults`
+   */
+  addComponent<D extends ComponentDefinition<ComponentSchema>>(
+    id: EntityId,
+    def: D,
+    data: Partial<InferComponent<D>>,
+  ): void;
+
+  /**
+   * Retrieve the component data for an entity.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to look up
+   * @returns The component data, or `undefined` if the entity does not have it
+   */
+  getComponent<D extends ComponentDefinition<ComponentSchema>>(
+    id: EntityId,
+    def: D,
+  ): InferComponent<D> | undefined;
+
+  /**
+   * Check whether an entity has a specific component attached.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to check
+   * @returns `true` if the component is present
+   */
+  hasComponent<D extends ComponentDefinition<ComponentSchema>>(id: EntityId, def: D): boolean;
+
+  /**
+   * Remove a component from an entity.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to remove
+   * @returns `true` if the component was present and has been removed
+   */
+  removeComponent<D extends ComponentDefinition<ComponentSchema>>(id: EntityId, def: D): boolean;
+
   /**
    * Create a live query over the ECS world. Called by `useQuery()`.
-   * Returns an iterable that reflects the current set of matching entities.
+   * Returns an iterable that reflects the current ECS state each time you iterate.
    *
    * @param components - Component selectors to match against.
-   * @returns A live iterable of matching entity data.
+   * @returns A live iterable of {@link EntityAccessor} objects.
    */
-  createLiveQuery(components: unknown[]): Iterable<unknown>;
+  createLiveQuery<T extends ComponentDef>(components: T[]): LiveQuery<EntityAccessor>;
 
   // ─── Hooks ──────────────────────────────────────────────────────────────
   /** Typed hookable lifecycle instance. */
@@ -529,11 +600,19 @@ class GwenEngineImpl implements GwenEngine {
     },
   };
 
+  // ─── ECS world (RFC-005) ─────────────────────────────────────────────────
+  private readonly _entityManager: EntityManager;
+  private readonly _componentRegistry: ComponentRegistry;
+  private readonly _queryEngine: QueryEngine;
+
   constructor(opts: GwenEngineOptions) {
     this.maxEntities = opts.maxEntities ?? 10_000;
     this.targetFPS = opts.targetFPS ?? 60;
     this.maxDeltaSeconds = opts.maxDeltaSeconds ?? 0.1;
     this.variant = opts.variant ?? 'light';
+    this._entityManager = new EntityManager(this.maxEntities);
+    this._componentRegistry = new ComponentRegistry();
+    this._queryEngine = new QueryEngine();
   }
 
   // ─── Plugin runner ────────────────────────────────────────────────────────
@@ -807,9 +886,141 @@ class GwenEngineImpl implements GwenEngine {
     return entry.handle as WasmModuleHandle<Exports>;
   }
 
-  /** Returns an empty live query (ECS integration pending — RFC-006). */
-  createLiveQuery(_components: unknown[]): Iterable<unknown> {
-    return [][Symbol.iterator]();
+  // ─── ECS entity management ────────────────────────────────────────────────
+
+  /**
+   * Create a new entity.
+   * @returns A fresh {@link EntityId}.
+   * @throws {Error} If the entity capacity is exceeded.
+   */
+  createEntity(): EntityId {
+    return this._entityManager.create();
+  }
+
+  /**
+   * Destroy an entity and remove all its components.
+   *
+   * @param id - The entity to destroy
+   * @returns `true` if it was alive and is now destroyed
+   */
+  destroyEntity(id: EntityId): boolean {
+    if (!this._entityManager.destroy(id)) return false;
+    this._componentRegistry.removeAll(id);
+    this._queryEngine.invalidate();
+    return true;
+  }
+
+  /**
+   * Check whether an entity is currently alive.
+   *
+   * @param id - The entity to check
+   * @returns `true` if alive
+   */
+  isAlive(id: EntityId): boolean {
+    return this._entityManager.isAlive(id);
+  }
+
+  // ─── ECS component management ─────────────────────────────────────────────
+
+  /**
+   * Attach a component to an entity.
+   * Merges `def.defaults` with the supplied `data` (data wins on conflict).
+   *
+   * @param id - Target entity
+   * @param def - Component definition
+   * @param data - Partial data to store (merged with defaults)
+   */
+  addComponent<D extends ComponentDefinition<ComponentSchema>>(
+    id: EntityId,
+    def: D,
+    data: Partial<InferComponent<D>>,
+  ): void {
+    const merged = { ...def.defaults, ...data } as InferComponent<D>;
+    this._componentRegistry.add(id, def, merged);
+    this._queryEngine.invalidate();
+  }
+
+  /**
+   * Retrieve a component from an entity.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to look up
+   * @returns The stored component data, or `undefined`
+   */
+  getComponent<D extends ComponentDefinition<ComponentSchema>>(
+    id: EntityId,
+    def: D,
+  ): InferComponent<D> | undefined {
+    return this._componentRegistry.get<InferComponent<D>>(id, def);
+  }
+
+  /**
+   * Check whether an entity has a specific component.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to check
+   * @returns `true` if the component is present
+   */
+  hasComponent<D extends ComponentDefinition<ComponentSchema>>(id: EntityId, def: D): boolean {
+    return this._componentRegistry.has(id, def);
+  }
+
+  /**
+   * Remove a component from an entity.
+   *
+   * @param id - Target entity
+   * @param def - Component definition to remove
+   * @returns `true` if the component existed and was removed
+   */
+  removeComponent<D extends ComponentDefinition<ComponentSchema>>(id: EntityId, def: D): boolean {
+    const removed = this._componentRegistry.remove(id, def);
+    if (removed) this._queryEngine.invalidate();
+    return removed;
+  }
+
+  // ─── ECS live query ───────────────────────────────────────────────────────
+
+  /**
+   * Create a live query that reflects the current ECS state on each iteration.
+   *
+   * The returned `Iterable` re-evaluates matching entities every time it is
+   * iterated — no stale cache is exposed to the caller.
+   *
+   * @param components - Array of component definitions all matched entities must have
+   * @returns A live {@link LiveQuery} of {@link EntityAccessor} objects
+   */
+  createLiveQuery<T extends ComponentDef>(components: T[]): LiveQuery<EntityAccessor> {
+    // Capture references once — avoids closure allocation on every iteration start.
+    const self = this;
+    return {
+      [Symbol.iterator](): Iterator<EntityAccessor> {
+        const results = self._queryEngine.resolve(
+          components,
+          self._entityManager,
+          self._componentRegistry,
+        );
+        let i = 0;
+        return {
+          next(): IteratorResult<EntityAccessor> {
+            if (i >= results.length) {
+              return { done: true, value: undefined as unknown as EntityAccessor };
+            }
+            const id = results[i++]!;
+            return {
+              done: false,
+              value: {
+                id,
+                get<S extends ComponentSchema, D extends ComponentDefinition<S>>(
+                  def: D,
+                ): InferComponent<D> | undefined {
+                  return self._componentRegistry.get<InferComponent<D>>(id, def);
+                },
+              },
+            };
+          },
+        };
+      },
+    };
   }
 
   // ─── Stats ────────────────────────────────────────────────────────────────

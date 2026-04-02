@@ -40,7 +40,7 @@ export {
   useService,
   useWasmModule,
 } from './system';
-export type { LiveQuery, ComponentDef } from './system';
+export type { LiveQuery, ComponentDef, EntityAccessor } from './system';
 
 // WASM Bridge
 export {

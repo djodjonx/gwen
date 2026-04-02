@@ -28,7 +28,8 @@
 
 import { useEngine } from './context.js';
 import type { GwenPlugin, GwenProvides, WasmModuleHandle } from './engine/gwen-engine.js';
-import type { ComponentDefinition, ComponentSchema } from './schema.js';
+import type { EntityId } from './engine/engine-api.js';
+import type { ComponentDefinition, ComponentSchema, InferComponent } from './schema.js';
 
 /** A component selector accepted by {@link useQuery}. */
 export type ComponentDef = ComponentDefinition<ComponentSchema>;
@@ -236,21 +237,54 @@ export function defineSystem(setup: () => void): GwenPlugin {
 // ─── useQuery ─────────────────────────────────────────────────────────────────
 
 /**
- * A live query result — an iterable of entity accessors updated each frame.
+ * Provides read access to a single entity's components during query iteration.
+ *
+ * Returned by {@link useQuery} on each iteration step. The accessor is valid only
+ * for the duration of the current iteration — do not cache it across frames.
+ *
+ * @example
+ * ```typescript
+ * onUpdate(() => {
+ *   for (const e of entities) {
+ *     const pos = e.get(Position)
+ *     if (pos) console.log(e.id, pos.x, pos.y)
+ *   }
+ * })
+ * ```
+ */
+export interface EntityAccessor {
+  /** The entity's unique ID. */
+  readonly id: EntityId;
+  /**
+   * Retrieve the current component data for the given definition.
+   *
+   * @param def - The component definition to look up
+   * @returns The component data, or `undefined` if the entity does not have it
+   */
+  get<S extends ComponentSchema, D extends ComponentDefinition<S>>(
+    def: D,
+  ): InferComponent<D> | undefined;
+}
+
+/**
+ * A live query result — an iterable of entity accessors.
  * Returned by {@link useQuery} inside a {@link defineSystem} setup callback.
  *
- * @typeParam T - Entity accessor type (implementation-dependent)
+ * The iterable is re-evaluated each time you iterate, reflecting the current
+ * ECS state at that moment.
+ *
+ * @typeParam T - Entity accessor type (defaults to {@link EntityAccessor})
  */
-export type LiveQuery<T = unknown> = Iterable<T>;
+export type LiveQuery<T = EntityAccessor> = Iterable<T>;
 
 /**
  * Defines a reactive entity query inside a {@link defineSystem} setup callback.
  *
- * The returned iterable is re-evaluated every frame and reflects the current
- * set of entities matching the component filter.
+ * The returned iterable reflects the current ECS state at each iteration —
+ * entities that match all supplied component definitions at the time you iterate.
  *
- * @param _components - List of component definitions to match
- * @returns A live query iterable
+ * @param components - List of component definitions to match
+ * @returns A live query iterable of {@link EntityAccessor} objects
  *
  * @throws {GwenContextError} If called outside an active engine context
  *
@@ -261,15 +295,12 @@ export type LiveQuery<T = unknown> = Iterable<T>;
  *
  *   onUpdate(() => {
  *     for (const entity of enemies) {
- *       // entity.id, entity.get(Position), ...
+ *       // reflects current ECS state at each iteration
+ *       const pos = entity.get(Position)
  *     }
  *   })
  * })
  * ```
- *
- * @remarks
- * Full ECS integration is implemented in RFC-006.
- * This stub validates the engine context is active.
  */
 export function useQuery(components: ComponentDef[]): LiveQuery {
   const engine = useEngine();

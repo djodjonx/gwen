@@ -1,4 +1,0 @@
-{
-  "extends": "./.gwen/tsconfig.generated.json"
-}
-
