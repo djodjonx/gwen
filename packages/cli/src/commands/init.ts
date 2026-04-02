@@ -19,9 +19,22 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { consola } from 'consola';
 import { defineCommand } from 'citty';
 import { logger } from '../utils/logger.js';
+
+const _require = createRequire(import.meta.url);
+
+/** Read the CLI's own published version to stamp into scaffolded package.json. */
+function getGwenVersion(): string {
+  try {
+    const pkg = _require('../package.json') as { version?: string };
+    return pkg.version ?? '1.0.0';
+  } catch {
+    return '1.0.0';
+  }
+}
 
 /** Built-in starter modules offered during `gwen init`. */
 const STARTER_MODULES = [
@@ -96,7 +109,8 @@ export const initCommand = defineCommand({
     await fs.mkdir(path.join(projectDir, 'src'), { recursive: true });
 
     // --- package.json ---
-    const moduleDeps = Object.fromEntries(selectedModules.map((m) => [m, `^${__GWEN_VERSION__}`]));
+    const gwenVersion = getGwenVersion();
+    const moduleDeps = Object.fromEntries(selectedModules.map((m) => [m, `^${gwenVersion}`]));
     const packageJson = {
       name,
       type: 'module',
@@ -106,13 +120,13 @@ export const initCommand = defineCommand({
         postinstall: 'gwen prepare',
       },
       dependencies: {
-        '@gwenjs/core': `^${__GWEN_VERSION__}`,
-        '@gwenjs/app': `^${__GWEN_VERSION__}`,
+        '@gwenjs/core': `^${gwenVersion}`,
+        '@gwenjs/app': `^${gwenVersion}`,
         ...moduleDeps,
       },
       devDependencies: {
-        '@gwenjs/cli': `^${__GWEN_VERSION__}`,
-        '@gwenjs/vite': `^${__GWEN_VERSION__}`,
+        '@gwenjs/cli': `^${gwenVersion}`,
+        '@gwenjs/vite': `^${gwenVersion}`,
         vite: '^8.0.0',
       },
     };

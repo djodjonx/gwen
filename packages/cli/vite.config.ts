@@ -1,16 +1,8 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'pathe';
-import { readFileSync } from 'node:fs';
-
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
-  version: string;
-};
 
 export default defineConfig({
-  define: {
-    __GWEN_VERSION__: JSON.stringify(pkg.version),
-  },
   build: {
     lib: {
       entry: {
