@@ -22,6 +22,8 @@ export interface GwenRuntimeHooks {
   'engine:start': () => void;
   /** Fired once when `engine.stop()` tears down the engine. */
   'engine:stop': () => void;
+  /** Fired after a plugin completes its `setup()` and is registered in the engine. */
+  'plugin:registered': (pluginName: string) => void;
   /** Fired at the start of every tick, before any phase runs. */
   'engine:tick': (dt: number) => void;
   /** Fired at the end of every tick, after the render phase. */

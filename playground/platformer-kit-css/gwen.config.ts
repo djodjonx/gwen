@@ -24,14 +24,14 @@ export default defineConfig({
   mainScene: 'PlatformerScene',
 
   plugins: [
-    new Physics2DPlugin({
+    Physics2DPlugin({
       gravity: 35,
       debug: true,
     }),
-    new InputPlugin({
+    InputPlugin({
       actionMap: PlatformerDefaultInputMap,
     }),
-    new AudioPlugin({ masterVolume: 0.5 }),
-    new HtmlUIPlugin(),
+    AudioPlugin({ masterVolume: 0.5 }),
+    HtmlUIPlugin(),
   ],
 });

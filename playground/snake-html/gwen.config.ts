@@ -12,5 +12,5 @@ export default defineConfig({
     title: 'GWEN — Snake HTML/CSS',
     background: '#0b1020',
   },
-  plugins: [new InputPlugin(), new HtmlUIPlugin()],
+  plugins: [InputPlugin(), HtmlUIPlugin()],
 });

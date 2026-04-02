@@ -13,13 +13,13 @@
  * export const ScoreUI = defineUI({
  *   name: 'ScoreUI',
  *   onMount(engine, entityId) {
- *     (engine.inject('htmlUI' as any) as HtmlUI).mount(entityId, scoreHtml);
+ *     engine.inject('htmlUI').mount(entityId, scoreHtml);
  *   },
  *   render(engine, entityId) {
- *     (engine.inject('htmlUI' as any) as HtmlUI).text(entityId, 'score', `${score.value}`);
+ *     engine.inject('htmlUI').text(entityId, 'score', `${score.value}`);
  *   },
  *   onUnmount(engine, entityId) {
- *     (engine.inject('htmlUI' as any) as HtmlUI).unmount(entityId);
+ *     engine.inject('htmlUI').unmount(entityId);
  *   },
  * });
  * ```
@@ -28,6 +28,8 @@
 import { definePlugin } from '@gwenengine/kit';
 import type { EntityId, GwenPluginMeta } from '@gwenengine/kit';
 import type { GwenEngine } from '@gwenengine/core';
+// Side-effect: augments GwenProvides with 'htmlUI' key, enabling typed provide/inject.
+import './augment.js';
 
 // ── Plugin metadata ───────────────────────────────────────────────────────────
 
@@ -176,7 +178,7 @@ export const HtmlUIPlugin = definePlugin(() => {
         }
         container = elem;
       }
-      engine.provide('htmlUI' as any, service);
+      engine.provide('htmlUI', service);
     },
 
     teardown(): void {

@@ -1,19 +1,5 @@
 /**
- * Space Shooter — Configuration GWEN
- *
- * Déclarez vos plugins ici. Les services qu'ils exposent sont automatiquement
- * disponibles avec autocomplétion dans tous vos systèmes.
- *
- * @example
- * ```typescript
- * onInit(api) {
- *   const kb = api.services.get('keyboard');  // → KeyboardInput ✅
- *   const rdr = api.services.get('renderer'); // → Canvas2DRendererService ✅
- * }
- * ```
- *
- * NOTE: Using legacy tsPlugins/wasmPlugins for now until CLI validator supports unified plugins format.
- * TODO: Migrate to unified `plugins: [...]` once validator is updated.
+ * Space Shooter — GWEN Configuration
  */
 
 import { defineConfig } from '@gwenengine/kit';
@@ -34,20 +20,20 @@ export default defineConfig({
     background: '#000814',
   },
   plugins: [
-    new Physics2DPlugin({
+    Physics2DPlugin({
       gravity: 0,
       gravityX: 0,
       maxEntities: 2_000,
     }),
-    new InputPlugin(),
-    new AudioPlugin({ masterVolume: 0.7 }),
-    new Canvas2DRenderer({
+    InputPlugin(),
+    AudioPlugin({ masterVolume: 0.7 }),
+    Canvas2DRenderer({
       width: 480,
       height: 640,
       background: '#000814',
       pixelRatio: 1,
       manualRender: true,
     }),
-    new HtmlUIPlugin(),
+    HtmlUIPlugin(),
   ],
 });

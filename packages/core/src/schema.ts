@@ -157,6 +157,33 @@ const COMPOSITE_FIELDS: Record<string, readonly string[]> = {
 
 import { GlobalStringPoolManager } from './utils/string-pool.js';
 
+// Typed helpers for dynamic DataView numeric read/write dispatch.
+// Avoids `as any` on DataView for dynamic method name calls.
+type DataViewWriter = (view: DataView, offset: number, value: number) => void;
+type DataViewReader = (view: DataView, offset: number) => number;
+
+const DATAVIEW_WRITERS: Record<string, DataViewWriter> = {
+  setInt8: (v, o, x) => v.setInt8(o, x),
+  setUint8: (v, o, x) => v.setUint8(o, x),
+  setInt16: (v, o, x) => v.setInt16(o, x, true),
+  setUint16: (v, o, x) => v.setUint16(o, x, true),
+  setInt32: (v, o, x) => v.setInt32(o, x, true),
+  setUint32: (v, o, x) => v.setUint32(o, x, true),
+  setFloat32: (v, o, x) => v.setFloat32(o, x, true),
+  setFloat64: (v, o, x) => v.setFloat64(o, x, true),
+};
+
+const DATAVIEW_READERS: Record<string, DataViewReader> = {
+  getInt8: (v, o) => v.getInt8(o),
+  getUint8: (v, o) => v.getUint8(o),
+  getInt16: (v, o) => v.getInt16(o, true),
+  getUint16: (v, o) => v.getUint16(o, true),
+  getInt32: (v, o) => v.getInt32(o, true),
+  getUint32: (v, o) => v.getUint32(o, true),
+  getFloat32: (v, o) => v.getFloat32(o, true),
+  getFloat64: (v, o) => v.getFloat64(o, true),
+};
+
 /**
  * Dispatch table mapping each schema type name to its serialize/deserialize handlers.
  * Defined once at module load — zero per-call allocation.
@@ -175,16 +202,14 @@ const SCHEMA_TYPE_HANDLERS: Record<string, SchemaTypeHandler> = {
 
   string: {
     serialize(view, offset, value, typeObj) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pool = (typeObj as any).isPersistent
+      const pool = (typeObj as SchemaType & { isPersistent?: boolean }).isPersistent
         ? GlobalStringPoolManager.persistent
         : GlobalStringPoolManager.scene;
       view.setInt32(offset, pool.intern(value as string), true);
     },
     deserialize(view, offset, typeObj) {
       const strId = view.getInt32(offset, true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pool = (typeObj as any).isPersistent
+      const pool = (typeObj as SchemaType & { isPersistent?: boolean }).isPersistent
         ? GlobalStringPoolManager.persistent
         : GlobalStringPoolManager.scene;
       return pool.get(strId);
@@ -243,13 +268,11 @@ const SCHEMA_TYPE_HANDLERS: Record<string, SchemaTypeHandler> = {
   _numeric: {
     serialize(view, offset, value, typeObj) {
       const t = typeObj as { write: string };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (view as any)[t.write](offset, value as number, true);
+      DATAVIEW_WRITERS[t.write]?.(view, offset, value as number);
     },
     deserialize(view, offset, typeObj) {
       const t = typeObj as { read: string };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (view as any)[t.read](offset, true) as number;
+      return DATAVIEW_READERS[t.read]?.(view, offset) ?? 0;
     },
   },
 };

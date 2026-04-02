@@ -160,7 +160,74 @@ export {
   quatEquals,
 } from './quat.js';
 
-// ── Color ─────────────────────────────────────────────────────────────────────
+// ── Vec4 ──────────────────────────────────────────────────────────────────────
+export {
+  vec4,
+  vec4Zero,
+  vec4One,
+  vec4Point,
+  vec4Dir,
+  vec4Clone,
+  vec4Add,
+  vec4AddMut,
+  vec4Sub,
+  vec4SubMut,
+  vec4Scale,
+  vec4ScaleMut,
+  vec4Mul,
+  vec4Negate,
+  vec4Dot,
+  vec4LengthSq,
+  vec4Length,
+  vec4Normalize,
+  vec4Lerp,
+  vec4Equals,
+} from './vec4.js';
+
+// ── Mat3 ──────────────────────────────────────────────────────────────────────
+export type { Mat3 } from './mat3.js';
+export {
+  mat3,
+  mat3Identity,
+  mat3Zero,
+  mat3Clone,
+  mat3Mul,
+  mat3MulVec3,
+  mat3Transpose,
+  mat3Det,
+  mat3Inverse,
+  mat3Translate,
+  mat3Rotate,
+  mat3Scale,
+  mat3NormalFromMat3,
+  mat3Equals,
+} from './mat3.js';
+
+// ── Mat4 ──────────────────────────────────────────────────────────────────────
+export type { Mat4 } from './mat4.js';
+export {
+  mat4,
+  mat4Identity,
+  mat4Zero,
+  mat4Clone,
+  mat4Mul,
+  mat4MulVec4,
+  mat4MulPoint,
+  mat4MulDir,
+  mat4Transpose,
+  mat4ToMat3,
+  mat4Translate,
+  mat4Scale,
+  mat4RotateX,
+  mat4RotateY,
+  mat4RotateZ,
+  mat4FromQuat,
+  mat4TRS,
+  mat4Perspective,
+  mat4Ortho,
+  mat4LookAt,
+  mat4Equals,
+} from './mat4.js';
 export {
   color,
   colorWhite,

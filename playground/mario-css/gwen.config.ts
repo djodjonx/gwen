@@ -2,7 +2,7 @@ import { defineConfig } from '@gwenengine/kit';
 import { InputPlugin } from '@gwenengine/input';
 import { AudioPlugin } from '@gwenengine/audio';
 import { HtmlUIPlugin } from '@gwenengine/ui';
-import { Physics2D } from '@gwenengine/physics2d';
+import { Physics2DPlugin } from '@gwenengine/physics2d';
 
 /**
  * GWEN Project Configuration
@@ -22,10 +22,10 @@ export default defineConfig({
   mainScene: 'MainScene',
 
   plugins: [
-    new InputPlugin(),
-    new AudioPlugin({ masterVolume: 0.5 }),
-    new HtmlUIPlugin(),
-    new Physics2D({
+    InputPlugin(),
+    AudioPlugin({ masterVolume: 0.5 }),
+    HtmlUIPlugin(),
+    Physics2DPlugin({
       gravity: 20, // Y+ vers le bas pour coller au rendu CSS de mario-css
       qualityPreset: 'high',
       ccdEnabled: true,

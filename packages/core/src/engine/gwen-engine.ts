@@ -529,7 +529,7 @@ class GwenEngineImpl implements GwenEngine {
 
     this._plugins.push(plugin);
     this._pluginNames.add(plugin.name);
-    await this.hooks.callHook('plugin:registered' as keyof GwenRuntimeHooks, plugin.name as never);
+    await this.hooks.callHook('plugin:registered', plugin.name);
   }
 
   async unuse(name: string): Promise<void> {
