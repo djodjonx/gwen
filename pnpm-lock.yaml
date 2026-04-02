@@ -131,6 +131,9 @@ importers:
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
+      pkg-types:
+        specifier: ^2.3.0
+        version: 2.3.0
       ts-morph:
         specifier: ^25.0.0
         version: 25.0.1

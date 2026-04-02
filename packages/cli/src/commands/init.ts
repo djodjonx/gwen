@@ -19,17 +19,15 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createRequire } from 'node:module';
+import { readPackageJSON } from 'pkg-types';
 import { consola } from 'consola';
 import { defineCommand } from 'citty';
 import { logger } from '../utils/logger.js';
 
-const _require = createRequire(import.meta.url);
-
 /** Read the CLI's own published version to stamp into scaffolded package.json. */
-function getGwenVersion(): string {
+async function getGwenVersion(): Promise<string> {
   try {
-    const pkg = _require('../package.json') as { version?: string };
+    const pkg = await readPackageJSON(new URL('..', import.meta.url).pathname);
     return pkg.version ?? '1.0.0';
   } catch {
     return '1.0.0';
@@ -109,7 +107,7 @@ export const initCommand = defineCommand({
     await fs.mkdir(path.join(projectDir, 'src'), { recursive: true });
 
     // --- package.json ---
-    const gwenVersion = getGwenVersion();
+    const gwenVersion = await getGwenVersion();
     const moduleDeps = Object.fromEntries(selectedModules.map((m) => [m, `^${gwenVersion}`]));
     const packageJson = {
       name,
