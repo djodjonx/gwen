@@ -113,7 +113,7 @@ export const initCommand = defineCommand({
       devDependencies: {
         '@gwenjs/cli': '^1.0.0',
         '@gwenjs/vite': '^1.0.0',
-        vite: '^5.0.0',
+        vite: '^8.0.0',
       },
     };
     await fs.writeFile(
