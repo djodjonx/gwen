@@ -6,7 +6,8 @@ node_modules/
 **/dist/
 
 # IDE & Editor
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.iml
 *.swp
