@@ -52,3 +52,4 @@ coverage/
 # TypeScript incremental build info
 *.tsbuildinfo
 **/*.tsbuildinfo
+.worktrees/
