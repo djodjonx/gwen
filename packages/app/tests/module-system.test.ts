@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { defineGwenModule } from '@gwenjs/kit';
-import type { GwenModule, AutoImport, GwenTypeTemplate } from '@gwenjs/kit';
+import type { GwenModule, AutoImport, GwenTypeTemplate, GwenPlugin } from '@gwenjs/kit';
 import { GwenApp } from '../src/app.js';
 import { resolveConfig } from '../src/config.js';
 
@@ -597,11 +597,7 @@ describe('GwenApp — getter immutability', () => {
     await app.setupModules(config, makeLoader({ '@test/immut': mod }));
 
     const snap1 = app.plugins;
-    snap1.push({ name: 'injected' as const } as Parameters<
-      typeof mod.setup
-    >[1]['addPlugin'] extends (p: infer P) => void
-      ? P
-      : never);
+    snap1.push({ name: 'injected' as const } as unknown as GwenPlugin);
 
     // The internal array should NOT have been mutated
     expect(app.plugins).toHaveLength(1);
