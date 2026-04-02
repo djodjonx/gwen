@@ -14,9 +14,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "moduleResolution": "node",
-    "declaration": true,
-    "declarationMap": true,
+    "rootDir": "../..",
+    "moduleResolution": "bundler",
+    "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
     "outDir": "./dist",
     "exactOptionalPropertyTypes": false,
@@ -32,3 +33,4 @@
   ],
   "extends": "../../tsconfig.base.json"
 }
+
