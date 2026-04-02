@@ -4,7 +4,7 @@
 
 The scene reload system lets you control whether a scene should be reloaded (destroyed and recreated) when returning to it.
 
-**Comportement par défaut**: `reloadOnReenter: true` (comme Unity/Godot)
+**Default behavior**: `reloadOnReenter: true` (like Unity/Godot)
 
 ## API
 
@@ -170,18 +170,18 @@ api.hooks.hook('scene:willReload', (name, context) => {
 
 When a scene reloads:
 
-1. ✅ `scene:willReload` hook appelé
-2. ✅ `scene:beforeUnload` hook appelé
-3. ✅ `onExit()` appelé
-4. ✅ Systèmes détruits (onDestroy)
-5. ✅ `scene:unload` hook appelé
-6. ✅ Toutes les entités purgées
-7. ✅ `scene:unloaded` hook appelé
-8. ✅ `scene:beforeLoad` hook appelé
-9. ✅ Systèmes recréés (factories appelées)
-10. ✅ `scene:load` hook appelé
-11. ✅ `onEnter()` appelé
-12. ✅ `scene:loaded` hook appelé
+1. ✅ `scene:willReload` hook called
+2. ✅ `scene:beforeUnload` hook called
+3. ✅ `onExit()` called
+4. ✅ Systems destroyed (onDestroy)
+5. ✅ `scene:unload` hook called
+6. ✅ All entities purged
+7. ✅ `scene:unloaded` hook called
+8. ✅ `scene:beforeLoad` hook called
+9. ✅ Systems recreated (factories called)
+10. ✅ `scene:load` hook called
+11. ✅ `onEnter()` called
+12. ✅ `scene:loaded` hook called
 
 **Result**: Completely fresh state, as if the scene was loaded for the first time.
 
@@ -327,7 +327,7 @@ export const GameScene = defineScene('Game', () => ({
   onExit(api) {}
 }));
 
-// ✅ Utiliser reloadOnReenter à la place
+// ✅ Use reloadOnReenter instead
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true, // ✅ Systems recreated automatically
   systems: [MovementSystem, PlayerSystem],
@@ -346,7 +346,7 @@ export const GameScene = defineScene('Game', () => ({
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  reloadOnReenter: true, // ← Ajoutez ça
+  reloadOnReenter: true, // ← Add this
   systems: [MovementSystem],
   onEnter(api) {},
   onExit(api) {}
