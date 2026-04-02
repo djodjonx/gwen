@@ -10,6 +10,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Get Started', link: '/guide/quick-start' },
+      { text: 'Kit', link: '/kit/overview' },
       { text: 'Core Concepts', link: '/core/components' },
       { text: 'API', link: '/api/overview' },
       { text: 'CLI', link: '/cli/commands' },
@@ -45,6 +46,15 @@ export default defineConfig({
           { text: 'Helpers (define*)', link: '/api/helpers' },
           { text: 'Engine API (api.*)', link: '/api/engine-api' },
           { text: 'Types', link: '/api/types' },
+        ],
+      },
+      {
+        text: 'Kit',
+        items: [
+          { text: 'Overview', link: '/kit/overview' },
+          { text: 'Create a Custom Plugin', link: '/kit/custom-plugin' },
+          { text: 'Create a Custom Module', link: '/kit/custom-module' },
+          { text: 'Helpers API', link: '/kit/helpers-api' },
         ],
       },
       {
