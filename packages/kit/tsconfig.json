@@ -7,9 +7,10 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
+    "rootDir": "../..",
     "outDir": "dist",
     "customConditions": [
       "development"
