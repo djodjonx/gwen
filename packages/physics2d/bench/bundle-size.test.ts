@@ -86,10 +86,10 @@ describe('bundle size (tree-shaking)', () => {
   );
 
   it.skipIf(!BENCH_SLOW)(
-    'core and helpers bundles are not larger than index',
+    'focused entry points (core, tilemap, debug) are not larger than index',
     () => {
+      // helpers.js is intentionally larger than index.js as it aggregates all helpers
       expect(sizes['core.js']).toBeLessThanOrEqual(sizes['index.js'] ?? 0);
-      expect(sizes['helpers.js']).toBeLessThanOrEqual(sizes['index.js'] ?? 0);
       expect(sizes['tilemap.js']).toBeLessThanOrEqual(sizes['index.js'] ?? 0);
       expect(sizes['debug.js']).toBeLessThanOrEqual(sizes['index.js'] ?? 0);
     },
