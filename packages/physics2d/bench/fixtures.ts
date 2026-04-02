@@ -16,7 +16,7 @@
  * @returns Flat tile array (0 = empty, 1 = solid), length = width * height
  */
 export function makeTiles(width: number, height: number): number[] {
-  const tiles = new Array<number>(width * height).fill(0);
+  const tiles = Array.from<number>({ length: width * height }).fill(0);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (y > height - 5 || (y % 11 === 0 && x % 3 !== 0) || (x % 17 === 0 && y % 5 < 3)) {
