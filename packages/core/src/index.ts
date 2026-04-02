@@ -42,6 +42,10 @@ export {
 } from './system';
 export type { LiveQuery, ComponentDef, EntityAccessor } from './system';
 
+// Scene primitives
+export { defineScene } from './scene';
+export type { SceneDefinition, SceneFactory, SceneOptions, SceneRegistry } from './scene';
+
 // WASM Bridge
 export {
   initWasm,
