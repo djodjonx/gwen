@@ -24,6 +24,7 @@
     "test:cargo": "./scripts/clean-cargo.sh test",
     "check:cargo": "./scripts/clean-cargo.sh check",
     "bench": "cargo bench",
+    "bench:physics:ci": "pnpm --filter @gwenjs/physics2d bench:ci",
     "bench:physics:tilemap": "pnpm --filter @gwenjs/physics2d bench:tilemap",
     "test:bench:physics:tilemap": "pnpm --filter @gwenjs/physics2d test:bench:tilemap",
     "bench:physics:solver": "pnpm --filter @gwenjs/physics2d bench:solver",

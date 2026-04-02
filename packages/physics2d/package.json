@@ -65,7 +65,8 @@
     "test:bench:tilemap": "vitest bench bench/tilemap.bench.ts",
     "test:bench:tree-shaking": "BENCH_SLOW=1 vitest run bench/bundle-size.test.ts",
     "test:bench:score": "vitest run bench/perf-gate.test.ts",
-    "test:e2e:playgrounds": "BENCH_SLOW=1 vitest run bench/playgrounds-e2e.test.ts"
+    "test:e2e:playgrounds": "BENCH_SLOW=1 vitest run bench/playgrounds-e2e.test.ts",
+    "bench:ci": "BENCH_SLOW=1 vitest bench && BENCH_SLOW=1 vitest run bench/solver.test.ts bench/bundle-size.test.ts bench/perf-gate.test.ts bench/playgrounds-e2e.test.ts"
   },
   "dependencies": {
     "@gwenjs/core": "workspace:*",
