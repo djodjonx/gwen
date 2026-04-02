@@ -195,4 +195,3 @@ export const HtmlUIPlugin = definePlugin(() => {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useHtmlUI } from './composables.js';
-export { default } from './module.js';

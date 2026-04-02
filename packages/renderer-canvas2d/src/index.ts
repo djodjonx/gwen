@@ -15,4 +15,3 @@ export type { RectOptions, CircleOptions, LineOptions, TextOptions } from './sha
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useCanvas2D } from './composables.js';
-export { default } from './module.js';

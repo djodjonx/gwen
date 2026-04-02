@@ -13,8 +13,9 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     },
-    "./vite-env": {
-      "types": "./dist/vite-env.d.ts"
+    "./module": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts"
     }
   },
   "scripts": {

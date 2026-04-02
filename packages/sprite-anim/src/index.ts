@@ -223,4 +223,3 @@ export function spriteAnim(config: SpriteAnimPluginConfig = {}) {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useSpriteAnim } from './composables.js';
-export { default } from './module.js';

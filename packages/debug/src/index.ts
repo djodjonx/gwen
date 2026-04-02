@@ -173,4 +173,3 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useDebug } from './composables.js';
-export { default } from './module.js';

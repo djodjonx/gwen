@@ -124,4 +124,3 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useKeyboard, useMouse, useGamepad, useInputMapper } from './composables.js';
-export { default } from './module.js';
