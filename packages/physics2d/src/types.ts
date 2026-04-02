@@ -240,7 +240,7 @@ export interface SensorState {
  * Hooks emitted by the Physics2D plugin.
  *
  * Declared as `providesHooks` on the plugin so that `gwen prepare` can
- * augment `GwenDefaultHooks` — giving full type-safety on
+ * augment `GwenProvides` — giving full type-safety on
  * `engine.hooks.hook('physics:collision', ...)` without any cast.
  */
 export interface Physics2DPluginHooks {
