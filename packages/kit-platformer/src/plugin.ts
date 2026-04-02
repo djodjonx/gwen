@@ -54,10 +54,11 @@ export const PlatformerKitPlugin = definePlugin((config: PlatformerKitConfig = {
   const service: PlatformerKitService = { config: resolvedConfig };
 
   return {
-    name: 'PlatformerKit',
+    name: '@gwenengine/kit-platformer',
     setup(engine: GwenEngine): void {
-      engine.provide('platformerKit' as any, service);
+      engine.provide('platformer' as any, service);
     },
+    teardown(): void {},
   };
 });
 
@@ -77,8 +78,8 @@ export function resolveComponent<K extends keyof PlatformerKitComponents>(
   }
 
   // 2. Global override via PlatformerKitPlugin
-  if (api.services.has('platformerKit')) {
-    const service = api.services.get('platformerKit') as PlatformerKitService;
+  if (api.services.has('platformer')) {
+    const service = api.services.get('platformer') as PlatformerKitService;
     const component = service.config.components[key];
     if (component) {
       return component;

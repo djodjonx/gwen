@@ -162,7 +162,7 @@ export const HtmlUIPlugin = definePlugin(() => {
   };
 
   return {
-    name: 'HtmlUIPlugin',
+    name: '@gwenengine/ui',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
@@ -189,3 +189,8 @@ export const HtmlUIPlugin = definePlugin(() => {
     },
   };
 });
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useHtmlUI } from './composables.js';
+export { default } from './module.js';

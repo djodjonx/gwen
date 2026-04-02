@@ -67,10 +67,10 @@ describe('Advanced Mode — Component Overrides', () => {
     const plugin = PlatformerKitPlugin({ components: { position: CustomPosition } });
     const mockEngine = createMockEngine();
     plugin.setup(mockEngine as any);
-    const platformerKitService = mockEngine.inject('platformerKit');
+    const platformerKitService = mockEngine.inject('platformer');
 
     const services = new Map();
-    services.set('platformerKit', platformerKitService);
+    services.set('platformer', platformerKitService);
 
     const prefab = createPlayerPrefab();
     const api = makeApi(services);
@@ -86,10 +86,10 @@ describe('Advanced Mode — Component Overrides', () => {
     const plugin = PlatformerKitPlugin({ components: { position: GlobalPosition as any } });
     const mockEngine = createMockEngine();
     plugin.setup(mockEngine as any);
-    const platformerKitService = mockEngine.inject('platformerKit');
+    const platformerKitService = mockEngine.inject('platformer');
 
     const services = new Map();
-    services.set('platformerKit', platformerKitService);
+    services.set('platformer', platformerKitService);
 
     const prefab = createPlayerPrefab({
       components: { position: LocalPosition as any },

@@ -134,7 +134,7 @@ describe('DebugPlugin', () => {
   });
 
   it('a le nom correct', () => {
-    expect(new DebugPlugin().name).toBe('DebugPlugin');
+    expect(new DebugPlugin().name).toBe('@gwenengine/debug');
   });
 
   it("enregistre le service debug via engine.provide() à l'init", () => {

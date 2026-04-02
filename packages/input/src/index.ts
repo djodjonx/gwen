@@ -80,7 +80,7 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
   let target: EventTarget;
 
   return {
-    name: 'InputPlugin',
+    name: '@gwenengine/input',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
@@ -120,3 +120,8 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
     },
   };
 });
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useKeyboard, useMouse, useGamepad, useInputMapper } from './composables.js';
+export { default } from './module.js';

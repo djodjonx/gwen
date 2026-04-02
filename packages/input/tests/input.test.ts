@@ -308,7 +308,7 @@ describe('InputPlugin', () => {
   });
 
   it('should have name InputPlugin', () => {
-    expect(new InputPlugin().name).toBe('InputPlugin');
+    expect(new InputPlugin().name).toBe('@gwenengine/input');
   });
 
   describe('DI pattern — PlayerController consuming InputPlugin', () => {

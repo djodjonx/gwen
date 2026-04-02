@@ -123,7 +123,7 @@ describe('AudioPlugin', () => {
     });
 
     it('should have name "AudioPlugin"', () => {
-      expect(new AudioPlugin().name).toBe('AudioPlugin');
+      expect(new AudioPlugin().name).toBe('@gwenengine/audio');
     });
 
     it('should apply master volume on init', () => {

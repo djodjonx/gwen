@@ -204,7 +204,7 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
   };
 
   return {
-    name: 'AudioPlugin',
+    name: '@gwenengine/audio',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
@@ -225,3 +225,8 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
     },
   };
 });
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useAudio } from './composables.js';
+export { default } from './module.js';

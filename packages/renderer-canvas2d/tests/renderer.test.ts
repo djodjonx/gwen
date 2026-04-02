@@ -130,7 +130,7 @@ describe('Canvas2DRenderer', () => {
 
     it('should have name "Canvas2DRenderer"', () => {
       const renderer = Canvas2DRenderer({ canvas: 'x', pixelRatio: 1 });
-      expect(renderer.name).toBe('Canvas2DRenderer');
+      expect(renderer.name).toBe('@gwenengine/renderer-canvas2d');
     });
   });
 

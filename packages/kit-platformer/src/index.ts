@@ -42,3 +42,8 @@ export type {
 
 // ── Shared constants & types ───────────────────────────────────────────────
 export { PlatformerDefaultInputMap } from './input.js';
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { usePlatformer } from './composables.js';
+export { default } from './module.js';

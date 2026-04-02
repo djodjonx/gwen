@@ -539,6 +539,7 @@ export function physics2D(config: Physics2DConfig = {}) {
   return Physics2DPlugin(config);
 }
 
-// ─── RFC-009: Composables & type augmentations ────────────────────────────────
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
 export { usePhysics2D, useRigidBody, useCollider } from './composables.js';
-// Side-effect: augments GwenProvides + GwenRuntimeHooks in @gwenengine/core
+export { default } from './module.js';

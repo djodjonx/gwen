@@ -93,7 +93,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
   let _engine: GwenEngine;
 
   return {
-    name: 'DebugPlugin',
+    name: '@gwenengine/debug',
 
     setup(engine: GwenEngine): void {
       _engine = engine;
@@ -169,3 +169,8 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
     },
   };
 });
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useDebug } from './composables.js';
+export { default } from './module.js';

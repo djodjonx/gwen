@@ -134,7 +134,7 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
   };
 
   return {
-    name: 'SpriteAnimPlugin',
+    name: '@gwenengine/sprite-anim',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
@@ -219,3 +219,8 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
 export function spriteAnim(config: SpriteAnimPluginConfig = {}) {
   return SpriteAnimPlugin(config);
 }
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useSpriteAnim } from './composables.js';
+export { default } from './module.js';

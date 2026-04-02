@@ -227,7 +227,7 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
   };
 
   return {
-    name: 'Canvas2DRenderer',
+    name: '@gwenengine/renderer-canvas2d',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {

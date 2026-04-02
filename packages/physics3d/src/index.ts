@@ -1317,3 +1317,8 @@ export * from './helpers/contact';
 export * from './helpers/movement';
 export * from './helpers/queries';
 export * from './systems';
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { usePhysics3D } from './composables.js';
+export { default as physics3dModule } from './module.js';

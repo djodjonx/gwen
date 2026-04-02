@@ -11,3 +11,8 @@ export type {
 
 export { ShapeRenderer } from './shapes';
 export type { RectOptions, CircleOptions, LineOptions, TextOptions } from './shapes';
+
+// ─── Module, composables & type augmentations ─────────────────────────────────
+export * from './augment.js';
+export { useCanvas2D } from './composables.js';
+export { default } from './module.js';
