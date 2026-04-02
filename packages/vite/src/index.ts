@@ -426,7 +426,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     return true;
   }
 
-  function startWatcher(root: string): void {
+  function startWatcher(root: string, devServer: ViteDevServer): void {
     const crate = resolveCratePath(root);
     if (!crate) return;
 
@@ -438,10 +438,12 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
     log(`Watching Rust sources in ${srcDir}`);
 
-    // Use fs.watch to monitor .rs file changes
-    fs.watch(srcDir, { recursive: true }, (event, filename) => {
-      if (!filename?.endsWith('.rs')) return;
-      log(`Rust file changed: ${filename} — rebuilding WASM...`);
+    // Register srcDir with Vite's Chokidar instance for reliable cross-platform watching
+    devServer.watcher.add(srcDir);
+    devServer.watcher.on('change', (filePath) => {
+      if (!filePath.startsWith(srcDir)) return;
+      if (!filePath.endsWith('.rs')) return;
+      log(`Rust file changed: ${filePath} — rebuilding WASM...`);
 
       // Debounce: ignore if already building
       if (watchProcess?.exitCode === null) return;
@@ -547,7 +549,10 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       // Watcher on src/scenes/ to invalidate modules
       const scenesDir = path.join(projectRoot, 'src', 'scenes');
       if (fs.existsSync(scenesDir)) {
-        fs.watch(scenesDir, () => {
+        // Register scenesDir with Vite's Chokidar instance for reliable cross-platform watching
+        devServer.watcher.add(scenesDir);
+        devServer.watcher.on('change', (filePath) => {
+          if (!filePath.startsWith(scenesDir)) return;
           const mod = devServer.moduleGraph.getModuleById(RESOLVED_SCENES);
           if (mod) devServer.moduleGraph.invalidateModule(mod);
           const entryMod = devServer.moduleGraph.getModuleById(RESOLVED_ENTRY);
@@ -558,7 +563,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
       if (options.watch !== false) {
         buildWasm(projectRoot);
-        startWatcher(projectRoot);
+        startWatcher(projectRoot, devServer);
       }
 
       // WASM middleware + COOP/COEP headers + generated HTML if index.html missing
