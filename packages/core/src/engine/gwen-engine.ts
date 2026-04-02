@@ -7,6 +7,18 @@
  *
  * RFC-008 adds: 8-phase frame loop, `WasmModuleHandle`, `loadWasmModule`,
  * `getWasmModule`, and `startExternal` for external-loop integration.
+ *
+ * ⚠️  INTENTIONAL LARGE FILE — Do not split into separate modules.
+ * V8 inlines calls between functions in the same compilation unit.
+ * A previous refactor attempt that split this file caused a measurable perf
+ * regression on the hot path (frame loop + plugin dispatch at ~1000 entities/frame).
+ * Keep all engine code co-located so the JIT can inline across method boundaries.
+ *
+ * NAVIGATION (use IDE region folding — Ctrl+Shift+[ / Cmd+Shift+[):
+ *   #region Types, interfaces & error classes   — all public contracts
+ *   #region Internal helpers                    — ScopedHooksTracker
+ *   #region Engine implementation               — GwenEngineImpl (frame loop, plugins, DI)
+ *   #region Factory                             — createEngine()
  */
 
 import { createHooks, type Hookable } from 'hookable';
@@ -19,6 +31,8 @@ export type {
   WasmChannelOptions,
 } from './wasm-module-handle.js';
 export { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
+
+// #region Types, interfaces & error classes
 
 // ─── WASM module types (RFC-008) ─────────────────────────────────────────────
 
@@ -410,6 +424,10 @@ export interface GwenEngine {
 
 // ─── Implementation ──────────────────────────────────────────────────────────
 
+// #endregion
+
+// #region Internal helpers
+
 /**
  * Scoped hooks tracker — records (event, fn) pairs per plugin so they can be
  * bulk-removed when a plugin is unregistered.
@@ -438,6 +456,10 @@ class ScopedHooksTracker {
     }
   }
 }
+
+// #endregion
+
+// #region Engine implementation
 
 class GwenEngineImpl implements GwenEngine {
   // ─── Config ──────────────────────────────────────────────────────────────
@@ -896,7 +918,9 @@ class GwenEngineImpl implements GwenEngine {
   }
 }
 
-// ─── Factory ─────────────────────────────────────────────────────────────────
+// #endregion
+
+// #region Factory ─────────────────────────────────────────────────────────────
 
 /**
  * Create a GWEN engine instance.
@@ -915,3 +939,5 @@ class GwenEngineImpl implements GwenEngine {
 export async function createEngine(options?: GwenEngineOptions): Promise<GwenEngine> {
   return new GwenEngineImpl(options ?? {});
 }
+
+// #endregion

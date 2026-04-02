@@ -4,6 +4,20 @@
  * The Rust/WASM core is MANDATORY — no TypeScript fallback exists.
  * Call `await initWasm()` BEFORE creating the Engine, or an error is thrown.
  *
+ * ⚠️  INTENTIONAL LARGE FILE — Do not split into separate modules.
+ * V8 inlines calls between functions in the same compilation unit.
+ * A previous refactor attempt that split this file caused a measurable perf
+ * regression on the hot path (entity queries + component reads at ~1000 entities/frame).
+ * Keep all bridge code co-located so the JIT can inline across method boundaries.
+ *
+ * NAVIGATION (use IDE region folding — Ctrl+Shift+[ / Cmd+Shift+[):
+ *   #region Types & WASM module interfaces      — variant type contracts (WasmEngine*)
+ *   #region Internal state & hot-path buffers   — module-level singletons, zero-alloc views
+ *   #region Module loading & initialization     — variant detection, fetch, instantiation
+ *   #region WasmBridge public interface         — public API surface
+ *   #region WasmBridge implementation           — hot path: entity/component/query calls
+ *   #region Singleton management & test utils   — getWasmBridge(), _inject*, _reset*
+ *
  * @example
  * ```typescript
  * await initWasm();          // Auto-resolves from @gwenjs/core/wasm/
@@ -13,6 +27,8 @@
  */
 
 import { createEntityId, type EntityId } from './engine-api';
+
+// #region Types & WASM module interfaces
 
 /**
  * Available core WASM variants.
@@ -767,7 +783,9 @@ export type WasmEngine = WasmEngineBase &
   Partial<Omit<WasmEnginePhysics2D, keyof WasmEngineBase>> &
   Partial<Omit<WasmEnginePhysics3D, keyof WasmEngineBase>>;
 
-// ── Internal state ────────────────────────────────────────────────────────────
+// #endregion
+
+// #region Internal state & hot-path static buffers ───────────────────────────
 
 let _wasmEngine: WasmEngine | null = null;
 let _wasmModule: GwenCoreWasm | null = null;
@@ -808,7 +826,9 @@ const _pkgWasmBase: string | null = (() => {
   return null;
 })();
 
-// ── Initialization ────────────────────────────────────────────────────────────
+// #endregion
+
+// #region Module loading & initialization ─────────────────────────────────────
 
 /**
  * Options for WASM initialization.
@@ -990,7 +1010,9 @@ async function loadWasmGlue(jsUrl: string): Promise<WasmGlueModule> {
   });
 }
 
-// ── Public Bridge ─────────────────────────────────────────────────────────────
+// #endregion
+
+// #region WasmBridge public interface ─────────────────────────────────────────
 
 export interface WasmBridge {
   /** True if Rust/WASM core is initialized and ready. */
@@ -1208,6 +1230,10 @@ export interface WasmBridge {
   /** Return a JSON string with engine runtime metrics (entity count, frame, etc.). */
   stats(): string;
 }
+
+// #endregion
+
+// #region WasmBridge implementation (hot path — do not split) ─────────────────
 
 /**
  * Guard that returns the active WasmEngine or throws a descriptive error.
@@ -1469,7 +1495,9 @@ class WasmBridgeImpl implements WasmBridge {
   }
 }
 
-// ── Singleton ────────────────────────────────────────────────────────────────
+// #endregion
+
+// #region Singleton management & test utilities ────────────────────────────────
 
 const _bridge = new WasmBridgeImpl();
 
@@ -1546,3 +1574,5 @@ export function _resetWasmBridge(): void {
   _lastMemoryBuffer = null;
   _queryResultView = null;
 }
+
+// #endregion
