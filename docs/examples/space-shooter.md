@@ -1,189 +1,271 @@
-# Space Shooter Walkthrough
+# Example: Space Shooter
 
-The playground ships a complete Space Shooter game covering the full GWEN feature set.
+A conceptual walkthrough showing how GWEN patterns fit together to build a minimal space shooter — player ship, bullets, enemies, and a score counter. This is not a complete implementation; each section highlights the relevant pattern.
 
 ## Overview
 
-**Location:** `playground/space-shooter/`
+What we're building:
 
-**Source:** [View on GitHub](https://github.com/djodjonx/gwen/tree/main/playground/space-shooter)
+- A **player ship** that moves horizontally and fires bullets
+- **Enemy ships** that drift downward
+- **Collision detection** via the 2D physics plugin
+- A **score counter** that increments on each kill
 
-## Running it locally
+The game runs as a single scene with four systems.
 
-```bash
-cd playground/space-shooter
-pnpm install
-pnpm dev
-```
+## Components
 
-## Project layout
-
-```text
-space-shooter/src/
-  components/       # Position, Velocity, Health, ShootTimer, Tag
-  prefabs/          # Player, Enemy, PlayerBullet, EnemyBullet
-  scenes/           # MainMenuScene, GameScene
-  systems/          # MovementSystem, PlayerSystem, AISystem, SpawnerSystem, CollisionSystem
-  ui/               # PlayerUI, EnemyUI, BulletUI, ScoreUI, BackgroundUI
-```
-
-## Key concepts demonstrated
-
-### 1. Scene lifecycle
-
-Two scenes manage the full game flow:
+Define each component with `defineComponent`. The `schema` drives both the TypeScript type and the WASM memory layout.
 
 ```typescript
-// MainMenuScene — shows title and waits for input to start
-export const MainMenuScene = defineScene('MainMenu', () => ({
-  ui: [TitleUI],
-  onEnter(api) {
-    api.prefabs.register(BackgroundPrefab);
-    api.prefabs.instantiate('Background');
-  },
-  onExit(api) {},
-}));
+// src/components/index.ts
+import { defineComponent } from '@gwenjs/core'
 
-// GameScene — runs all gameplay systems
-export const GameScene = defineScene('Game', () => ({
-  systems: [MovementSystem, PlayerSystem, AISystem, SpawnerSystem, CollisionSystem],
-  ui: [PlayerUI, EnemyUI, BulletUI, ScoreUI, BackgroundUI],
-  onEnter(api) {
-    api.prefabs.register(PlayerPrefab);
-    api.prefabs.register(EnemyPrefab);
-    api.prefabs.register(PlayerBulletPrefab);
-    api.prefabs.instantiate('Player');
-  },
-  onExit(api) {},
-}));
+export const Position  = defineComponent({ name: 'Position',  schema: { x: 'f32', y: 'f32' } })
+export const Velocity  = defineComponent({ name: 'Velocity',  schema: { x: 'f32', y: 'f32' } })
+export const Health    = defineComponent({ name: 'Health',    schema: { value: 'i32' } })
+
+// Tag components carry no data — they exist purely for queries
+export const PlayerTag = defineComponent({ name: 'PlayerTag', schema: {} })
+export const EnemyTag  = defineComponent({ name: 'EnemyTag',  schema: {} })
+export const BulletTag = defineComponent({ name: 'BulletTag', schema: {} })
 ```
 
-### 2. ECS data flow
+::: tip Tag components
+Zero-schema components like `PlayerTag` cost almost nothing. Use them to group entities and keep queries fast.
+:::
 
-Pure components carry all game state:
+## Prefabs
+
+`definePrefab` bundles a set of components and default values into a reusable template.
 
 ```typescript
-export const Tag = defineComponent({ name: 'tag', schema: { type: Types.string } });
-export const ShootTimer = defineComponent({
-  name: 'shootTimer',
-  schema: { elapsed: Types.f32, cooldown: Types.f32 },
-});
+// src/prefabs/index.ts
+import { definePrefab } from '@gwenjs/core'
+import { Position, Velocity, Health, PlayerTag, EnemyTag, BulletTag } from '../components'
+
+export const PlayerPrefab = definePrefab({
+  name: 'Player',
+  components: [
+    [Position, { x: 400, y: 550 }],
+    [Velocity, { x: 0, y: 0 }],
+    [Health,   { value: 3 }],
+    [PlayerTag],
+  ],
+})
+
+export const BulletPrefab = definePrefab({
+  name: 'Bullet',
+  components: [
+    [Position, { x: 0, y: 0 }],
+    [Velocity, { x: 0, y: -600 }],
+    [BulletTag],
+  ],
+})
+
+export const EnemyPrefab = definePrefab({
+  name: 'Enemy',
+  components: [
+    [Position, { x: 0, y: -20 }],
+    [Velocity, { x: 0, y: 120 }],
+    [Health,   { value: 1 }],
+    [EnemyTag],
+  ],
+})
 ```
 
-Systems read and write components — no shared mutable state outside ECS:
+Spawn an entity with `api.instantiate(prefab, overrides)`. Override values are shallow-merged per component:
 
 ```typescript
-export const PlayerSystem = defineSystem({
-  name: 'PlayerSystem',
-  onUpdate(api, dt) {
-    const keyboard = api.services.get('keyboard');
-    const players = api.query([Tag, Position, ShootTimer]);
+api.instantiate(EnemyPrefab, { [Position]: { x: Math.random() * 800, y: -20 } })
+```
 
-    for (const id of players) {
-      const tag = api.getComponent(id, Tag);
-      if (tag?.type !== 'player') continue;
+See [Prefabs API](/core/prefabs) for the full override signature.
 
-      // movement, shooting, clamping...
+## Systems
+
+### MovementSystem
+
+Queries all entities with both `Position` and `Velocity` and integrates their position each frame.
+
+```typescript
+// src/systems/movement.ts
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
+import { Position, Velocity } from '../components'
+
+export const movementSystem = defineSystem(() => {
+  const entities = useQuery([Position, Velocity])
+
+  onUpdate((dt) => {
+    for (const e of entities) {
+      e.get(Position).x += e.get(Velocity).x * dt
+      e.get(Position).y += e.get(Velocity).y * dt
     }
-  },
-});
+  })
+})
 ```
 
-### 3. Prefab composition
+### InputSystem
 
-Bullets reuse a single prefab with parameters:
-
-```typescript
-export const PlayerBulletPrefab = definePrefab({
-  name: 'PlayerBullet',
-  create: (api, x: number, y: number, vx: number, vy: number) => {
-    const id = api.createEntity();
-    api.addComponent(id, Tag, { type: 'player-bullet' });
-    api.addComponent(id, Position, { x, y });
-    api.addComponent(id, Velocity, { vx, vy });
-    return id;
-  },
-});
-
-// Spawning
-api.prefabs.instantiate('PlayerBullet', pos.x, pos.y - 20, 0, -500);
-```
-
-### 4. Collision as an ECS system
+Reads keyboard state each frame and fires a bullet when Space is pressed.
 
 ```typescript
-export const CollisionSystem = defineSystem({
-  name: 'CollisionSystem',
-  onUpdate(api) {
-    const bullets = api.query([Tag, Position]);
-    const enemies  = api.query([Tag, Position, Health]);
+// src/systems/input.ts
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
+import { useInput } from '@gwenjs/input'
+import { Position, Velocity, PlayerTag } from '../components'
+import { BulletPrefab } from '../prefabs'
 
-    for (const bulletId of bullets) {
-      const bTag = api.getComponent(bulletId, Tag);
-      if (bTag?.type !== 'player-bullet') continue;
-      const bPos = api.getComponent(bulletId, Position);
-      if (!bPos) continue;
+export const inputSystem = defineSystem((api) => {
+  const { keyboard } = useInput()
+  const players = useQuery([Position, PlayerTag])
 
-      for (const enemyId of enemies) {
-        const ePos = api.getComponent(enemyId, Position);
-        const eHp  = api.getComponent(enemyId, Health);
-        if (!ePos || !eHp) continue;
+  onUpdate((dt) => {
+    for (const e of players) {
+      const pos = e.get(Position)
+      const vel = e.get(Velocity)
 
-        const dist = Math.hypot(bPos.x - ePos.x, bPos.y - ePos.y);
-        if (dist < 28) {
-          api.destroyEntity(bulletId);
-          if (eHp.current <= 1) api.destroyEntity(enemyId);
-          else api.addComponent(enemyId, Health, { ...eHp, current: eHp.current - 1 });
-        }
+      vel.x = (keyboard.isDown('ArrowRight') ? 1 : 0)
+             - (keyboard.isDown('ArrowLeft')  ? 1 : 0)
+      vel.x *= 300
+
+      if (keyboard.justPressed('Space')) {
+        api.instantiate(BulletPrefab, { [Position]: { x: pos.x, y: pos.y } })
       }
     }
-  },
-});
+  })
+})
 ```
 
-### 5. Custom Canvas2D rendering
+### CollisionSystem
 
-Every entity type has its own `defineUI`:
+Subscribes to physics collision events and destroys the bullet and enemy on contact.
 
 ```typescript
-export const EnemyUI = defineUI({
-  name: 'EnemyUI',
-  render(api, id) {
-    const pos = api.getComponent(id, Position);
-    if (!pos) return;
-    const { ctx } = api.services.get('renderer');
-    ctx.fillStyle = '#ff4444';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 14, 0, Math.PI * 2);
-    ctx.fill();
-  },
-});
+// src/systems/collision.ts
+import { defineSystem } from '@gwenjs/core'
+import { usePhysics2D } from '@gwenjs/physics2d'
+import { BulletTag, EnemyTag } from '../components'
+
+export const collisionSystem = defineSystem((api) => {
+  const physics = usePhysics2D()
+
+  physics.onCollision((a, b) => {
+    const bullet = a.has(BulletTag) ? a : b.has(BulletTag) ? b : null
+    const enemy  = a.has(EnemyTag)  ? a : b.has(EnemyTag)  ? b : null
+
+    if (bullet && enemy) {
+      api.destroy(bullet)
+      api.destroy(enemy)
+      api.emit('enemy:killed')
+    }
+  })
+})
 ```
 
-## Space Shooter 2 — with sprite animation
+### ScoreSystem
 
-`playground/space-shooter-2/` extends the original with `@djodjonx/gwen-plugin-sprite-anim`:
+Listens for the `enemy:killed` event and increments a score counter.
 
 ```typescript
-// Player uses a real spritesheet with idle, shoot, accelerate, decelerate clips
-export const PlayerUI = defineUI({
-  name: 'PlayerUI',
-  extensions: {
-    spriteAnim: {
-      atlas: '/sprites/player.png',
-      frame: { width: 352, height: 384, columns: 8 },
-      clips: {
-        idle: { frames: [1, 2, 3, 4, 5, 6, 7, 6, 5, 4, 3, 2], fps: 9, loop: true },
-        // ...
-      },
-    },
-  },
-  render(api, id) { /* ... */ },
-});
+// src/systems/score.ts
+import { defineSystem, onEvent } from '@gwenjs/core'
+
+export const scoreSystem = defineSystem(() => {
+  let score = 0
+
+  onEvent('enemy:killed', () => {
+    score += 1
+    console.log(`Score: ${score}`)
+  })
+})
 ```
 
-## What to read next
+## Scene
 
-- [Common Patterns](/examples/patterns)
-- [Official Plugins](/plugins/official)
-- [API Helpers](/api/helpers)
+`defineScene` composes systems and an optional UI layer into a single named scene.
+
+```typescript
+// src/scenes/game.ts
+import { defineScene } from '@gwenjs/core'
+import { movementSystem } from '../systems/movement'
+import { inputSystem }    from '../systems/input'
+import { collisionSystem } from '../systems/collision'
+import { scoreSystem }    from '../systems/score'
+import { PlayerPrefab, EnemyPrefab } from '../prefabs'
+
+export const GameScene = defineScene({
+  name: 'Game',
+  systems: [movementSystem, inputSystem, collisionSystem, scoreSystem],
+
+  onEnter(api) {
+    api.instantiate(PlayerPrefab)
+
+    // Spawn a small wave of enemies
+    for (let i = 0; i < 5; i++) {
+      api.instantiate(EnemyPrefab, {
+        [Position]: { x: 80 + i * 140, y: -20 },
+      })
+    }
+  },
+})
+```
+
+See [Scenes](/core/scenes) and [Systems](/core/systems) for the full API.
+
+## Config
+
+Wire everything together in `gwen.config.ts` at the project root.
+
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
+import { physics2D }          from '@gwenjs/physics2d'
+import { InputPlugin }        from '@gwenjs/input'
+import { Canvas2DRenderer }   from '@gwenjs/renderer-canvas2d'
+import { GameScene }          from './src/scenes/game'
+
+export default defineConfig({
+  core: { maxEntities: 1_000, targetFPS: 60 },
+
+  wasm: [
+    physics2D({ gravity: 0 }),   // top-down shooter — no gravity
+  ],
+
+  plugins: [
+    new InputPlugin(),
+    new Canvas2DRenderer({ width: 800, height: 600 }),
+  ],
+
+  initialScene: GameScene,
+})
+```
+
+::: info WASM vs plugins
+Physics runs as a WASM module (listed under `wasm`). Input and rendering run as TypeScript plugins (listed under `plugins`). See [Architecture](/guide/what-is-gwen) for why.
+:::
+
+After editing the config, run `pnpm gwen prepare` to regenerate service types.
+
+## Recap
+
+| Pattern | Where used |
+|---|---|
+| `defineComponent` | Shared data schema for ECS + WASM |
+| `defineSystem` + composables | All four systems |
+| `definePrefab` | Player, Bullet, Enemy |
+| `useInput()` | `InputSystem` |
+| `usePhysics2D()` | `CollisionSystem` |
+| `api.instantiate` | Spawning entities |
+| `api.emit` / `onEvent` | Score counter |
+| `defineScene` + `onEnter` | Initial wave spawn |
+| `defineConfig` | Plugin registration |
+
+**Further reading**
+
+- [ECS Concepts](/core/components) — components, queries, entities
+- [Systems](/core/systems) — frame phases, composables
+- [Physics 2D Plugin](/plugins/physics2d)
+- [Input Plugin](/plugins/input)
+- [Canvas 2D Renderer](/plugins/renderer-canvas2d)
+- [Common Patterns](./patterns)

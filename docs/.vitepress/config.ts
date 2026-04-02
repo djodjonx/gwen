@@ -3,18 +3,17 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   lang: 'en-US',
   title: 'GWEN',
-  description: 'Composable web game framework (Rust/WASM core + TypeScript DX)',
+  description: 'Composable web game framework — TypeScript DX, Rust/WASM performance.',
   cleanUrls: true,
   base: '/gwen/',
 
   themeConfig: {
     nav: [
-      { text: 'Get Started', link: '/guide/quick-start' },
-      { text: 'Kit', link: '/kit/overview' },
-      { text: 'Core Concepts', link: '/core/components' },
+      { text: 'Guide', link: '/guide/what-is-gwen' },
+      { text: 'Core', link: '/core/architecture' },
       { text: 'API', link: '/api/overview' },
-      { text: 'CLI', link: '/cli/commands' },
       { text: 'Plugins', link: '/plugins/index' },
+      { text: 'Kit', link: '/kit/overview' },
       { text: 'GitHub', link: 'https://github.com/djodjonx/gwen' },
     ],
 
@@ -22,82 +21,78 @@ export default defineConfig({
       {
         text: 'Introduction',
         items: [
-          { text: 'What is GWEN?', link: '/' },
-          { text: 'Philosophy', link: '/guide/philosophy' },
+          { text: 'What is GWEN?', link: '/guide/what-is-gwen' },
           { text: 'Quick Start', link: '/guide/quick-start' },
+          { text: 'Installation', link: '/guide/installation' },
           { text: 'Project Structure', link: '/guide/project-structure' },
         ],
       },
       {
         text: 'Core Concepts',
         items: [
-          { text: 'Scenes', link: '/core/scenes' },
+          { text: 'Architecture', link: '/core/architecture' },
+          { text: 'Engine Context', link: '/core/context' },
           { text: 'Components', link: '/core/components' },
           { text: 'Systems', link: '/core/systems' },
           { text: 'Prefabs', link: '/core/prefabs' },
-          { text: 'UI Rendering', link: '/core/ui' },
-          { text: 'Configuration', link: '/core/configuration' },
+          { text: 'Scenes', link: '/core/scenes' },
         ],
       },
       {
-        text: 'API',
+        text: 'Configuration',
+        items: [
+          { text: 'Overview', link: '/config/overview' },
+          { text: 'Modules & WASM Modules', link: '/config/modules' },
+          { text: 'Extending Vite', link: '/config/vite-extend' },
+        ],
+      },
+      {
+        text: 'API Reference',
         items: [
           { text: 'Overview', link: '/api/overview' },
           { text: 'Helpers (define*)', link: '/api/helpers' },
-          { text: 'Engine API (api.*)', link: '/api/engine-api' },
-          { text: 'Types', link: '/api/types' },
-        ],
-      },
-      {
-        text: 'Kit',
-        items: [
-          { text: 'Overview', link: '/kit/overview' },
-          { text: 'Create a Custom Plugin', link: '/kit/custom-plugin' },
-          { text: 'Create a Custom Module', link: '/kit/custom-module' },
-          { text: 'Helpers API', link: '/kit/helpers-api' },
+          { text: 'Composables (use*)', link: '/api/composables' },
+          { text: 'Engine API', link: '/api/engine' },
         ],
       },
       {
         text: 'CLI',
         items: [
+          { text: 'Overview', link: '/cli/overview' },
           { text: 'Commands', link: '/cli/commands' },
-          { text: 'CLI Guide', link: '/CLI' },
         ],
       },
       {
         text: 'Plugins',
         items: [
-          { text: 'Plugins Overview', link: '/plugins/index' },
-          { text: 'Official Plugins', link: '/plugins/official' },
+          { text: 'Overview', link: '/plugins/index' },
           { text: 'Input', link: '/plugins/input' },
           { text: 'Audio', link: '/plugins/audio' },
-          { text: 'Debug', link: '/plugins/debug' },
           { text: 'Canvas2D Renderer', link: '/plugins/renderer-canvas2d' },
           { text: 'Physics2D', link: '/plugins/physics2d' },
           { text: 'Physics3D', link: '/plugins/physics3d' },
-          { text: 'Sprite Anim', link: '/plugins/sprite-anim' },
+          { text: 'Sprite Animation', link: '/plugins/sprite-anim' },
           { text: 'HTML UI', link: '/plugins/ui' },
-          { text: 'R3F Adapter', link: '/plugins/r3f' },
+          { text: 'React Three Fiber', link: '/plugins/r3f' },
+          { text: 'Debug', link: '/plugins/debug' },
           { text: 'Vite Plugin', link: '/plugins/vite' },
-          { text: 'Using & Creating Plugins', link: '/plugins/creating' },
-          { text: 'Input Mapping', link: '/plugins/input-mapping' },
-          { text: 'Kit Platformer', link: '/plugins/kit-platformer' },
-          { text: 'Kit Platformer — Advanced', link: '/plugins/kit-platformer-advanced' },
-          { text: 'Plugin Hooks Guide', link: '/PLUGIN_HOOKS_GUIDE' },
-          { text: 'WASM Plugins', link: '/plugins/wasm-plugins' },
-          { text: 'WASM Best Practices', link: '/plugins/wasm-plugin-best-practices' },
+        ],
+      },
+      {
+        text: 'Kit — Building Extensions',
+        items: [
+          { text: 'Overview', link: '/kit/overview' },
+          { text: 'TypeScript Plugin', link: '/kit/typescript-plugin' },
+          { text: 'WASM Plugin', link: '/kit/wasm-plugin' },
+          { text: 'Shared Memory', link: '/kit/shared-memory' },
         ],
       },
       {
         text: 'Examples',
         items: [
-          { text: 'Space Shooter Walkthrough', link: '/examples/space-shooter' },
+          { text: 'Space Shooter', link: '/examples/space-shooter' },
           { text: 'Common Patterns', link: '/examples/patterns' },
         ],
-      },
-      {
-        text: 'Troubleshooting',
-        items: [{ text: 'Troubleshooting', link: '/TROUBLESHOOTING' }],
       },
     ],
 
@@ -108,7 +103,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/djodjonx/gwen/edit/main/docs/:path',
+      pattern: 'https://github.com/djodjonx/gwen/edit/gwen-v2-alpha/docs/:path',
       text: 'Edit this page on GitHub',
     },
 

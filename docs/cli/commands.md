@@ -1,111 +1,113 @@
 # CLI Commands
 
-GWEN exposes two end-user CLI entry points:
+Full reference for every `gwen` CLI command. All commands read `gwen.config.ts` from the project root unless `--config` is specified.
 
-1. **Scaffold CLI**: `@gwenjs/create`
-2. **Project CLI**: `gwen` (provided by `@gwenjs/cli`)
+## `gwen dev`
 
-## Scaffold a project
+Starts the Vite development server with WASM hot-reload enabled.
 
-```bash
-pnpm create @gwenjs/create my-game
-cd my-game
-pnpm install
-pnpm dev
+```sh
+gwen dev [options]
 ```
 
-## `gwen` commands
+| Option | Description |
+|---|---|
+| `--port <number>` | Port for the dev server (default: `3000`) |
+| `--host [string]` | Expose to a network host (e.g. `--host 0.0.0.0`) |
+| `--config <path>` | Path to a custom `gwen.config.ts` |
 
-### `gwen prepare`
+When a `.wasm` file changes (e.g. after a Rust recompile), the affected WASM module is hot-reloaded without a full page refresh. See [Extending Vite](../config/vite-extend.md#wasm-hot-reload) for details.
 
-Generate `.gwen/` artifacts (types + helper metadata).
+::: tip
+Run `gwen prepare` at least once before `gwen dev` so that service types are available during development.
+:::
 
-```bash
-gwen prepare
-gwen prepare --verbose
+---
+
+## `gwen build`
+
+Runs a production build via Vite + Rollup/Rolldown. WASM binaries are hashed, fingerprinted, and bundled alongside the JS output.
+
+```sh
+gwen build [options]
 ```
 
-### `gwen dev`
+| Option | Description |
+|---|---|
+| `--mode <string>` | Vite mode (default: `production`) |
+| `--outDir <path>` | Output directory (default: `dist`) |
+| `--config <path>` | Path to a custom `gwen.config.ts` |
 
-Run development server.
+The build runs `hooks['build:before']` and `hooks['build:done']` from your `gwen.config.ts` before and after the Vite build step.
 
-```bash
-gwen dev
-gwen dev --port 3000
-gwen dev --open
-gwen dev --verbose
+::: warning
+Ensure your hosting environment sets the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required by `SharedArrayBuffer`. The dev server handles this automatically; production does not.
+:::
+
+---
+
+## `gwen preview`
+
+Serves the production build locally so you can verify the output before deploying. Requires a prior `gwen build`.
+
+```sh
+gwen preview [options]
 ```
 
-Flags:
-- `--port <n>` (dev server)
-- `--open`
-- `--verbose`
+| Option | Description |
+|---|---|
+| `--port <number>` | Port for the preview server (default: `4173`) |
+| `--host [string]` | Expose to a network host |
 
-### `gwen build`
+The preview server sets the same `SharedArrayBuffer` headers as `gwen dev`, so WASM modules work correctly.
 
-Build production output.
+---
 
-```bash
-gwen build
-gwen build --out-dir dist
-gwen build --debug
-gwen build --dry-run
-gwen build --verbose
+## `gwen prepare`
+
+Generates `.gwen/types/` — a directory of TypeScript declaration files that augment `GwenDefaultServices` with the service types exposed by your configured plugins.
+
+```sh
+gwen prepare [options]
 ```
 
-### `gwen preview`
+| Option | Description |
+|---|---|
+| `--config <path>` | Path to a custom `gwen.config.ts` |
 
-Preview production build.
+### When to run it
 
-```bash
-gwen build
-gwen preview
-gwen preview --preview-port 5000
+Run `gwen prepare` whenever you:
+
+- Add or remove a plugin in `gwen.config.ts`
+- Update a plugin that exposes new services
+- First set up a project
+
+```sh
+pnpm gwen prepare
 ```
 
-Flags:
-- `--preview-port <n>`
-- `--port <n>` (legacy fallback)
+In scaffolded projects, `gwen prepare` is wired to the `postinstall` script so it runs automatically after `pnpm install`.
 
-Preview prints the resolved listening URL:
+### Output
 
-```text
-[gwen] Preview server listening on http://localhost:4173/
+After running, `.gwen/types/services.d.ts` will contain declarations like:
+
+```ts
+declare module '@gwenjs/core' {
+  interface GwenDefaultServices {
+    physics: import('@gwenjs/physics2d').Physics2DAPI
+    input: import('@gwenjs/input').InputAPI
+  }
+}
 ```
 
-### `gwen lint`
+This enables zero-cast service access throughout your project:
 
-Run linting.
-
-```bash
-gwen lint
-gwen lint --fix
+```ts
+const physics = api.services.get('physics') // typed as Physics2DAPI — no cast needed
 ```
 
-### `gwen format`
-
-Run formatting.
-
-```bash
-gwen format
-gwen format --check
-```
-
-### `gwen info`
-
-Print resolved `gwen.config.ts` information.
-
-```bash
-gwen info
-```
-
-## Help
-
-```bash
-gwen --help
-```
-
-## Related pages
-
-- [Quick Start](/guide/quick-start)
-- [CLI Guide](/CLI)
+::: tip
+Commit `.gwen/types/` to source control so your team doesn't need to run `gwen prepare` after every clone.
+:::

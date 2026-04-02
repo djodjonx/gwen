@@ -1,8 +1,10 @@
-# Physics3D Plugin
+# Physics 3D Plugin
 
-Package: `@gwenjs/physics3d`
+**Package:** `@gwenjs/physics3d`
+**Module type:** WASM module (add to `wasm: []`, not `plugins: []`)
+**Service key:** `physics3d` (`Physics3DAPI`)
 
-3D physics adapter (Rapier3D-oriented API) with collision hooks and body management.
+3D rigid-body physics powered by [Rapier3D](https://rapier.rs/) compiled to WASM. Follows the same integration pattern as [`@gwenjs/physics2d`](/plugins/physics2d) — if you're familiar with that plugin, you already know most of this one.
 
 ## Install
 
@@ -12,55 +14,113 @@ pnpm add @gwenjs/physics3d
 
 ## Register
 
-```ts
-import { defineConfig } from '@gwenjs/kit';
-import { Physics3DPlugin } from '@gwenjs/physics3d';
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
+import { physics3D } from '@gwenjs/physics3d'
 
 export default defineConfig({
-  plugins: [
-    Physics3DPlugin({
+  wasm: [
+    physics3D({
       gravity: { x: 0, y: -9.81, z: 0 },
       qualityPreset: 'medium',
-      coalesceEvents: true,
     }),
   ],
-});
+})
 ```
 
-## API
+## Service API
 
-Main exports:
-- `Physics3DPlugin(config?)`
-- `PHYSICS3D_MATERIAL_PRESETS`
-- type exports for bodies/colliders/events
+The 3D API mirrors the 2D one. Key differences:
 
-Service provided:
-- `physics3d`
+- All vectors are `{ x, y, z }` instead of `{ x, y }`.
+- Collider shapes include `'sphere'`, `'box'`, `'cylinder'`, `'capsule'`, and `'trimesh'`.
+- `gravity` is a `Vec3` object, not a scalar.
 
-Common config fields:
-- `gravity`, `maxEntities`
-- `qualityPreset: 'low' | 'medium' | 'high' | 'esport'`
-- `coalesceEvents`, `layers`, `debug`
+### Rigid bodies
 
-Hooks emitted:
-- `physics3d:collision`
-- `physics3d:sensor:changed`
+| Method | Description |
+|--------|-------------|
+| `physics3d.createRigidBody(entityId, config)` | Create a 3D rigid body. Same `RigidBodyConfig` as 2D. |
+| `physics3d.removeRigidBody(entityId)` | Destroy the rigid body. |
+| `physics3d.setLinearVelocity(entityId, vec3)` | Set `{ x, y, z }` velocity. |
+| `physics3d.getLinearVelocity(entityId)` | Returns `{ x, y, z }` velocity. |
+| `physics3d.applyImpulse(entityId, vec3)` | Apply an instantaneous impulse. |
+| `physics3d.applyForce(entityId, vec3)` | Apply a continuous force this frame. |
+| `physics3d.setGravityScale(entityId, scale)` | Per-body gravity multiplier. |
+
+### Collider shapes
+
+```typescript
+{ type: 'box';      halfExtents: { x: number; y: number; z: number } }
+{ type: 'sphere';   radius: number }
+{ type: 'capsule';  halfHeight: number; radius: number }
+{ type: 'cylinder'; halfHeight: number; radius: number }
+{ type: 'trimesh';  vertices: Float32Array; indices: Uint32Array }
+```
+
+### Collision events
+
+Same event names as physics2d:
+
+```typescript
+useEvent('physics:collision', ({ entityA, entityB, type }) => { ... })
+useEvent('physics:collision:batch', (events) => { ... })
+```
+
+### Composable
+
+```typescript
+import { usePhysics3D } from '@gwenjs/physics3d'
+
+const physics3d = usePhysics3D() // shorthand for useService('physics3d')
+```
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `gravity` | `{ x, y, z }` | `{ x: 0, y: -9.81, z: 0 }` | Gravity vector (m/s²). |
+| `qualityPreset` | `'low' \| 'medium' \| 'high' \| 'esport'` | `'medium'` | Solver iteration budget. See [Physics 2D presets](/plugins/physics2d#quality-presets). |
+| `eventMode` | `'pull' \| 'hybrid'` | `'hybrid'` | Collision event delivery mode. |
+| `coalesceEvents` | `boolean` | `true` | Merge repeated start/end pairs. |
+| `ccdEnabled` | `boolean` | `false` | Continuous Collision Detection. |
+| `maxEntities` | `number` | inherits `core.maxEntities` | Upper bound on physics bodies. |
 
 ## Example
 
-```ts
-const p3 = api.services.get('physics3d');
+```typescript
+import { defineSystem, onUpdate } from '@gwenjs/core'
+import { usePhysics3D } from '@gwenjs/physics3d'
+import { useQuery } from '@gwenjs/core'
+import { Position3D, RigidBody3D } from '../components'
 
-p3.createBody(entityId, {
-  kind: 'dynamic',
-  initialPosition: { x: 0, y: 2, z: 0 },
-});
+export const physics3DSetupSystem = defineSystem(() => {
+  const physics  = usePhysics3D()
+  const entities = useQuery([Position3D, RigidBody3D])
 
-p3.applyImpulse(entityId, { x: 0, y: 2, z: 0 });
-const state = p3.getBodyState(entityId);
+  onUpdate(() => {
+    for (const entity of entities.added) {
+      physics.createRigidBody(entity.id, { type: 'dynamic', mass: 1 })
+      physics.createCollider(entity.id,
+        { type: 'sphere', radius: 0.5 },
+        { friction: 0.4, restitution: 0.3 },
+      )
+    }
+
+    for (const entity of entities.removed) {
+      physics.removeRigidBody(entity.id)
+    }
+  })
+})
 ```
 
-## Source
+::: warning WASM module, not a plugin
+`physics3D(...)` goes in `wasm: []`, not `plugins: []`.
+:::
 
-- `packages/physics3d/src/index.ts`
-- `packages/physics3d/src/types.ts`
+## Related
+
+- [Physics 2D](/plugins/physics2d) — 2D variant with full API reference
+- [React Three Fiber](/plugins/r3f) — pair with R3F for 3D rendering
+- [Debug Plugin](/plugins/debug) — visualise collider shapes at runtime

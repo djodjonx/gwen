@@ -1,91 +1,124 @@
 # Quick Start
 
-Get your first GWEN game running in under 5 minutes.
+Get a GWEN project running in under five minutes.
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm (recommended)
+- **Node.js** 18 or later
+- **pnpm** 8 or later (`npm install -g pnpm`)
 
-You do **not** need to configure Rust/WASM manually for standard app development.
+::: info No Rust required
+The Rust/WASM binaries ship pre-compiled inside the npm packages. You don't need a Rust toolchain.
+:::
 
-## 1) Create a project
+## Create a Project
 
-```bash
+Scaffold a new project with the official create tool:
+
+```sh
 pnpm create @gwenjs/create my-game
+```
+
+The CLI will ask a few questions (project name, renderer, starter template) and generate a ready-to-run project in the `my-game/` directory.
+
+## Install & Run
+
+```sh
 cd my-game
-```
-
-## 2) Install dependencies
-
-```bash
 pnpm install
-```
-
-## 3) Start dev server
-
-```bash
 pnpm dev
 ```
 
-Open the local URL shown in the terminal (usually `http://localhost:3000`).
+Open `http://localhost:5173` in your browser. The dev server supports hot module replacement for all TypeScript files, and hot WASM reload when plugins are updated.
 
-## 4) Understand generated files
+## Project Structure
 
-A scaffolded app typically contains:
+After scaffolding, your project will look like this:
 
-```text
-src/
-  components/
-  prefabs/
-  scenes/
-  systems/
-  ui/
-gwen.config.ts
-package.json
-tsconfig.json
+```
+my-game/
+├── src/
+│   ├── components/      # Component schemas (defineComponent)
+│   ├── prefabs/         # Entity templates (definePrefab)
+│   ├── scenes/          # Scene definitions (defineScene)
+│   ├── systems/         # Game logic (defineSystem)
+│   ├── ui/              # UI layers (defineUI)
+│   └── main.ts          # Engine bootstrap
+├── gwen.config.ts        # Framework entry point
+├── vite.config.ts
+├── package.json
+└── tsconfig.json
 ```
 
-Read [Project Structure](/guide/project-structure) for details.
+See [Project Structure](/guide/project-structure) for a full explanation of each folder.
 
-## 5) Add your first gameplay logic
+## Write Your First System
 
-Example system:
+Systems are the building blocks of game logic. Open `src/systems/movement.ts`:
 
-```ts
-import { defineSystem } from '@gwenjs/core';
-import { Position, Velocity } from '../components';
+```typescript
+import { defineSystem, onUpdate, useQuery } from '@gwenjs/core'
+import { Position, Velocity } from '../components'
 
-export const MovementSystem = defineSystem({
-  name: 'MovementSystem',
-  onUpdate(api, dt) {
-    const entities = api.query([Position, Velocity]);
-    for (const id of entities) {
-      const pos = api.getComponent(id, Position);
-      const vel = api.getComponent(id, Velocity);
-      if (!pos || !vel) continue;
-      api.addComponent(id, Position, {
-        x: pos.x + vel.vx * dt,
-        y: pos.y + vel.vy * dt,
-      });
+export const movementSystem = defineSystem(() => {
+  // Composables are resolved once at setup, not every frame
+  const entities = useQuery([Position, Velocity])
+
+  onUpdate((dt) => {
+    for (const entity of entities) {
+      entity.get(Position).x += entity.get(Velocity).x * dt
+      entity.get(Position).y += entity.get(Velocity).y * dt
     }
-  },
-});
+  })
+})
 ```
 
-## Common commands
+Then register it in your scene or `main.ts`:
 
-```bash
-pnpm dev
-pnpm build
-pnpm preview
-pnpm lint
-pnpm format
+```typescript
+engine.use(movementSystem)
 ```
 
-## Next steps
+## Add a Plugin
 
-- [Philosophy](/guide/philosophy)
-- [Core Concepts](/core/components)
-- [API Overview](/api/overview)
-- [CLI Commands](/cli/commands)
+Plugins extend the engine with services like input, physics, audio, and rendering. Open `gwen.config.ts` and add `InputPlugin`:
+
+```typescript
+import { defineConfig } from '@gwenjs/app'
+import { InputPlugin } from '@gwenjs/input'
+
+export default defineConfig({
+  plugins: [
+    new InputPlugin(),
+  ],
+})
+```
+
+Install the package if you haven't already:
+
+```sh
+pnpm add @gwenjs/input
+```
+
+Now `useInput()` is available inside any system.
+
+## Run gwen prepare
+
+After adding or changing plugins, run:
+
+```sh
+pnpm gwen prepare
+```
+
+This generates TypeScript declarations in `.gwen/` that extend `GwenDefaultServices` — so every `useService()` call returns the correct type automatically, with no manual casting.
+
+::: tip
+Run `gwen prepare` once after scaffolding, and again whenever you add or remove a plugin.
+:::
+
+## Next Steps
+
+- [Core Concepts](/core/architecture) — ECS, components, queries, scenes
+- [Plugins](/plugins/) — full plugin reference
+- [CLI Reference](/cli/overview) — `gwen dev`, `gwen build`, `gwen prepare`
+- [API Reference](/api/overview) — TypeScript API docs

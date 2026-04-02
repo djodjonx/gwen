@@ -1,8 +1,10 @@
-# Physics2D Plugin
+# Physics 2D Plugin
 
-Package: `@gwenjs/physics2d`
+**Package:** `@gwenjs/physics2d`
+**Module type:** WASM module (add to `wasm: []`, not `plugins: []`)
+**Service key:** `physics` (`Physics2DAPI`)
 
-2D rigid-body physics adapter over the GWEN WASM core.
+2D rigid-body physics powered by [Rapier2D](https://rapier.rs/) compiled to WASM. The physics world runs in a dedicated WASM module that shares `SharedArrayBuffer` memory with the engine core, keeping simulation data off the JS heap.
 
 ## Install
 
@@ -12,61 +14,165 @@ pnpm add @gwenjs/physics2d
 
 ## Register
 
-```ts
-import { defineConfig } from '@gwenjs/kit';
-import { physics2D } from '@gwenjs/physics2d';
+Physics2D is a **WASM module**, not a standard plugin. Add it to the `wasm` array in `gwen.config.ts`:
+
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
+import { physics2D } from '@gwenjs/physics2d'
 
 export default defineConfig({
-  plugins: [
+  wasm: [
     physics2D({
-      gravity: -9.81,
-      gravityX: 0,
+      gravity: 9.81,
       qualityPreset: 'medium',
-      eventMode: 'pull',
-      coalesceEvents: true,
+      ccdEnabled: true,
     }),
   ],
-});
+})
 ```
 
-## API
+## Service API
 
-Main exports:
-- `physics2D(config?)`
-- `Physics2DPlugin`
-- tilemap helpers and physics systems
+### Rigid bodies
 
-Service provided:
-- `physics`
+| Method | Description |
+|--------|-------------|
+| `physics.createRigidBody(entityId, config)` | Create a rigid body for an entity. |
+| `physics.removeRigidBody(entityId)` | Destroy the rigid body. |
+| `physics.setLinearVelocity(entityId, vec)` | Set velocity directly (`{ x, y }`). |
+| `physics.getLinearVelocity(entityId)` | Returns current `{ x, y }` velocity. |
+| `physics.applyImpulse(entityId, vec)` | Apply an instantaneous impulse. |
+| `physics.applyForce(entityId, vec)` | Apply a continuous force this frame. |
+| `physics.setGravityScale(entityId, scale)` | Per-body gravity multiplier. |
 
-Common config fields:
-- `gravity`, `gravityX`, `maxEntities`
-- `qualityPreset: 'low' | 'medium' | 'high' | 'esport'`
-- `eventMode: 'pull' | 'hybrid'`
-- `coalesceEvents`, `ccdEnabled`, `layers`
+`config` shape:
 
-Hooks emitted:
-- `physics:collision`
-- `physics:collision:batch`
-- `physics:sensor:changed`
-
-## Example
-
-```ts
-const physics = api.services.get('physics');
-
-physics.addRigidBody(entityId, 'dynamic', 0, 2, { mass: 1 });
-physics.addBoxCollider(entityId, 0.5, 0.5, { friction: 0.8 });
-
-const contacts = physics.getCollisionContacts();
-for (const c of contacts) {
-  if (c.started) {
-    // react to collision
-  }
+```typescript
+interface RigidBodyConfig {
+  type:     'dynamic' | 'kinematic' | 'fixed'
+  mass?:    number
+  linearDamping?:  number
+  angularDamping?: number
+  lockRotation?:   boolean
 }
 ```
 
-## Source
+### Colliders
 
-- `packages/physics2d/src/index.ts`
-- `packages/physics2d/src/types.ts`
+| Method | Description |
+|--------|-------------|
+| `physics.createCollider(entityId, shape, config?)` | Attach a collider to an entity's rigid body. |
+| `physics.removeCollider(entityId)` | Remove the collider. |
+
+`shape` is one of:
+
+```typescript
+{ type: 'box';     width: number; height: number }
+{ type: 'circle';  radius: number }
+{ type: 'capsule'; halfHeight: number; radius: number }
+{ type: 'polygon'; vertices: Array<{ x: number; y: number }> }
+```
+
+`config` shape:
+
+```typescript
+interface ColliderConfig {
+  friction?:    number   // 0–1
+  restitution?: number   // 0–1 (bounciness)
+  sensor?:      boolean  // trigger-only, no physical response
+  categoryBits?: number
+  maskBits?:     number
+}
+```
+
+### Collision events
+
+Subscribe inside `defineSystem` using GWEN's event bus:
+
+```typescript
+import { useEvent } from '@gwenjs/core'
+
+useEvent('physics:collision', ({ entityA, entityB, type }) => {
+  // type: 'start' | 'end'
+})
+
+// Batched events (delivered once per frame, sorted)
+useEvent('physics:collision:batch', (events) => {
+  for (const evt of events) { ... }
+})
+```
+
+### Composable
+
+```typescript
+import { usePhysics2D } from '@gwenjs/physics2d'
+
+const physics = usePhysics2D() // shorthand for useService('physics')
+```
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `gravity` | `number` | `-9.81` | Vertical gravity (m/s²). Negative = downward. |
+| `gravityX` | `number` | `0` | Horizontal gravity component. |
+| `qualityPreset` | `'low' \| 'medium' \| 'high' \| 'esport'` | `'medium'` | Solver iteration budget. `'esport'` maximises accuracy. |
+| `eventMode` | `'pull' \| 'hybrid'` | `'hybrid'` | How collision events are delivered. `'pull'` is lower-overhead. |
+| `coalesceEvents` | `boolean` | `true` | Merge repeated start/end events for the same pair into one. |
+| `ccdEnabled` | `boolean` | `false` | Continuous Collision Detection for fast-moving bodies. |
+| `maxEntities` | `number` | inherits `core.maxEntities` | Upper bound on physics bodies. |
+
+### Quality presets
+
+| Preset | Solver iterations | Use case |
+|--------|-------------------|----------|
+| `low` | 2 | Mobile, background simulation |
+| `medium` | 4 | General games |
+| `high` | 8 | Precision platformers, puzzles |
+| `esport` | 16 | Competitive games where physics must be deterministic |
+
+## Example
+
+```typescript
+import { defineSystem, useService, onUpdate } from '@gwenjs/core'
+import { usePhysics2D } from '@gwenjs/physics2d'
+import { useEvent } from '@gwenjs/core'
+import { Position, RigidBody } from '../components'
+
+export const physicsSetupSystem = defineSystem(() => {
+  const physics = usePhysics2D()
+  const entities = useQuery([Position, RigidBody])
+
+  // Spawn rigid bodies when entities are created
+  onUpdate(() => {
+    for (const entity of entities.added) {
+      physics.createRigidBody(entity.id, { type: 'dynamic', mass: 1 })
+      physics.createCollider(entity.id, { type: 'box', width: 32, height: 32 }, {
+        friction: 0.5,
+        restitution: 0.2,
+      })
+    }
+    for (const entity of entities.removed) {
+      physics.removeRigidBody(entity.id)
+    }
+  })
+
+  // Listen for collisions
+  useEvent('physics:collision', ({ entityA, entityB, type }) => {
+    if (type === 'start') {
+      console.log(`${entityA} hit ${entityB}`)
+    }
+  })
+})
+```
+
+::: warning WASM module, not a plugin
+`physics2D(...)` goes in `wasm: []`, not `plugins: []`. WASM modules initialise their shared-memory region before any TypeScript plugin `setup()` runs.
+:::
+
+## Related
+
+- [Physics 3D](/plugins/physics3d) — same pattern for 3D
+- [Debug Plugin](/plugins/debug) — visualise collider shapes at runtime
+- [Canvas2D Renderer](/plugins/renderer-canvas2d) — pair with the renderer to draw physics-driven sprites

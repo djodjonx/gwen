@@ -1,8 +1,9 @@
 # Input Plugin
 
-Package: `@gwenjs/input`
+**Package:** `@gwenjs/input`
+**Service keys:** `keyboard` · `mouse` · `gamepad` · `inputMapper`
 
-Keyboard, mouse, gamepad, and action mapping for gameplay systems.
+Unified input handling for keyboard, mouse, and gamepad. Supports raw per-device queries and an abstract action-mapping layer so game code never hardcodes physical keys.
 
 ## Install
 
@@ -12,56 +13,116 @@ pnpm add @gwenjs/input
 
 ## Register
 
-```ts
-import { defineConfig } from '@gwenjs/kit';
-import { InputPlugin } from '@gwenjs/input';
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
+import { InputPlugin } from '@gwenjs/input'
 
 export default defineConfig({
   plugins: [
-    InputPlugin({
-      gamepadDeadzone: 0.2,
+    new InputPlugin({
+      inputMap: {
+        jump:   { keys: ['Space', 'ArrowUp'],   buttons: [0] },
+        attack: { keys: ['KeyZ'],               buttons: [2] },
+        left:   { keys: ['ArrowLeft', 'KeyA'],  axes:   [{ axis: 0, dir: -1 }] },
+        right:  { keys: ['ArrowRight', 'KeyD'], axes:   [{ axis: 0, dir:  1 }] },
+      },
     }),
   ],
-});
+})
 ```
 
-## API
+## Service API
 
-Main exports:
-- `InputPlugin(config?)`
-- `KeyboardInput`, `MouseInput`, `GamepadInput`
-- `InputMapper`
-- `Keys`, `GamepadButtons`, `GamepadAxes`
+### `keyboard` — `KeyboardInput`
 
-Services provided:
-- `keyboard`
-- `mouse`
-- `gamepad`
-- `inputMapper` (only when `actionMap` is configured)
+| Method | Description |
+|--------|-------------|
+| `keyboard.isDown(key)` | `true` while the key is held |
+| `keyboard.isPressed(key)` | `true` only on the frame the key was first pressed |
+| `keyboard.isReleased(key)` | `true` only on the frame the key was released |
 
-Config options:
-- `canvas?: HTMLCanvasElement`
-- `eventTarget?: EventTarget`
-- `gamepadDeadzone?: number`
-- `actionMap?: InputMapConfig`
+Keys use [KeyboardEvent.code](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code) strings (`'Space'`, `'ArrowLeft'`, `'KeyA'`, …).
+
+### `mouse` — `MouseInput`
+
+| Property / Method | Description |
+|-------------------|-------------|
+| `mouse.position` | `{ x, y }` in canvas-space pixels |
+| `mouse.delta` | `{ x, y }` movement since last frame |
+| `mouse.isDown(button)` | `true` while mouse button is held (0=left, 1=middle, 2=right) |
+| `mouse.isPressed(button)` | `true` on the first frame the button is pressed |
+| `mouse.isReleased(button)` | `true` on the frame the button is released |
+| `mouse.wheel` | Scroll delta this frame (`{ x, y }`) |
+
+### `gamepad` — `GamepadInput`
+
+| Property / Method | Description |
+|-------------------|-------------|
+| `gamepad.isDown(button)` | `true` while the button is held (standard mapping index) |
+| `gamepad.isPressed(button)` | `true` on first frame the button is pressed |
+| `gamepad.isReleased(button)` | `true` on the frame the button is released |
+| `gamepad.axes` | `number[]` — raw axis values (`-1` to `1`) |
+| `gamepad.connected` | `true` if at least one gamepad is connected |
+
+### `inputMapper` — `InputMapper`
+
+| Method | Description |
+|--------|-------------|
+| `inputMapper.isDown(action)` | `true` while any bound key/button is held |
+| `inputMapper.isPressed(action)` | `true` on the first frame any binding fires |
+| `inputMapper.isReleased(action)` | `true` on the frame all bindings are released |
+| `inputMapper.getAxis(negAction, posAction)` | Returns `-1`, `0`, or `1` for a virtual axis |
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `inputMap` | `InputMapConfig` | `undefined` | Action-to-binding mapping. Omit if you only need raw device access. |
+
+### `InputMapConfig` shape
+
+```typescript
+type InputMapConfig = Record<string, {
+  keys?:    string[]
+  buttons?: number[]
+  axes?:    Array<{ axis: number; dir: 1 | -1; threshold?: number }>
+}>
+```
 
 ## Example
 
-```ts
-export const PlayerSystem = defineSystem(() => {
-  const keyboard = useService('keyboard');
+```typescript
+import { defineSystem, useService, onUpdate } from '@gwenjs/core'
+import { useQuery } from '@gwenjs/core'
+import { Position, Velocity } from '../components'
 
-  onUpdate(() => {
-    if (keyboard.isPressed('ArrowLeft')) {
-      // move left
+export const playerInputSystem = defineSystem(() => {
+  const keyboard     = useService('keyboard')
+  const inputMapper  = useService('inputMapper')
+  const entities     = useQuery([Position, Velocity])
+
+  onUpdate((dt) => {
+    for (const entity of entities) {
+      const vel = entity.get(Velocity)
+
+      // Abstract action (works with keyboard OR gamepad)
+      vel.x = inputMapper.getAxis('left', 'right') * 200
+
+      // Raw key check
+      if (keyboard.isPressed('Space')) {
+        vel.y = -400 // jump
+      }
     }
-    if (keyboard.isJustPressed('Space')) {
-      // jump once
-    }
-  });
-});
+  })
+})
 ```
 
-## Source
+::: tip Composable shorthand
+`@gwenjs/input` also exports `useKeyboard()`, `useMouse()`, `useGamepad()`, and `useInputMapper()` composables as shorthand for `useService('keyboard')` etc.
+:::
 
-- `packages/input/src/index.ts`
+## Related
+
+- [Sprite Animation](/plugins/sprite-anim) — pair with input for animated characters
+- [Kit: Platformer](/examples/patterns) — ready-made input bindings for a side-scroller

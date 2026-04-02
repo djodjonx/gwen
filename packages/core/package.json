@@ -31,7 +31,9 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "bench": "vitest bench",
+    "bench": "vitest bench --run",
+    "bench:ecs": "vitest bench --run bench/ecs.bench.ts",
+    "bench:ci": "vitest bench --run",
     "watch": "vite build --watch"
   },
   "dependencies": {

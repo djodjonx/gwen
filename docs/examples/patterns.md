@@ -1,201 +1,223 @@
 # Common Patterns
 
-Reusable techniques for building games with GWEN.
+A quick-reference guide to the patterns you'll use most often in GWEN. Each entry includes a short explanation and a minimal code snippet.
 
-## Entity Management
+---
 
-### Destroy Offscreen Entities
+## 1. Entity Spawning with a Prefab
+
+`api.instantiate(prefab, overrides)` creates an entity from a template. Overrides are shallow-merged per component — only the fields you supply are changed.
 
 ```typescript
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { PlayerPrefab } from '../prefabs'
+import { Position } from '../components'
 
-export const CleanupSystem = defineSystem({
-  name: 'CleanupSystem',
-  onUpdate(api, dt) {
-    const entities = api.query(['position']);
-    for (const id of entities) {
-      const pos = api.getComponent(id, Position);
-      if (pos.y < -50 || pos.y > 700) {
-        api.destroyEntity(id);
-      }
-    }
+// Spawn at a specific position; all other component values stay at their prefab defaults
+api.instantiate(PlayerPrefab, {
+  [Position]: { x: 100, y: 200 },
+})
+```
+
+See [Prefabs](/core/prefabs) for the full override signature.
+
+---
+
+## 2. One-Shot Query vs Live Query
+
+Use `api.query([...])` for a single snapshot — for example, to find all enemies when a scene loads. Use `useQuery([...])` inside `defineSystem` for a live set that stays in sync as entities are created and destroyed.
+
+```typescript
+// One-shot — fine for onEnter, event handlers, etc.
+const enemies = api.query([Position, EnemyTag])
+
+// Live query — use inside defineSystem; auto-updates every frame
+const movables = useQuery([Position, Velocity])
+```
+
+---
+
+## 3. Conditional System Logic
+
+Tag components let you filter entities without touching data. Compose them in a query to target only the entities you care about.
+
+```typescript
+// Only process entities that have both Velocity AND EnemyTag
+const enemies = useQuery([Velocity, EnemyTag])
+
+onUpdate((dt) => {
+  for (const e of enemies) {
+    // guaranteed to be an enemy — no instanceof check needed
+    e.get(Velocity).y += 20 * dt   // accelerate downward
   }
-});
+})
 ```
 
-### Object Pooling
+---
+
+## 4. Scene Transition
+
+Call `api.loadScene(scene)` from anywhere a GWEN `api` handle is in scope — system callbacks, event handlers, or `onEnter`.
 
 ```typescript
-const pool: number[] = [];
+import { defineSystem, onEvent } from '@gwenjs/core'
+import { GameOverScene } from '../scenes/game-over'
 
-function getEntity(api): number {
-  return pool.pop() || api.createEntity();
-}
-
-function releaseEntity(api, id: number) {
-  // Remove all components
-  api.removeComponent(id, Position);
-  api.removeComponent(id, Velocity);
-  pool.push(id);
-}
+export const deathSystem = defineSystem((api) => {
+  onEvent('player:died', () => {
+    api.loadScene(GameOverScene)
+  })
+})
 ```
 
-## Collision Detection
+The current scene is torn down (systems unregistered, entities destroyed) before the new scene's `onEnter` runs. See [Scenes](/core/scenes).
 
-### Circle-Circle
+---
+
+## 5. Accessing a Service from a System
+
+Call `useService(name)` during the synchronous setup phase of `defineSystem`. After `gwen prepare` is run, the return type is inferred automatically from your config — no casting needed.
 
 ```typescript
-function checkCollision(posA, colA, posB, colB): boolean {
-  const dx = posA.x - posB.x;
-  const dy = posA.y - posB.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  return dist < colA.radius + colB.radius;
-}
+import { defineSystem } from '@gwenjs/core'
+import { usePhysics2D } from '@gwenjs/physics2d'
+
+export const gravitySystem = defineSystem(() => {
+  // Resolved once at setup — not called every frame
+  const physics = usePhysics2D()
+
+  physics.onCollision((a, b) => { /* ... */ })
+})
 ```
 
-### Spatial Partitioning
+::: tip usePhysics2D is a typed shorthand
+`usePhysics2D()` is equivalent to `useService('physics2d')` but returns a fully typed `Physics2DAPI` without any extra setup. Named shortcuts exist for all official plugins.
+:::
+
+---
+
+## 6. Input-Driven Movement
+
+Resolve `useInput()` once in setup; read `keyboard.isDown()` inside `onUpdate` every frame.
 
 ```typescript
-const grid = new Map<string, number[]>();
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
+import { useInput } from '@gwenjs/input'
+import { Position, Velocity, PlayerTag } from '../components'
 
-function getGridKey(x: number, y: number): string {
-  const cellSize = 100;
-  const cx = Math.floor(x / cellSize);
-  const cy = Math.floor(y / cellSize);
-  return `${cx},${cy}`;
-}
-```
+export const playerMoveSystem = defineSystem(() => {
+  const { keyboard } = useInput()
+  const players = useQuery([Position, Velocity, PlayerTag])
 
-## State Management
-
-### Game State Service
-
-```typescript
-api.services.register('gameState', {
-  score: 0,
-  level: 1,
-  paused: false
-});
-
-// Access anywhere
-const state = api.services.get('gameState');
-state.score += 10;
-```
-
-## Input Handling
-
-### Multi-Key Input
-
-```typescript
-const keyboard = api.services.get('keyboard');
-
-let vx = 0, vy = 0;
-if (keyboard.isPressed('ArrowLeft')) vx = -SPEED;
-if (keyboard.isPressed('ArrowRight')) vx = SPEED;
-if (keyboard.isPressed('ArrowUp')) vy = -SPEED;
-if (keyboard.isPressed('ArrowDown')) vy = SPEED;
-```
-
-### Button Press (Once)
-
-```typescript
-if (keyboard.isJustPressed('Space')) {
-  // Fires once per press
-}
-```
-
-## Timer Patterns
-
-### Cooldown
-
-```typescript
-const timer = api.getComponent(id, ShootTimer);
-const elapsed = timer.elapsed + dt;
-
-if (elapsed >= timer.cooldown) {
-  // Fire!
-  api.addComponent(id, ShootTimer, { ...timer, elapsed: 0 });
-} else {
-  api.addComponent(id, ShootTimer, { ...timer, elapsed });
-}
-```
-
-### Delayed Action
-
-```typescript
-const timer = api.getComponent(id, Timer);
-const elapsed = timer.elapsed + dt;
-
-if (elapsed >= timer.duration) {
-  // Action
-  api.removeComponent(id, Timer);
-} else {
-  api.addComponent(id, Timer, { ...timer, elapsed });
-}
-```
-
-## Animation
-
-### Sprite Animation
-
-```typescript
-const frame = Math.floor((Date.now() / 100) % 4);
-// frame cycles: 0, 1, 2, 3, 0, 1, 2, 3...
-```
-
-### Easing
-
-```typescript
-function easeOutQuad(t: number): number {
-  return t * (2 - t);
-}
-
-const t = timer.elapsed / timer.duration;
-const ease = easeOutQuad(t);
-const y = startY + (endY - startY) * ease;
-```
-
-## Scene Transitions
-
-### Fade Transition
-
-```typescript
-export const FadeSystem = defineSystem({
-  name: 'FadeSystem',
-  onUpdate(api, dt) {
-    const fade = api.services.get('fade');
-
-    if (fade.active) {
-      fade.alpha += dt * fade.speed;
-
-      if (fade.alpha >= 1) {
-        api.scene?.load(fade.nextScene);
-      }
+  onUpdate((dt) => {
+    for (const e of players) {
+      const vel = e.get(Velocity)
+      vel.x  = (keyboard.isDown('ArrowRight') ? 300 : 0)
+              - (keyboard.isDown('ArrowLeft')  ? 300 : 0)
     }
-  }
-});
+  })
+})
 ```
 
-## Component Patterns
+See [Input Plugin](/plugins/input) for the full key and gamepad API.
 
-### Tag-Based Filtering
+---
+
+## 7. Grouping Entities by Tag
+
+Define a zero-schema component as a marker. GWEN's ECS resolves tag queries in WASM — there is no overhead for iterating unrelated archetypes.
 
 ```typescript
-const tag = api.getComponent(id, Tag);
-if (tag?.type === 'player') {
-  // Player-specific logic
-}
+// Define once
+export const EnemyTag  = defineComponent({ name: 'EnemyTag',  schema: {} })
+export const PlayerTag = defineComponent({ name: 'PlayerTag', schema: {} })
+
+// Query only enemies — no runtime type checking
+const enemies = useQuery([Position, EnemyTag])
 ```
 
-### Optional Components
+Tag components are also useful for enabling/disabling behaviour at runtime: add or remove a tag to change which queries an entity matches.
+
+---
+
+## 8. Plugin Composition
+
+A plugin can register sub-plugins inside its own `setup()`. This is the standard way to bundle related capabilities.
 
 ```typescript
-const vel = api.getComponent(id, Velocity);
-const speed = vel ? Math.sqrt(vel.vx ** 2 + vel.vy ** 2) : 0;
+import { definePlugin } from '@gwenjs/core'
+import { InputPlugin } from '@gwenjs/input'
+import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
+
+export const gamePlugin = definePlugin({
+  name: 'GamePlugin',
+  setup(engine) {
+    // Register dependencies — order is preserved
+    engine.use(new InputPlugin())
+    engine.use(new Canvas2DRenderer({ width: 800, height: 600 }))
+
+    // Then register this plugin's own systems...
+  },
+})
 ```
 
-## Next Steps
+See [Plugin System](/plugins/index) for lifecycle hooks and dependency ordering.
 
-- [Space Shooter](/examples/space-shooter) - Complete example
-- [API Reference](/api/helpers) - Full API docs
+---
 
+## 9. Debug-Only Plugin
+
+Only register `@gwenjs/debug` in development builds. Vite strips the dead branch in production.
+
+```typescript
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
+import { DebugPlugin } from '@gwenjs/debug'
+
+export default defineConfig({
+  plugins: [
+    // ...other plugins
+
+    // Zero cost in production — tree-shaken away
+    ...(import.meta.env.DEV ? [new DebugPlugin()] : []),
+  ],
+})
+```
+
+::: info
+`import.meta.env.DEV` is a Vite constant. The GWEN Vite plugin ensures it is correctly replaced at build time.
+:::
+
+---
+
+## 10. gwen prepare + Zero-Cast Service Types
+
+After running `pnpm gwen prepare`, GWEN generates `.gwen/services.d.ts` which extends `GwenDefaultServices`. From then on, `useService('physics2d')` returns the precise plugin API type — no `as` cast, no manual import.
+
+```typescript
+// Before gwen prepare → useService returns `unknown`
+const physics = useService('physics2d') as Physics2DAPI  // ❌ manual cast
+
+// After gwen prepare → inferred automatically
+const physics = useService('physics2d')                  // ✅ Physics2DAPI
+physics.onCollision(...)                                 // fully typed
+```
+
+Run `gwen prepare` once after scaffolding, and again whenever you add or remove a plugin.
+
+```sh
+pnpm gwen prepare
+```
+
+See [CLI Reference](/cli/overview) and [Zero-Cast Types](/guide/quick-start#run-gwen-prepare) for more detail.
+
+---
+
+**Related pages**
+
+- [ECS Concepts](/core/components)
+- [Systems & Composables](/core/systems)
+- [Prefabs](/core/prefabs)
+- [Scenes](/core/scenes)
+- [Input Plugin](/plugins/input)
+- [Physics 2D Plugin](/plugins/physics2d)
+- [Space Shooter Walkthrough](./space-shooter)

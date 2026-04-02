@@ -4,73 +4,44 @@ layout: home
 hero:
   name: GWEN
   text: Composable Web Game Framework
-  tagline: TypeScript-first developer experience, Rust/WASM performance under the hood.
+  tagline: TypeScript-first DX, Rust/WASM performance.
   actions:
     - theme: brand
-      text: Quick Start
+      text: Get Started
       link: /guide/quick-start
     - theme: alt
-      text: API Overview
-      link: /api/overview
+      text: Why GWEN?
+      link: /guide/what-is-gwen
 
 features:
-  - icon: 🧩
-    title: Composition over inheritance
-    details: Build gameplay with components, systems, prefabs, and scenes that stay easy to reason about.
-
   - icon: ⚡
-    title: Rust/WASM core
-    details: Keep TypeScript ergonomics while leveraging a high-performance core for large entity counts.
-
+    title: Rust/WASM Performance
+    details: The ECS, physics engine, and math primitives run in pre-compiled Rust/WASM. You get near-native frame performance without writing a single line of Rust.
+  - icon: 🧩
+    title: Composable Systems
+    details: Build game logic with defineSystem() and lifecycle hooks — onUpdate, onBeforeUpdate, onAfterUpdate, onRender. Composables resolve once at setup, not every frame.
   - icon: 🛠️
-    title: Plugin-first architecture
-    details: Add capabilities with official @gwenjs plugins (input, audio, renderer, physics, UI) or your own.
-
+    title: Plugin-first
+    details: Every engine capability — physics, input, audio, rendering, UI — is a plugin. Register them with engine.use(plugin) and compose your runtime exactly as you need it.
   - icon: ✅
-    title: Type-safe by default
-    details: Run "gwen prepare" once and services, hooks, and extensions are auto-completed everywhere.
-
+    title: Zero-config types
+    details: Run gwen prepare once. Service types flow automatically into GwenDefaultServices — no manual casts, no boilerplate, full IDE autocomplete everywhere.
   - icon: 🚀
     title: Fast onboarding
-    details: Start a new app with pnpm create @gwenjs/create and be coding in under a minute.
-
+    details: Scaffold a full project in one command. No Rust toolchain, no WASM build step — the compiled binaries ship with each npm package.
   - icon: 🎨
-    title: Renderer-agnostic UI
-    details: Use Canvas2D, HTML UI, or custom renderers without locking your gameplay architecture.
+    title: Renderer-agnostic
+    details: Swap renderers without touching game logic. Use the built-in Canvas2D plugin, the React Three Fiber integration, or bring your own renderer.
 ---
 
 ## Why GWEN?
 
-GWEN is designed for teams who want structure without ceremony.
+Web games are stuck between two extremes: pure-JS engines that top out at a few hundred entities, and heavyweight native ports that fight the browser platform. GWEN takes a different path.
 
-- **Predictable architecture**: Scene lifecycle + ECS keeps game flow explicit.
-- **End-user first**: You can ship full games without touching Rust internals.
-- **Scalable project layout**: Consistent folders from prototype to production.
-- **Extensible runtime**: Add features as plugins instead of hard-coding engine behavior.
+The performance-critical core — the ECS scheduler, spatial queries, physics simulation, matrix math — is written in Rust and pre-compiled to WebAssembly. It ships as ordinary npm packages. You never touch Rust. Everything else — game logic, scenes, UI, plugins — is idiomatic TypeScript with first-class type safety.
 
-## Create your first app
+The result is a framework that feels like writing a modern Nuxt or Vite app, and performs like a native engine.
 
-```bash
+```sh
 pnpm create @gwenjs/create my-game
-cd my-game
-pnpm install
-pnpm dev
 ```
-
-## Package scope reference
-
-Official packages use the `@gwenjs` scope, for example:
-
-- `@gwenjs/core`
-- `@gwenjs/app`
-- `@gwenjs/kit`
-- `@gwenjs/input`
-- `@gwenjs/audio`
-
-## Continue reading
-
-- [Philosophy](/guide/philosophy)
-- [Quick Start](/guide/quick-start)
-- [Project Structure](/guide/project-structure)
-- [API Overview](/api/overview)
-- [CLI Commands](/cli/commands)

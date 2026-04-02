@@ -1,37 +1,98 @@
 # Kit Overview
 
-`@gwenjs/kit` is the authoring toolkit for GWEN extensions.
+## What is @gwenjs/kit?
 
-Use the Kit when you want to:
+`@gwenjs/kit` is the **authoring toolkit** for building GWEN extensions. It gives you the primitives to create runtime plugins and build-time modules that integrate cleanly with the GWEN engine and toolchain.
 
-- create a runtime plugin (TS-only or TS + WASM)
-- create a framework module (`modules: []` in `gwen.config.ts`)
-- expose typed services/hooks to app code
-- generate typed declarations during `gwen prepare`
+::: tip Who is this for?
+`@gwenjs/kit` is for **plugin and module authors** — people building reusable extensions for the GWEN ecosystem. If you're writing a game, you want [`@gwenjs/core`](/core/architecture) instead.
+:::
 
-## What Is Runtime vs Build-time?
+```bash
+npm install @gwenjs/kit
+# or
+pnpm add @gwenjs/kit
+```
 
-- Runtime plugin: runs in the browser/game loop (`setup`, `onUpdate`, `teardown`, etc.).
-- Build-time module: runs in Node.js during `gwen dev`, `gwen build`, `gwen prepare` and registers plugins/types/auto-imports.
+---
 
-In module-first projects, a module is the composition root and installs one or more runtime plugins.
+## Two Kinds of Extensions
 
-## Quick Example
+GWEN extensions come in two forms, and you'll often build both together.
+
+### Runtime Plugins
+
+Runtime plugins run **in the browser** as part of the game loop. They can:
+
+- Implement game-loop logic (per-frame updates, event handling)
+- Expose typed service APIs to game code
+- Bridge a compiled `.wasm` binary to the engine's shared memory
+
+Use [`definePlugin()`](./typescript-plugin) to create a runtime plugin.
 
 ```ts
-import { defineGwenModule } from '@gwenjs/kit'
-import { MyPlugin } from './plugin'
+import { definePlugin } from '@gwenjs/kit'
 
-export default defineGwenModule({
-  meta: { name: '@acme/gwen-my-module' },
-  setup(_options, kit) {
-    kit.addPlugin(MyPlugin())
+export const myPlugin = definePlugin({
+  name: 'my-plugin',
+  setup(engine) {
+    engine.provide('myService', { /* ... */ })
   },
 })
 ```
 
-## In This Section
+### Build-Time Modules
 
-- [Create a Custom Plugin](/kit/custom-plugin)
-- [Create a Custom Module](/kit/custom-module)
-- [Kit Helpers API](/kit/helpers-api)
+Build-time modules run **in Node.js** during `gwen prepare` and `gwen build`. They can:
+
+- Install one or more runtime plugins
+- Register auto-imports so game code doesn't need manual `import` statements
+- Add type declaration templates that feed into `GwenDefaultServices`
+
+Use [`defineGwenModule()`](./typescript-plugin#wrapping-with-a-module) to create a build-time module.
+
+```ts
+import { defineGwenModule } from '@gwenjs/kit'
+
+export default defineGwenModule({
+  meta: { name: 'my-module' },
+  setup(options, kit) {
+    kit.addPlugin(myPlugin)
+    kit.addAutoImport({ from: 'my-package', imports: ['useMyService'] })
+  },
+})
+```
+
+---
+
+## When to Use the Kit
+
+Reach for `@gwenjs/kit` when you are:
+
+- **Building a reusable plugin** for distribution on npm
+- **Creating a game engine extension** — physics adapter, renderer, input handler, audio backend
+- **Wrapping a WASM binary** — compiling Rust logic and exposing it to game code via a typed TypeScript API
+- **Integrating a third-party library** — wrapping it in a plugin so it participates in the engine lifecycle
+
+You do *not* need the kit to write a game. Game code uses `@gwenjs/core` directly.
+
+---
+
+## Kit vs Core
+
+| | `@gwenjs/kit` | `@gwenjs/core` |
+|---|---|---|
+| **Audience** | Plugin / module authors | Game developers |
+| **Primary APIs** | `definePlugin`, `defineGwenModule` | `defineSystem`, `defineScene`, `createEngine` |
+| **Runtime** | Browser + Node.js (modules) | Browser only |
+| **Publishes to npm** | Yes — reusable packages | No — game-specific |
+
+Don't import game primitives like `defineSystem` or `defineScene` from `@gwenjs/kit` — those live in `@gwenjs/core` and are for game code. Your plugin's `setup()` receives the engine instance and should work through it.
+
+---
+
+## Next Steps
+
+- [Building a TypeScript Plugin](./typescript-plugin) — pure TS plugins, services, and sub-plugin composition
+- [Building a WASM Plugin](./wasm-plugin) — loading `.wasm` binaries and wiring shared memory
+- [WASM Shared Memory](./shared-memory) — `WasmRegionView`, `WasmRingBuffer`, alignment, and performance
