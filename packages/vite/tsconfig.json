@@ -5,8 +5,8 @@
     "moduleResolution": "Bundler",
     "outDir": "./dist",
     "strict": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -14,7 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "noUncheckedIndexedAccess": false,
+    "rootDir": "../.."
   },
   "include": [
     "src/**/*",
