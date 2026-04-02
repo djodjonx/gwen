@@ -1,7 +1,7 @@
 {
   "name": "@gwenjs/vite",
   "version": "1.0.0",
-  "description": "Vite plugin for GWEN \u2014 WASM hot-reload, asset copying, manifest injection",
+  "description": "Vite plugin for GWEN — WASM hot-reload, asset copying, manifest injection",
   "files": [
     "dist"
   ],
@@ -25,7 +25,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gwenjs/kit": "workspace:*"
+    "@gwenjs/kit": "workspace:*",
+    "magic-string": "^0.30.21",
+    "oxc-parser": "^0.123.0"
   },
   "devDependencies": {
     "typescript": "^6.0.2",
