@@ -8,12 +8,8 @@
  */
 
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { InlineConfig, PluginOption } from 'vite';
 import { VERSION } from './utils/constants.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export interface ViteConfigOptions {
   mode: 'development' | 'production';
@@ -25,7 +21,7 @@ export interface ViteConfigOptions {
 
 export async function buildViteConfig(
   projectDir: string,
-  configPath: string,
+  _configPath: string,
   options: ViteConfigOptions,
 ): Promise<InlineConfig> {
   // Chercher le vite-plugin gwen dans node_modules ou le monorepo

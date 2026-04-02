@@ -13,16 +13,10 @@ import type { GwenEngine } from '@gwenjs/core';
 import type {
   Physics2DConfig,
   Physics2DAPI,
-  CollisionEvent,
   CollisionEventsBatch,
-  ColliderOptions,
-  RigidBodyType,
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
   CollisionContact,
-  PhysicsQualityPreset,
-  PhysicsColliderShape,
-  SensorState,
 } from './types';
 
 import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE } from './types';
