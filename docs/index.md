@@ -24,7 +24,7 @@ features:
 
   - icon: 🛠️
     title: Plugin-first architecture
-    details: Add capabilities with official @djodjonx plugins (input, audio, renderer, physics, UI) or your own.
+    details: Add capabilities with official @gwenjs plugins (input, audio, renderer, physics, UI) or your own.
 
   - icon: ✅
     title: Type-safe by default
@@ -32,7 +32,7 @@ features:
 
   - icon: 🚀
     title: Fast onboarding
-    details: Start a new app with npx @djodjonx/create-gwen-app and be coding in under a minute.
+    details: Start a new app with pnpm create @gwenjs/create and be coding in under a minute.
 
   - icon: 🎨
     title: Renderer-agnostic UI
@@ -51,7 +51,7 @@ GWEN is designed for teams who want structure without ceremony.
 ## Create your first app
 
 ```bash
-npx @djodjonx/create-gwen-app my-game
+pnpm create @gwenjs/create my-game
 cd my-game
 pnpm install
 pnpm dev
@@ -59,13 +59,13 @@ pnpm dev
 
 ## Package scope reference
 
-Official packages use the `@djodjonx` scope, for example:
+Official packages use the `@gwenjs` scope, for example:
 
-- `@djodjonx/gwen-engine-core`
-- `@djodjonx/gwen-kit`
-- `@djodjonx/gwen-plugin-input`
-- `@djodjonx/gwen-plugin-audio`
-- `@djodjonx/gwen-renderer-canvas2d`
+- `@gwenjs/core`
+- `@gwenjs/app`
+- `@gwenjs/kit`
+- `@gwenjs/input`
+- `@gwenjs/audio`
 
 ## Continue reading
 

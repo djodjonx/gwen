@@ -12,7 +12,7 @@ You do **not** need to configure Rust/WASM manually for standard app development
 ## 1) Create a project
 
 ```bash
-npx @djodjonx/create-gwen-app my-game
+pnpm create @gwenjs/create my-game
 cd my-game
 ```
 
@@ -53,7 +53,7 @@ Read [Project Structure](/guide/project-structure) for details.
 Example system:
 
 ```ts
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@gwenjs/core';
 import { Position, Velocity } from '../components';
 
 export const MovementSystem = defineSystem({

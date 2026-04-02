@@ -48,8 +48,8 @@ See [Plugin Hooks Guide](/PLUGIN_HOOKS_GUIDE) and [Plugins](/plugins/creating).
 
 ## Typical end-user flow
 
-1. Scaffold with `npx @djodjonx/create-gwen-app my-game`
-2. Configure plugins in `gwen.config.ts`
+1. Scaffold with `pnpm create @gwenjs/create my-game`
+2. Configure modules in `gwen.config.ts`
 3. Build gameplay with `defineComponent` + `defineSystem`
 4. Compose in scenes/prefabs/UI
 5. Run `pnpm dev` / `pnpm build`

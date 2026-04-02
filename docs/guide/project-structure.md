@@ -4,7 +4,7 @@ GWEN projects follow a consistent structure so gameplay code stays maintainable 
 
 ## Generated structure
 
-When you run `npx @djodjonx/create-gwen-app my-game`, you get a layout similar to:
+When you run `pnpm create @gwenjs/create my-game`, you get a layout similar to:
 
 ```text
 my-game/
@@ -26,7 +26,7 @@ my-game/
 Define pure ECS data.
 
 ```ts
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenjs/core';
 
 export const Position = defineComponent({
   name: 'position',
@@ -39,7 +39,7 @@ export const Position = defineComponent({
 Implement gameplay logic (queries + component updates).
 
 ```ts
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@gwenjs/core';
 
 export const MovementSystem = defineSystem({
   name: 'MovementSystem',
@@ -54,7 +54,7 @@ export const MovementSystem = defineSystem({
 Compose systems, UI, and lifecycle (`onEnter`, `onExit`).
 
 ```ts
-import { defineScene } from '@djodjonx/gwen-engine-core';
+import { defineScene } from '@gwenjs/core';
 
 export const GameScene = defineScene('Game', () => ({
   systems: [MovementSystem],
@@ -69,7 +69,7 @@ export const GameScene = defineScene('Game', () => ({
 Reusable entity templates.
 
 ```ts
-import { definePrefab } from '@djodjonx/gwen-engine-core';
+import { definePrefab } from '@gwenjs/core';
 
 export const EnemyPrefab = definePrefab({
   name: 'Enemy',
@@ -86,7 +86,7 @@ export const EnemyPrefab = definePrefab({
 Rendering layer (Canvas, HTML UI, plugin-driven UI, etc.).
 
 ```ts
-import { defineUI } from '@djodjonx/gwen-engine-core';
+import { defineUI } from '@gwenjs/core';
 
 export const PlayerUI = defineUI({
   name: 'PlayerUI',
@@ -101,17 +101,16 @@ export const PlayerUI = defineUI({
 Central app configuration (engine + plugins).
 
 ```ts
-import { defineConfig } from '@djodjonx/gwen-kit';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
-import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
-import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
+import { defineConfig } from '@gwenjs/app';
+import input from '@gwenjs/input/module';
+import audio from '@gwenjs/audio/module';
+import renderer from '@gwenjs/renderer-canvas2d/module';
 
 export default defineConfig({
-  engine: { maxEntities: 5000, targetFPS: 60, debug: false },
-  plugins: [
-    new InputPlugin(),
-    new AudioPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
+  modules: [
+    input(),
+    audio(),
+    renderer({ width: 800, height: 600 }),
   ],
 });
 ```

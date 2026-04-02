@@ -2,13 +2,13 @@
 
 GWEN exposes two end-user CLI entry points:
 
-1. **Scaffold CLI**: `@djodjonx/create-gwen-app`
-2. **Project CLI**: `gwen` (provided by `@djodjonx/gwen-cli`)
+1. **Scaffold CLI**: `@gwenjs/create`
+2. **Project CLI**: `gwen` (provided by `@gwenjs/cli`)
 
 ## Scaffold a project
 
 ```bash
-npx @djodjonx/create-gwen-app my-game
+pnpm create @gwenjs/create my-game
 cd my-game
 pnpm install
 pnpm dev

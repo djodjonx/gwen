@@ -12,7 +12,7 @@ If you are looking for monorepo contributor setup, use repository contributor do
 ## Create an app
 
 ```bash
-npx @djodjonx/create-gwen-app my-game
+pnpm create @gwenjs/create my-game
 cd my-game
 pnpm install
 ```
@@ -42,7 +42,7 @@ pnpm preview
 
 ## First files to open
 
-- `gwen.config.ts` - engine + plugin configuration
+- `gwen.config.ts` - module-first framework configuration
 - `src/scenes/` - scene lifecycle and flow
 - `src/systems/` - gameplay rules
 - `src/components/` - game data
@@ -50,13 +50,13 @@ pnpm preview
 
 ## Common package references
 
-Official ecosystem packages are under `@djodjonx`:
+Official ecosystem packages are under `@gwenjs`:
 
-- `@djodjonx/gwen-engine-core`
-- `@djodjonx/gwen-kit`
-- `@djodjonx/gwen-cli`
-- `@djodjonx/create-gwen-app`
-- `@djodjonx/gwen-plugin-*`
+- `@gwenjs/core`
+- `@gwenjs/app`
+- `@gwenjs/kit`
+- `@gwenjs/cli`
+- `@gwenjs/create`
 
 ## Next steps
 

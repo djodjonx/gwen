@@ -1,6 +1,6 @@
 # 🏗️ GWEN Architecture
 
-> **Note:** This document reflects the GWEN v2 architecture. For the canonical implementation contract, see [specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md](../specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md).
+> **Note:** This document reflects the GWEN v2 architecture. For the current implementation plan, see `specs/gwen-next/EXECUTION-PLAN-module-first.md` in the repository root.
 
 Understanding GWEN's architecture helps you build better games and contribute effectively.
 
@@ -20,7 +20,7 @@ GWEN follows a **3-layer architecture**:
 
 ### Layer 1: Core Engine (Rust/WASM)
 
-**Location:** `crates/gwen-core/` (Rust) → `packages/@djodjonx/gwen-engine-core/wasm/` (compiled WASM)
+**Location:** `crates/gwen-core/` (Rust) → `packages/@djodjonx/engine-core/wasm/` (compiled WASM)
 
 **Responsibilities:**
 - Entity creation/destruction
@@ -44,7 +44,7 @@ GWEN follows a **3-layer architecture**:
 
 ### Layer 2: Plugins (TypeScript)
 
-**Location:** `packages/@djodjonx/gwen-plugin-*/`
+**Location:** `packages/@gwenjs/*/`
 
 **Types of Plugins:**
 1. **Renderers** - Draw to screen (Canvas2D, WebGL)
@@ -87,7 +87,7 @@ onInit() → onBeforeUpdate() → onUpdate() → onRender() → onDestroy()
 
 ### Game Loop
 
-Two loop modes are supported. See the [playbook](../specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md) for the authoritative specification.
+Two loop modes are supported. See `specs/gwen-next/EXECUTION-PLAN-module-first.md` for the authoritative specification.
 
 **Mode `loop: 'internal'` (default)** — The engine owns `requestAnimationFrame`. Delta is computed internally and capped at `maxDeltaSeconds` (default `0.1`).
 
@@ -206,7 +206,7 @@ EntityId = (BigInt(generation) << 32n) | BigInt(index)   // bigint, 64 bits
 - generation (32 bits high) : how many times this slot was reused
 ```
 
-Use `createEntityId(index, generation)` and `unpackEntityId(id)` from `@djodjonx/gwen-engine-core`
+Use `createEntityId(index, generation)` and `unpackEntityId(id)` from `@gwenjs/core`
 — never construct or decompose an `EntityId` with raw bitwise arithmetic.
 
 **Why two parts?**
@@ -405,7 +405,7 @@ class Player extends GameObject {
 
 ## Roadmap
 
-See the RFC backlog in [specs/rfc-v3/README.md](../specs/rfc-v3/README.md) for planned milestones covering 3D core, R3F integration, performance improvements, and kit packages.
+See the planning backlog in `specs/gwen-next/TICKETS-module-first-refactor.md` for module-first milestones and package split details.
 
 ---
 
