@@ -221,3 +221,61 @@ describe('gwenTransform() RFC-008 foundation', () => {
     expect(exclude).toHaveBeenCalledTimes(2);
   });
 });
+
+// ─── Edge cases that AST handles correctly but regex/bracket scanning can't ──
+
+describe('gwenTransform() — AST edge cases', () => {
+  it('does NOT rewrite query inside a line comment', () => {
+    const plugin = gwenTransform({ compileSystems: true });
+    const source = [
+      '// query: [Position, Velocity]',
+      'export const S = defineSystem({ name: "S", onUpdate() {} });',
+    ].join('\n');
+    const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
+    expect(out).toBeNull();
+  });
+
+  it('does NOT rewrite query inside a block comment', () => {
+    const plugin = gwenTransform({ compileSystems: true });
+    const source = [
+      '/* query: [Position] */',
+      'export const S = defineSystem({ name: "S", onUpdate() {} });',
+    ].join('\n');
+    const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
+    expect(out).toBeNull();
+  });
+
+  it('does NOT rewrite query inside a string literal', () => {
+    const plugin = gwenTransform({ compileSystems: true });
+    const source = 'const doc = "usage: query: [Position]";';
+    const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
+    expect(out).toBeNull();
+  });
+
+  it('does NOT rewrite schema inside a template literal', () => {
+    const plugin = gwenTransform({ compileComponents: true });
+    const source = 'const msg = `schema: { x: ${Types.f32} }`;';
+    const out = (plugin.transform as Function)(source, '/repo/src/components/c.ts');
+    expect(out).toBeNull();
+  });
+
+  it('rewrites query when preceded by a comment on the same line', () => {
+    const plugin = gwenTransform({ compileSystems: true });
+    const source =
+      'export const S = defineSystem({ /* opts */ query: [Position], onUpdate() {} });';
+    const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
+    expect(out).not.toBeNull();
+    expect(out.code).toContain('query: [Position] as const');
+  });
+
+  it('returns a proper sourcemap (not null)', () => {
+    const plugin = gwenTransform({ compileSystems: true });
+    const out = (plugin.transform as Function)(
+      'const S = defineSystem({ query: [Position] });',
+      '/repo/src/systems/s.ts',
+    );
+    expect(out).not.toBeNull();
+    expect(out.map).not.toBeNull();
+    expect(typeof out.map).toBe('object');
+  });
+});

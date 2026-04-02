@@ -1,4 +1,6 @@
 import type { Plugin } from 'vite';
+import MagicString from 'magic-string';
+import { parseSync } from 'oxc-parser';
 
 const CORE_IMPORT = '@gwenjs/core';
 
@@ -9,14 +11,9 @@ export interface GwenTransformOptions {
   compileSystems?: boolean;
   /** Enable optional auto-import rewriting for core GWEN helpers. */
   autoImports?: boolean;
-  /**
-   * Optional include filter. By default, JS/TS source files are considered.
-   * The filter is applied on normalized posix-like module ids.
-   */
+  /** Optional include filter. Defaults to JS/TS source files. */
   include?: (id: string) => boolean;
-  /**
-   * Optional exclude filter. By default, node_modules and virtual modules are excluded.
-   */
+  /** Optional exclude filter. Defaults to node_modules and virtual modules. */
   exclude?: (id: string) => boolean;
 }
 
@@ -33,12 +30,15 @@ function defaultExclude(id: string): boolean {
 }
 
 /**
- * RFC-008 transform plugin (safe incremental implementation).
+ * RFC-008 transform plugin — AST-based implementation using oxc-parser.
  *
- * Implemented features:
- * - optional GWEN core auto-import injection (`autoImports`);
- * - optional `query: [...]` -> `query: [...] as const` rewrite (`compileSystems`).
- * - optional `schema: { ... }` -> `schema: { ... } as const` rewrite (`compileComponents`).
+ * Features:
+ * - `autoImports`: inject missing `@gwenjs/core` named imports
+ * - `compileSystems`: rewrite `query: [...]` → `query: [...] as const`
+ * - `compileComponents`: rewrite `schema: {...}` → `schema: {...} as const`
+ *
+ * Uses oxc-parser for accurate AST (respects comments, strings, template literals).
+ * Uses magic-string for position-based mutations with proper sourcemaps.
  */
 export function gwenTransform(options: GwenTransformOptions = {}): Plugin {
   const include = options.include ?? defaultInclude;
@@ -47,304 +47,190 @@ export function gwenTransform(options: GwenTransformOptions = {}): Plugin {
   return {
     name: 'gwen-transform',
     enforce: 'pre',
+
     transform(code, id) {
       const normalized = normalizeId(id);
-      if (exclude(normalized) || !include(normalized)) {
+      if (exclude(normalized) || !include(normalized)) return null;
+
+      const needsAutoImports =
+        options.autoImports &&
+        (/\bdefineComponent\s*\(/.test(code) ||
+          /\bdefineSystem\s*\(/.test(code) ||
+          /\bTypes\s*\./.test(code));
+
+      const needsQueryTransform = options.compileSystems && /\bquery\s*:/.test(code);
+      const needsSchemaTransform = options.compileComponents && /\bschema\s*:/.test(code);
+
+      if (!needsAutoImports && !needsQueryTransform && !needsSchemaTransform) {
         return null;
       }
 
-      let out = code;
-
-      if (options.autoImports) {
-        out = applyAutoImports(out);
+      let program: any;
+      try {
+        const result = parseSync(id, code);
+        if (result.errors && result.errors.length > 0) return null;
+        program = result.program;
+      } catch {
+        return null;
       }
 
-      if (options.compileSystems) {
-        out = applyQueryAsConst(out);
+      const s = new MagicString(code);
+
+      if (needsAutoImports) {
+        applyAutoImports(program, code, s);
       }
 
-      if (options.compileComponents) {
-        out = applySchemaAsConst(out);
+      if (needsQueryTransform || needsSchemaTransform) {
+        applyAsConstTransforms(program, s, {
+          query: !!needsQueryTransform,
+          schema: !!needsSchemaTransform,
+        });
       }
 
-      if (out === code) return null;
-      return { code: out, map: null };
+      if (!s.hasChanged()) return null;
+
+      return {
+        code: s.toString(),
+        map: s.generateMap({ hires: true, source: id, includeContent: true }),
+      };
     },
   };
 }
 
-function applyAutoImports(code: string): string {
-  const needsDefineComponent = /\bdefineComponent\s*\(/.test(code);
-  const needsDefineSystem = /\bdefineSystem\s*\(/.test(code);
-  const needsTypes = /\bTypes\s*\./.test(code);
-
-  if (!needsDefineComponent && !needsDefineSystem && !needsTypes) {
-    return code;
-  }
-
-  const specifiers: string[] = [];
-  if (needsDefineComponent) specifiers.push('defineComponent');
-  if (needsDefineSystem) specifiers.push('defineSystem');
-  if (needsTypes) specifiers.push('Types');
-  if (specifiers.length === 0) return code;
-
-  const merged = ensureCoreNamedImports(code, specifiers);
-  if (merged !== null) {
-    return merged;
-  }
-
-  const importLine = `import { ${specifiers.join(', ')} } from '${CORE_IMPORT}';\n`;
-
-  // Insert after the last top-level import if present, otherwise at file start.
-  const importRegex = /^(?:import[\s\S]*?;\s*)+/;
-  const m = code.match(importRegex);
-  if (!m) return importLine + code;
-
-  const end = m[0].length;
-  return code.slice(0, end) + importLine + code.slice(end);
-}
+// ─── Auto-imports ─────────────────────────────────────────────────────────────
 
 /**
- * Ensure a core import contains all required named specifiers.
- * Returns:
- * - updated source if a core import exists,
- * - null if no core import is found (caller should inject a new one).
+ * Inject missing `@gwenjs/core` named imports into the source via AST.
+ *
+ * @param program - Parsed oxc-parser AST program node.
+ * @param code - Original source string (for regex pre-screening).
+ * @param s - MagicString instance to mutate.
  */
-function ensureCoreNamedImports(code: string, required: string[]): string | null {
-  const coreImportRe = new RegExp(
-    `^import\\s+([^;]+)\\s+from\\s+['"]${escapeRegExp(CORE_IMPORT)}['"]\\s*;?`,
-    'm',
+function applyAutoImports(program: any, code: string, s: MagicString): void {
+  const needed = {
+    defineComponent: /\bdefineComponent\s*\(/.test(code),
+    defineSystem: /\bdefineSystem\s*\(/.test(code),
+    Types: /\bTypes\s*\./.test(code),
+  };
+
+  const specifiers = (Object.keys(needed) as (keyof typeof needed)[]).filter((k) => needed[k]);
+  if (specifiers.length === 0) return;
+
+  const coreImport = (program.body ?? []).find(
+    (node: any) => node.type === 'ImportDeclaration' && node.source?.value === CORE_IMPORT,
   );
 
-  const m = code.match(coreImportRe);
-  if (!m || m.index === undefined) return null;
+  if (coreImport) {
+    const existing: string[] = (coreImport.specifiers ?? [])
+      .filter((sp: any) => sp.type === 'ImportSpecifier')
+      .map((sp: any) => sp.imported?.name ?? sp.local?.name)
+      .filter(Boolean);
 
-  const full = m[0];
-  const clause = m[1].trim();
+    const missing = specifiers.filter((name) => !existing.includes(name));
+    if (missing.length === 0) return;
 
-  const namedRe = /\{([^}]*)\}/;
-  const nm = clause.match(namedRe);
+    const namedSpecs = (coreImport.specifiers ?? []).filter(
+      (sp: any) => sp.type === 'ImportSpecifier',
+    );
 
-  if (nm) {
-    const existing = nm[1]
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => s.split(/\s+as\s+/i)[0]?.trim())
-      .filter(Boolean) as string[];
-
-    const missing = required.filter((r) => !existing.includes(r));
-    if (missing.length === 0) return code;
-
-    const mergedNamed = [...existing, ...missing].join(', ');
-    const updatedClause = clause.replace(namedRe, `{ ${mergedNamed} }`);
-    const updatedImport = full.replace(clause, updatedClause);
-
-    return code.slice(0, m.index) + updatedImport + code.slice(m.index + full.length);
+    if (namedSpecs.length > 0) {
+      const lastSpec = namedSpecs[namedSpecs.length - 1];
+      s.appendLeft(lastSpec.end, `, ${missing.join(', ')}`);
+    } else {
+      s.appendLeft(coreImport.end, `\nimport { ${missing.join(', ')} } from '${CORE_IMPORT}';`);
+    }
+    return;
   }
 
-  // Core import exists but without named imports (default or namespace import).
-  const extra = `\nimport { ${required.join(', ')} } from '${CORE_IMPORT}';`;
-  return code.slice(0, m.index + full.length) + extra + code.slice(m.index + full.length);
+  const imports = (program.body ?? []).filter((node: any) => node.type === 'ImportDeclaration');
+  const insertLine = `import { ${specifiers.join(', ')} } from '${CORE_IMPORT}';\n`;
+
+  if (imports.length > 0) {
+    const lastImport = imports[imports.length - 1];
+    s.appendLeft(lastImport.end, '\n' + insertLine.trimEnd());
+  } else {
+    s.prepend(insertLine);
+  }
 }
 
-function applyQueryAsConst(code: string): string {
-  // Robust rewrite using balanced bracket scanning — handles multiline arrays,
-  // nested brackets, and string literals inside the query array.
-  let out = code;
-  let cursor = 0;
+// ─── as const transforms ──────────────────────────────────────────────────────
 
-  while (cursor < out.length) {
-    const scan = findQueryArrayStart(out, cursor);
-    if (!scan) break;
-    const { queryIdx, openBracketIdx } = scan;
-
-    const end = findBalancedArrayEnd(out, openBracketIdx);
-    if (end === -1) {
-      cursor = queryIdx + 1;
-      continue;
-    }
-
-    const after = out.slice(end + 1);
-    const alreadyConst = /^\s+as\s+const\b/.test(after);
-    if (!alreadyConst) {
-      out = out.slice(0, end + 1) + ' as const' + out.slice(end + 1);
-      cursor = end + 1 + ' as const'.length;
-    } else {
-      cursor = end + 1;
-    }
-  }
-
-  return out;
+interface AsConstOptions {
+  /** Whether to add `as const` to `query: [...]` array expressions. */
+  query: boolean;
+  /** Whether to add `as const` to `schema: {...}` object expressions. */
+  schema: boolean;
 }
 
 /**
- * Locate the next `query\s*:\s*[` occurrence in `source` starting from `from`.
+ * Walk the AST and append ` as const` after qualifying `query` and `schema` property values.
+ *
+ * @param program - Parsed oxc-parser AST program node.
+ * @param s - MagicString instance to mutate.
+ * @param opts - Which property keys to transform.
  */
-function findQueryArrayStart(
-  source: string,
-  from: number,
-): { queryIdx: number; openBracketIdx: number } | null {
-  let cursor = from;
+function applyAsConstTransforms(program: any, s: MagicString, opts: AsConstOptions): void {
+  const insertPositions = new Set<number>();
 
-  while (cursor < source.length) {
-    const queryIdx = source.indexOf('query', cursor);
-    if (queryIdx === -1) return null;
+  walkNode(program, (node: any) => {
+    if (node.type !== 'ObjectExpression') return;
 
-    let i = skipWs(source, queryIdx + 'query'.length);
-    if (source[i] !== ':') {
-      cursor = queryIdx + 1;
-      continue;
+    for (const prop of node.properties ?? []) {
+      if (prop.type === 'SpreadElement') continue;
+
+      const key = prop.key;
+      const value = prop.value;
+      if (!key || !value) continue;
+
+      const keyName: string | null =
+        key.type === 'Identifier'
+          ? key.name
+          : key.type === 'StringLiteral' || key.type === 'Literal'
+            ? String(key.value)
+            : null;
+
+      if (!keyName) continue;
+      if (value.type === 'TSAsExpression') continue;
+
+      if (opts.query && keyName === 'query' && value.type === 'ArrayExpression') {
+        insertPositions.add(value.end);
+      }
+
+      if (opts.schema && keyName === 'schema' && value.type === 'ObjectExpression') {
+        insertPositions.add(value.end);
+      }
     }
+  });
 
-    i = skipWs(source, i + 1);
-    if (source[i] !== '[') {
-      cursor = queryIdx + 1;
-      continue;
-    }
-
-    return { queryIdx, openBracketIdx: i };
+  // Process in reverse order to avoid invalidating earlier positions.
+  const sorted = [...insertPositions].sort((a, b) => b - a);
+  for (const pos of sorted) {
+    s.appendLeft(pos, ' as const');
   }
-
-  return null;
 }
+
+// ─── AST walker ──────────────────────────────────────────────────────────────
 
 /**
- * Walk `source` from `openBracketIdx` (which must be `[`) and return the index
- * of the matching `]`, respecting nested brackets and string literals.
- * Returns -1 if the source ends without a matching bracket.
+ * Recursively walk an oxc-parser AST node, calling `visitor` on each node.
+ *
+ * @param node - The AST node to walk.
+ * @param visitor - Called for every encountered AST node.
  */
-function findBalancedArrayEnd(source: string, openBracketIdx: number): number {
-  let depth = 0;
-  let i = openBracketIdx;
-  let quote: '"' | "'" | '`' | null = null;
+function walkNode(node: any, visitor: (node: any) => void): void {
+  if (!node || typeof node !== 'object') return;
+  if (typeof node.type !== 'string') return;
 
-  while (i < source.length) {
-    const c = source[i];
-    const prev = i > 0 ? source[i - 1] : '';
+  visitor(node);
 
-    if (quote) {
-      if (c === quote && prev !== '\\') quote = null;
-      i++;
-      continue;
-    }
+  for (const key of Object.keys(node)) {
+    if (key === 'type' || key === 'start' || key === 'end' || key === 'span') continue;
 
-    if (c === '"' || c === "'" || c === '`') {
-      quote = c;
-      i++;
-      continue;
-    }
-
-    if (c === '[') {
-      depth++;
-    } else if (c === ']') {
-      depth--;
-      if (depth === 0) return i;
-    }
-
-    i++;
-  }
-
-  return -1;
-}
-
-function applySchemaAsConst(code: string): string {
-  // Rewrite balanced `schema: { ... }` literals, including nested object schemas.
-  let out = code;
-  let cursor = 0;
-
-  while (cursor < out.length) {
-    const scan = findSchemaObjectStart(out, cursor);
-    if (!scan) break;
-    const { schemaIdx, openBraceIdx } = scan;
-
-    const end = findBalancedObjectEnd(out, openBraceIdx);
-    if (end === -1) {
-      cursor = schemaIdx + 1;
-      continue;
-    }
-
-    const after = out.slice(end + 1);
-    const alreadyConst = /^\s+as\s+const\b/.test(after);
-    if (!alreadyConst) {
-      out = out.slice(0, end + 1) + ' as const' + out.slice(end + 1);
-      cursor = end + 1 + ' as const'.length;
-    } else {
-      cursor = end + 1;
+    const child = node[key];
+    if (Array.isArray(child)) {
+      for (const item of child) walkNode(item, visitor);
+    } else if (child && typeof child === 'object' && typeof child.type === 'string') {
+      walkNode(child, visitor);
     }
   }
-
-  return out;
-}
-
-function findSchemaObjectStart(
-  source: string,
-  from: number,
-): { schemaIdx: number; openBraceIdx: number } | null {
-  let cursor = from;
-
-  while (cursor < source.length) {
-    const schemaIdx = source.indexOf('schema', cursor);
-    if (schemaIdx === -1) return null;
-
-    let i = skipWs(source, schemaIdx + 'schema'.length);
-    if (source[i] !== ':') {
-      cursor = schemaIdx + 1;
-      continue;
-    }
-
-    i = skipWs(source, i + 1);
-    if (source[i] !== '{') {
-      cursor = schemaIdx + 1;
-      continue;
-    }
-
-    return { schemaIdx, openBraceIdx: i };
-  }
-
-  return null;
-}
-
-function skipWs(source: string, i: number): number {
-  let out = i;
-  while (out < source.length && /\s/.test(source[out])) out++;
-  return out;
-}
-
-function findBalancedObjectEnd(source: string, openBraceIdx: number): number {
-  let depth = 0;
-  let i = openBraceIdx;
-  let quote: '"' | "'" | '`' | null = null;
-
-  while (i < source.length) {
-    const c = source[i];
-    const prev = i > 0 ? source[i - 1] : '';
-
-    if (quote) {
-      if (c === quote && prev !== '\\') quote = null;
-      i++;
-      continue;
-    }
-
-    if (c === '"' || c === "'" || c === '`') {
-      quote = c;
-      i++;
-      continue;
-    }
-
-    if (c === '{') {
-      depth++;
-    } else if (c === '}') {
-      depth--;
-      if (depth === 0) return i;
-    }
-
-    i++;
-  }
-
-  return -1;
-}
-
-function escapeRegExp(v: string): string {
-  return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
