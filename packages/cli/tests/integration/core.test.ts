@@ -33,20 +33,20 @@ describe('Core functions integration', () => {
       expect(fs.existsSync(join(tmpDir, '.gwen'))).toBe(true);
     });
 
-    it('should generate tsconfig.generated.json', async () => {
+    it('should generate tsconfig.json', async () => {
       fs.writeFileSync(join(tmpDir, 'gwen.config.ts'), 'export default { engine: {} };');
 
       const result = await prepare({ projectDir: tmpDir });
       expect(result.success).toBe(true);
-      expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.generated.json'))).toBe(true);
+      expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.json'))).toBe(true);
     });
 
-    it('should generate gwen.d.ts', async () => {
+    it('should generate auto-imports.d.ts', async () => {
       fs.writeFileSync(join(tmpDir, 'gwen.config.ts'), 'export default { engine: {} };');
 
       const result = await prepare({ projectDir: tmpDir });
       expect(result.success).toBe(true);
-      expect(fs.existsSync(join(tmpDir, '.gwen', 'gwen.d.ts'))).toBe(true);
+      expect(fs.existsSync(join(tmpDir, '.gwen', 'types', 'auto-imports.d.ts'))).toBe(true);
     });
 
     it('should return list of generated files', async () => {
@@ -54,7 +54,7 @@ describe('Core functions integration', () => {
 
       const result = await prepare({ projectDir: tmpDir });
       expect(result.files.length).toBeGreaterThan(0);
-      expect(result.files[0]).toContain('tsconfig.generated.json');
+      expect(result.files.some((f: string) => f.endsWith('auto-imports.d.ts'))).toBe(true);
     });
   });
 

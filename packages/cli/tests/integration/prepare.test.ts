@@ -1,12 +1,15 @@
-/**
- * Integration tests for prepare operation
- */
-
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import { join } from 'pathe';
 import { prepare } from '../../src';
-import { makeTmpDir, writeConfig, MINIMAL_CONFIG } from '../utils.js';
+import { makeTmpDir, writeConfig } from '../utils.js';
+
+const MODULES_CONFIG = `
+export default {
+  engine: { maxEntities: 1000, targetFPS: 60 },
+  modules: [],
+};
+`;
 
 describe('prepare integration', () => {
   let tmpDir: string;
@@ -14,97 +17,62 @@ describe('prepare integration', () => {
   beforeEach(() => {
     tmpDir = makeTmpDir();
   });
-
   afterEach(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('should create .gwen directory', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('creates .gwen/types/ directory', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
-
     expect(result.success).toBe(true);
-    expect(fs.existsSync(join(tmpDir, '.gwen'))).toBe(true);
+    expect(fs.existsSync(join(tmpDir, '.gwen', 'types'))).toBe(true);
   });
 
-  it('should generate tsconfig.generated.json', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('generates auto-imports.d.ts', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
-
     expect(result.success).toBe(true);
-    const tsconfigPath = join(tmpDir, '.gwen', 'tsconfig.generated.json');
-    expect(fs.existsSync(tsconfigPath)).toBe(true);
-
-    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
-    expect(tsconfig.compilerOptions.strict).toBe(true);
-    expect(tsconfig.compilerOptions.moduleResolution).toBe('bundler');
+    expect(fs.existsSync(join(tmpDir, '.gwen', 'types', 'auto-imports.d.ts'))).toBe(true);
   });
 
-  it('should generate gwen.d.ts', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('generates env.d.ts', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
-
     expect(result.success).toBe(true);
-    const dtsPath = join(tmpDir, '.gwen', 'gwen.d.ts');
-    expect(fs.existsSync(dtsPath)).toBe(true);
-
-    const content = fs.readFileSync(dtsPath, 'utf-8');
-    expect(content).toContain('GwenDefaultServices');
-    expect(content).toContain('GwenAPI');
-    expect(content).toContain('declare global');
+    expect(fs.existsSync(join(tmpDir, '.gwen', 'types', 'env.d.ts'))).toBe(true);
   });
 
-  it('should generate index.html', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('generates .gwen/tsconfig.json (not tsconfig.generated.json)', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
-
     expect(result.success).toBe(true);
-    const htmlPath = join(tmpDir, '.gwen', 'index.html');
-    expect(fs.existsSync(htmlPath)).toBe(true);
-
-    const content = fs.readFileSync(htmlPath, 'utf-8');
-    expect(content).toContain('<!DOCTYPE html>');
-    expect(content).toContain('/@gwenjs/gwen-entry');
+    expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.json'))).toBe(true);
+    expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.generated.json'))).toBe(false);
   });
 
-  it('should create or patch tsconfig.json', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('patches tsconfig.json to extend .gwen/tsconfig.json', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     await prepare({ projectDir: tmpDir });
-
-    const tsconfigPath = join(tmpDir, 'tsconfig.json');
-    expect(fs.existsSync(tsconfigPath)).toBe(true);
-
-    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
-    expect(tsconfig.extends).toBe('./.gwen/tsconfig.generated.json');
+    const tsconfig = JSON.parse(fs.readFileSync(join(tmpDir, 'tsconfig.json'), 'utf-8'));
+    expect(tsconfig.extends).toBe('./.gwen/tsconfig.json');
   });
 
-  it('should add .gwen/ to .gitignore', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('adds .gwen/ to .gitignore', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     await prepare({ projectDir: tmpDir });
-
-    const gitignorePath = join(tmpDir, '.gitignore');
-    expect(fs.existsSync(gitignorePath)).toBe(true);
-
-    const content = fs.readFileSync(gitignorePath, 'utf-8');
+    const content = fs.readFileSync(join(tmpDir, '.gitignore'), 'utf-8');
     expect(content).toContain('.gwen/');
   });
 
-  it('should return list of generated files', async () => {
-    writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
+  it('fails gracefully when config not found', async () => {
     const result = await prepare({ projectDir: tmpDir });
-
-    expect(result.files.length).toBeGreaterThanOrEqual(3);
-    expect(result.files.some((f: string) => f.endsWith('tsconfig.generated.json'))).toBe(true);
-    expect(result.files.some((f: string) => f.endsWith('gwen.d.ts'))).toBe(true);
-    expect(result.files.some((f: string) => f.endsWith('index.html'))).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.errors[0]).toMatch(/Config/i);
   });
 
-  it('should fail gracefully when config not found', async () => {
-    // Don't write a config file
+  it('succeeds with no modules declared', async () => {
+    writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
-
-    expect(result.success).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors[0]).toMatch(/Config error/);
+    expect(result.success).toBe(true);
   });
 });

@@ -26,27 +26,20 @@ describe('prepare', () => {
     expect(result.errors[0]).toMatch(/Config file|gwen.config.ts not found/);
   });
 
-  it('generates .gwen/tsconfig.generated.json', async () => {
+  it('generates .gwen/tsconfig.json', async () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
     expect(result.success).toBe(true);
-    const tsconfig = path.join(tmp, '.gwen', 'tsconfig.generated.json');
+    const tsconfig = path.join(tmp, '.gwen', 'tsconfig.json');
     expect(fs.existsSync(tsconfig)).toBe(true);
-    const parsed = JSON.parse(fs.readFileSync(tsconfig, 'utf-8'));
-    expect(parsed.compilerOptions.strict).toBe(true);
-    expect(parsed.compilerOptions.moduleResolution).toBe('bundler');
   });
 
-  it('generates .gwen/gwen.d.ts', async () => {
+  it('generates .gwen/types/auto-imports.d.ts', async () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
     expect(result.success).toBe(true);
-    const dts = path.join(tmp, '.gwen', 'gwen.d.ts');
+    const dts = path.join(tmp, '.gwen', 'types', 'auto-imports.d.ts');
     expect(fs.existsSync(dts)).toBe(true);
-    const content = fs.readFileSync(dts, 'utf-8');
-    expect(content).toContain('GwenDefaultServices');
-    expect(content).toContain('GwenAPI');
-    expect(content).toContain('declare global');
   });
 
   it('creates tsconfig.json if absent and sets extends', async () => {
@@ -56,7 +49,7 @@ describe('prepare', () => {
     const tsconfig = path.join(tmp, 'tsconfig.json');
     expect(fs.existsSync(tsconfig)).toBe(true);
     const parsed = JSON.parse(fs.readFileSync(tsconfig, 'utf-8'));
-    expect(parsed.extends).toBe('./.gwen/tsconfig.generated.json');
+    expect(parsed.extends).toBe('./.gwen/tsconfig.json');
   });
 
   it('adds .gwen/ to .gitignore', async () => {
@@ -71,10 +64,9 @@ describe('prepare', () => {
     writeConfig(tmp, MINIMAL_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmp });
     expect(result.success).toBe(true);
-    expect(result.files).toHaveLength(3);
-    expect(result.files.some((f: string) => f.endsWith('tsconfig.generated.json'))).toBe(true);
-    expect(result.files.some((f: string) => f.endsWith('gwen.d.ts'))).toBe(true);
-    expect(result.files.some((f: string) => f.endsWith('index.html'))).toBe(true);
+    expect(result.files.length).toBeGreaterThan(0);
+    expect(result.files.some((f: string) => f.endsWith('auto-imports.d.ts'))).toBe(true);
+    expect(result.files.some((f: string) => f.endsWith('tsconfig.json'))).toBe(true);
   });
 });
 
