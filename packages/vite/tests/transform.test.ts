@@ -66,6 +66,20 @@ describe('gwenTransform() RFC-008 foundation', () => {
     );
   });
 
+  it('does NOT inject value specifiers into an existing import type declaration', () => {
+    const plugin = gwenTransform({ autoImports: true });
+    const source = [
+      "import type { GwenPlugin } from '@gwenjs/core';",
+      'defineSystem({ name: "S" });',
+    ].join('\n');
+    const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
+    expect(out).not.toBeNull();
+    // Should add a new value import, NOT modify the type import
+    expect(out.code).toContain("import type { GwenPlugin } from '@gwenjs/core'");
+    expect(out.code).toContain("import { defineSystem } from '@gwenjs/core'");
+    expect(out.code).not.toContain('import type { GwenPlugin, defineSystem }');
+  });
+
   it('adds a dedicated named import when only default core import exists', () => {
     const plugin = gwenTransform({ autoImports: true });
     const source = [

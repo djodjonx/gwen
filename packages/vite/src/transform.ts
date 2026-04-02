@@ -68,7 +68,14 @@ export function gwenTransform(options: GwenTransformOptions = {}): Plugin {
       let program: any;
       try {
         const result = parseSync(id, code);
-        if (result.errors && result.errors.length > 0) return null;
+        if (result.errors && result.errors.length > 0) {
+          const fatal = result.errors.filter((e: any) => e.severity === 'Error');
+          if (fatal.length > 0) return null;
+          // Non-fatal diagnostics — proceed but warn the developer
+          for (const e of result.errors) {
+            this.warn(`[gwen-transform] Parse diagnostic in ${id}: ${e.message}`);
+          }
+        }
         program = result.program;
       } catch {
         return null;
@@ -117,7 +124,10 @@ function applyAutoImports(program: any, code: string, s: MagicString): void {
   if (specifiers.length === 0) return;
 
   const coreImport = (program.body ?? []).find(
-    (node: any) => node.type === 'ImportDeclaration' && node.source?.value === CORE_IMPORT,
+    (node: any) =>
+      node.type === 'ImportDeclaration' &&
+      node.source?.value === CORE_IMPORT &&
+      node.importKind !== 'type',
   );
 
   if (coreImport) {
