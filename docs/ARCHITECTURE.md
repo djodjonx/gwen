@@ -20,7 +20,7 @@ GWEN follows a **3-layer architecture**:
 
 ### Layer 1: Core Engine (Rust/WASM)
 
-**Location:** `crates/gwen-core/` (Rust) → `packages/@djodjonx/engine-core/wasm/` (compiled WASM)
+**Location:** `crates/gwen-core/` (Rust) → internal build artifacts in `packages/@djodjonx/engine-core/wasm/` (workspace), consumed as `@gwenjs/core/wasm/*` from package APIs.
 
 **Responsibilities:**
 - Entity creation/destruction
