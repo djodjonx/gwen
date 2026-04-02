@@ -33,6 +33,7 @@
     "test": "vitest run",
     "bench": "vitest bench --run",
     "bench:ecs": "vitest bench --run bench/ecs.bench.ts",
+    "bench:query": "vitest bench --run bench/query.bench.ts",
     "bench:ci": "vitest bench --run",
     "watch": "vite build --watch"
   },
