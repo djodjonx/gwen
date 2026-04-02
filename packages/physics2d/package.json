@@ -57,16 +57,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench:solver": "BENCH_SLOW=1 vitest run bench/solver.test.ts",
-    "bench:tilemap": "vitest bench bench/tilemap.bench.ts",
+    "bench:tilemap": "vitest bench --run bench/tilemap.bench.ts",
     "bench:bundle-size": "BENCH_SLOW=1 vitest run bench/bundle-size.test.ts",
     "bench:score": "BENCH_SLOW=1 vitest run bench/perf-gate.test.ts",
-    "test:bench": "vitest bench",
+    "test:bench": "vitest bench --run",
     "test:bench:solver": "BENCH_SLOW=1 vitest run bench/solver.test.ts",
-    "test:bench:tilemap": "vitest bench bench/tilemap.bench.ts",
+    "test:bench:tilemap": "vitest bench --run bench/tilemap.bench.ts",
     "test:bench:tree-shaking": "BENCH_SLOW=1 vitest run bench/bundle-size.test.ts",
     "test:bench:score": "vitest run bench/perf-gate.test.ts",
     "test:e2e:playgrounds": "BENCH_SLOW=1 vitest run bench/playgrounds-e2e.test.ts",
-    "bench:ci": "BENCH_SLOW=1 vitest bench && BENCH_SLOW=1 vitest run bench/solver.test.ts bench/bundle-size.test.ts bench/perf-gate.test.ts bench/playgrounds-e2e.test.ts"
+    "bench:ci": "BENCH_SLOW=1 vitest bench --run && BENCH_SLOW=1 vitest run bench/solver.test.ts bench/bundle-size.test.ts bench/perf-gate.test.ts bench/playgrounds-e2e.test.ts"
   },
   "dependencies": {
     "@gwenjs/core": "workspace:*",
