@@ -4,7 +4,7 @@
  * Core types for the GWEN engine configuration.
  * These types form the Single Source of Truth (SSOT) for all config handling.
  *
- * @module @gwenengine/schema
+ * @module @gwenjs/schema
  */
 
 /**
@@ -38,6 +38,10 @@ export interface GwenPluginMeta {
   serviceTypes?: Record<string, GwenTypeRefMeta>;
   /** Hook types provided by this plugin, keyed by hook name */
   hookTypes?: Record<string, GwenTypeRefMeta>;
+  /** Prefab extension types provided by this plugin, keyed by extension key */
+  prefabExtensionTypes?: Record<string, GwenTypeRefMeta>;
+  /** UI extension types provided by this plugin, keyed by extension key */
+  uiExtensionTypes?: Record<string, GwenTypeRefMeta>;
 }
 
 /**
@@ -49,15 +53,35 @@ export interface GwenPluginMeta {
 export interface GwenPluginBase {
   /** Unique plugin name used for identification and debugging */
   name: string;
+  /** Optional package name used by CLI setup resolution. */
+  packageName?: string;
   /** Optional plugin metadata for type inference */
   meta?: GwenPluginMeta;
   /** Services provided by this plugin to the engine */
   provides?: Record<string, unknown>;
   /** Hooks provided by this plugin to the engine */
-  providesHooks?: Record<string, (...args: any[]) => any>;
+  providesHooks?: Record<string, GwenHookHandler>;
   /** Optional WASM context (present if plugin is WASM-based) */
   wasm?: unknown;
 }
+
+/**
+ * Generic hook handler function used across schema contracts.
+ */
+export type GwenHookHandler = (...args: readonly unknown[]) => unknown;
+
+/**
+ * A module declaration in `gwen.config.ts`.
+ *
+ * @example
+ * ```ts
+ * modules: [
+ *   '@gwenjs/physics2d',
+ *   ['@gwenjs/input', { gamepad: true }],
+ * ]
+ * ```
+ */
+export type GwenModuleEntry = string | [name: string, options?: Record<string, unknown>];
 
 /**
  * Core engine configuration options (normalized form).
@@ -90,6 +114,8 @@ export interface GwenOptions {
     /** Background color as hex value */
     background: string;
   };
+  /** Module declarations used as framework composition root */
+  modules: GwenModuleEntry[];
   /** Array of plugins (TS and WASM mixed) */
   plugins: GwenPluginBase[];
   /** List of scene names available in the project */
@@ -114,7 +140,17 @@ export interface GwenOptions {
  * Accepts partial configurations, legacy plugin arrays, and preserves
  * backward compatibility with older `tsPlugins`/`wasmPlugins` format.
  */
-export interface GwenConfigInput extends DeepPartial<GwenOptions> {}
+export interface GwenConfigInput extends DeepPartial<GwenOptions> {
+  /**
+   * Legacy plugin array used by older projects.
+   * Prefer `modules` in framework mode.
+   */
+  plugins?: GwenPluginBase[];
+  /** Legacy TypeScript plugin list (deprecated). */
+  tsPlugins?: GwenPluginBase[];
+  /** Legacy WASM plugin list (deprecated). */
+  wasmPlugins?: GwenPluginBase[];
+}
 
 /**
  * Deep partial version of a type - all properties are recursively optional.
@@ -134,13 +170,13 @@ export type DeepPartial<T> = T extends object
  * - This is intentionally lightweight and focused on service/hook typing.
  * - It is used by CLI/type-generation flows (`gwen prepare`).
  * - Runtime plugins should rely on the full `EngineAPI` exposed by
- *   `@gwenengine/core`.
+ *   `@gwenjs/core`.
  *
  * @internal
  */
 export interface EngineAPI<
   Services extends object = Record<string, unknown>,
-  Hooks extends object = Record<string, (...args: any[]) => any>,
+  Hooks extends object = Record<string, GwenHookHandler>,
 > {
   services: {
     /** Typed access to known services. */

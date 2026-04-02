@@ -1,5 +1,5 @@
 /**
- * Core variant detector for @gwenengine/cli.
+ * Core variant detector for @gwenjs/cli.
  *
  * Determines which core WASM variant (light, physics2d, physics3d) to use
  * based on the plugins declared in the user's gwen.config.ts.
@@ -8,7 +8,14 @@
 import { dirname, join, resolve } from 'pathe';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { GwenOptions as GwenConfig } from '@gwenengine/schema';
+import type { GwenOptions as GwenConfig } from '@gwenjs/schema';
+
+interface SharedMemoryPlugin {
+  name?: string;
+  wasm?: {
+    sharedMemory?: boolean;
+  };
+}
 
 /**
  * Available core WASM variants.
@@ -58,14 +65,17 @@ export function detectSharedMemoryPlugins(config: GwenConfig): string[] {
   }
 
   return config.plugins
-    .filter((p: any) => p?.wasm?.sharedMemory === true)
-    .map((p: any) => String(p?.name ?? 'unknown'));
+    .filter((plugin): plugin is GwenConfig['plugins'][number] => {
+      const candidate = plugin as SharedMemoryPlugin;
+      return candidate.wasm?.sharedMemory === true;
+    })
+    .map((plugin) => String(plugin.name ?? 'unknown'));
 }
 
 /**
  * Resolve the path to the WASM files for a given variant.
  *
- * Searches for @gwenengine/core in node_modules and returns
+ * Searches for @gwenjs/core in node_modules and returns
  * the paths to the JS wrapper and WASM binary.
  *
  * @param variant - The core variant to resolve
@@ -78,13 +88,13 @@ export function resolveWasmPath(variant: CoreVariant): {
 } {
   const __dirname = dirname(fileURLToPath(import.meta.url));
 
-  // Search candidates for @gwenengine/core/wasm/
+  // Search candidates for @gwenjs/core/wasm/
   const candidates = [
     // Case 1: Running from dist in node_modules
-    resolve(__dirname, '../../node_modules/@gwenengine/core'),
-    resolve(__dirname, '../../../node_modules/@gwenengine/core'),
+    resolve(__dirname, '../../node_modules/@gwenjs/core'),
+    resolve(__dirname, '../../../node_modules/@gwenjs/core'),
     // Case 2: Running from project root
-    resolve(process.cwd(), 'node_modules/@gwenengine/core'),
+    resolve(process.cwd(), 'node_modules/@gwenjs/core'),
     // Case 3: Workspace development (relative to cli package)
     resolve(__dirname, '../../../../crates/gwen-core/pkg'), // This might not be right for all setups
     resolve(__dirname, '../../engine-core'),
@@ -99,9 +109,7 @@ export function resolveWasmPath(variant: CoreVariant): {
   }
 
   if (!pkgDir) {
-    throw new Error(
-      '[GWEN] Could not find @gwenengine/core package. Please ensure it is installed.',
-    );
+    throw new Error('[GWEN] Could not find @gwenjs/core package. Please ensure it is installed.');
   }
 
   const wasmDir = existsSync(join(pkgDir, 'wasm')) ? join(pkgDir, 'wasm') : pkgDir;

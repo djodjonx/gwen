@@ -1,5 +1,5 @@
-import { defineScene, UIComponent } from '@gwenengine/core';
-import { createPhysicsKinematicSyncSystem } from '@gwenengine/physics2d';
+import { defineScene, UIComponent } from '@gwenjs/core';
+import { createPhysicsKinematicSyncSystem } from '@gwenjs/physics2d';
 import { PlayerPrefab, EnemyPrefab, PlayerBulletPrefab, EnemyBulletPrefab } from '../prefabs';
 import { Score } from '../components';
 import { MovementSystem } from '../systems/MovementSystem';

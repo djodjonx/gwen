@@ -38,13 +38,13 @@ describe('gwenTransform() RFC-008 foundation', () => {
     );
 
     expect(out).not.toBeNull();
-    expect(out.code).toContain("import { defineComponent, Types } from '@gwenengine/core';");
+    expect(out.code).toContain("import { defineComponent, Types } from '@gwenjs/core';");
   });
 
   it('does not inject auto-import if core import already exists', () => {
     const plugin = gwenTransform({ autoImports: true });
     const source = [
-      "import { defineSystem } from '@gwenengine/core';",
+      "import { defineSystem } from '@gwenjs/core';",
       'export const S = defineSystem({ name: "S", onUpdate() {} });',
     ].join('\n');
     const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
@@ -54,7 +54,7 @@ describe('gwenTransform() RFC-008 foundation', () => {
   it('merges missing named imports into existing core named import', () => {
     const plugin = gwenTransform({ autoImports: true });
     const source = [
-      "import { defineSystem } from '@gwenengine/core';",
+      "import { defineSystem } from '@gwenjs/core';",
       'const Position = defineComponent({ name: "Position", schema: { x: Types.f32 } });',
       'export const S = defineSystem({ name: "S", onUpdate() {} });',
     ].join('\n');
@@ -62,14 +62,14 @@ describe('gwenTransform() RFC-008 foundation', () => {
     const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
     expect(out).not.toBeNull();
     expect(out.code).toContain(
-      "import { defineSystem, defineComponent, Types } from '@gwenengine/core';",
+      "import { defineSystem, defineComponent, Types } from '@gwenjs/core';",
     );
   });
 
   it('adds a dedicated named import when only default core import exists', () => {
     const plugin = gwenTransform({ autoImports: true });
     const source = [
-      "import Gwen from '@gwenengine/core';",
+      "import Gwen from '@gwenjs/core';",
       'const Position = defineComponent({ name: "Position", schema: { x: Types.f32 } });',
       'console.log(Gwen);',
     ].join('\n');
@@ -77,7 +77,7 @@ describe('gwenTransform() RFC-008 foundation', () => {
     const out = (plugin.transform as Function)(source, '/repo/src/components/c.ts');
     expect(out).not.toBeNull();
     expect(out.code).toContain(
-      "import Gwen from '@gwenengine/core';\nimport { defineComponent, Types } from '@gwenengine/core';",
+      "import Gwen from '@gwenjs/core';\nimport { defineComponent, Types } from '@gwenjs/core';",
     );
   });
 
@@ -194,7 +194,7 @@ describe('gwenTransform() RFC-008 foundation', () => {
     const source = 'const S = defineSystem({ name: "S", query: [Position], onUpdate() {} });';
     const out = (plugin.transform as Function)(source, '/repo/src/systems/s.ts');
     expect(out).not.toBeNull();
-    expect(out.code).toContain("import { defineSystem } from '@gwenengine/core'");
+    expect(out.code).toContain("import { defineSystem } from '@gwenjs/core'");
     expect(out.code).toContain('query: [Position] as const');
   });
 
@@ -203,7 +203,7 @@ describe('gwenTransform() RFC-008 foundation', () => {
     const source = 'const P = defineComponent({ name: "P", schema: { x: Types.f32 } });';
     const out = (plugin.transform as Function)(source, '/repo/src/components/p.ts');
     expect(out).not.toBeNull();
-    expect(out.code).toContain("import { defineComponent, Types } from '@gwenengine/core'");
+    expect(out.code).toContain("import { defineComponent, Types } from '@gwenjs/core'");
     expect(out.code).toContain('schema: { x: Types.f32 } as const');
   });
 

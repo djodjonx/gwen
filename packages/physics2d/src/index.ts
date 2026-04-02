@@ -1,15 +1,15 @@
 /// <reference types="vite/client" />
 
 /**
- * @gwenengine/physics2d
+ * @gwenjs/physics2d
  *
  * 2D physics plugin for GWEN — pure adapter providing 2D rigid-body physics via the core WASM.
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import { unpackEntityId, createEntityId, getWasmBridge } from '@gwenengine/core';
-import type { GwenEngine } from '@gwenengine/core';
-import type { GwenPluginMeta } from '@gwenengine/kit';
+import { definePlugin } from '@gwenjs/kit';
+import { unpackEntityId, createEntityId, getWasmBridge } from '@gwenjs/core';
+import type { GwenEngine } from '@gwenjs/core';
+import type { GwenPluginMeta } from '@gwenjs/kit';
 
 import type {
   Physics2DConfig,
@@ -73,10 +73,12 @@ export type {
   RigidBodyType,
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
+  PhysicsColliderDef,
   PhysicsQualityPreset,
   PhysicsColliderShape,
   SensorState,
-};
+  TilemapPhysicsChunkMap,
+} from './types';
 
 export { PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE };
 
@@ -90,27 +92,27 @@ const MAX_EVENTS = 512;
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
     physics: {
-      from: '@gwenengine/physics2d',
+      from: '@gwenjs/physics2d',
       exportName: 'Physics2DAPI',
     },
   },
   hookTypes: {
     'physics:collision': {
-      from: '@gwenengine/physics2d',
+      from: '@gwenjs/physics2d',
       exportName: 'Physics2DPluginHooks',
     },
     'physics:collision:batch': {
-      from: '@gwenengine/physics2d',
+      from: '@gwenjs/physics2d',
       exportName: 'Physics2DPluginHooks',
     },
     'physics:sensor:changed': {
-      from: '@gwenengine/physics2d',
+      from: '@gwenjs/physics2d',
       exportName: 'Physics2DPluginHooks',
     },
   },
   prefabExtensionTypes: {
     physics: {
-      from: '@gwenengine/physics2d',
+      from: '@gwenjs/physics2d',
       exportName: 'Physics2DPrefabExtension',
     },
   },
@@ -219,7 +221,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   function createAPI(): Physics2DAPI {
     const pb = bridge!.getPhysicsBridge() as any;
     /** Extract raw slot index from packed EntityId (bigint) or legacy raw slot number. */
-    const slot = (id: import('@gwenengine/core').EntityId | number) =>
+    const slot = (id: import('@gwenjs/core').EntityId | number) =>
       typeof id === 'number' ? id : unpackEntityId(id).index;
     const resolveContacts = (events: ReadonlyArray<InternalCollisionEvent>): CollisionContact[] => {
       const out: CollisionContact[] = [];
@@ -376,7 +378,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
   }
 
   return {
-    name: '@gwenengine/physics2d',
+    name: '@gwenjs/physics2d',
     meta: pluginMeta,
     provides: { physics: {} as Physics2DAPI },
     providesHooks: {} as Physics2DPluginHooks,

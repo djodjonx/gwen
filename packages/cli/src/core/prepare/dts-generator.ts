@@ -179,7 +179,7 @@ export async function generateDts(
  * Generated from plugin metadata (services, hooks, extensions).
  * This avoids circular typing between gwen.config.ts and .gwen/gwen.d.ts.
  */
-${refBlock}${directImportBlock}import type { GwenEngine } from '@gwenengine/core';
+${refBlock}${directImportBlock}import type { GwenEngine } from '@gwenjs/core';
 
 declare global {
   interface GwenDefaultServices {${serviceBody}  }

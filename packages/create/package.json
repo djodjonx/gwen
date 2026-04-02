@@ -23,7 +23,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@gwenengine/cli": "workspace:*"
+    "@gwenjs/cli": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

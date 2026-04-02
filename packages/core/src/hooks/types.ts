@@ -5,14 +5,14 @@
  * Provides full type safety for engine lifecycle, plugins, entities, and components.
  */
 
-import type { GwenHooks as SchemaGwenHooks } from '@gwenengine/schema';
+import type { GwenHooks as SchemaGwenHooks } from '@gwenjs/schema';
 
-export type EngineLifecycleHooks = import('@gwenengine/schema').EngineLifecycleHooks;
-export type PluginLifecycleHooks = import('@gwenengine/schema').PluginLifecycleHooks<any, any>;
-export type EntityLifecycleHooks = import('@gwenengine/schema').EntityLifecycleHooks<
+export type EngineLifecycleHooks = import('@gwenjs/schema').EngineLifecycleHooks;
+export type PluginLifecycleHooks = import('@gwenjs/schema').PluginLifecycleHooks<any, any>;
+export type EntityLifecycleHooks = import('@gwenjs/schema').EntityLifecycleHooks<
   import('../types').EntityId
 >;
-export type ComponentLifecycleHooks = import('@gwenengine/schema').ComponentLifecycleHooks<
+export type ComponentLifecycleHooks = import('@gwenjs/schema').ComponentLifecycleHooks<
   import('../types').EntityId
 >;
 

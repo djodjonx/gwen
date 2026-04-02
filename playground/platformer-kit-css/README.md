@@ -1,6 +1,6 @@
 # platformer-kit-css playground
 
-Clean platformer playground that uses `@gwenengine/kit-platformer` as the primary gameplay layer.
+Clean platformer playground that uses `@gwenjs/kit-platformer` as the primary gameplay layer.
 
 ## Getting started
 

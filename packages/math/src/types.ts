@@ -1,7 +1,7 @@
 /**
  * GWEN Math — shared primitive types.
  *
- * These mirror the spatial primitives defined in `@gwenengine/core`
+ * These mirror the spatial primitives defined in `@gwenjs/core`
  * (`Types.vec2`, `Types.vec3`, `Types.quat`, `Types.color`) so components and
  * math helpers stay structurally compatible without a hard dependency.
  */

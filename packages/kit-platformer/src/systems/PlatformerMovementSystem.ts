@@ -1,6 +1,6 @@
-import type { EntityId, GwenEngine, GwenPlugin } from '@gwenengine/core';
-import { createPlatformerGroundedSystem } from '@gwenengine/physics2d/core';
-import type { Physics2DAPI } from '@gwenengine/physics2d/core';
+import type { EntityId, GwenEngine, GwenPlugin } from '@gwenjs/core';
+import { createPlatformerGroundedSystem } from '@gwenjs/physics2d/core';
+import type { Physics2DAPI } from '@gwenjs/physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,

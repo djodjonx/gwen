@@ -1,4 +1,4 @@
-# @gwenengine/kit-platformer
+# @gwenjs/kit-platformer
 
 ## 1.0.0
 

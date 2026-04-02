@@ -14,7 +14,7 @@ import { moveKinematicByVelocity, applyDirectionalImpulse } from '../src/helpers
 
 import { getBodySnapshot, getSpeed, isSensorActive } from '../src/helpers/queries';
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 import type { Physics3DCollisionContact, Physics3DAPI, Physics3DBodySnapshot } from '../src/types';
 
 // ─── Typed EntityId stubs ──────────────────────────────────────────��─────────

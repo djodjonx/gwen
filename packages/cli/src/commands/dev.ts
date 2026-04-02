@@ -16,6 +16,7 @@ import { setLogLevel, logger } from '../utils/logger.js';
 import { GLOBAL_ARGS } from '../utils/args.js';
 import { DEFAULT_PORT_DEV, ExitCode } from '../utils/constants.js';
 import { dev as coreDev } from '../core/dev.js';
+import { parseError } from '../core/types/guards.js';
 
 const ANSI_VIOLET = '\x1b[95m';
 const ANSI_RESET = '\x1b[0m';
@@ -67,8 +68,8 @@ export default defineCommand({
     let port: number;
     try {
       port = parsePort(args.port);
-    } catch (error: any) {
-      logger.error('Invalid port:', error.message);
+    } catch (error: unknown) {
+      logger.error('Invalid port:', parseError(error));
       process.exit(ExitCode.ERROR_VALIDATION);
     }
 

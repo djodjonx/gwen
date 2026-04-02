@@ -1,4 +1,4 @@
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
 export type SpriteAnimParamType = 'bool' | 'int' | 'float' | 'trigger';
 export type SpriteAnimParamValue = boolean | number;

@@ -1,5 +1,5 @@
 /**
- * @file @gwenengine/app — public API surface.
+ * @file @gwenjs/app — public API surface.
  *
  * This is the primary entry point for GWEN project configuration and the
  * module system orchestrator. Import `defineConfig` here in `gwen.config.ts`.
@@ -7,9 +7,9 @@
  * @example
  * ```typescript
  * // gwen.config.ts
- * import { defineConfig } from '@gwenengine/app'
+ * import { defineConfig } from '@gwenjs/app'
  * export default defineConfig({
- *   modules: ['@gwenengine/physics2d'],
+ *   modules: ['@gwenjs/physics2d'],
  *   engine: { maxEntities: 5_000 },
  * })
  * ```
@@ -31,18 +31,18 @@ export type {
 
 export { GwenApp } from './app.js';
 
-// ─── Module authoring API (re-exported from @gwenengine/kit) ──────────────────
+// ─── Module authoring API (re-exported from @gwenjs/kit) ──────────────────
 
 /**
  * Define a GWEN module — the primary way to extend a project's build pipeline.
- * Re-exported from `@gwenengine/kit` so that consumers only need to import
- * from `@gwenengine/app` for both project configuration and module authoring.
+ * Re-exported from `@gwenjs/kit` so that consumers only need to import
+ * from `@gwenjs/app` for both project configuration and module authoring.
  */
-export { defineGwenModule } from '@gwenengine/kit';
+export { defineGwenModule } from '@gwenjs/kit';
 export type {
   GwenModule,
   GwenModuleDefinition,
   GwenKit,
   AutoImport,
   GwenTypeTemplate,
-} from '@gwenengine/kit';
+} from '@gwenjs/kit';

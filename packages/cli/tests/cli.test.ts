@@ -1,5 +1,5 @@
 /**
- * Tests @gwenengine/cli
+ * Tests @gwenjs/cli
  * Integration tests for prepare and build operations
  */
 

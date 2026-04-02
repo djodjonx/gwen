@@ -8,7 +8,7 @@ import type { EntityId } from './engine-api.js';
  * @example Augmenting with plugin hooks
  * ```typescript
  * // In a plugin package's index.d.ts:
- * declare module '@gwenengine/core' {
+ * declare module '@gwenjs/core' {
  *   interface GwenRuntimeHooks {
  *     'my:event': (payload: MyPayload) => void
  *   }

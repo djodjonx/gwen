@@ -1,5 +1,5 @@
 import { bench, describe } from 'vitest';
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 import { SpriteAnimRuntime } from '../src/runtime';
 import type { SpriteAnimUIExtension } from '../src/types';
 

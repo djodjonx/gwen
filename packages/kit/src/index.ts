@@ -1,5 +1,5 @@
 /**
- * @gwenengine/kit — GWEN plugin authoring kit.
+ * @gwenjs/kit — GWEN plugin authoring kit.
  *
  * Provides helpers and type re-exports for creating GWEN plugins.
  * Intended for plugin authors — both first-party (official plugins)
@@ -12,9 +12,9 @@
  * ## What does NOT belong here
  * - `defineSystem()`, `defineScene()`, `defineUI()`, `definePrefab()` —
  *   these are game development primitives, not plugin authoring tools.
- *   Import them from `@gwenengine/core`.
+ *   Import them from `@gwenjs/core`.
  * - `defineConfig()`, `createEngine()` — project bootstrap, not authoring.
- *   Import `defineConfig` from `@gwenengine/app` and `createEngine` from `@gwenengine/core`.
+ *   Import `defineConfig` from `@gwenjs/app` and `createEngine` from `@gwenjs/core`.
  */
 
 // ── RFC-004: Module system ────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ export type {
 } from './define-module';
 
 // ── Project config helper ─────────────────────────────────────────────────────
-// defineConfig has moved to `@gwenengine/app` (RFC-004). Do not re-export here.
+// defineConfig has moved to `@gwenjs/app` (RFC-004). Do not re-export here.
 
 // ── RFC-002: Plugin contract helpers ─────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export type { PluginTypesOptions } from './plugin-types';
 export { definePlugin } from './define-plugin';
 export type { GwenPluginFactory } from './define-plugin';
 
-// ── Type re-exports from @gwenengine/core ────────────────────────────────────
+// ── Type re-exports from @gwenjs/core ────────────────────────────────────
 // Only types necessary to *author* a plugin are re-exported here.
 // Game-loop primitives (defineSystem, defineScene, etc.) are intentionally omitted.
 
@@ -70,8 +70,11 @@ export type {
   // Hooks
   GwenRuntimeHooks,
   GwenHookable,
-} from '@gwenengine/core';
+} from '@gwenjs/core';
+
+// Schema metadata types used by plugin authors.
+export type { GwenPluginMeta, GwenTypeRefMeta } from '@gwenjs/schema';
 
 // ── Runtime re-exports (values, not types) ────────────────────────────────────
 
-export { createEntityId, unpackEntityId } from '@gwenengine/core';
+export { createEntityId, unpackEntityId } from '@gwenjs/core';

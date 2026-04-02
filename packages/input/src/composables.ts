@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/input.
+ * @file Composables for @gwenjs/input.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { KeyboardInput } from './keyboard.js';
 import type { MouseInput } from './mouse.js';
 import type { GamepadInput } from './gamepad.js';
@@ -22,7 +22,7 @@ export function useKeyboard(): KeyboardInput {
   const service = engine.tryInject('keyboard');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/input',
+    pluginName: '@gwenjs/input',
     hint: 'Call engine.use(InputPlugin()) before starting the engine.',
     docsUrl: 'https://gwenengine.dev/plugins/input',
   });
@@ -38,7 +38,7 @@ export function useMouse(): MouseInput {
   const service = engine.tryInject('mouse');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/input',
+    pluginName: '@gwenjs/input',
     hint: 'Call engine.use(InputPlugin()) before starting the engine.',
     docsUrl: 'https://gwenengine.dev/plugins/input',
   });
@@ -54,7 +54,7 @@ export function useGamepad(): GamepadInput {
   const service = engine.tryInject('gamepad');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/input',
+    pluginName: '@gwenjs/input',
     hint: 'Call engine.use(InputPlugin()) before starting the engine.',
     docsUrl: 'https://gwenengine.dev/plugins/input',
   });
@@ -70,7 +70,7 @@ export function useInputMapper(): InputMapper {
   const service = engine.tryInject('inputMapper');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/input',
+    pluginName: '@gwenjs/input',
     hint: 'Call engine.use(InputPlugin({ actionMap: ... })) with an actionMap to enable the input mapper.',
     docsUrl: 'https://gwenengine.dev/plugins/input#action-map',
   });

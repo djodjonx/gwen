@@ -1,4 +1,4 @@
-import type { GwenEngine, EntityId } from '@gwenengine/core';
+import type { GwenEngine, EntityId } from '@gwenjs/core';
 import type { Physics2DAPI, SensorState } from './types';
 
 const DEFAULT_PIXELS_PER_METER = 50;
@@ -38,7 +38,7 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
 
     setup(engine: GwenEngine) {
       _physics = engine.inject(
-        'physics2d' as keyof import('@gwenengine/core').GwenProvides,
+        'physics2d' as keyof import('@gwenjs/core').GwenProvides,
       ) as unknown as Physics2DAPI;
     },
 

@@ -1,5 +1,5 @@
-import { Keys, GamepadButtons, BindingType, InputTypeValues as InputType } from '@gwenengine/input';
-import type { InputMapConfig } from '@gwenengine/input';
+import { Keys, GamepadButtons, BindingType, InputTypeValues as InputType } from '@gwenjs/input';
+import type { InputMapConfig } from '@gwenjs/input';
 
 /**
  * Default input map for a 2D platformer.

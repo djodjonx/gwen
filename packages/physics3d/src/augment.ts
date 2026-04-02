@@ -1,15 +1,15 @@
 /**
- * @file GwenProvides and GwenRuntimeHooks augmentations for @gwenengine/physics3d.
+ * @file GwenProvides and GwenRuntimeHooks augmentations for @gwenjs/physics3d.
  *
  * This file contains only TypeScript declaration merging — no runtime code.
- * Importing any symbol from `@gwenengine/physics3d` automatically augments
- * `@gwenengine/core` with typed physics service keys and hooks.
+ * Importing any symbol from `@gwenjs/physics3d` automatically augments
+ * `@gwenjs/core` with typed physics service keys and hooks.
  */
 
 import type { Physics3DAPI } from './types.js';
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
-declare module '@gwenengine/core' {
+declare module '@gwenjs/core' {
   /**
    * Physics 3D service slot in the engine's provide/inject registry.
    * Available after `engine.use(physics3dPlugin())` completes setup.

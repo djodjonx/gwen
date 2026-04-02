@@ -1,13 +1,13 @@
 /**
- * @file GwenProvides augmentations for @gwenengine/ui.
+ * @file GwenProvides augmentations for @gwenjs/ui.
  *
- * Importing any symbol from `@gwenengine/ui` automatically augments
- * `@gwenengine/core` with a typed HTML UI service key.
+ * Importing any symbol from `@gwenjs/ui` automatically augments
+ * `@gwenjs/core` with a typed HTML UI service key.
  */
 
 import type { HtmlUI } from './index.js';
 
-declare module '@gwenengine/core' {
+declare module '@gwenjs/core' {
   /**
    * HTML UI service slot in the engine's provide/inject registry.
    * Available after `engine.use(HtmlUIPlugin())` completes setup.

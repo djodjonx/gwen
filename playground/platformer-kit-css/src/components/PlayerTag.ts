@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@gwenengine/core';
+import { defineComponent, Types } from '@gwenjs/core';
 
 /** Marker component used to identify the player entity. */
 export const PlayerTag = defineComponent({

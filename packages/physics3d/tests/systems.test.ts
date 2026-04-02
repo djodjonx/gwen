@@ -16,7 +16,7 @@ const mockBridge = {
   })),
 };
 
-vi.mock('@gwenengine/core', () => ({
+vi.mock('@gwenjs/core', () => ({
   getWasmBridge: () => mockBridge,
   unpackEntityId: (id: bigint) => ({ index: Number(id & 0xffffffffn), generation: 0 }),
   createEntityId: (index: number, gen: number) => BigInt(index) | (BigInt(gen) << 32n),

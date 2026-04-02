@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Canvas2DRenderer } from '../src/renderer';
 import { ShapeRenderer } from '../src/shapes';
 import type { SpriteComponent, TransformComponent, RendererService } from '../src/renderer';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Canvas mock ──────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ describe('Canvas2DRenderer', () => {
 
     it('should have name "Canvas2DRenderer"', () => {
       const renderer = Canvas2DRenderer({ canvas: 'x', pixelRatio: 1 });
-      expect(renderer.name).toBe('@gwenengine/renderer-canvas2d');
+      expect(renderer.name).toBe('@gwenjs/renderer-canvas2d');
     });
   });
 

@@ -1,4 +1,4 @@
-#@gwenengine/schema
+#@gwenjs/schema
 
 ## 1.0.0
 

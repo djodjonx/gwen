@@ -1,13 +1,25 @@
 /**
- * Configuration loader using C12 and @gwenengine/schema.
+ * Configuration loader using C12 and @gwenjs/schema.
  */
 
 import { loadConfig } from 'c12';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { resolveConfig, type GwenConfigInput, type GwenOptions } from '@gwenengine/schema';
+import {
+  assertModuleFirstInput,
+  resolveConfig,
+  type GwenConfigInput,
+  type GwenOptions,
+} from '@gwenjs/schema';
 import { logger } from '../utils/logger.js';
 import { CONFIG_FILE_NAMES } from '../utils/constants.js';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 export interface LoadConfigResult {
   config: GwenOptions;
@@ -53,7 +65,9 @@ export async function loadGwenConfig(
 
   logger.debug(`[loadGwenConfig] Found config file: ${absolutePath}`);
 
-  const resolved = resolveConfig(config ?? {});
+  const rawConfig = (config ?? {}) as GwenConfigInput;
+  assertModuleFirstInput(rawConfig);
+  const resolved = resolveConfig(rawConfig);
   resolved.rootDir = cwd;
   resolved.dev = process.env.NODE_ENV === 'development';
 
@@ -67,9 +81,14 @@ export async function loadGwenConfig(
  * Find config file without loading it (for info command)
  */
 export async function findConfigFile(cwd: string): Promise<string | null> {
-  const { configFile } = await loadConfig({
-    name: 'gwen',
-    cwd,
-  });
-  return configFile ?? null;
+  try {
+    const { configFile } = await loadConfig({
+      name: 'gwen',
+      cwd,
+    });
+    return configFile ?? null;
+  } catch (error: unknown) {
+    logger.debug(`findConfigFile failed: ${getErrorMessage(error)}`);
+    return null;
+  }
 }

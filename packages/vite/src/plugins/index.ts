@@ -23,7 +23,7 @@ export { gwenVirtualPlugin } from './virtual-env.js';
  * @example vite.config.ts
  * ```ts
  * import { defineConfig } from 'vite'
- * import { gwenVitePlugin } from '@gwenengine/vite'
+ * import { gwenVitePlugin } from '@gwenjs/vite'
  *
  * export default defineConfig({
  *   plugins: [gwenVitePlugin()],

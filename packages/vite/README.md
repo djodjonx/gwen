@@ -1,4 +1,4 @@
-# @gwenengine/vite
+# @gwenjs/vite
 
 **GWEN Vite Plugin — WASM hot-reload, asset management, and scene auto-discovery**
 
@@ -7,7 +7,7 @@ Integrate GWEN with Vite for seamless development with WASM hot-reloading.
 ## Installation
 
 ```bash
-npm install -D @gwenengine/vite
+npm install -D @gwenjs/vite
 ```
 
 ## Quick Start
@@ -16,7 +16,7 @@ npm install -D @gwenengine/vite
 
 ```typescript
 import { defineConfig } from 'vite';
-import { gwen } from '@gwenengine/vite';
+import { gwen } from '@gwenjs/vite';
 
 export default defineConfig({
   plugins: [
@@ -33,7 +33,7 @@ export default defineConfig({
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { gwen } from '@gwenengine/vite';
+import { gwen } from '@gwenjs/vite';
 
 export default defineConfig({
   plugins: [gwen()],
@@ -83,7 +83,7 @@ Current implemented behavior is intentionally safe and incremental:
 
 ```typescript
 import { defineConfig } from 'vite';
-import { gwen, gwenTransform } from '@gwenengine/vite';
+import { gwen, gwenTransform } from '@gwenjs/vite';
 
 export default defineConfig({
   plugins: [
@@ -100,7 +100,7 @@ export default defineConfig({
 Subpath import is also supported:
 
 ```typescript
-import { gwenTransform } from '@gwenengine/vite/transform';
+import { gwenTransform } from '@gwenjs/vite/transform';
 ```
 
 ## Configuration
@@ -151,7 +151,7 @@ interface GwenTransformOptions {
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { gwen } from '@gwenengine/vite';
+import { gwen } from '@gwenjs/vite';
 
 export default defineConfig({
   plugins: [
@@ -184,7 +184,7 @@ export default defineConfig({
 
 ```typescript
 // src/scenes/GameScene.ts
-import { defineScene } from '@gwenengine/core';
+import { defineScene } from '@gwenjs/core';
 
 export const GameScene = defineScene('game', () => ({
   onInit(api) {
@@ -241,6 +241,6 @@ console.log(manifest.wasmPath); // Path to WASM binary
 
 ## See Also
 
-- [@gwenengine/core](../engine-core/) — Core engine
-- [@gwenengine/cli](../cli/) — Command-line interface
+- [@gwenjs/core](../engine-core/) — Core engine
+- [@gwenjs/cli](../cli/) — Command-line interface
 - [Vite Documentation](https://vitejs.dev)

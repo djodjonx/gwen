@@ -1,5 +1,5 @@
 /**
- * @file RFC-005 — Composable context system for @gwenengine/core
+ * @file RFC-005 — Composable context system for @gwenjs/core
  *
  * Provides `engineContext` (backed by unctx) and the `useEngine()` composable.
  * The engine wraps its entire frame loop and plugin setup calls in this context,

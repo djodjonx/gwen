@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/renderer-canvas2d",
+  "name": "@gwenjs/renderer-canvas2d",
   "version": "1.0.0",
   "description": "GWEN Canvas2D Renderer Plugin",
   "files": [
@@ -21,8 +21,8 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -34,7 +34,7 @@
     "type": "typescript",
     "serviceTypes": {
       "renderer": {
-        "from": "@gwenengine/gwen-renderer-canvas2d",
+        "from": "@gwenjs/gwen-renderer-canvas2d",
         "exportName": "Canvas2DRendererService"
       }
     }

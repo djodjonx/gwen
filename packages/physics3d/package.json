@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/physics3d",
+  "name": "@gwenjs/physics3d",
   "version": "1.0.0",
   "description": "3D physics plugin foundation for GWEN \u2014 Rapier3D adapter surface",
   "files": [
@@ -21,8 +21,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -34,7 +34,7 @@
     "type": "typescript",
     "serviceTypes": {
       "physics3d": {
-        "from": "@gwenengine/physics3d",
+        "from": "@gwenjs/physics3d",
         "exportName": "Physics3DAPI"
       }
     }

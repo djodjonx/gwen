@@ -1,4 +1,4 @@
-#@gwenengine/input
+#@gwenjs/input
 
 ## 1.0.0
 

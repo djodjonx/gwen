@@ -64,7 +64,7 @@ describe('prepare integration', () => {
 
     const content = fs.readFileSync(htmlPath, 'utf-8');
     expect(content).toContain('<!DOCTYPE html>');
-    expect(content).toContain('/@gwenengine/gwen-entry');
+    expect(content).toContain('/@gwenjs/gwen-entry');
   });
 
   it('should create or patch tsconfig.json', async () => {

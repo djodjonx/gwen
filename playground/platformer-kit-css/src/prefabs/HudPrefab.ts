@@ -1,5 +1,5 @@
-import { UIComponent, definePrefab } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import { UIComponent, definePrefab } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
 
 export const HudPrefab = definePrefab({
   name: 'Hud',

@@ -1,4 +1,4 @@
-#@gwenengine/gwen-plugin-html-ui
+#@gwenjs/gwen-plugin-html-ui
 
 ## 1.0.0
 

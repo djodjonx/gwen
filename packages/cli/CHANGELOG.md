@@ -1,4 +1,4 @@
-#@gwenengine/cli
+#@gwenjs/cli
 
 ## 1.0.0
 

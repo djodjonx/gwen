@@ -21,13 +21,13 @@ describe('dts generator', () => {
 
   it('generates direct imports and strict interfaces when metadata is provided', async () => {
     const meta: CollectedPluginTypingMeta = {
-      typeReferences: ['@gwenengine/gwen-plugin-html-ui/vite-env'],
+      typeReferences: ['@gwenjs/gwen-plugin-html-ui/vite-env'],
       serviceTypes: {
-        keyboard: { from: '@gwenengine/input', exportName: 'KeyboardInput' },
+        keyboard: { from: '@gwenjs/input', exportName: 'KeyboardInput' },
       },
       hookTypes: {
         'physics:collision': {
-          from: '@gwenengine/physics2d',
+          from: '@gwenjs/physics2d',
           exportName: 'CollisionHook',
         },
       },
@@ -38,8 +38,8 @@ describe('dts generator', () => {
 
     const out = await generateDts(tmpDir, configPath, meta);
 
-    expect(out).toContain("import type { KeyboardInput } from '@gwenengine/input';");
-    expect(out).toContain("import type { CollisionHook } from '@gwenengine/physics2d';");
+    expect(out).toContain("import type { KeyboardInput } from '@gwenjs/input';");
+    expect(out).toContain("import type { CollisionHook } from '@gwenjs/physics2d';");
     expect(out).toContain('interface GwenDefaultServices {');
     expect(out).toContain('keyboard: KeyboardInput;');
     expect(out).toContain('interface GwenDefaultHooks extends CollisionHook');

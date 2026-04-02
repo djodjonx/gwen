@@ -1,4 +1,4 @@
-#@gwenengine/kit
+#@gwenjs/kit
 
 ## 1.0.0
 

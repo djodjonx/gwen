@@ -1,15 +1,15 @@
 /**
- * @file RFC-009 — GwenProvides and GwenRuntimeHooks augmentations for @gwenengine/physics2d.
+ * @file RFC-009 — GwenProvides and GwenRuntimeHooks augmentations for @gwenjs/physics2d.
  *
  * This file contains only TypeScript declaration merging — no runtime code.
- * Importing any symbol from `@gwenengine/physics2d` automatically augments
- * `@gwenengine/core` with typed physics service keys and hooks.
+ * Importing any symbol from `@gwenjs/physics2d` automatically augments
+ * `@gwenjs/core` with typed physics service keys and hooks.
  */
 
 import type { Physics2DAPI } from './types.js';
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
-declare module '@gwenengine/core' {
+declare module '@gwenjs/core' {
   /**
    * Physics 2D service slot in the engine's provide/inject registry.
    * Available after `engine.use(physics2dPlugin())` completes setup.

@@ -30,14 +30,14 @@ describe('appendModuleToConfig', () => {
     const configPath = path.join(tmpDir, 'gwen.config.ts');
     await fs.writeFile(
       configPath,
-      `import { defineConfig } from '@gwenengine/app'\nexport default defineConfig({ modules: [] })\n`,
+      `import { defineConfig } from '@gwenjs/app'\nexport default defineConfig({ modules: [] })\n`,
       'utf8',
     );
 
-    await appendModuleToConfig('@gwenengine/physics', { configPath });
+    await appendModuleToConfig('@gwenjs/physics', { configPath });
 
     const content = await fs.readFile(configPath, 'utf8');
-    expect(content).toContain('@gwenengine/physics');
+    expect(content).toContain('@gwenjs/physics');
     expect(content).toContain('modules:');
   });
 
@@ -45,21 +45,21 @@ describe('appendModuleToConfig', () => {
     const configPath = path.join(tmpDir, 'gwen.config.ts');
     await fs.writeFile(
       configPath,
-      `import { defineConfig } from '@gwenengine/app'\nexport default defineConfig({ modules: ['@gwenengine/physics'] })\n`,
+      `import { defineConfig } from '@gwenjs/app'\nexport default defineConfig({ modules: ['@gwenjs/physics'] })\n`,
       'utf8',
     );
 
-    await appendModuleToConfig('@gwenengine/physics', { configPath });
+    await appendModuleToConfig('@gwenjs/physics', { configPath });
 
     const content = await fs.readFile(configPath, 'utf8');
     // Should appear exactly once.
-    const occurrences = content.split('@gwenengine/physics').length - 1;
+    const occurrences = content.split('@gwenjs/physics').length - 1;
     expect(occurrences).toBe(1);
   });
 
   it('throws when the config file does not exist', async () => {
     const configPath = path.join(tmpDir, 'nonexistent.ts');
-    await expect(appendModuleToConfig('@gwenengine/audio', { configPath })).rejects.toThrow(
+    await expect(appendModuleToConfig('@gwenjs/audio', { configPath })).rejects.toThrow(
       '[GWEN:ConfigWriter]',
     );
   });
@@ -68,7 +68,7 @@ describe('appendModuleToConfig', () => {
     const configPath = path.join(tmpDir, 'gwen.config.ts');
     await fs.writeFile(configPath, `export default {}\n`, 'utf8');
 
-    await expect(appendModuleToConfig('@gwenengine/audio', { configPath })).rejects.toThrow(
+    await expect(appendModuleToConfig('@gwenjs/audio', { configPath })).rejects.toThrow(
       '[GWEN:ConfigWriter]',
     );
   });
@@ -77,15 +77,15 @@ describe('appendModuleToConfig', () => {
     const configPath = path.join(tmpDir, 'gwen.config.ts');
     await fs.writeFile(
       configPath,
-      `import { defineConfig } from '@gwenengine/app'\nexport default defineConfig({ modules: [] })\n`,
+      `import { defineConfig } from '@gwenjs/app'\nexport default defineConfig({ modules: [] })\n`,
       'utf8',
     );
 
-    await appendModuleToConfig('@gwenengine/physics', { configPath });
-    await appendModuleToConfig('@gwenengine/audio', { configPath });
+    await appendModuleToConfig('@gwenjs/physics', { configPath });
+    await appendModuleToConfig('@gwenjs/audio', { configPath });
 
     const content = await fs.readFile(configPath, 'utf8');
-    expect(content).toContain('@gwenengine/physics');
-    expect(content).toContain('@gwenengine/audio');
+    expect(content).toContain('@gwenjs/physics');
+    expect(content).toContain('@gwenjs/audio');
   });
 });

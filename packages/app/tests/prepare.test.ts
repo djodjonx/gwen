@@ -17,7 +17,7 @@ import { mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { GwenApp } from '../src/app.js';
-import { defineGwenModule } from '@gwenengine/kit';
+import { defineGwenModule } from '@gwenjs/kit';
 import type { ResolvedGwenConfig } from '../src/config.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ describe('GwenApp.prepare()', () => {
     const mod = defineGwenModule({
       meta: { name: 'test-mod' },
       setup(_opts, gwen) {
-        gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenengine/physics2d' }]);
+        gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenjs/physics2d' }]);
       },
     });
 
@@ -73,16 +73,14 @@ describe('GwenApp.prepare()', () => {
 
     const content = readFileSync(join(tmpRoot, '.gwen', 'types', 'auto-imports.d.ts'), 'utf8');
     expect(content).toContain('declare const usePhysics2D');
-    expect(content).toContain('@gwenengine/physics2d');
+    expect(content).toContain('@gwenjs/physics2d');
   });
 
   it('uses `as` alias in auto-imports.d.ts', async () => {
     const mod = defineGwenModule({
       meta: { name: 'alias-mod' },
       setup(_opts, gwen) {
-        gwen.addAutoImports([
-          { name: 'useRigidBody', from: '@gwenengine/physics2d', as: 'useBody' },
-        ]);
+        gwen.addAutoImports([{ name: 'useRigidBody', from: '@gwenjs/physics2d', as: 'useBody' }]);
       },
     });
 
@@ -125,7 +123,7 @@ describe('GwenApp.prepare()', () => {
         gwen.addTypeTemplate({
           filename: 'physics2d.d.ts',
           getContents: () =>
-            `declare module '@gwenengine/core' { interface GwenProvides { physics2d: unknown } }`,
+            `declare module '@gwenjs/core' { interface GwenProvides { physics2d: unknown } }`,
         });
       },
     });

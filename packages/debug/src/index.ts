@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { DebugPlugin } from '@gwenengine/debug';
+ * import { DebugPlugin } from '@gwenjs/debug';
  *
  * export default defineConfig({
  *   plugins: [DebugPlugin({ overlay: true })],
@@ -17,8 +17,8 @@
  * ```
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import type { GwenEngine } from '@gwenengine/core';
+import { definePlugin } from '@gwenjs/kit';
+import type { GwenEngine } from '@gwenjs/core';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
 import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';
@@ -93,7 +93,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
   let _engine: GwenEngine;
 
   return {
-    name: '@gwenengine/debug',
+    name: '@gwenjs/debug',
 
     setup(engine: GwenEngine): void {
       _engine = engine;

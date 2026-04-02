@@ -26,7 +26,7 @@ export default defineConfig({
           id.startsWith('jiti') ||
           id.startsWith('oxlint') ||
           id.startsWith('oxfmt') ||
-          id.startsWith('@gwenengine/gwen-') ||
+          id.startsWith('@gwenjs/gwen-') ||
           id.startsWith('node:') ||
           !id.startsWith('.')
         );
@@ -47,7 +47,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['tests/**/*', 'node_modules/**/*', '**/*vite-config-builder*'],
       outDir: 'dist',
-      rollupTypes: true,
+      rollupTypes: false,
     }),
   ],
 });

@@ -1,5 +1,5 @@
 /**
- * @gwenengine/kit — definePlugin() unit tests (RFC-002).
+ * @gwenjs/kit — definePlugin() unit tests (RFC-002).
  *
  * Tests the factory-function API: `definePlugin(factory)` returns a typed
  * `PluginFactory` function. Calling that factory (with or without options)
@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { definePlugin } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 

@@ -17,7 +17,7 @@ This guide covers the Sprint 6 tilemap workflow:
 ## Baking chunks
 
 ```ts
-import { buildTilemapPhysicsChunks } from '@gwenengine/physics2d';
+import { buildTilemapPhysicsChunks } from '@gwenjs/physics2d';
 
 const baked = buildTilemapPhysicsChunks({
   tiles,
@@ -76,7 +76,7 @@ This removes the fixed body and all attached colliders for that chunk.
 import {
   buildTilemapPhysicsChunks,
   patchTilemapPhysicsChunk,
-} from '@gwenengine/physics2d';
+} from '@gwenjs/physics2d';
 
 const patchedBake = patchTilemapPhysicsChunk({
   source: {
@@ -102,8 +102,8 @@ if (patchedChunk) {
 Use helper subpaths to keep imports targeted:
 
 ```ts
-import { buildStaticGeometryChunk } from '@gwenengine/physics2d/helpers/static-geometry';
-import { createTilemapChunkOrchestrator } from '@gwenengine/physics2d/helpers/orchestration';
+import { buildStaticGeometryChunk } from '@gwenjs/physics2d/helpers/static-geometry';
+import { createTilemapChunkOrchestrator } from '@gwenjs/physics2d/helpers/orchestration';
 ```
 
 Minimal runtime flow:

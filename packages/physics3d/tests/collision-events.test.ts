@@ -53,7 +53,7 @@ const mockBridge = {
   getEntityGeneration: vi.fn((_slot: number) => 0),
 };
 
-vi.mock('@gwenengine/core', () => ({
+vi.mock('@gwenjs/core', () => ({
   getWasmBridge: () => mockBridge,
   unpackEntityId: (id: bigint) => ({
     index: Number(id & 0xffffffffn),
@@ -64,7 +64,7 @@ vi.mock('@gwenengine/core', () => ({
 }));
 
 import { Physics3DPlugin, type Physics3DAPI } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

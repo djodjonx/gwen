@@ -1,13 +1,13 @@
-# @gwenengine/kit-platformer
+# @gwenjs/kit-platformer
 
 Platformer kit for GWEN — player physics, movement system, grounded detection, and scene helpers.
 
-Requires `@gwenengine/physics2d` to be registered as a plugin.
+Requires `@gwenjs/physics2d` to be registered as a plugin.
 
 ## Quick start
 
 ```ts
-import { createPlayerPrefab, createPlatformerScene } from '@gwenengine/kit-platformer';
+import { createPlayerPrefab, createPlatformerScene } from '@gwenjs/kit-platformer';
 
 const PlayerPrefab = createPlayerPrefab({
   speed: 300,
@@ -21,21 +21,21 @@ Legacy aliases still work (`jumpForce`, `coyoteMs`, `jumpBufferMs`) but are depr
 
 ## Import migration (subpath-first)
 
-Since `@gwenengine/physics2d` exposes tree-shakable subpaths, the kit
+Since `@gwenjs/physics2d` exposes tree-shakable subpaths, the kit
 uses targeted imports internally. If you reference physics types in your own code:
 
 ```ts
 // Old (full bundle — still works but pulls more code)
-import { SENSOR_ID_FOOT } from '@gwenengine/physics2d';
-import type { Physics2DAPI } from '@gwenengine/physics2d';
+import { SENSOR_ID_FOOT } from '@gwenjs/physics2d';
+import type { Physics2DAPI } from '@gwenjs/physics2d';
 
 // New (subpath — tree-shaking safe)
-import { SENSOR_ID_FOOT } from '@gwenengine/physics2d/core';
-import type { Physics2DAPI } from '@gwenengine/physics2d/core';
+import { SENSOR_ID_FOOT } from '@gwenjs/physics2d/core';
+import type { Physics2DAPI } from '@gwenjs/physics2d/core';
 
 // Helpers domain (e.g. reading body state)
-import { getBodySnapshot, isSensorActive } from '@gwenengine/physics2d/helpers/queries';
-import { applyDirectionalImpulse } from '@gwenengine/physics2d/helpers/movement';
+import { getBodySnapshot, isSensorActive } from '@gwenjs/physics2d/helpers/queries';
+import { applyDirectionalImpulse } from '@gwenjs/physics2d/helpers/movement';
 ```
 
 ## API
@@ -64,7 +64,7 @@ Creates a basic scene with a floor and optional ceiling/walls.
 Builds and loads merged static level colliders from pixel-authored blocks.
 
 ```ts
-import { createPlatformerStaticGeometry } from '@gwenengine/kit-platformer';
+import { createPlatformerStaticGeometry } from '@gwenjs/kit-platformer';
 
 const level = createPlatformerStaticGeometry(physics, {
   blocks: [{ x: 640, y: 550, w: 1280, h: 64 }],

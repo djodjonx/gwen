@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/app",
+  "name": "@gwenjs/app",
   "version": "0.1.0",
   "license": "MPL-2.0",
   "type": "module",
@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gwenengine/kit": "workspace:*",
+    "@gwenjs/kit": "workspace:*",
     "c12": "4.0.0-beta.3",
     "defu": "^6.1.4",
     "hookable": "^6.0.1"

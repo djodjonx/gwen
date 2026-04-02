@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/math",
+  "name": "@gwenjs/math",
   "version": "1.0.0",
   "description": "Math utilities for GWEN \u2014 lerp, damp, spring, vec3, quat helpers",
   "files": [

@@ -1,4 +1,4 @@
-// packages/@gwenengine/kit-platformer/src/index.ts
+// packages/@gwenjs/kit-platformer/src/index.ts
 
 // ── Level 1 — Turnkey scene ────────────────────────────────────────────────
 export { createPlatformerScene } from './scenes/platformer.js';

@@ -11,16 +11,16 @@
     "preview": "gwen preview"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*",
-    "@gwenengine/cli": "workspace:*",
-    "@gwenengine/vite": "workspace:*",
-    "@gwenengine/physics2d": "workspace:*",
-    "@gwenengine/input": "workspace:*",
-    "@gwenengine/audio": "workspace:*",
-    "@gwenengine/debug": "workspace:*",
-    "@gwenengine/ui": "workspace:*",
-    "@gwenengine/renderer-canvas2d": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*",
+    "@gwenjs/cli": "workspace:*",
+    "@gwenjs/vite": "workspace:*",
+    "@gwenjs/physics2d": "workspace:*",
+    "@gwenjs/input": "workspace:*",
+    "@gwenjs/audio": "workspace:*",
+    "@gwenjs/debug": "workspace:*",
+    "@gwenjs/ui": "workspace:*",
+    "@gwenjs/renderer-canvas2d": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

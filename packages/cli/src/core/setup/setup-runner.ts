@@ -1,11 +1,26 @@
-// packages/@gwenengine/cli/src/core/setup/setup-runner.ts
-import type { GwenOptions } from '@gwenengine/schema';
+// packages/@gwenjs/cli/src/core/setup/setup-runner.ts
+import type { GwenOptions } from '@gwenjs/schema';
 import type { GwenModuleContext, GwenPluginSetup } from './types.js';
 import { logger as cliLogger } from '../../utils/logger.js';
 
+interface NodeImportError {
+  code?: string;
+}
+
+function getNodeImportErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+
+  const { code } = error as NodeImportError;
+  return typeof code === 'string' ? code : undefined;
+}
+
 /**
- * Erreur levée quand un plugin appelle ctx.logger.error() dans son setup.
- * Attrapée dans commands/prepare.ts pour process.exit(1) propre.
+ * Error thrown when a plugin setup uses `ctx.logger.error()`.
+ *
+ * The prepare and dev command paths catch this error and stop with a clean,
+ * plugin-scoped message.
  */
 export class GwenSetupError extends Error {
   constructor(
@@ -18,20 +33,19 @@ export class GwenSetupError extends Error {
 }
 
 /**
- * Exécute les hooks setup() de tous les plugins déclarés dans la config.
+ * Execute setup hooks for each declared runtime plugin.
  *
- * Pour chaque plugin :
- * 1. Résout `<packageName>/setup` via exports conditionnels Node.js
- * 2. Si le sous-module n'existe pas → continue silencieusement
- * 3. Exécute `mod.setup(ctx)` avec un logger qui throw GwenSetupError sur error()
+ * For each plugin, this function:
+ * 1. Resolves `<packageName>/setup` through Node.js package exports.
+ * 2. Silently skips plugins without a setup entry.
+ * 3. Invokes `mod.setup(ctx)` with a logger that throws `GwenSetupError`
+ *    when `error()` is called.
  *
- * @param _projectDir  Répertoire racine (réservé — résolution via Node.js module)
- * @param config       Config GWEN résolue
- * @param importer     Fonction d'import injectable. Défaut : `(id) => import(id)`.
- *                     Injecter un faux loader dans les tests (évite vi.mock absolu).
- *
- * @throws {GwenSetupError} si un plugin appelle ctx.logger.error()
- * @throws {Error} pour toute autre erreur (syntaxe, runtime) — non interceptée
+ * @param _projectDir Reserved project root parameter used by command callers.
+ * @param config Fully resolved GWEN configuration.
+ * @param importer Injectable import function used by tests.
+ * @throws GwenSetupError when setup emits a blocking plugin error.
+ * @throws Error for unexpected module resolution or runtime failures.
  */
 export async function runPluginSetups(
   _projectDir: string,
@@ -40,19 +54,20 @@ export async function runPluginSetups(
 ): Promise<void> {
   for (const plugin of config.plugins ?? []) {
     const pluginName = plugin.name ?? 'unknown';
-    // Priorité : plugin.packageName (si présent) > plugin.name
-    const packageName = ((plugin as any).packageName as string | undefined) ?? plugin.name;
+    // Priority: explicit packageName first, then fallback to plugin name.
+    const packageName = plugin.packageName ?? plugin.name;
 
     if (!packageName) continue;
 
     let mod: GwenPluginSetup;
     try {
       mod = (await importer(`${packageName}/setup`)) as GwenPluginSetup;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const code = getNodeImportErrorCode(err);
       if (
-        err.code === 'ERR_MODULE_NOT_FOUND' ||
-        err.code === 'MODULE_NOT_FOUND' ||
-        err.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+        code === 'ERR_MODULE_NOT_FOUND' ||
+        code === 'MODULE_NOT_FOUND' ||
+        code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
       ) {
         cliLogger.trace(`No setup module for ${pluginName}`);
         continue;

@@ -42,8 +42,8 @@ async function promptPluginName(): Promise<string> {
  */
 function pluginTemplate(name: string): string {
   const exportName = `${name}Plugin`;
-  return `import { definePlugin } from '@gwenengine/kit'
-import type { GwenEngine } from '@gwenengine/core'
+  return `import { definePlugin } from '@gwenjs/kit'
+import type { GwenEngine } from '@gwenjs/core'
 
 /**
  * ${name} plugin

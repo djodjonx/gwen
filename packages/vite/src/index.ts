@@ -1,5 +1,5 @@
 /**
- * @gwenengine/vite — Plugin Vite pour les projets GWEN
+ * @gwenjs/vite — Plugin Vite pour les projets GWEN
  *
  * Fonctionnalités :
  *  1. **WASM hot-reload** : surveille les fichiers `.rs` du crate Rust,
@@ -13,7 +13,7 @@
  *
  * Usage dans vite.config.ts :
  * ```typescript
- * import { gwen } from '@gwenengine/vite';
+ * import { gwen } from '@gwenjs/vite';
  *
  * export default defineConfig({
  *   plugins: [
@@ -79,13 +79,13 @@ export interface GwenPluginOptions {
 const VIRTUAL_MANIFEST_ID = 'virtual:gwen-manifest';
 const RESOLVED_VIRTUAL_MANIFEST = '\0' + VIRTUAL_MANIFEST_ID;
 
-// /@gwenengine/gwen- prefix — resolved as real HTTP path by browser,
+// /@gwenjs/gwen- prefix — resolved as real HTTP path by browser,
 // intercepted by resolveId before Vite looks on disk.
 // Pattern identical to /@vite/ and /@fs/ used by Vite itself.
-const GWEN_ENTRY_ID = '/@gwenengine/gwen-entry';
-const GWEN_SCENES_ID = '/@gwenengine/gwen-scenes';
-const RESOLVED_ENTRY = '\0/@gwenengine/gwen-entry';
-const RESOLVED_SCENES = '\0/@gwenengine/gwen-scenes';
+const GWEN_ENTRY_ID = '/@gwenjs/gwen-entry';
+const GWEN_SCENES_ID = '/@gwenjs/gwen-scenes';
+const RESOLVED_ENTRY = '\0/@gwenjs/gwen-entry';
+const RESOLVED_SCENES = '\0/@gwenjs/gwen-scenes';
 
 // ── Scan src/scenes/ ──────────────────────────────────────────────────────────
 
@@ -196,12 +196,12 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
 
 function generateEntryModule(hasScenesDir: boolean): string {
   const lines = [
-    'import { initWasm, createEngine, detectCoreVariant, detectSharedMemoryRequired } from "@gwenengine/core";',
+    'import { initWasm, createEngine, detectCoreVariant, detectSharedMemoryRequired } from "@gwenjs/core";',
     'import gwenConfig from "/gwen.config.ts";',
   ];
 
   if (hasScenesDir) {
-    lines.push('import { registerScenes, mainScene } from "/@gwenengine/gwen-scenes";');
+    lines.push('import { registerScenes, mainScene } from "/@gwenjs/gwen-scenes";');
   }
 
   lines.push(
@@ -229,11 +229,11 @@ function generateEntryModule(hasScenesDir: boolean): string {
 // ── Plugin principal ──────────────────────────────────────────────────────────
 
 /**
- * Scan node_modules/@gwenengine/gwen-plugin-* for WASM artifacts.
+ * Scan node_modules/@gwenjs/gwen-plugin-* for WASM artifacts.
  * Returns the full path to the file if found, null otherwise.
  */
 function findWasmPluginFile(root: string, fileName: string): string | null {
-  const nmDir = path.resolve(root, 'node_modules/@gwenengine');
+  const nmDir = path.resolve(root, 'node_modules/@gwenjs');
   if (!fs.existsSync(nmDir)) return null;
 
   for (const entry of fs.readdirSync(nmDir)) {
@@ -252,7 +252,7 @@ function findWasmPluginFile(root: string, fileName: string): string | null {
  */
 function collectWasmPluginDirs(root: string): string[] {
   const dirs: string[] = [];
-  const nmDir = path.resolve(root, 'node_modules/@gwenengine');
+  const nmDir = path.resolve(root, 'node_modules/@gwenjs');
   if (!fs.existsSync(nmDir)) return [];
 
   for (const entry of fs.readdirSync(nmDir)) {
@@ -276,7 +276,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
   /**
    * Répertoire source des fichiers WASM à servir :
-   * - Sans crate Rust : @gwenengine/core/wasm/
+   * - Sans crate Rust : @gwenjs/core/wasm/
    * - Avec crate Rust  : dossier de sortie wasm-pack (dans .gwen/wasm/)
    */
   let wasmSourceDir: string | null = null;
@@ -318,13 +318,13 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
   /**
    * Trouve le répertoire contenant les artefacts WASM pré-compilés dans
-   * @gwenengine/core/wasm/ de manière robuste via la résolution de module.
+   * @gwenjs/core/wasm/ de manière robuste via la résolution de module.
    */
   function findPrecompiledWasmDir(root: string): string | null {
     try {
       // In Node.js ESM, we can resolve the package location.
       // We look for the package.json path to find the base directory of the engine-core package.
-      const pkgUrl = import.meta.resolve('@gwenengine/core/package.json');
+      const pkgUrl = import.meta.resolve('@gwenjs/core/package.json');
       const pkgPath = fileURLToPath(pkgUrl);
       const wasmDir = path.join(path.dirname(pkgPath), 'wasm');
 
@@ -336,7 +336,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       // Fallback
     }
 
-    const candidate = path.resolve(root, 'node_modules/@gwenengine/core/wasm');
+    const candidate = path.resolve(root, 'node_modules/@gwenjs/core/wasm');
     if (fs.existsSync(candidate)) {
       log(`Found WASM dir via node_modules: ${candidate}`);
       return candidate;
@@ -378,7 +378,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
       const precompiled = findPrecompiledWasmDir(root);
       if (!precompiled) {
         console.warn(
-          '[gwen-vite] No pre-compiled WASM found in @gwenengine/core/wasm — WASM unavailable',
+          '[gwen-vite] No pre-compiled WASM found in @gwenjs/core/wasm — WASM unavailable',
         );
         return false;
       }
@@ -390,7 +390,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     const wasmPack = findWasmPack();
     if (!wasmPack) {
       console.warn(
-        '[gwen-vite] wasm-pack not found — falling back to pre-compiled WASM from @gwenengine/core',
+        '[gwen-vite] wasm-pack not found — falling back to pre-compiled WASM from @gwenjs/core',
       );
       const precompiled = findPrecompiledWasmDir(root);
       if (precompiled) wasmSourceDir = precompiled;
@@ -531,10 +531,10 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     // ── Inject entry script into served HTML ────────────────────────────
     transformIndexHtml(html) {
       // If script already present, don't duplicate
-      if (html.includes('/@gwenengine/gwen-entry')) return html;
+      if (html.includes('/@gwenjs/gwen-entry')) return html;
       return html.replace(
         '</body>',
-        '  <script type="module" src="/@gwenengine/gwen-entry"></script>\n</body>',
+        '  <script type="module" src="/@gwenjs/gwen-entry"></script>\n</body>',
       );
     },
 
@@ -584,7 +584,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
             }
           }
 
-          // 2. Try WASM plugin packages: node_modules/@gwenengine/gwen-plugin-*/wasm/
+          // 2. Try WASM plugin packages: node_modules/@gwenjs/gwen-plugin-*/wasm/
           const pluginWasmFile = findWasmPluginFile(projectRoot, fileName);
           if (pluginWasmFile) {
             const ext = path.extname(pluginWasmFile);
@@ -603,7 +603,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
           const gwenHtmlPath = path.join(projectRoot, '.gwen', 'index.html');
 
           // Fallback minimal in case `gwen prepare` hasn't finished yet
-          let raw = `<!DOCTYPE html><html><body><script type="module" src="/@gwenengine/gwen-entry"></script></body></html>`;
+          let raw = `<!DOCTYPE html><html><body><script type="module" src="/@gwenjs/gwen-entry"></script></body></html>`;
           if (fs.existsSync(gwenHtmlPath)) {
             raw = fs.readFileSync(gwenHtmlPath, 'utf-8');
           }
@@ -650,7 +650,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         console.warn('[gwen-vite] No WASM source found for production build');
       }
 
-      // Emit WASM plugin assets from node_modules/@gwenengine/gwen-plugin-*/wasm/
+      // Emit WASM plugin assets from node_modules/@gwenjs/gwen-plugin-*/wasm/
       const pluginDirs = collectWasmPluginDirs(projectRoot);
       for (const pluginDir of pluginDirs) {
         const files = listWasmFiles(pluginDir);

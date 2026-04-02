@@ -1,5 +1,5 @@
-import { definePrefab, UIComponent } from '@gwenengine/core';
-import type { EngineAPI } from '@gwenengine/core';
+import { definePrefab, UIComponent } from '@gwenjs/core';
+import type { EngineAPI } from '@gwenjs/core';
 import { Position, Velocity, Tag, ShootTimer, Health, Collider } from '../components';
 
 export const PlayerPrefab = definePrefab({

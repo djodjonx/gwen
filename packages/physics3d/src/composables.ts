@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/physics3d.
+ * @file Composables for @gwenjs/physics3d.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { Physics3DAPI } from './types.js';
 import './augment.js';
 
@@ -30,7 +30,7 @@ export function usePhysics3D(): Physics3DAPI {
   const service = engine.tryInject('physics3d');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/physics3d',
+    pluginName: '@gwenjs/physics3d',
     hint: 'Call engine.use(physics3dPlugin()) before starting the engine.',
     docsUrl: 'https://gwenengine.dev/plugins/physics3d',
   });

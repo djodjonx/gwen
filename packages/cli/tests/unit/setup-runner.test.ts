@@ -1,6 +1,8 @@
-// packages/@gwenengine/cli/tests/unit/setup-runner.test.ts
+// packages/@gwenjs/cli/tests/unit/setup-runner.test.ts
 import { describe, it, expect } from 'vitest';
 import { runPluginSetups, GwenSetupError } from '../../src/core/setup/setup-runner.js';
+import type { GwenOptions } from '@gwenjs/schema';
+import type { GwenPluginSetup, GwenModuleContext } from '../../src/core/setup/types.js';
 
 const makeImporter =
   (modules: Record<string, unknown>) =>
@@ -15,31 +17,80 @@ describe('runPluginSetups', () => {
   it('logger.error() → lance GwenSetupError avec pluginName et message', async () => {
     const importer = makeImporter({
       'my-plugin/setup': {
-        setup: (ctx: any) => ctx.logger.error('oops'),
+        setup: (ctx: GwenModuleContext) => ctx.logger.error('oops'),
       },
     });
 
-    const config = { plugins: [{ name: 'my-plugin' }] };
-    await expect(runPluginSetups('.', config as any, importer)).rejects.toThrow(GwenSetupError);
+    const config: GwenOptions = {
+      engine: {
+        maxEntities: 5000,
+        targetFPS: 60,
+        debug: false,
+        enableStats: true,
+        sparseTransformSync: true,
+        loop: 'internal',
+        maxDeltaSeconds: 0.1,
+      },
+      html: { title: 'Test', background: '#000000' },
+      modules: [],
+      plugins: [{ name: 'my-plugin' }],
+      scenes: [],
+      scenesMode: 'auto',
+      srcDir: 'src',
+      outDir: 'dist',
+    };
+    await expect(runPluginSetups('.', config, importer)).rejects.toThrow(GwenSetupError);
   });
 
   it("continue si le module setup n'existe pas", async () => {
     const importer = makeImporter({}); // rien n'existe
-    const config = { plugins: [{ name: 'ghost-plugin' }] };
-    await expect(runPluginSetups('.', config as any, importer)).resolves.toBeUndefined();
+    const config: GwenOptions = {
+      engine: {
+        maxEntities: 5000,
+        targetFPS: 60,
+        debug: false,
+        enableStats: true,
+        sparseTransformSync: true,
+        loop: 'internal',
+        maxDeltaSeconds: 0.1,
+      },
+      html: { title: 'Test', background: '#000000' },
+      modules: [],
+      plugins: [{ name: 'ghost-plugin' }],
+      scenes: [],
+      scenesMode: 'auto',
+      srcDir: 'src',
+      outDir: 'dist',
+    };
+    await expect(runPluginSetups('.', config, importer)).resolves.toBeUndefined();
   });
 
   it('utilise plugin.packageName si présent', async () => {
     let importedId = '';
-    const importer = async (id: string) => {
+    const importer = async (id: string): Promise<GwenPluginSetup> => {
       importedId = id;
       return { setup: () => {} };
     };
 
-    const config = {
+    const config: GwenOptions = {
+      engine: {
+        maxEntities: 5000,
+        targetFPS: 60,
+        debug: false,
+        enableStats: true,
+        sparseTransformSync: true,
+        loop: 'internal',
+        maxDeltaSeconds: 0.1,
+      },
+      html: { title: 'Test', background: '#000000' },
+      modules: [],
       plugins: [{ name: 'alias', packageName: '@scoped/real-name' }],
+      scenes: [],
+      scenesMode: 'auto',
+      srcDir: 'src',
+      outDir: 'dist',
     };
-    await runPluginSetups('.', config as any, importer);
+    await runPluginSetups('.', config, importer);
     expect(importedId).toBe('@scoped/real-name/setup');
   });
 });

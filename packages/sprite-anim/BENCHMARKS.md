@@ -5,7 +5,7 @@ This document describes CPU benchmarks for the animation runtime hot path (`tick
 ## Run
 
 ```bash
-pnpm --filter @gwenengine/gwen-plugin-sprite-anim bench
+pnpm --filter @gwenjs/gwen-plugin-sprite-anim bench
 ```
 
 ## Scenarios

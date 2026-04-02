@@ -1,4 +1,4 @@
-import { defineUI } from '@gwenengine/core';
+import { defineUI } from '@gwenjs/core';
 import { Position } from '../components';
 
 export const BulletUI = defineUI({

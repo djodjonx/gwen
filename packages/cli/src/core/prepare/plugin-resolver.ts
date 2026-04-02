@@ -7,7 +7,13 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { logger } from '../../utils/logger.js';
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
+
+interface ConfigPlugin {
+  name: string;
+  packageName?: string;
+  meta?: PluginGwenMeta;
+}
 
 export interface GwenTypeRefMeta {
   from: string;
@@ -48,22 +54,22 @@ export async function collectPluginTypingMeta(
   const uiExtensionTypes: Record<string, GwenTypeRefMeta> = {};
 
   for (const plugin of config.plugins ?? []) {
+    const configPlugin = plugin as ConfigPlugin;
     try {
       // Use meta from plugin instance if available, otherwise fallback to package.json
       let meta: PluginGwenMeta = {};
 
-      if ('meta' in plugin && plugin.meta) {
-        meta = plugin.meta as PluginGwenMeta;
-      } else if ('packageName' in plugin && plugin.packageName) {
-        meta = await readPluginGwenMeta(projectDir, plugin.packageName as string);
+      if (configPlugin.meta) {
+        meta = configPlugin.meta;
+      } else if (configPlugin.packageName) {
+        meta = await readPluginGwenMeta(projectDir, configPlugin.packageName);
       } else {
-        const pluginName = 'name' in plugin ? (plugin as any).name : 'unknown';
+        const pluginName = configPlugin.name ?? 'unknown';
         logger.trace(`Plugin ${pluginName} has no meta and no packageName`);
         continue;
       }
 
-      const pluginId =
-        'packageName' in plugin ? (plugin.packageName as string) : (plugin.name as string);
+      const pluginId = configPlugin.packageName ?? configPlugin.name;
 
       for (const ref of meta.typeReferences ?? []) {
         typeReferences.add(ref);
@@ -101,9 +107,7 @@ export async function collectPluginTypingMeta(
         logger.debug(`📦 ${pluginId} -> uiExtensionType: ${key} => ${ref.from}#${ref.exportName}`);
       }
     } catch {
-      logger.trace(
-        `Plugin ${'packageName' in plugin ? plugin.packageName : plugin.name} has no gwen metadata`,
-      );
+      logger.trace(`Plugin ${configPlugin.packageName ?? configPlugin.name} has no gwen metadata`);
     }
   }
 

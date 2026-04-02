@@ -1,5 +1,5 @@
-// packages/@gwenengine/cli/src/core/setup/types.ts
-import type { GwenOptions } from '@gwenengine/schema';
+// packages/@gwenjs/cli/src/core/setup/types.ts
+import type { GwenOptions } from '@gwenjs/schema';
 
 /**
  * Logger injecté dans le contexte setup d'un plugin.

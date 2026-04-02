@@ -5,8 +5,18 @@
 import fs from 'node:fs/promises';
 import { join } from 'pathe';
 import { logger } from '../../utils/logger.js';
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
 import type { BuildContext } from './context.js';
+
+interface ManifestPluginInput {
+  name: string;
+  packageName?: string;
+  symbolName?: string;
+  type?: 'wasm' | 'js';
+  wasm?: {
+    id?: string;
+  };
+}
 
 interface Manifest {
   version: string;
@@ -39,9 +49,10 @@ export async function generateManifest(ctx: BuildContext): Promise<void> {
         wasmPath: './wasm/gwen_core_bg.wasm',
         jsPath: './wasm/gwen_core.js',
       },
-      ...(ctx.config.plugins ?? []).map((p: any) => {
+      ...(ctx.config.plugins ?? []).map((plugin) => {
+        const p = plugin as ManifestPluginInput;
         const isLegacy = 'packageName' in p;
-        const name = isLegacy ? p.symbolName : p.name;
+        const name = isLegacy ? (p.symbolName ?? p.name) : p.name;
         const type = isLegacy ? p.type : p.wasm ? 'wasm' : 'js';
         const pkgName = isLegacy ? p.packageName : p.wasm?.id || '';
 
@@ -50,8 +61,8 @@ export async function generateManifest(ctx: BuildContext): Promise<void> {
           type: type as 'wasm' | 'js',
           ...(type === 'wasm' && pkgName
             ? {
-                wasmPath: `./wasm/${pkgName.replace('@gwenengine/gwen-', '')}_bg.wasm`,
-                jsPath: `./wasm/${pkgName.replace('@gwenengine/gwen-', '')}.js`,
+                wasmPath: `./wasm/${pkgName.replace('@gwenjs/gwen-', '')}_bg.wasm`,
+                jsPath: `./wasm/${pkgName.replace('@gwenjs/gwen-', '')}.js`,
               }
             : {}),
         };

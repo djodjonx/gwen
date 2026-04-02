@@ -1,12 +1,12 @@
 /**
- * @gwenengine/gwen-plugin-html-ui
+ * @gwenjs/gwen-plugin-html-ui
  *
  * GWEN plugin for HTML DOM-based UI rendering.
  * Exposes a `HtmlUI` service via the engine's provide/inject registry as `'htmlUI'`.
  *
  * @example
  * ```ts
- * import { HtmlUIPlugin } from '@gwenengine/gwen-plugin-html-ui';
+ * import { HtmlUIPlugin } from '@gwenjs/gwen-plugin-html-ui';
  * export default defineConfig({ plugins: [HtmlUIPlugin()] });
  *
  * // src/ui/ScoreUI.ts
@@ -25,9 +25,9 @@
  * ```
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import type { EntityId, GwenPluginMeta } from '@gwenengine/kit';
-import type { GwenEngine } from '@gwenengine/core';
+import { definePlugin } from '@gwenjs/kit';
+import type { EntityId, GwenPluginMeta } from '@gwenjs/kit';
+import type { GwenEngine } from '@gwenjs/core';
 // Side-effect: augments GwenProvides with 'htmlUI' key, enabling typed provide/inject.
 import './augment.js';
 
@@ -35,12 +35,12 @@ import './augment.js';
 
 /**
  * Static metadata consumed by `gwen prepare` to inject
- * `/// <reference types="@gwenengine/gwen-plugin-html-ui/vite-env" />` into `.gwen/gwen.d.ts`.
+ * `/// <reference types="@gwenjs/gwen-plugin-html-ui/vite-env" />` into `.gwen/gwen.d.ts`.
  */
 export const pluginMeta: GwenPluginMeta = {
-  typeReferences: ['@gwenengine/gwen-plugin-html-ui/vite-env'],
+  typeReferences: ['@gwenjs/gwen-plugin-html-ui/vite-env'],
   serviceTypes: {
-    htmlUI: { from: '@gwenengine/gwen-plugin-html-ui', exportName: 'HtmlUI' },
+    htmlUI: { from: '@gwenjs/gwen-plugin-html-ui', exportName: 'HtmlUI' },
   },
 };
 
@@ -164,7 +164,7 @@ export const HtmlUIPlugin = definePlugin(() => {
   };
 
   return {
-    name: '@gwenengine/ui',
+    name: '@gwenjs/ui',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {

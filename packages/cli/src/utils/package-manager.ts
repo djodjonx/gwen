@@ -8,7 +8,7 @@
  * @example
  * ```typescript
  * const pm = detectPackageManager()          // 'pnpm'
- * await runInstall(['@gwenengine/physics'])   // pnpm add @gwenengine/physics
+ * await runInstall(['@gwenjs/physics'])   // pnpm add @gwenjs/physics
  * ```
  */
 

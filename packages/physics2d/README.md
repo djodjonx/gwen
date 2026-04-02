@@ -1,4 +1,4 @@
-# @gwenengine/physics2d
+# @gwenjs/physics2d
 
 2D physics plugin for GWEN (Rapier2D + WASM).
 
@@ -7,14 +7,14 @@ This documentation is plugin-specific, not engine-wide.
 ## Installation
 
 ```bash
-pnpm add @gwenengine/physics2d
+pnpm add @gwenjs/physics2d
 ```
 
 ## Quick start
 
 ```ts
-import { defineConfig } from '@gwenengine/kit';
-import { physics2D } from '@gwenengine/physics2d';
+import { defineConfig } from '@gwenjs/kit';
+import { physics2D } from '@gwenjs/physics2d';
 
 export default defineConfig({
   plugins: [
@@ -42,30 +42,30 @@ export default defineConfig({
 ## Tree-shakable imports (Sprint 8)
 
 ```ts
-import { physics2D } from '@gwenengine/physics2d/core';
-import { buildTilemapPhysicsChunks } from '@gwenengine/physics2d/tilemap';
-import { PHYSICS_MATERIAL_PRESETS } from '@gwenengine/physics2d/debug';
+import { physics2D } from '@gwenjs/physics2d/core';
+import { buildTilemapPhysicsChunks } from '@gwenjs/physics2d/tilemap';
+import { PHYSICS_MATERIAL_PRESETS } from '@gwenjs/physics2d/debug';
 ```
 
 Available entry points:
 
-- `@gwenengine/physics2d` (full)
-- `@gwenengine/physics2d/core`
-- `@gwenengine/physics2d/helpers`
-- `@gwenengine/physics2d/helpers/queries`
-- `@gwenengine/physics2d/helpers/movement`
-- `@gwenengine/physics2d/helpers/contact`
-- `@gwenengine/physics2d/helpers/static-geometry`
-- `@gwenengine/physics2d/helpers/orchestration`
-- `@gwenengine/physics2d/tilemap`
-- `@gwenengine/physics2d/debug`
+- `@gwenjs/physics2d` (full)
+- `@gwenjs/physics2d/core`
+- `@gwenjs/physics2d/helpers`
+- `@gwenjs/physics2d/helpers/queries`
+- `@gwenjs/physics2d/helpers/movement`
+- `@gwenjs/physics2d/helpers/contact`
+- `@gwenjs/physics2d/helpers/static-geometry`
+- `@gwenjs/physics2d/helpers/orchestration`
+- `@gwenjs/physics2d/tilemap`
+- `@gwenjs/physics2d/debug`
 
 ### Helpers quick examples
 
 ```ts
-import { getSpeed } from '@gwenengine/physics2d/helpers/queries';
-import { applyDirectionalImpulse } from '@gwenengine/physics2d/helpers/movement';
-import { createTilemapChunkOrchestrator } from '@gwenengine/physics2d/helpers/orchestration';
+import { getSpeed } from '@gwenjs/physics2d/helpers/queries';
+import { applyDirectionalImpulse } from '@gwenjs/physics2d/helpers/movement';
+import { createTilemapChunkOrchestrator } from '@gwenjs/physics2d/helpers/orchestration';
 ```
 
 ## Key config options
@@ -80,14 +80,14 @@ import { createTilemapChunkOrchestrator } from '@gwenengine/physics2d/helpers/or
 
 1. Declare physics in prefabs with `extensions.physics.colliders[]`.
 2. Prefer `physics.getCollisionContacts()` in gameplay systems (EntityId-first).
-3. For one-entity filtering, use `getEntityCollisionContacts(physics, entityId)` from `@gwenengine/physics2d/helpers/contact`.
+3. For one-entity filtering, use `getEntityCollisionContacts(physics, entityId)` from `@gwenjs/physics2d/helpers/contact`.
 4. Use `physics.getCollisionEventsBatch()` when raw slot-level diagnostics are needed.
 5. Use tilemap chunk helpers for large maps; patch chunks incrementally.
 
 ## Prefab example (vNext)
 
 ```ts
-import { definePrefab } from '@gwenengine/core';
+import { definePrefab } from '@gwenjs/core';
 
 export const BulletPrefab = definePrefab({
   name: 'Bullet',

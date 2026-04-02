@@ -12,7 +12,7 @@ GWEN Input abstraction provides a unified polling API. It samples hardware state
 
 ### 1. Configuration
 ```typescript
-import { InputPlugin } from '@gwenengine/input';
+import { InputPlugin } from '@gwenjs/input';
 
 export default defineConfig({
   plugins: [
@@ -45,8 +45,8 @@ export default defineConfig({
 - `getGamepad(index)`: Access raw gamepad state for non-standard devices.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-input/src/keyboard.ts`: List of supported `KeyCodes`.
-- `packages/@gwenengine/plugin-input/src/gamepad.ts`: Standard mapping constants (Button A=0, B=1, etc.).
+- `packages/@gwenjs/plugin-input/src/keyboard.ts`: List of supported `KeyCodes`.
+- `packages/@gwenjs/plugin-input/src/gamepad.ts`: Standard mapping constants (Button A=0, B=1, etc.).
 
 ## Constraints
 - **Lifecycle**: Input is captured *before* updates. Never use `window.addEventListener` for gameplay logic as it might fire out of sync with the ECS `deltaTime`.

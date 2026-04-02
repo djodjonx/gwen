@@ -11,12 +11,12 @@
     "preview": "gwen preview"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*",
-    "@gwenengine/cli": "workspace:*",
-    "@gwenengine/vite": "workspace:*",
-    "@gwenengine/input": "workspace:*",
-    "@gwenengine/ui": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*",
+    "@gwenjs/cli": "workspace:*",
+    "@gwenjs/vite": "workspace:*",
+    "@gwenjs/input": "workspace:*",
+    "@gwenjs/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

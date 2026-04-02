@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEntityId } from '@gwenengine/core';
+import { createEntityId } from '@gwenjs/core';
 import { getBodySnapshot, getSpeed, isSensorActive } from '../src/helpers/queries';
 
 describe('queries helpers', () => {

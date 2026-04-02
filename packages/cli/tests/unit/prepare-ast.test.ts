@@ -24,7 +24,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(srcDir, 'Component.ts'),
       `
-      import { defineComponent, Types } from '@gwenengine/core';
+      import { defineComponent, Types } from '@gwenjs/core';
       export const Position = defineComponent({
         name: 'Position',
         schema: {
@@ -73,7 +73,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(srcDir, 'System.ts'),
       `
-      import { defineSystem } from '@gwenengine/core';
+      import { defineSystem } from '@gwenjs/core';
       import { Position } from './Component';
       
       export const MoveSystem = defineSystem('MoveSystem', () => {
@@ -116,7 +116,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(srcDir, 'System.ts'),
       `
-      import { defineSystem } from '@gwenengine/core';
+      import { defineSystem } from '@gwenjs/core';
       export const ObjSystem = defineSystem({
         name: 'ObjSystem',
         onUpdate(api) {
@@ -153,7 +153,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(srcDir, 'Scene.ts'),
       `
-      import { defineScene } from '@gwenengine/core';
+      import { defineScene } from '@gwenjs/core';
       export const MyScene = defineScene('MyScene', () => {
         return {
           systems: []
@@ -226,7 +226,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(tempDir, 'gwen.config.ts'),
       `
-      import { defineConfig } from '@gwenengine/kit';
+      import { defineConfig } from '@gwenjs/kit';
       export default defineConfig({
         plugins: []
       });
@@ -236,7 +236,7 @@ describe('AST Extractor & Validator', () => {
     fs.writeFileSync(
       path.join(srcDir, 'MyPlugin.ts'),
       `
-      import { definePlugin } from '@gwenengine/kit';
+      import { definePlugin } from '@gwenjs/kit';
       export const MyPlugin = definePlugin({
         name: 'my-plugin',
         provides: {

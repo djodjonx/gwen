@@ -2,12 +2,12 @@
 
 ## Scope
 
-This checklist is used for the hardening/release phase of `@gwenengine/physics2d`.
+This checklist is used for the hardening/release phase of `@gwenjs/physics2d`.
 
 ## Functional checks
 
-- [ ] TypeScript API check (`pnpm --filter @gwenengine/physics2d typecheck`)
-- [ ] TS tests pass (`pnpm --filter @gwenengine/physics2d test`)
+- [ ] TypeScript API check (`pnpm --filter @gwenjs/physics2d typecheck`)
+- [ ] TS tests pass (`pnpm --filter @gwenjs/physics2d test`)
 - [ ] Rust tests pass (`cargo test -p gwen-plugin-physics2d --lib --tests`)
 - [ ] Bridge schema compatibility check covered by tests
 

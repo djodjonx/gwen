@@ -34,7 +34,7 @@ export function generateIndexHtml(
   </style>
 </head>
 <body>
-  <script type="module" src="/@gwenengine/gwen-entry"></script>
+  <script type="module" src="/@gwenjs/gwen-entry"></script>
 </body>
 </html>`;
 }

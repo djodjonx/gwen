@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/ui.
+ * @file Composables for @gwenjs/ui.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { HtmlUI } from './index.js';
 import './augment.js';
 
@@ -30,8 +30,8 @@ export function useHtmlUI(): HtmlUI {
   const service = engine.tryInject('htmlUI');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/ui',
-    hint: "Add '@gwenengine/ui' to modules in gwen.config.ts",
+    pluginName: '@gwenjs/ui',
+    hint: "Add '@gwenjs/ui' to modules in gwen.config.ts",
     docsUrl: 'https://gwenengine.dev/plugins/ui',
   });
 }

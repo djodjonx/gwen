@@ -1,13 +1,13 @@
 /**
- * @gwenengine/create — thin shim that delegates to `gwen init`.
+ * @gwenjs/create — thin shim that delegates to `gwen init`.
  *
- * Running `npx @gwenengine/create [project-name] [...args]` is equivalent
+ * Running `npx @gwenjs/create [project-name] [...args]` is equivalent
  * to running `gwen init [project-name] [...args]`.  This package exists so
  * users can scaffold a new GWEN project without a global CLI installation:
  *
  * ```bash
- * pnpm create @gwenengine/create my-game
- * npm  create @gwenengine/create my-game
+ * pnpm create @gwenjs/create my-game
+ * npm  create @gwenjs/create my-game
  * ```
  */
 import { spawnSync } from 'node:child_process';
@@ -17,11 +17,11 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
-/** Resolve the `gwen` CLI binary from the bundled `@gwenengine/cli` dependency. */
+/** Resolve the `gwen` CLI binary from the bundled `@gwenjs/cli` dependency. */
 function resolveGwenBin(): string {
-  const cliPkg = require.resolve('@gwenengine/cli/package.json');
+  const cliPkg = require.resolve('@gwenjs/cli/package.json');
   const cliDir = resolve(cliPkg, '..');
-  const cliJson = require('@gwenengine/cli/package.json') as { bin?: Record<string, string> };
+  const cliJson = require('@gwenjs/cli/package.json') as { bin?: Record<string, string> };
   const relBin = cliJson?.bin?.gwen ?? 'bin.js';
   return resolve(cliDir, relBin);
 }

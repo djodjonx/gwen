@@ -1,6 +1,42 @@
 # Official Plugins
 
-All official plugins are under the `@djodjonx` scope and integrate seamlessly with `gwen.config.ts`.
+Official plugins integrate with `gwen.config.ts` and expose typed services/hooks after `gwen prepare`.
+
+## Dedicated plugin API pages
+
+- [Input](/plugins/input)
+- [Audio](/plugins/audio)
+- [Debug](/plugins/debug)
+- [Canvas2D Renderer](/plugins/renderer-canvas2d)
+- [Physics2D](/plugins/physics2d)
+- [Physics3D](/plugins/physics3d)
+- [Sprite Anim](/plugins/sprite-anim)
+- [HTML UI](/plugins/ui)
+- [R3F Adapter](/plugins/r3f)
+- [Vite Plugin](/plugins/vite)
+
+---
+
+## Recommended package names
+
+Use current `@gwenjs/*` packages:
+
+- `@gwenjs/input`
+- `@gwenjs/audio`
+- `@gwenjs/debug`
+- `@gwenjs/renderer-canvas2d`
+- `@gwenjs/physics2d`
+- `@gwenjs/physics3d`
+- `@gwenjs/sprite-anim`
+- `@gwenjs/ui`
+- `@gwenjs/r3f`
+- `@gwenjs/vite`
+
+---
+
+## Legacy examples
+
+The examples below are kept as broad usage references and may still contain legacy package names from older documentation.
 
 ## @djodjonx/gwen-plugin-input
 

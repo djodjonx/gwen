@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@gwenengine/core';
+import { defineComponent, Types } from '@gwenjs/core';
 
 /**
  * Abstract movement intentions — source-agnostic.

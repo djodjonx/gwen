@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/debug",
+  "name": "@gwenjs/debug",
   "version": "1.0.0",
   "description": "GWEN Debug Plugin \u2014 FPS, frame time, entity count, drop detection, overlay",
   "files": [
@@ -21,8 +21,8 @@
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -34,7 +34,7 @@
     "type": "typescript",
     "serviceTypes": {
       "debug": {
-        "from": "@gwenengine/gwen-plugin-debug",
+        "from": "@gwenjs/gwen-plugin-debug",
         "exportName": "DebugService"
       }
     }

@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/renderer-canvas2d.
+ * @file Composables for @gwenjs/renderer-canvas2d.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { RendererService } from './renderer.js';
 import './augment.js';
 
@@ -30,8 +30,8 @@ export function useCanvas2D(): RendererService {
   const service = engine.tryInject('renderer');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/renderer-canvas2d',
-    hint: "Add '@gwenengine/renderer-canvas2d' to modules in gwen.config.ts",
+    pluginName: '@gwenjs/renderer-canvas2d',
+    hint: "Add '@gwenjs/renderer-canvas2d' to modules in gwen.config.ts",
     docsUrl: 'https://gwenengine.dev/plugins/renderer-canvas2d',
   });
 }

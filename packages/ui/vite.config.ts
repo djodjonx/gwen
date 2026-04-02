@@ -5,7 +5,7 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   plugins: [
-    dts({ include: ['src'], outDir: 'dist', rollupTypes: true }),
+    dts({ include: ['src'], outDir: 'dist', rollupTypes: false }),
     {
       name: 'copy-vite-env-dts',
       closeBundle() {
@@ -24,8 +24,8 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['@gwenengine/core'],
-      output: { globals: { '@gwenengine/core': 'GwenEngineCore' } },
+      external: ['@gwenjs/core'],
+      output: { globals: { '@gwenjs/core': 'GwenEngineCore' } },
     },
   },
 });

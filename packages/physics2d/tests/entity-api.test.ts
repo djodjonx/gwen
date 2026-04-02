@@ -12,7 +12,7 @@ import type {
   ResolvedCollisionContact,
   PhysicsEntitySnapshot,
 } from '../src/types';
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
 // ── API method signatures use EntityId, not number slots ─────────────────────
 

@@ -14,7 +14,7 @@
  * are intentionally internal and non-injectable.
  */
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
 /**
  * Animation event receiver.

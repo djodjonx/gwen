@@ -4,9 +4,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveConfig, validateResolvedConfig } from '@gwenengine/schema';
+import { resolveConfig, validateResolvedConfig } from '@gwenjs/schema';
+import type { GwenConfigInput, GwenPluginBase, GwenOptions } from '@gwenjs/schema';
 
-describe('CLI config validation via @gwenengine/schema', () => {
+describe('CLI config validation via @gwenjs/schema', () => {
   it('applies defaults for empty input', () => {
     const conf = resolveConfig({});
     expect(conf.engine.maxEntities).toBe(5000);
@@ -16,9 +17,10 @@ describe('CLI config validation via @gwenengine/schema', () => {
   });
 
   it('merges legacy tsPlugins/wasmPlugins into plugins', () => {
-    const tsPlugin = { name: 'ts-plugin' };
-    const wasmPlugin = { name: 'wasm-plugin', wasm: { id: 'w' } };
-    const conf = resolveConfig({ tsPlugins: [tsPlugin], wasmPlugins: [wasmPlugin] } as any);
+    const tsPlugin: GwenPluginBase = { name: 'ts-plugin' };
+    const wasmPlugin: GwenPluginBase = { name: 'wasm-plugin', wasm: { id: 'w' } };
+    const input: GwenConfigInput = { tsPlugins: [tsPlugin], wasmPlugins: [wasmPlugin] };
+    const conf = resolveConfig(input);
 
     expect(conf.plugins).toHaveLength(2);
     expect(conf.plugins).toContain(tsPlugin);
@@ -38,10 +40,10 @@ describe('CLI config validation via @gwenengine/schema', () => {
   });
 
   it('rejects invalid background with stable message', () => {
-    expect(() =>
-      validateResolvedConfig(
-        resolveConfig({ html: { background: '#gggggg' as any } as any }) as any,
-      ),
-    ).toThrow('background must be a valid hex color');
+    const invalid = {
+      ...resolveConfig({}),
+      html: { title: 'GWEN Project', background: '#gggggg' },
+    } as unknown as GwenOptions;
+    expect(() => validateResolvedConfig(invalid)).toThrow('background must be a valid hex color');
   });
 });

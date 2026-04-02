@@ -3,7 +3,7 @@
  * All types are pure data — no WASM dependency.
  */
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 

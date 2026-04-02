@@ -22,7 +22,8 @@ export function parseError(error: unknown): string {
  */
 export function parseErrorCode(error: unknown): string {
   if (isError(error) && 'code' in error) {
-    return String((error as any).code);
+    const withCode = error as Error & { code?: unknown };
+    return typeof withCode.code === 'string' ? withCode.code : String(withCode.code);
   }
   return 'UNKNOWN_ERROR';
 }

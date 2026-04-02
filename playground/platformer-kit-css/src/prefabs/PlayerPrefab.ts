@@ -1,5 +1,5 @@
-import { UIComponent } from '@gwenengine/core';
-import { createPlayerPrefab } from '@gwenengine/kit-platformer';
+import { UIComponent } from '@gwenjs/core';
+import { createPlayerPrefab } from '@gwenjs/kit-platformer';
 import { PlayerTag } from '../components';
 
 export const PlayerPrefab = createPlayerPrefab({

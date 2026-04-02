@@ -5,7 +5,7 @@
  * the public kit APIs used by playgrounds without adding root-level script noise.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { SENSOR_ID_FOOT, type Physics2DAPI } from '@gwenengine/physics2d/core';
+import { SENSOR_ID_FOOT, type Physics2DAPI } from '@gwenjs/physics2d/core';
 import { createPlayerPrefab, createPlatformerStaticGeometry } from '../src/index.js';
 
 describe('e2e grounding contracts (library scoped)', () => {

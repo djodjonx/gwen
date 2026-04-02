@@ -1,5 +1,5 @@
-import { defineUI } from '@gwenengine/core';
-import { getBodySnapshot, getSpeed } from '@gwenengine/physics2d/helpers/queries';
+import { defineUI } from '@gwenjs/core';
+import { getBodySnapshot, getSpeed } from '@gwenjs/physics2d/helpers/queries';
 import { PlayerTag } from '../components';
 import hudHtml from './templates/hud.html?raw';
 import hudCss from './styles/hud.css?inline';

@@ -2,7 +2,7 @@
  * Typed gamepad constants — Standard Gamepad API button/axis layout (Xbox mapping).
  *
  * @example
- * import { GamepadButtons } from '@gwenengine/input';
+ * import { GamepadButtons } from '@gwenjs/input';
  * bindings: [{ type: BindingType.GamepadButton, button: GamepadButtons.South }]
  */
 export const GamepadButtons = {

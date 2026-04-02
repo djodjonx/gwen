@@ -25,12 +25,12 @@ import { logger } from '../utils/logger.js';
 
 /** Built-in starter modules offered during `gwen init`. */
 const STARTER_MODULES = [
-  { value: '@gwenengine/physics2d', label: 'Physics 2D', hint: 'Rapier-based 2D physics' },
-  { value: '@gwenengine/physics3d', label: 'Physics 3D', hint: 'Rapier-based 3D physics' },
-  { value: '@gwenengine/input', label: 'Input', hint: 'Keyboard, mouse, gamepad' },
-  { value: '@gwenengine/audio', label: 'Audio', hint: 'Web Audio API integration' },
-  { value: '@gwenengine/r3f', label: 'React Three Fiber', hint: 'R3F renderer adapter' },
-  { value: '@gwenengine/debug', label: 'Debug overlay', hint: 'Performance HUD and inspector' },
+  { value: '@gwenjs/physics2d', label: 'Physics 2D', hint: 'Rapier-based 2D physics' },
+  { value: '@gwenjs/physics3d', label: 'Physics 3D', hint: 'Rapier-based 3D physics' },
+  { value: '@gwenjs/input', label: 'Input', hint: 'Keyboard, mouse, gamepad' },
+  { value: '@gwenjs/audio', label: 'Audio', hint: 'Web Audio API integration' },
+  { value: '@gwenjs/r3f', label: 'React Three Fiber', hint: 'R3F renderer adapter' },
+  { value: '@gwenjs/debug', label: 'Debug overlay', hint: 'Performance HUD and inspector' },
 ];
 
 /**
@@ -106,13 +106,13 @@ export const initCommand = defineCommand({
         postinstall: 'gwen prepare',
       },
       dependencies: {
-        '@gwenengine/core': '^1.0.0',
-        '@gwenengine/app': '^1.0.0',
+        '@gwenjs/core': '^1.0.0',
+        '@gwenjs/app': '^1.0.0',
         ...moduleDeps,
       },
       devDependencies: {
-        '@gwenengine/cli': '^1.0.0',
-        '@gwenengine/vite': '^1.0.0',
+        '@gwenjs/cli': '^1.0.0',
+        '@gwenjs/vite': '^1.0.0',
         vite: '^5.0.0',
       },
     };
@@ -129,14 +129,14 @@ export const initCommand = defineCommand({
         : `[\n${selectedModules.map((m) => `    '${m}'`).join(',\n')},\n  ]`;
     await fs.writeFile(
       path.join(projectDir, 'gwen.config.ts'),
-      `import { defineConfig } from '@gwenengine/app'\nexport default defineConfig({ modules: ${modulesArray} })\n`,
+      `import { defineConfig } from '@gwenjs/app'\nexport default defineConfig({ modules: ${modulesArray} })\n`,
       'utf8',
     );
 
     // --- src/main.ts ---
     await fs.writeFile(
       path.join(projectDir, 'src', 'main.ts'),
-      `import { createEngine } from '@gwenengine/core'\n\nconst engine = await createEngine()\nawait engine.run()\n`,
+      `import { createEngine } from '@gwenjs/core'\n\nconst engine = await createEngine()\nawait engine.run()\n`,
       'utf8',
     );
 

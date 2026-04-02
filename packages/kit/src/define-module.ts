@@ -2,7 +2,7 @@
  * @file RFC-004 — defineGwenModule, GwenKit, AutoImport, GwenTypeTemplate
  */
 
-import type { GwenPlugin } from '@gwenengine/core';
+import type { GwenPlugin } from '@gwenjs/core';
 
 // ─── DeepPartial helper ───────────────────────────────────────────────────────
 
@@ -42,15 +42,13 @@ export interface GwenTypeTemplate {
 // ─── VitePlugin / ViteUserConfig stubs (keep tree-shakeable) ─────────────────
 
 // We don't import from Vite directly — these are intentionally generic
-// so that @gwenengine/kit stays isomorphic (browser + Node.js).
+// so that @gwenjs/kit stays isomorphic (browser + Node.js).
 
 /** Minimal Vite plugin shape (compatible with vite's Plugin type). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type VitePlugin = Record<string, any>;
+export type VitePlugin = Record<string, unknown>;
 
 /** Minimal Vite user config shape (compatible with vite's UserConfig type). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ViteUserConfig = Record<string, any>;
+export type ViteUserConfig = Record<string, unknown>;
 
 // ─── GwenBuildHooks ──────────────────────────────────────────────────────────
 
@@ -58,8 +56,8 @@ export type ViteUserConfig = Record<string, any>;
  * Build-time hook map for the GWEN framework.
  * Only available in Node.js context (CLI, Vite build).
  *
- * Declared in `@gwenengine/kit` so that `defineGwenModule()` can reference it
- * without a circular dependency. Re-exported by `@gwenengine/app`.
+ * Declared in `@gwenjs/kit` so that `defineGwenModule()` can reference it
+ * without a circular dependency. Re-exported by `@gwenjs/app`.
  *
  * @example
  * ```typescript
@@ -88,7 +86,7 @@ export interface GwenBuildHooks {
 
 /**
  * Minimal resolved config shape passed to module `setup()` via `GwenKit.options`.
- * Extended by `ResolvedGwenConfig` in `@gwenengine/app` with full field types.
+ * Extended by `ResolvedGwenConfig` in `@gwenjs/app` with full field types.
  */
 export interface GwenBaseConfig {
   modules?: Array<string | [string, Record<string, unknown>?]>;
@@ -113,10 +111,10 @@ export interface GwenBaseConfig {
  * @example
  * ```typescript
  * defineGwenModule({
- *   meta: { name: '@gwenengine/physics2d' },
+ *   meta: { name: '@gwenjs/physics2d' },
  *   setup(options, gwen) {
  *     gwen.addPlugin(createPhysics2DPlugin(options))
- *     gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenengine/physics2d' }])
+ *     gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenjs/physics2d' }])
  *   }
  * })
  * ```
@@ -133,13 +131,13 @@ export interface GwenKit {
 
   /**
    * Registers composables or utilities for auto-import.
-   * The `@gwenengine/vite` plugin generates a virtual module from these declarations.
+   * The `@gwenjs/vite` plugin generates a virtual module from these declarations.
    *
    * @param imports - Array of auto-import declarations.
    * @example
    * gwen.addAutoImports([
-   *   { name: 'usePhysics2D', from: '@gwenengine/physics2d' },
-   *   { name: 'useRigidBody', from: '@gwenengine/physics2d', as: 'useBody' },
+   *   { name: 'usePhysics2D', from: '@gwenjs/physics2d' },
+   *   { name: 'useRigidBody', from: '@gwenjs/physics2d', as: 'useBody' },
    * ])
    */
   addAutoImports(imports: AutoImport[]): void;
@@ -172,7 +170,7 @@ export interface GwenKit {
    * @example
    * gwen.addTypeTemplate({
    *   filename: 'types/physics2d.d.ts',
-   *   getContents: () => `declare module '@gwenengine/core' { ... }`
+   *   getContents: () => `declare module '@gwenjs/core' { ... }`
    * })
    */
   addTypeTemplate(template: GwenTypeTemplate): void;
@@ -187,7 +185,7 @@ export interface GwenKit {
    * @param snippet - A valid TypeScript declaration string (e.g. `declare module '...' { ... }`).
    * @example
    * gwen.addModuleAugment(`
-   *   declare module '@gwenengine/core' {
+   *   declare module '@gwenjs/core' {
    *     interface GwenProvides { myService: MyServiceAPI }
    *   }
    * `)
@@ -213,12 +211,10 @@ export interface GwenKit {
  *
  * @template Options - The typed options shape this module accepts.
  */
-export interface GwenModuleDefinition<
-  Options extends Record<string, unknown> = Record<string, unknown>,
-> {
+export interface GwenModuleDefinition<Options extends object = Record<string, unknown>> {
   /** Module metadata. */
   meta: {
-    /** Full npm package name, e.g. `'@gwenengine/physics2d'`. */
+    /** Full npm package name, e.g. `'@gwenjs/physics2d'`. */
     name: string;
     /**
      * Key in `gwen.config.ts` where this module's options are read from.
@@ -247,7 +243,7 @@ export interface GwenModuleDefinition<
 }
 
 /** A resolved module instance returned by `defineGwenModule()`. */
-export type GwenModule<Options extends Record<string, unknown> = Record<string, unknown>> =
+export type GwenModule<Options extends object = Record<string, unknown>> =
   GwenModuleDefinition<Options>;
 
 // ─── defineGwenModule ────────────────────────────────────────────────────────
@@ -266,20 +262,20 @@ export type GwenModule<Options extends Record<string, unknown> = Record<string, 
  * @example
  * ```typescript
  * export default defineGwenModule<Physics2DOptions>({
- *   meta: { name: '@gwenengine/physics2d', configKey: 'physics2d' },
+ *   meta: { name: '@gwenjs/physics2d', configKey: 'physics2d' },
  *   defaults: { gravity: 9.81, iterations: 8 },
  *   async setup(options, gwen) {
  *     gwen.addPlugin(createPhysics2DPlugin(options))
- *     gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenengine/physics2d' }])
+ *     gwen.addAutoImports([{ name: 'usePhysics2D', from: '@gwenjs/physics2d' }])
  *     gwen.addTypeTemplate({
  *       filename: 'types/physics2d.d.ts',
- *       getContents: () => `declare module '@gwenengine/core' { ... }`
+ *       getContents: () => `declare module '@gwenjs/core' { ... }`
  *     })
  *   }
  * })
  * ```
  */
-export function defineGwenModule<Options extends Record<string, unknown> = Record<string, unknown>>(
+export function defineGwenModule<Options extends object = Record<string, unknown>>(
   definition: GwenModuleDefinition<Options>,
 ): GwenModule<Options> {
   return definition as GwenModule<Options>;

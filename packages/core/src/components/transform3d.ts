@@ -10,8 +10,8 @@
  *
  * @example
  * ```ts
- * import { Transform3D } from '@gwenengine/core';
- * import type { InferComponent } from '@gwenengine/core';
+ * import { Transform3D } from '@gwenjs/core';
+ * import type { InferComponent } from '@gwenjs/core';
  *
  * type T3D = InferComponent<typeof Transform3D>;
  * // { position: { x, y, z }, rotation: { x, y, z, w }, scale: { x, y, z } }

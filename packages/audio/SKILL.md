@@ -34,7 +34,7 @@ audio.preloadBuffer('pulse', decodedAudioBuffer);
 The AudioContext starts `suspended`. It resumes automatically on the first user input (handled by `InputPlugin` if present). Use `audio.getContext().resume()` if managing custom UI.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-audio/src/index.ts`: The `AudioService` interface and gain node logic.
+- `packages/@gwenjs/plugin-audio/src/index.ts`: The `AudioService` interface and gain node logic.
 
 ## Constraints
 - **Race Condition**: `play()` will warn and fail if the asset has not been `preload()`ed successfully.

@@ -1,4 +1,4 @@
-# @gwenengine/physics2d
+# @gwenjs/physics2d
 
 ## 1.0.0
 

@@ -1,7 +1,7 @@
-import { defineUI, unpackEntityId } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import { defineUI, unpackEntityId } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
 import { TileSize } from '../components/index.ts';
-import type { Physics2DAPI } from '@gwenengine/physics2d';
+import type { Physics2DAPI } from '@gwenjs/physics2d';
 
 const PPM = 50;
 

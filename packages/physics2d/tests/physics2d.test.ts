@@ -1,5 +1,5 @@
 /**
- * Tests for @gwenengine/physics2d — Physics2DPlugin
+ * Tests for @gwenjs/physics2d — Physics2DPlugin
  *
  * Strategy: mock the WASM module entirely so tests run in Node.js
  * without a browser or real .wasm file.
@@ -103,12 +103,12 @@ function makeMockBus(transformBuf?: ArrayBuffer, eventsBuf?: ArrayBuffer) {
 
 // ── Mock getWasmBridge ───────────────────────────────────────────────────────
 
-vi.mock('@gwenengine/core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@gwenengine/core')>();
+vi.mock('@gwenjs/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@gwenjs/core')>();
   return { ...original, getWasmBridge: vi.fn() };
 });
 
-import { getWasmBridge, createEntityId } from '@gwenengine/core';
+import { getWasmBridge, createEntityId } from '@gwenjs/core';
 import { Physics2DPlugin, physics2D } from '../src';
 import {
   BODY_TYPE,
@@ -153,7 +153,7 @@ describe('Physics2DPlugin', () => {
 
   it('has correct name', () => {
     const plugin = Physics2DPlugin();
-    expect(plugin.name).toBe('@gwenengine/physics2d');
+    expect(plugin.name).toBe('@gwenjs/physics2d');
   });
 
   it('declares physics service in meta', () => {
@@ -170,7 +170,7 @@ describe('Physics2DPlugin', () => {
 
   it('physics2D() returns a plugin object with name and setup', () => {
     const p = physics2D();
-    expect(p).toHaveProperty('name', '@gwenengine/physics2d');
+    expect(p).toHaveProperty('name', '@gwenjs/physics2d');
     expect(p).toHaveProperty('setup');
   });
 

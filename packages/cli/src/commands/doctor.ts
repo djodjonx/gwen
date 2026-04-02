@@ -1,5 +1,5 @@
 /**
- * `gwen doctor` command
+ * `gwen doctor` command.
  *
  * Runs a suite of health checks against the current project and reports
  * the results. Exits with code 1 if any check fails.
@@ -7,7 +7,8 @@
  * Checks performed:
  *  1. Node.js version  — must be >= 18
  *  2. gwen.config.ts   — must exist in cwd
- *  3. WASM binary      — must exist in node_modules/@gwenengine/core
+ *  3. gwen.config.ts   — must parse with module-first rules
+ *  4. WASM binary      — must exist in node_modules/@gwenjs/core
  *
  * @example
  * ```bash
@@ -19,6 +20,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defineCommand } from 'citty';
 import { logger } from '../utils/logger.js';
+import { loadGwenConfig } from '../core/config.js';
+import { parseError } from '../core/types/guards.js';
 
 /**
  * Describes a single project health check.
@@ -66,20 +69,37 @@ export const CHECKS: HealthCheck[] = [
     },
   },
   {
+    name: 'gwen.config.ts parses',
+    async run() {
+      try {
+        const loaded = await loadGwenConfig(process.cwd());
+        return {
+          ok: true,
+          message: loaded.configPath,
+        };
+      } catch (error: unknown) {
+        return {
+          ok: false,
+          message: parseError(error),
+        };
+      }
+    },
+  },
+  {
     name: 'WASM binary',
     async run() {
-      // Look for the WASM file shipped with @gwenengine/core.
+      // Look for the WASM file shipped with @gwenjs/core.
       const candidates = [
-        path.join(process.cwd(), 'node_modules', '@gwenengine', 'core', 'dist', 'gwen.wasm'),
-        path.join(process.cwd(), 'node_modules', '@gwenengine', 'core', 'gwen.wasm'),
+        path.join(process.cwd(), 'node_modules', '@gwenjs', 'core', 'dist', 'gwen.wasm'),
+        path.join(process.cwd(), 'node_modules', '@gwenjs', 'core', 'gwen.wasm'),
       ];
-      const found = candidates.find((p) => fs.existsSync(p));
+      const found = candidates.find((candidate) => fs.existsSync(candidate));
       if (found) {
         return { ok: true, message: found };
       }
       return {
         ok: false,
-        message: '@gwenengine/core WASM binary not found — run your package manager install',
+        message: '@gwenjs/core WASM binary not found — run your package manager install',
       };
     },
   },

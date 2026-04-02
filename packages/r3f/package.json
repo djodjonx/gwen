@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/r3f",
+  "name": "@gwenjs/r3f",
   "version": "1.0.0",
   "description": "React Three Fiber adapter foundation for GWEN",
   "files": [
@@ -21,7 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*"
+    "@gwenjs/core": "workspace:*"
   },
   "peerDependencies": {
     "@react-three/fiber": "^9.0.0",

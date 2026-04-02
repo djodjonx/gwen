@@ -1,4 +1,4 @@
-# @gwenengine/gwen-plugin-sprite-anim
+# @gwenjs/gwen-plugin-sprite-anim
 
 ## 1.0.0
 

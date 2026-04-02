@@ -147,8 +147,8 @@ export interface GwenEngineOptions {
  *
  * @example
  * ```typescript
- * // In @gwenengine/physics2d:
- * declare module '@gwenengine/core' {
+ * // In @gwenjs/physics2d:
+ * declare module '@gwenjs/core' {
  *   interface GwenProvides {
  *     physics2d: Physics2DAPI
  *   }
@@ -189,8 +189,8 @@ export interface GwenPluginNotFoundErrorOptions {
  * @example Using options object (RFC-005 composable pattern):
  * ```typescript
  * throw new GwenPluginNotFoundError({
- *   pluginName: '@gwenengine/physics2d',
- *   hint: 'Add @gwenengine/physics2d to the modules array in gwen.config.ts',
+ *   pluginName: '@gwenjs/physics2d',
+ *   hint: 'Add @gwenjs/physics2d to the modules array in gwen.config.ts',
  *   docsUrl: 'https://gwenengine.dev/modules/physics2d',
  * })
  * ```
@@ -271,7 +271,7 @@ export interface EngineStats {
  *
  * @example Standalone (no framework)
  * ```typescript
- * import { createEngine } from '@gwenengine/core'
+ * import { createEngine } from '@gwenjs/core'
  * const engine = await createEngine({ maxEntities: 5_000 })
  * await engine.use(MyPlugin())
  * engine.start()
@@ -906,7 +906,7 @@ class GwenEngineImpl implements GwenEngine {
  *
  * @example
  * ```typescript
- * import { createEngine } from '@gwenengine/core'
+ * import { createEngine } from '@gwenjs/core'
  * const engine = await createEngine({ maxEntities: 5_000, variant: 'physics2d' })
  * await engine.use(myPlugin())
  * engine.start()

@@ -1,4 +1,4 @@
-import { createPlatformerScene, createPlatformerStaticGeometry } from '@gwenengine/kit-platformer';
+import { createPlatformerScene, createPlatformerStaticGeometry } from '@gwenjs/kit-platformer';
 import {
   CHUNK_SIZE_TILES,
   LEVEL_BLOCKS,

@@ -1,4 +1,4 @@
-#@gwenengine/audio
+#@gwenjs/audio
 
 ## 1.0.0
 

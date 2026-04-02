@@ -12,8 +12,16 @@ import { prepare } from './prepare/index.js';
 import { buildViteConfig } from '../vite-config-builder.js';
 import { loadGwenConfig } from './config.js';
 import { runPluginSetups, GwenSetupError } from './setup/setup-runner.js';
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
 import { DEFAULT_PORT_DEV } from '../utils/constants.js';
+import { loadFrameworkContext } from './app-context.js';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 /**
  * Options for dev server
@@ -59,20 +67,31 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
     configPath = loaded.configPath;
     config = loaded.config;
     logger.debug('Config loaded successfully for dev server');
-  } catch (error: any) {
-    logger.error(`Failed to load config: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`Failed to load config: ${getErrorMessage(error)}`);
     throw error;
   }
 
-  // 1.5. Run plugin setups
-  try {
-    await runPluginSetups(projectDir, config);
-  } catch (err) {
-    if (err instanceof GwenSetupError) {
-      logger.error(`[setup:${err.pluginName}] ${err.message}`);
+  // 1.5. Resolve runtime plugins from modules in framework mode.
+  if (config.modules.length > 0) {
+    try {
+      const framework = await loadFrameworkContext(projectDir);
+      config.plugins = framework.plugins;
+    } catch (error: unknown) {
+      logger.error(`Module setup failed: ${getErrorMessage(error)}`);
+      throw error;
+    }
+  } else {
+    // Legacy fallback path (kept for non-module internal commands only).
+    try {
+      await runPluginSetups(projectDir, config);
+    } catch (err) {
+      if (err instanceof GwenSetupError) {
+        logger.error(`[setup:${err.pluginName}] ${err.message}`);
+        throw err;
+      }
       throw err;
     }
-    throw err;
   }
 
   // 2. Run prepare to generate .gwen/ folder (tsconfig, types, index.html)
@@ -109,8 +128,8 @@ export async function dev(opts: DevOptions = {}): Promise<void> {
     }
 
     server.printUrls();
-  } catch (error: any) {
-    logger.error(`Failed to start dev server: ${error.message}`);
+  } catch (error: unknown) {
+    logger.error(`Failed to start dev server: ${getErrorMessage(error)}`);
     throw error;
   }
 }

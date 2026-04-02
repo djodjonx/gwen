@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/physics2d",
+  "name": "@gwenjs/physics2d",
   "version": "1.0.0",
   "description": "2D physics plugin for GWEN \u2014 pure adapter for core WASM",
   "files": [
@@ -15,8 +15,8 @@
       "import": "./src/index.ts"
     },
     "./core": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "types": "./src/core.ts",
+      "import": "./src/core.ts"
     },
     "./helpers": {
       "types": "./src/helpers/index.ts",
@@ -58,8 +58,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
@@ -72,19 +72,19 @@
     "type": "typescript",
     "serviceTypes": {
       "physics": {
-        "from": "@gwenengine/physics2d",
+        "from": "@gwenjs/physics2d",
         "exportName": "Physics2DAPI"
       }
     },
     "hookTypes": {
       "physics:collision": {
-        "from": "@gwenengine/physics2d",
+        "from": "@gwenjs/physics2d",
         "exportName": "Physics2DPluginHooks"
       }
     },
     "prefabExtensionTypes": {
       "physics": {
-        "from": "@gwenengine/physics2d",
+        "from": "@gwenjs/physics2d",
         "exportName": "Physics2DPrefabExtension"
       }
     }

@@ -16,7 +16,7 @@ describe('helper contracts', () => {
 
   it('accepts nullable snapshot fields', () => {
     const snapshot: PhysicsEntitySnapshot = {
-      entityId: BigInt(7) as import('@gwenengine/core').EntityId,
+      entityId: BigInt(7) as import('@gwenjs/core').EntityId,
       position: null,
       velocity: null,
     };

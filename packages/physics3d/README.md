@@ -1,4 +1,4 @@
-# @gwenengine/physics3d
+# @gwenjs/physics3d
 
 Physics3D plugin foundation for GWEN.
 
@@ -12,14 +12,14 @@ Current scope:
 ## Installation
 
 ```bash
-npm install @gwenengine/physics3d
+npm install @gwenjs/physics3d
 ```
 
 ## Usage
 
 ```ts
-import { initWasm, createEngine } from '@gwenengine/core';
-import { Physics3DPlugin } from '@gwenengine/physics3d';
+import { initWasm, createEngine } from '@gwenjs/core';
+import { Physics3DPlugin } from '@gwenjs/physics3d';
 
 await initWasm('physics3d');
 

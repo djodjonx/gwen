@@ -1,4 +1,4 @@
-#@gwenengine/gwen-plugin-debug
+#@gwenjs/gwen-plugin-debug
 
 ## 1.0.0
 

@@ -1,18 +1,18 @@
-# @gwenengine/gwen-plugin-sprite-anim
+# @gwenjs/gwen-plugin-sprite-anim
 
 Official GWEN plugin for spritesheet animation with an Animator-like state machine.
 
 ## Installation
 
 ```bash
-pnpm add @gwenengine/gwen-plugin-sprite-anim
+pnpm add @gwenjs/gwen-plugin-sprite-anim
 ```
 
 ## Registration
 
 ```ts
-import { defineConfig } from '@gwenengine/kit';
-import { SpriteAnimPlugin } from '@gwenengine/gwen-plugin-sprite-anim';
+import { defineConfig } from '@gwenjs/kit';
+import { SpriteAnimPlugin } from '@gwenjs/gwen-plugin-sprite-anim';
 
 export default defineConfig({
   plugins: [
@@ -36,7 +36,7 @@ export default defineConfig({
 ## V3 UI example
 
 ```ts
-import { defineUI } from '@gwenengine/core';
+import { defineUI } from '@gwenjs/core';
 
 export const PlayerUI = defineUI({
   name: 'PlayerUI',
@@ -103,7 +103,7 @@ if (didShoot) animator.setTrigger(playerId, 'shoot');
 The package includes reproducible benchmarks for the `tick()` hot path.
 
 ```bash
-pnpm --filter @gwenengine/gwen-plugin-sprite-anim bench
+pnpm --filter @gwenjs/gwen-plugin-sprite-anim bench
 ```
 
 Measured scenarios:

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAutoImportsModule } from '../src/plugins/auto-imports.js';
-import type { AutoImport } from '@gwenengine/kit';
+import type { AutoImport } from '@gwenjs/kit';
 
 describe('generateAutoImportsModule', () => {
   it('returns a comment when entries are empty', () => {
@@ -9,37 +9,37 @@ describe('generateAutoImportsModule', () => {
   });
 
   it('generates a single re-export line for one entry', () => {
-    const entries: AutoImport[] = [{ name: 'useEngine', from: '@gwenengine/core' }];
+    const entries: AutoImport[] = [{ name: 'useEngine', from: '@gwenjs/core' }];
     const result = generateAutoImportsModule(entries);
-    expect(result).toBe("export { useEngine } from '@gwenengine/core'\n");
+    expect(result).toBe("export { useEngine } from '@gwenjs/core'\n");
   });
 
   it('groups multiple entries from the same package into one line', () => {
     const entries: AutoImport[] = [
-      { name: 'useEngine', from: '@gwenengine/core' },
-      { name: 'defineSystem', from: '@gwenengine/core' },
+      { name: 'useEngine', from: '@gwenjs/core' },
+      { name: 'defineSystem', from: '@gwenjs/core' },
     ];
     const result = generateAutoImportsModule(entries);
-    expect(result).toBe("export { useEngine, defineSystem } from '@gwenengine/core'\n");
+    expect(result).toBe("export { useEngine, defineSystem } from '@gwenjs/core'\n");
   });
 
   it('uses "name as alias" syntax for aliased exports', () => {
     const entries: AutoImport[] = [
-      { name: 'usePhysics2D', from: '@gwenengine/physics2d', as: 'usePhysics' },
+      { name: 'usePhysics2D', from: '@gwenjs/physics2d', as: 'usePhysics' },
     ];
     const result = generateAutoImportsModule(entries);
-    expect(result).toBe("export { usePhysics2D as usePhysics } from '@gwenengine/physics2d'\n");
+    expect(result).toBe("export { usePhysics2D as usePhysics } from '@gwenjs/physics2d'\n");
   });
 
   it('generates separate lines for entries from different packages', () => {
     const entries: AutoImport[] = [
-      { name: 'useEngine', from: '@gwenengine/core' },
-      { name: 'usePhysics2D', from: '@gwenengine/physics2d' },
+      { name: 'useEngine', from: '@gwenjs/core' },
+      { name: 'usePhysics2D', from: '@gwenjs/physics2d' },
     ];
     const result = generateAutoImportsModule(entries);
     const lines = result.trimEnd().split('\n');
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe("export { useEngine } from '@gwenengine/core'");
-    expect(lines[1]).toBe("export { usePhysics2D } from '@gwenengine/physics2d'");
+    expect(lines[0]).toBe("export { useEngine } from '@gwenjs/core'");
+    expect(lines[1]).toBe("export { usePhysics2D } from '@gwenjs/physics2d'");
   });
 });

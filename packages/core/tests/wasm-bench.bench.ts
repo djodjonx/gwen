@@ -5,7 +5,7 @@
  * and the Rust/WASM core (when available).
  *
  * Run:
- *   pnpm --filter @gwenengine/core bench
+ *   pnpm --filter @gwenjs/core bench
  *
  * Without WASM (.wasm not loaded), only the TS columns are shown.
  * With WASM active (after initWasm()), both columns are compared.

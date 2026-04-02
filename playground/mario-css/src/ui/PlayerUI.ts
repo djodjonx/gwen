@@ -1,5 +1,5 @@
-import { defineUI, unpackEntityId } from '@gwenengine/core';
-import type { Physics2DAPI } from '@gwenengine/physics2d';
+import { defineUI, unpackEntityId } from '@gwenjs/core';
+import type { Physics2DAPI } from '@gwenjs/physics2d';
 import { PlayerState } from '../components/index.ts';
 import { ASSETS } from '../assets.ts';
 import { PLAYER_W, PLAYER_H } from '../prefabs/PlayerPrefab.ts';

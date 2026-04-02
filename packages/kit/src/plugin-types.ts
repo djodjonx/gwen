@@ -2,7 +2,7 @@
  * @file RFC-002 — satisfiesPluginContract & definePluginTypes
  */
 
-import type { GwenPlugin } from '@gwenengine/core';
+import type { GwenPlugin } from '@gwenjs/core';
 
 // ─── satisfiesPluginContract ─────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ export interface PluginTypesOptions {
  * Generates TypeScript declaration merging syntax for a plugin package.
  *
  * Call this in a plugin package's build step to produce the `.d.ts` fragment
- * that augments `@gwenengine/core` with the services and hooks your plugin provides.
+ * that augments `@gwenjs/core` with the services and hooks your plugin provides.
  *
  * Returns an empty string if no `provides` or `hooks` are specified.
  *
@@ -58,7 +58,7 @@ export interface PluginTypesOptions {
  *   hooks: { 'physics2d:step': '(dt: number) => void' },
  * })
  * // Produces:
- * // declare module '@gwenengine/core' {
+ * // declare module '@gwenjs/core' {
  * //   interface GwenProvides { physics2d: Physics2DAPI }
  * //   interface GwenRuntimeHooks { 'physics2d:step': (dt: number) => void }
  * // }
@@ -78,5 +78,5 @@ export function definePluginTypes(options: PluginTypesOptions): string {
   }
 
   if (blocks.length === 0) return '';
-  return `declare module '@gwenengine/core' {\n${blocks.join('\n')}\n}`;
+  return `declare module '@gwenjs/core' {\n${blocks.join('\n')}\n}`;
 }

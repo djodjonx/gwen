@@ -1,4 +1,4 @@
-// packages/@gwenengine/plugin-input/tests/gamepad.test.ts
+// packages/@gwenjs/plugin-input/tests/gamepad.test.ts
 import { describe, it, expect } from 'vitest';
 import { GamepadInput } from '../src/gamepad.js';
 

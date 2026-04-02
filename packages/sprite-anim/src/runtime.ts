@@ -12,7 +12,7 @@
  * - `logger`: warning logger
  */
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 import type {
   SpriteAnimClip,
   SpriteAnimCondition,

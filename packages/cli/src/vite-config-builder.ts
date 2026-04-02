@@ -1,5 +1,5 @@
 /**
- * @gwenengine/cli — vite-config-builder
+ * @gwenjs/cli — vite-config-builder
  *
  * Génère une InlineConfig Vite complète depuis gwen.config.ts.
  * C'est le cœur de l'offuscation Vite : l'utilisateur ne voit jamais vite.config.ts.
@@ -9,7 +9,7 @@
 
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { InlineConfig } from 'vite';
+import type { InlineConfig, PluginOption } from 'vite';
 import { VERSION } from './utils/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,7 +33,7 @@ export async function buildViteConfig(
 
   if (!gwenPlugin) {
     console.warn(
-      '[gwen-cli] WARNING: Could not find @gwenengine/vite. Virtual modules and WASM serving may not work.',
+      '[gwen-cli] WARNING: Could not find @gwenjs/vite. Virtual modules and WASM serving may not work.',
     );
   }
 
@@ -89,7 +89,7 @@ export async function buildViteConfig(
     },
 
     optimizeDeps: {
-      entries: ['/@gwenengine/gwen-entry'],
+      entries: ['/@gwenjs/gwen-entry'],
     },
 
     assetsInclude: ['**/*.wasm'],
@@ -100,20 +100,43 @@ export async function buildViteConfig(
 
 // ── Chargement dynamique du vite-plugin gwen ──────────────────────────────────
 
-async function loadGwenVitePlugin(_projectDir: string): Promise<Function | null> {
-  // Try to load from @gwenengine/vite using standard resolution
+interface GwenVitePluginOptions {
+  watch: boolean;
+  wasmMode: 'debug' | 'release';
+  verbose: boolean;
+}
+
+type GwenVitePluginFactory = (options: GwenVitePluginOptions) => PluginOption;
+
+interface GwenViteModule {
+  gwen?: GwenVitePluginFactory;
+  default?: GwenVitePluginFactory | { gwen?: GwenVitePluginFactory };
+}
+
+async function loadGwenVitePlugin(_projectDir: string): Promise<GwenVitePluginFactory | null> {
+  // Try to load from @gwenjs/vite using standard resolution
   try {
     // In Node.js ESM, dynamic import() uses standard resolution logic.
     // It will look into node_modules of the project, or follow pnpm workspace links.
-    const mod = (await import('@gwenengine/vite')) as any;
+    const mod = (await import('@gwenjs/vite')) as GwenViteModule;
 
-    // Support ESM: export function gwen, export default gwen
-    // Support CJS: module.exports = { gwen: ... }
-    const gwenPlugin =
-      mod.gwen ?? mod.default?.gwen ?? (typeof mod.default === 'function' ? mod.default : null);
+    let gwenPlugin: GwenVitePluginFactory | null = null;
+
+    if (typeof mod.gwen === 'function') {
+      gwenPlugin = mod.gwen;
+    } else if (typeof mod.default === 'function') {
+      gwenPlugin = mod.default;
+    } else if (
+      mod.default &&
+      typeof mod.default === 'object' &&
+      'gwen' in mod.default &&
+      typeof mod.default.gwen === 'function'
+    ) {
+      gwenPlugin = mod.default.gwen;
+    }
 
     if (gwenPlugin && typeof gwenPlugin === 'function') {
-      return gwenPlugin as Function;
+      return gwenPlugin;
     }
   } catch {
     // If not found, it might be that the package is not installed or linked yet.

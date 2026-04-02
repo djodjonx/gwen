@@ -95,12 +95,12 @@ const mockBridge = {
   })),
 };
 
-vi.mock('@gwenengine/core', () => ({
+vi.mock('@gwenjs/core', () => ({
   getWasmBridge: () => mockBridge,
 }));
 
 import { Physics3DPlugin, type Physics3DAPI } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 describe('Physics3D plugin — WASM backend mode', () => {
   beforeEach(() => {

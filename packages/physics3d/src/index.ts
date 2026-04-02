@@ -1,17 +1,17 @@
 /// <reference types="vite/client" />
 
 /**
- * @gwenengine/physics3d
+ * @gwenjs/physics3d
  *
  * 3D physics plugin for GWEN — Rapier3D adapter with full collider, sensor,
  * collision event, and layer support. Falls back to a deterministic local
  * TypeScript simulation when the WASM physics3d variant is unavailable.
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import { getWasmBridge, createEntityId, unpackEntityId } from '@gwenengine/core';
-import type { EntityId, GwenEngine } from '@gwenengine/core';
-import type { GwenPluginMeta } from '@gwenengine/kit';
+import { definePlugin } from '@gwenjs/kit';
+import { getWasmBridge, createEntityId, unpackEntityId } from '@gwenjs/core';
+import type { EntityId, GwenEngine } from '@gwenjs/core';
+import type { GwenPluginMeta } from '@gwenjs/kit';
 
 import type {
   Physics3DAPI,
@@ -64,23 +64,23 @@ const COLLIDER_ID_ABSENT = 0xffff;
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
     physics3d: {
-      from: '@gwenengine/physics3d',
+      from: '@gwenjs/physics3d',
       exportName: 'Physics3DAPI',
     },
   },
   hookTypes: {
     'physics3d:collision': {
-      from: '@gwenengine/physics3d',
+      from: '@gwenjs/physics3d',
       exportName: 'Physics3DPluginHooks',
     },
     'physics3d:sensor:changed': {
-      from: '@gwenengine/physics3d',
+      from: '@gwenjs/physics3d',
       exportName: 'Physics3DPluginHooks',
     },
   },
   prefabExtensionTypes: {
     physics3d: {
-      from: '@gwenengine/physics3d',
+      from: '@gwenjs/physics3d',
       exportName: 'Physics3DPrefabExtension',
     },
   },
@@ -1070,7 +1070,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   // ─── Plugin lifecycle ─────────────────────────────────────────────────────────
 
   return {
-    name: '@gwenengine/physics3d',
+    name: '@gwenjs/physics3d',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {

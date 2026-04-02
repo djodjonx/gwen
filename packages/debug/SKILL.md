@@ -13,7 +13,7 @@ GWEN Debug provides high-precision performance monitoring. It tracks instantaneo
 ### 1. Configuration & Thresholds
 Set up the debug plugin with smart drop detection.
 ```typescript
-import { DebugPlugin } from '@gwenengine/gwen-plugin-debug';
+import { DebugPlugin } from '@gwenjs/gwen-plugin-debug';
 
 export default defineConfig({
   plugins: [
@@ -43,8 +43,8 @@ Get the `DebugMetrics` object which includes:
 Toggle the visual HUD at runtime: `debug.setOverlayVisible(boolean)`. The overlay is automatically updated every `updateInterval`.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-debug/src/fps-tracker.ts`: Internal logic for rolling averages and jitter.
-- `packages/@gwenengine/plugin-debug/src/types.ts`: `DebugMetrics` and `DebugPluginConfig` types.
+- `packages/@gwenjs/plugin-debug/src/fps-tracker.ts`: Internal logic for rolling averages and jitter.
+- `packages/@gwenjs/plugin-debug/src/types.ts`: `DebugMetrics` and `DebugPluginConfig` types.
 
 ## Constraints
 - **Performance**: Metrics polling (especially `api.query([]).length`) has a cost. Keep `updateInterval` at 10+ frames.

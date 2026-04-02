@@ -5,9 +5,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { defaultOptions, resolveConfig, validateResolvedConfig } from '../src';
+import {
+  defaultOptions,
+  resolveConfig,
+  validateResolvedConfig,
+  assertModuleFirstInput,
+} from '../src';
+import type { GwenConfigInput, GwenPluginBase } from '../src';
 
-describe('@gwenengine/schema - Configuration', () => {
+describe('@gwenjs/schema - Configuration', () => {
   describe('defaultOptions', () => {
     it('should have all required default properties', () => {
       expect(defaultOptions.engine.maxEntities).toBe(5000);
@@ -18,6 +24,7 @@ describe('@gwenengine/schema - Configuration', () => {
       expect(defaultOptions.engine.maxDeltaSeconds).toBe(0.1);
       expect(defaultOptions.html.title).toBe('GWEN Project');
       expect(defaultOptions.html.background).toBe('#000000');
+      expect(defaultOptions.modules).toEqual([]);
       expect(defaultOptions.plugins).toEqual([]);
       expect(defaultOptions.scenes).toEqual([]);
       expect(defaultOptions.scenesMode).toBe('auto');
@@ -56,31 +63,41 @@ describe('@gwenengine/schema - Configuration', () => {
     });
 
     it('should unify legacy tsPlugins into plugins array', () => {
-      const plugin = { name: 'test-plugin' };
-      const config = resolveConfig({
+      const plugin: GwenPluginBase = { name: 'test-plugin' };
+      const input: GwenConfigInput = {
         tsPlugins: [plugin],
-      } as any);
+      };
+      const config = resolveConfig(input);
       expect(config.plugins).toContain(plugin);
     });
 
     it('should unify legacy wasmPlugins into plugins array', () => {
-      const plugin = { name: 'wasm-plugin', wasm: {} };
-      const config = resolveConfig({
+      const plugin: GwenPluginBase = { name: 'wasm-plugin', wasm: {} };
+      const input: GwenConfigInput = {
         wasmPlugins: [plugin],
-      } as any);
+      };
+      const config = resolveConfig(input);
       expect(config.plugins).toContain(plugin);
     });
 
     it('should merge tsPlugins and wasmPlugins together', () => {
-      const tsPlugin = { name: 'ts-plugin' };
-      const wasmPlugin = { name: 'wasm-plugin', wasm: {} };
-      const config = resolveConfig({
+      const tsPlugin: GwenPluginBase = { name: 'ts-plugin' };
+      const wasmPlugin: GwenPluginBase = { name: 'wasm-plugin', wasm: {} };
+      const input: GwenConfigInput = {
         tsPlugins: [tsPlugin],
         wasmPlugins: [wasmPlugin],
-      } as any);
+      };
+      const config = resolveConfig(input);
       expect(config.plugins).toHaveLength(2);
       expect(config.plugins).toContain(tsPlugin);
       expect(config.plugins).toContain(wasmPlugin);
+    });
+
+    it('should preserve modules if provided', () => {
+      const config = resolveConfig({
+        modules: ['@gwenjs/input', ['@gwenjs/audio', { masterVolume: 0.8 }]],
+      });
+      expect(config.modules).toEqual(['@gwenjs/input', ['@gwenjs/audio', { masterVolume: 0.8 }]]);
     });
 
     it('should preserve mainScene if provided', () => {
@@ -190,16 +207,37 @@ describe('@gwenengine/schema - Configuration', () => {
       expect(() => {
         validateResolvedConfig({
           ...defaultOptions,
-          plugins: {} as any,
+          plugins: {} as unknown as GwenPluginBase[],
         });
       }).toThrow('plugins must be an array');
+    });
+
+    it('should reject if modules is not an array', () => {
+      expect(() => {
+        validateResolvedConfig({
+          ...defaultOptions,
+          modules: {} as unknown as (typeof defaultOptions)['modules'],
+        });
+      }).toThrow('modules must be an array');
+    });
+
+    it('should reject invalid module tuple options', () => {
+      expect(() => {
+        validateResolvedConfig({
+          ...defaultOptions,
+          modules: [['@gwenjs/input', 'invalid-options' as unknown as Record<string, unknown>]],
+        });
+      }).toThrow('modules[0] must be a string or a [name, options] tuple with object options');
     });
 
     it('should reject invalid engine.loop value', () => {
       expect(() => {
         validateResolvedConfig({
           ...defaultOptions,
-          engine: { ...defaultOptions.engine, loop: 'manual' as any },
+          engine: {
+            ...defaultOptions.engine,
+            loop: 'manual' as unknown as (typeof defaultOptions.engine)['loop'],
+          },
         });
       }).toThrow("engine.loop must be 'internal' or 'external'");
     });
@@ -220,6 +258,30 @@ describe('@gwenengine/schema - Configuration', () => {
           engine: { ...defaultOptions.engine, maxDeltaSeconds: 2 },
         });
       }).toThrow('engine.maxDeltaSeconds must be > 0 and <= 1');
+    });
+  });
+
+  describe('assertModuleFirstInput', () => {
+    it('accepts module-first input', () => {
+      expect(() => {
+        assertModuleFirstInput({
+          modules: ['@gwenjs/input'],
+        });
+      }).not.toThrow();
+    });
+
+    it('accepts empty input', () => {
+      expect(() => {
+        assertModuleFirstInput({});
+      }).not.toThrow();
+    });
+
+    it('rejects legacy plugin-only input', () => {
+      expect(() => {
+        assertModuleFirstInput({
+          plugins: [{ name: 'legacy-plugin' }],
+        });
+      }).toThrow('Module-first configuration required');
     });
   });
 });

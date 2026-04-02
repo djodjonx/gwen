@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/audio.
+ * @file Composables for @gwenjs/audio.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { AudioService } from './index.js';
 import './augment.js';
 
@@ -30,8 +30,8 @@ export function useAudio(): AudioService {
   const service = engine.tryInject('audio');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/audio',
-    hint: "Add '@gwenengine/audio' to modules in gwen.config.ts",
+    pluginName: '@gwenjs/audio',
+    hint: "Add '@gwenjs/audio' to modules in gwen.config.ts",
     docsUrl: 'https://gwenengine.dev/plugins/audio',
   });
 }

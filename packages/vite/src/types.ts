@@ -1,4 +1,4 @@
-import type { AutoImport, GwenTypeTemplate } from '@gwenengine/kit';
+import type { AutoImport, GwenTypeTemplate } from '@gwenjs/kit';
 
 /**
  * Which WASM binary build variant to load.
@@ -21,7 +21,7 @@ export interface GwenWasmOptions {
   /**
    * Override the path to the WASM file.
    * When omitted the plugin resolves the binary from the installed
-   * `@gwenengine/core` package.
+   * `@gwenjs/core` package.
    */
   wasmPath?: string;
 

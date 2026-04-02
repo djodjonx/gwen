@@ -3,7 +3,7 @@
  * Maintains state during the build pipeline
  */
 
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
 import type { CoreVariant } from './variant-detector.js';
 
 export interface BuildContext {

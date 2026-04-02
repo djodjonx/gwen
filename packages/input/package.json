@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/input",
+  "name": "@gwenjs/input",
   "version": "1.0.0",
   "description": "GWEN Input Plugin \u2014 keyboard, mouse, gamepad",
   "files": [
@@ -24,8 +24,8 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -37,15 +37,15 @@
     "type": "typescript",
     "serviceTypes": {
       "keyboard": {
-        "from": "@gwenengine/input",
+        "from": "@gwenjs/input",
         "exportName": "KeyboardInput"
       },
       "mouse": {
-        "from": "@gwenengine/input",
+        "from": "@gwenjs/input",
         "exportName": "MouseInput"
       },
       "gamepad": {
-        "from": "@gwenengine/input",
+        "from": "@gwenjs/input",
         "exportName": "GamepadInput"
       }
     }

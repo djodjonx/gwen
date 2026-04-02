@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/kit-platformer.
+ * @file Composables for @gwenjs/kit-platformer.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { PlatformerKitService } from './plugin.js';
 import './augment.js';
 
@@ -28,8 +28,8 @@ export function usePlatformer(): PlatformerKitService {
   const service = engine.tryInject('platformer');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/kit-platformer',
-    hint: "Add '@gwenengine/kit-platformer' to modules in gwen.config.ts",
+    pluginName: '@gwenjs/kit-platformer',
+    hint: "Add '@gwenjs/kit-platformer' to modules in gwen.config.ts",
     docsUrl: 'https://gwenengine.dev/kits/platformer',
   });
 }

@@ -1,17 +1,17 @@
 /**
- * @gwenengine/cli — Builder (v0.2.0)
+ * @gwenjs/cli — Builder (v0.2.0)
  *
  * Build orchestration for GWEN projects.
  * Pipeline:
  *  1. Load and validate config
- *  2. Copy pre-compiled WASM from @gwenengine/core
+ *  2. Copy pre-compiled WASM from @gwenjs/core
  *  3. Generate manifest JSON
  *  4. Prepare project artifacts
  *  5. Run Vite build
  *
  * @example
  * ```typescript
- * import { build } from '@gwenengine/cli';
+ * import { build } from '@gwenjs/cli';
  * const result = await build({ mode: 'release' });
  * if (result.success) {
  *   console.log('Build complete!');
@@ -28,6 +28,14 @@ import { copyWasmArtifacts } from './wasm.js';
 import { generateManifest } from './manifest.js';
 import { runViteBuild } from './vite.js';
 import { detectCoreVariant, detectSharedMemoryPlugins } from './variant-detector.js';
+import { loadFrameworkContext } from '../app-context.js';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -83,8 +91,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     await prepareBuildArtifacts(ctx);
     await generateManifest(ctx);
     await runViteBuild(ctx);
-  } catch (error: any) {
-    ctx.errors.push(error.message);
+  } catch (error: unknown) {
+    ctx.errors.push(getErrorMessage(error));
   }
 
   const result: BuildResult = {
@@ -119,11 +127,17 @@ async function loadConfig(ctx: BuildContext): Promise<void> {
     ctx.config = loaded.config;
     ctx.configPath = loaded.configPath;
 
+    // Module-first framework path: resolve runtime plugins through @gwenjs/app.
+    if (ctx.config.modules.length > 0) {
+      const framework = await loadFrameworkContext(ctx.projectDir);
+      ctx.config.plugins = framework.plugins;
+    }
+
     // Detect core variant (light, physics2d, physics3d)
-    ctx.variant = detectCoreVariant(ctx.config as any);
+    ctx.variant = detectCoreVariant(ctx.config);
     logger.info(`Core variant: ${ctx.variant} (auto-detected)`);
 
-    const sabPlugins = detectSharedMemoryPlugins(ctx.config as any);
+    const sabPlugins = detectSharedMemoryPlugins(ctx.config);
     if (sabPlugins.length > 0) {
       logger.warn(
         'SharedArrayBuffer required by plugin(s): ' +
@@ -133,8 +147,8 @@ async function loadConfig(ctx: BuildContext): Promise<void> {
     }
 
     logger.debug('Config loaded and validated');
-  } catch (error: any) {
-    throw new Error(`Config loading failed: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`Config loading failed: ${getErrorMessage(error)}`);
   }
 }
 

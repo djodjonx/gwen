@@ -1,5 +1,5 @@
-import { createEntityId, unpackEntityId } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import { createEntityId, unpackEntityId } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
 import type {
   CollisionEvent,
   CollisionEventsBatch,

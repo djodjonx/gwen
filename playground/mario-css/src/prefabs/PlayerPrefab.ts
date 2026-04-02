@@ -1,4 +1,4 @@
-import { definePrefab, UIComponent } from '@gwenengine/core';
+import { definePrefab, UIComponent } from '@gwenjs/core';
 import { Position, Tag, PlayerState } from '../components/index.ts';
 
 export const PLAYER_W = 24; // px — taille visuelle

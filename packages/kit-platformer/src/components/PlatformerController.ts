@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@gwenengine/core';
+import { defineComponent, Types } from '@gwenjs/core';
 import {
   DEFAULT_PIXELS_PER_METER,
   DEFAULT_PLATFORMER_UNITS,

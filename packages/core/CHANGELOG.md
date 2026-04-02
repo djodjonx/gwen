@@ -1,4 +1,4 @@
-#@gwenengine/core
+#@gwenjs/core
 
 ## 1.0.0
 

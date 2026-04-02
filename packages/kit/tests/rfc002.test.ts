@@ -39,7 +39,7 @@ describe('satisfiesPluginContract', () => {
 describe('definePluginTypes', () => {
   it('generates declaration merging with provides', () => {
     const output = definePluginTypes({ provides: { physics2d: 'Physics2DAPI' } });
-    expect(output).toContain("declare module '@gwenengine/core'");
+    expect(output).toContain("declare module '@gwenjs/core'");
     expect(output).toContain('interface GwenProvides');
     expect(output).toContain('physics2d: Physics2DAPI');
   });

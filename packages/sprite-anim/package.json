@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/sprite-anim",
+  "name": "@gwenjs/sprite-anim",
   "version": "1.0.0",
   "description": "GWEN Sprite Animation Plugin \u2014 Animator runtime for defineUI",
   "files": [
@@ -25,8 +25,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -35,33 +35,33 @@
     "vitest": "^4.0.18"
   },
   "peerDependencies": {
-    "@gwenengine/core": "workspace:*"
+    "@gwenjs/core": "workspace:*"
   },
   "gwen": {
     "type": "typescript",
     "serviceTypes": {
       "animator": {
-        "from": "@gwenengine/gwen-plugin-sprite-anim",
+        "from": "@gwenjs/gwen-plugin-sprite-anim",
         "exportName": "SpriteAnimatorService"
       }
     },
     "hookTypes": {
       "spriteAnim:complete": {
-        "from": "@gwenengine/gwen-plugin-sprite-anim",
+        "from": "@gwenjs/gwen-plugin-sprite-anim",
         "exportName": "SpriteAnimPluginHooks"
       },
       "spriteAnim:frame": {
-        "from": "@gwenengine/gwen-plugin-sprite-anim",
+        "from": "@gwenjs/gwen-plugin-sprite-anim",
         "exportName": "SpriteAnimPluginHooks"
       },
       "spriteAnim:transition": {
-        "from": "@gwenengine/gwen-plugin-sprite-anim",
+        "from": "@gwenjs/gwen-plugin-sprite-anim",
         "exportName": "SpriteAnimPluginHooks"
       }
     },
     "uiExtensionTypes": {
       "spriteAnim": {
-        "from": "@gwenengine/gwen-plugin-sprite-anim",
+        "from": "@gwenjs/gwen-plugin-sprite-anim",
         "exportName": "SpriteAnimUIExtension"
       }
     }

@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * await appendModuleToConfig('@gwenengine/physics')
+ * await appendModuleToConfig('@gwenjs/physics')
  * ```
  */
 

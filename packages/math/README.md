@@ -1,4 +1,4 @@
-# @gwenengine/math
+# @gwenjs/math
 
 Pure-function math library for the GWEN game engine.
 Zero dependencies, fully tree-shakeable, works in any environment (browser, Node, WASM).
@@ -6,7 +6,7 @@ Zero dependencies, fully tree-shakeable, works in any environment (browser, Node
 ## Installation
 
 ```sh
-pnpm add @gwenengine/math
+pnpm add @gwenjs/math
 ```
 
 ## Features
@@ -29,7 +29,7 @@ pnpm add @gwenengine/math
 ### Vectors
 
 ```ts
-import { vec2, vec2Add, vec2Normalize } from '@gwenengine/math';
+import { vec2, vec2Add, vec2Normalize } from '@gwenjs/math';
 
 const a = vec2(1, 0);
 const b = vec2(0, 1);
@@ -38,7 +38,7 @@ const norm = vec2Normalize(sum); // { x: 0.707, y: 0.707 }
 ```
 
 ```ts
-import { vec3, vec3Cross, vec3Normalize } from '@gwenengine/math';
+import { vec3, vec3Cross, vec3Normalize } from '@gwenjs/math';
 
 const right = vec3(1, 0, 0);
 const up    = vec3(0, 1, 0);
@@ -46,7 +46,7 @@ const fwd   = vec3Normalize(vec3Cross(right, up)); // { x: 0, y: 0, z: 1 }
 ```
 
 ```ts
-import { vec4, vec4Dot } from '@gwenengine/math';
+import { vec4, vec4Dot } from '@gwenjs/math';
 
 const a = vec4(1, 2, 3, 1);
 const b = vec4(0, 1, 0, 1);
@@ -56,8 +56,8 @@ const d = vec4Dot(a, b); // 3
 ### Matrices
 
 ```ts
-import { mat4TRS, mat4Perspective, mat4LookAt } from '@gwenengine/math';
-import { quatFromEuler } from '@gwenengine/math';
+import { mat4TRS, mat4Perspective, mat4LookAt } from '@gwenjs/math';
+import { quatFromEuler } from '@gwenjs/math';
 
 // Build a model matrix from position, rotation, scale
 const model = mat4TRS(
@@ -78,7 +78,7 @@ const view = mat4LookAt(
 ```
 
 ```ts
-import { mat3Rotate, mat3MulVec3 } from '@gwenengine/math';
+import { mat3Rotate, mat3MulVec3 } from '@gwenjs/math';
 
 // Rotate a 2D point 45°
 const rot = mat3Rotate(Math.PI / 4);
@@ -88,7 +88,7 @@ const pt  = mat3MulVec3(rot, { x: 1, y: 0, z: 1 }); // homogeneous 2D
 ### Quaternions
 
 ```ts
-import { quatFromEuler, quatSlerp, quatRotateVec3 } from '@gwenengine/math';
+import { quatFromEuler, quatSlerp, quatRotateVec3 } from '@gwenjs/math';
 
 const q1 = quatFromEuler(0, 0, 0);
 const q2 = quatFromEuler(0, Math.PI, 0);
@@ -100,7 +100,7 @@ const fwd = quatRotateVec3(halfway, { x: 0, y: 0, z: -1 });
 ### Interpolation utilities
 
 ```ts
-import { lerp, clamp, smoothstep } from '@gwenengine/math';
+import { lerp, clamp, smoothstep } from '@gwenjs/math';
 
 const t  = clamp(rawT, 0, 1);
 const v  = lerp(0, 100, t);
@@ -108,7 +108,7 @@ const st = smoothstep(0, 1, t);
 ```
 
 ```ts
-import { damp, dampVec3 } from '@gwenengine/math';
+import { damp, dampVec3 } from '@gwenjs/math';
 
 // Smooth damp — frame-rate independent
 velocity = damp(velocity, targetVelocity, 0.1, dt);
@@ -116,7 +116,7 @@ position = dampVec3(position, targetPosition, 0.05, dt);
 ```
 
 ```ts
-import { spring1D, makeSpring1D, criticalOpts } from '@gwenengine/math';
+import { spring1D, makeSpring1D, criticalOpts } from '@gwenjs/math';
 
 const state = makeSpring1D(0);                    // initial value
 const next  = spring1D(state, 1, criticalOpts, dt); // spring toward 1
@@ -125,7 +125,7 @@ const next  = spring1D(state, 1, criticalOpts, dt); // spring toward 1
 ### Colors
 
 ```ts
-import { colorFromHex, colorLerp, colorToHex } from '@gwenengine/math';
+import { colorFromHex, colorLerp, colorToHex } from '@gwenjs/math';
 
 const red   = colorFromHex('#ff0000');
 const blue  = colorFromHex('#0000ff');

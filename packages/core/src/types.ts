@@ -2,7 +2,7 @@
  * GWEN Engine — public type barrel.
  *
  * All types are defined in focused single-responsibility modules under `./types/`.
- * Import from `@gwenengine/core` as usual — this file re-exports everything.
+ * Import from `@gwenjs/core` as usual — this file re-exports everything.
  *
  * Module map:
  *   types/global-augment.ts  — GwenDefaultServices, GwenDefaultHooks (declare global)

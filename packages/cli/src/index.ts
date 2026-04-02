@@ -1,5 +1,5 @@
 /**
- * @gwenengine/cli — Public API exports
+ * @gwenjs/cli — Public API exports
  *
  * Export all public functions and types for programmatic usage
  */
@@ -23,7 +23,7 @@ export {
   type PackageManager,
   type RunInstallOptions,
 } from './utils/package-manager.js';
-export type { GwenOptions as GwenConfig } from '@gwenengine/schema';
+export type { GwenOptions as GwenConfig } from '@gwenjs/schema';
 
 // Core types
 export type { Result } from './core/types/result.js';

@@ -1,13 +1,13 @@
 /**
- * @file GwenProvides augmentations for @gwenengine/sprite-anim.
+ * @file GwenProvides augmentations for @gwenjs/sprite-anim.
  *
- * Importing any symbol from `@gwenengine/sprite-anim` automatically augments
- * `@gwenengine/core` with a typed sprite animator service key.
+ * Importing any symbol from `@gwenjs/sprite-anim` automatically augments
+ * `@gwenjs/core` with a typed sprite animator service key.
  */
 
 import type { SpriteAnimatorService } from './index.js';
 
-declare module '@gwenengine/core' {
+declare module '@gwenjs/core' {
   /**
    * Sprite animator service slot in the engine's provide/inject registry.
    * Available after `engine.use(SpriteAnimPlugin())` completes setup.

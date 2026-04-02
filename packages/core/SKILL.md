@@ -13,7 +13,7 @@ GWEN Engine Core is the central orchestrator. It manages the Entity Component Sy
 ### 1. Initialization & Configuration
 The engine is initialized via `createEngine` and configured with `defineConfig`.
 ```typescript
-import { createEngine, defineConfig } from '@gwenengine/core';
+import { createEngine, defineConfig } from '@gwenjs/core';
 
 const config = defineConfig({
   maxEntities: 10000,
@@ -35,7 +35,7 @@ The `EngineAPI` is the primary interface for game logic (passed to systems and s
 ### 3. Scene System
 Scenes encapsulate game states. They are automatically discovered if placed in `src/scenes/` or can be registered manually.
 ```typescript
-import { defineScene } from '@gwenengine/core';
+import { defineScene } from '@gwenjs/core';
 
 export const GameScene = defineScene('Game', {
   onInit(api) { /* Setup */ },
@@ -48,7 +48,7 @@ export const GameScene = defineScene('Game', {
 ### 4. Prefab System
 Prefabs are templates for entities with pre-defined components and plugin extensions.
 ```typescript
-import { definePrefab } from '@gwenengine/core';
+import { definePrefab } from '@gwenjs/core';
 
 const PlayerPrefab = definePrefab({
   name: 'Player',
@@ -72,10 +72,10 @@ For performance, GWEN uses a WASM bridge.
 - **Plugin Data Bus**: Channel-based communication for WASM plugins.
 
 ## Available Resources
-- `packages/@gwenengine/engine-core/src/core/ecs.ts`: Core ECS implementation.
-- `packages/@gwenengine/engine-core/src/engine/engine.ts`: Main Engine orchestration.
-- `packages/@gwenengine/engine-core/src/api/api.ts`: `EngineAPI` implementation.
-- `packages/@gwenengine/engine-core/src/wasm/shared-memory.ts`: Memory layout constants.
+- `packages/@gwenjs/engine-core/src/core/ecs.ts`: Core ECS implementation.
+- `packages/@gwenjs/engine-core/src/engine/engine.ts`: Main Engine orchestration.
+- `packages/@gwenjs/engine-core/src/api/api.ts`: `EngineAPI` implementation.
+- `packages/@gwenjs/engine-core/src/wasm/shared-memory.ts`: Memory layout constants.
 
 ## Constraints
 - **Asynchrony**: `createEngine` and `initWasm` are asynchronous.

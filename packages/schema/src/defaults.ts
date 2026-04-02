@@ -3,12 +3,35 @@
  *
  * Default configuration values and merge logic using defu.
  *
- * @module @gwenengine/schema
+ * @module @gwenjs/schema
  */
 
 import { defu } from 'defu';
-import type { GwenOptions, GwenConfigInput, GwenPluginBase } from './config';
+import type { GwenOptions, GwenConfigInput, GwenPluginBase, GwenModuleEntry } from './config';
 import { validateResolvedConfig } from './validate.js';
+
+function isPluginBase(value: unknown): value is GwenPluginBase {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'name' in value &&
+    typeof (value as { name?: unknown }).name === 'string'
+  );
+}
+
+function toPluginArray(value: unknown): GwenPluginBase[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isPluginBase);
+}
+
+function toModuleArray(value: unknown): GwenModuleEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value as GwenModuleEntry[];
+}
 
 /**
  * Default GWEN configuration values.
@@ -30,6 +53,7 @@ export const defaultOptions: GwenOptions = {
     title: 'GWEN Project',
     background: '#000000',
   },
+  modules: [],
   plugins: [],
   scenes: [],
   scenesMode: 'auto',
@@ -60,25 +84,24 @@ export const defaultOptions: GwenOptions = {
  */
 export function resolveConfig(input: GwenConfigInput = {}): GwenOptions {
   // Start with defaults and merge input using defu (right-side wins, deep merge)
-  const merged = defu(input as Partial<GwenOptions>, defaultOptions) as GwenOptions;
+  const merged = defu(input, defaultOptions) as GwenOptions;
+
+  const modules = toModuleArray(input.modules ?? merged.modules);
 
   // Unify legacy plugin arrays into single plugins array
-  const plugins: GwenPluginBase[] = [...(merged.plugins ?? [])];
+  const plugins: GwenPluginBase[] = [...toPluginArray(merged.plugins)];
 
   // Add legacy tsPlugins if present
-  if (Array.isArray((input as any).tsPlugins)) {
-    plugins.push(...(input as any).tsPlugins);
-  }
+  plugins.push(...toPluginArray(input.tsPlugins));
 
   // Add legacy wasmPlugins if present
-  if (Array.isArray((input as any).wasmPlugins)) {
-    plugins.push(...(input as any).wasmPlugins);
-  }
+  plugins.push(...toPluginArray(input.wasmPlugins));
 
   // Create the final resolved config
   const resolvedBase: GwenOptions = {
     engine: merged.engine,
     html: merged.html,
+    modules,
     plugins,
     scenes: merged.scenes ?? [],
     scenesMode: merged.scenesMode ?? 'auto',

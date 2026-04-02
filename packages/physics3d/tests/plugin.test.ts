@@ -9,7 +9,7 @@ describe('Physics3DPlugin foundation', () => {
 
   it('instantiates with expected plugin name', () => {
     const plugin = new Physics3DPlugin();
-    expect(plugin.name).toBe('@gwenengine/physics3d');
+    expect(plugin.name).toBe('@gwenjs/physics3d');
   });
 
   it('exposes metadata for physics3d service typing', () => {

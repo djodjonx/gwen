@@ -45,7 +45,7 @@ importers:
 
   packages/app:
     dependencies:
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
       c12:
@@ -70,10 +70,10 @@ importers:
 
   packages/audio:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -92,13 +92,16 @@ importers:
 
   packages/cli:
     dependencies:
-      '@gwenengine/kit':
+      '@gwenjs/app':
+        specifier: workspace:*
+        version: link:../app
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
-      '@gwenengine/schema':
+      '@gwenjs/schema':
         specifier: workspace:*
         version: link:../schema
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../vite
       c12:
@@ -147,7 +150,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@gwenengine/schema':
+      '@gwenjs/schema':
         specifier: workspace:*
         version: link:../schema
       hookable:
@@ -172,7 +175,7 @@ importers:
 
   packages/create:
     dependencies:
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../cli
     devDependencies:
@@ -185,10 +188,10 @@ importers:
 
   packages/debug:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -207,10 +210,10 @@ importers:
 
   packages/input:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -229,14 +232,14 @@ importers:
 
   packages/kit:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/schema':
+      '@gwenjs/schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
-      '@gwenengine/app':
+      '@gwenjs/app':
         specifier: workspace:*
         version: link:../app
       typescript:
@@ -254,20 +257,20 @@ importers:
 
   packages/kit-platformer:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
-      '@gwenengine/physics2d':
+      '@gwenjs/physics2d':
         specifier: workspace:*
         version: link:../physics2d
     devDependencies:
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../cli
       typescript:
@@ -300,10 +303,10 @@ importers:
 
   packages/physics2d:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -325,10 +328,10 @@ importers:
 
   packages/physics3d:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -347,7 +350,7 @@ importers:
 
   packages/r3f:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -381,10 +384,10 @@ importers:
 
   packages/renderer-canvas2d:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -422,10 +425,10 @@ importers:
 
   packages/sprite-anim:
     dependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -444,11 +447,11 @@ importers:
 
   packages/ui:
     dependencies:
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../core
       '@types/jsdom':
@@ -472,7 +475,7 @@ importers:
 
   packages/vite:
     dependencies:
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../kit
     devDependencies:
@@ -491,35 +494,35 @@ importers:
 
   playground/mario-css:
     dependencies:
-      '@gwenengine/audio':
+      '@gwenjs/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../../packages/input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gwenengine/physics2d':
+      '@gwenjs/physics2d':
         specifier: workspace:*
         version: link:../../packages/physics2d
-      '@gwenengine/renderer-canvas2d':
+      '@gwenjs/renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/renderer-canvas2d
-      '@gwenengine/sprite-anim':
+      '@gwenjs/sprite-anim':
         specifier: workspace:*
         version: link:../../packages/sprite-anim
-      '@gwenengine/ui':
+      '@gwenjs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
     devDependencies:
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../../packages/vite
       oxlint:
@@ -534,35 +537,35 @@ importers:
 
   playground/platformer-kit-css:
     dependencies:
-      '@gwenengine/audio':
+      '@gwenjs/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../../packages/input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gwenengine/kit-platformer':
+      '@gwenjs/kit-platformer':
         specifier: workspace:*
         version: link:../../packages/kit-platformer
-      '@gwenengine/physics2d':
+      '@gwenjs/physics2d':
         specifier: workspace:*
         version: link:../../packages/physics2d
-      '@gwenengine/renderer-canvas2d':
+      '@gwenjs/renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/renderer-canvas2d
-      '@gwenengine/ui':
+      '@gwenjs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
     devDependencies:
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../../packages/vite
       oxlint:
@@ -577,22 +580,22 @@ importers:
 
   playground/snake-html:
     dependencies:
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../../packages/input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gwenengine/ui':
+      '@gwenjs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../../packages/vite
     devDependencies:
@@ -608,34 +611,34 @@ importers:
 
   playground/space-shooter:
     dependencies:
-      '@gwenengine/audio':
+      '@gwenjs/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gwenengine/debug':
+      '@gwenjs/debug':
         specifier: workspace:*
         version: link:../../packages/debug
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../../packages/input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gwenengine/physics2d':
+      '@gwenjs/physics2d':
         specifier: workspace:*
         version: link:../../packages/physics2d
-      '@gwenengine/renderer-canvas2d':
+      '@gwenjs/renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/renderer-canvas2d
-      '@gwenengine/ui':
+      '@gwenjs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../../packages/vite
     devDependencies:
@@ -651,37 +654,37 @@ importers:
 
   playground/space-shooter-2:
     dependencies:
-      '@gwenengine/audio':
+      '@gwenjs/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@gwenengine/cli':
+      '@gwenjs/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@gwenengine/core':
+      '@gwenjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gwenengine/debug':
+      '@gwenjs/debug':
         specifier: workspace:*
         version: link:../../packages/debug
-      '@gwenengine/input':
+      '@gwenjs/input':
         specifier: workspace:*
         version: link:../../packages/input
-      '@gwenengine/kit':
+      '@gwenjs/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gwenengine/physics2d':
+      '@gwenjs/physics2d':
         specifier: workspace:*
         version: link:../../packages/physics2d
-      '@gwenengine/renderer-canvas2d':
+      '@gwenjs/renderer-canvas2d':
         specifier: workspace:*
         version: link:../../packages/renderer-canvas2d
-      '@gwenengine/sprite-anim':
+      '@gwenjs/sprite-anim':
         specifier: workspace:*
         version: link:../../packages/sprite-anim
-      '@gwenengine/ui':
+      '@gwenjs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@gwenengine/vite':
+      '@gwenjs/vite':
         specifier: workspace:*
         version: link:../../packages/vite
     devDependencies:

@@ -98,7 +98,7 @@ export function gwenWasmPlugin(options: GwenViteOptions): Plugin {
  * Resolves the path to the WASM binary for the given variant.
  *
  * When `override` is provided it is resolved relative to `process.cwd()`.
- * Otherwise the binary is resolved from `@gwenengine/core`'s installed location.
+ * Otherwise the binary is resolved from `@gwenjs/core`'s installed location.
  *
  * @param variant - `'debug'` or `'release'`
  * @param override - Optional absolute or relative path override.
@@ -107,7 +107,7 @@ function resolveWasmPath(variant: 'debug' | 'release', override?: string): strin
   if (override) return resolve(override);
 
   const require = createRequire(import.meta.url);
-  const corePkg = require.resolve('@gwenengine/core/package.json');
+  const corePkg = require.resolve('@gwenjs/core/package.json');
   const coreDir = resolve(corePkg, '..');
   return resolve(coreDir, 'wasm', `gwen_core_${variant}.wasm`);
 }

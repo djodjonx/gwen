@@ -1,4 +1,4 @@
-import { defineUI } from '@gwenengine/core';
+import { defineUI } from '@gwenjs/core';
 import scoreHtml from './score.html?raw';
 import { Score } from '../components';
 

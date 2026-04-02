@@ -1,4 +1,4 @@
-# @gwenengine/vite
+# @gwenjs/vite
 
 ## 1.0.0
 

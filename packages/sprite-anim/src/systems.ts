@@ -1,5 +1,5 @@
-import { defineSystem } from '@gwenengine/core';
-import type { GwenEngine } from '@gwenengine/core';
+import { defineSystem } from '@gwenjs/core';
+import type { GwenEngine } from '@gwenjs/core';
 import type { SpriteAnimatorService } from './types';
 
 export interface SpriteAnimSystemOptions {

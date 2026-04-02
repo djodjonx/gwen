@@ -8,7 +8,7 @@ import { KeyboardInput } from '../src/keyboard';
 import { MouseInput } from '../src/mouse';
 import { GamepadInput } from '../src/gamepad';
 import { InputPlugin } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Mock GwenEngine ──────────────────────────────────────────────────────
 
@@ -308,7 +308,7 @@ describe('InputPlugin', () => {
   });
 
   it('should have name InputPlugin', () => {
-    expect(new InputPlugin().name).toBe('@gwenengine/input');
+    expect(new InputPlugin().name).toBe('@gwenjs/input');
   });
 
   describe('DI pattern — PlayerController consuming InputPlugin', () => {

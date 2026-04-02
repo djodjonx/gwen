@@ -90,6 +90,23 @@ describe('build integration', () => {
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
+  it('should reject plugin-only framework config with migration guidance', async () => {
+    writeConfig(
+      tmpDir,
+      "export default { plugins: [{ name: 'legacy-plugin' }] };",
+      'gwen.config.ts',
+    );
+
+    const result = await build({
+      projectDir: tmpDir,
+      dryRun: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain('Module-first configuration required');
+  });
+
   it('should measure build duration', async () => {
     writeConfig(tmpDir, MINIMAL_CONFIG, 'gwen.config.ts');
 

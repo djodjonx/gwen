@@ -1,9 +1,9 @@
-import { defineConfig } from '@gwenengine/kit';
-import { Physics2DPlugin } from '@gwenengine/physics2d';
-import { InputPlugin } from '@gwenengine/input';
-import { AudioPlugin } from '@gwenengine/audio';
-import { HtmlUIPlugin } from '@gwenengine/ui';
-import { PlatformerDefaultInputMap } from '@gwenengine/kit-platformer';
+import { defineConfig } from '@gwenjs/kit';
+import { Physics2DPlugin } from '@gwenjs/physics2d';
+import { InputPlugin } from '@gwenjs/input';
+import { AudioPlugin } from '@gwenjs/audio';
+import { HtmlUIPlugin } from '@gwenjs/ui';
+import { PlatformerDefaultInputMap } from '@gwenjs/kit-platformer';
 
 /**
  * GWEN Project Configuration

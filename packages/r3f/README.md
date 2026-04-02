@@ -1,4 +1,4 @@
-# @gwenengine/r3f
+# @gwenjs/r3f
 
 React Three Fiber adapter foundation for GWEN.
 
@@ -10,15 +10,15 @@ Current scope (RFC-006 foundation):
 ## Installation
 
 ```bash
-npm install @gwenengine/r3f
+npm install @gwenjs/r3f
 ```
 
 ## Usage
 
 ```tsx
 import { Canvas } from '@react-three/fiber';
-import { GwenProvider, GwenLoop } from '@gwenengine/r3f';
-import { initWasm, createEngine } from '@gwenengine/core';
+import { GwenProvider, GwenLoop } from '@gwenjs/r3f';
+import { initWasm, createEngine } from '@gwenjs/core';
 
 await initWasm('physics3d');
 const { engine } = await createEngine({ engine: { loop: 'external' } });
@@ -37,7 +37,7 @@ export function App() {
 ## Hooks
 
 ```tsx
-import { useQuery, useEvent, usePhysicsBodyState, useComponentValue, useEntityTransform } from '@gwenengine/r3f';
+import { useQuery, useEvent, usePhysicsBodyState, useComponentValue, useEntityTransform } from '@gwenjs/r3f';
 
 function PlayerMesh({ id, meshRef }: { id: bigint; meshRef: React.MutableRefObject<any> }) {
   // Query entities with required components

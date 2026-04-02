@@ -33,7 +33,7 @@ api.services.get('htmlUI').mount(entityId, template);
 - `unmount(entityId)`: Complete removal from DOM and memory.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-html-ui/src/index.ts`: The `HtmlUI` service implementation.
+- `packages/@gwenjs/plugin-html-ui/src/index.ts`: The `HtmlUI` service implementation.
 
 ## Constraints
 - **Deduplication**: Style hashing is based on content. Identical styles across different entities are only injected once.

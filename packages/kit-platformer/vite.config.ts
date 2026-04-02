@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
-  plugins: [dts({ include: ['src'], outDir: 'dist', rollupTypes: true })],
+  plugins: [dts({ include: ['src'], outDir: 'dist', rollupTypes: false })],
   build: {
     lib: {
       // Deux entry points : index (runtime navigateur) + index.setup (CLI Node.js)
@@ -16,13 +16,13 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        '@gwenengine/core',
-        '@gwenengine/kit',
-        '@gwenengine/physics2d',
-        '@gwenengine/physics2d/core',
-        '@gwenengine/physics2d/helpers/static-geometry',
-        '@gwenengine/input',
-        '@gwenengine/cli',
+        '@gwenjs/core',
+        '@gwenjs/kit',
+        '@gwenjs/physics2d',
+        '@gwenjs/physics2d/core',
+        '@gwenjs/physics2d/helpers/static-geometry',
+        '@gwenjs/input',
+        '@gwenjs/cli',
       ],
     },
   },

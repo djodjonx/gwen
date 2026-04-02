@@ -1,4 +1,4 @@
-// packages/@gwenengine/plugin-input/tests/InputMapper.test.ts
+// packages/@gwenjs/plugin-input/tests/InputMapper.test.ts
 import { describe, it, expect } from 'vitest';
 import { InputMapper } from '../src/mapping/InputMapper.js';
 import { Keys } from '../src/constants/keys.js';

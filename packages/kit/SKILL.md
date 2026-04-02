@@ -13,7 +13,7 @@ GWEN Kit provides the building blocks for plugin authors. It defines the `define
 ### 1. Defining a TypeScript Plugin
 Use `definePlugin` to create a new plugin.
 ```typescript
-import { definePlugin } from '@gwenengine/kit';
+import { definePlugin } from '@gwenjs/kit';
 
 export const MyPlugin = definePlugin((config: MyConfig = {}) => {
   return {
@@ -67,8 +67,8 @@ const wasm = await loadWasmPlugin<MyWasmModule>({
 ```
 
 ## Available Resources
-- `packages/@gwenengine/kit/src/define-plugin.ts`: `definePlugin` factory and lifecycle types.
-- `packages/@gwenengine/kit/src/config.ts`: `defineConfig` and project configuration types.
+- `packages/@gwenjs/kit/src/define-plugin.ts`: `definePlugin` factory and lifecycle types.
+- `packages/@gwenjs/kit/src/config.ts`: `defineConfig` and project configuration types.
 
 ## Constraints
 - **Naming**: Plugin names must be unique within a project.

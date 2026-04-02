@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AudioPlugin } from '../src/index';
 import type { AudioService } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Mock GwenEngine ──────────────────────────────────────────────────────
 
@@ -123,7 +123,7 @@ describe('AudioPlugin', () => {
     });
 
     it('should have name "AudioPlugin"', () => {
-      expect(new AudioPlugin().name).toBe('@gwenengine/audio');
+      expect(new AudioPlugin().name).toBe('@gwenjs/audio');
     });
 
     it('should apply master volume on init', () => {

@@ -13,7 +13,7 @@ The Physics2D plugin is a high-performance bridge to Rapier2D via WASM. It handl
 ### 1. Advanced Configuration
 Define named layers and quality presets in `gwen.config.ts`.
 ```typescript
-import { physics2D } from '@gwenengine/physics2d';
+import { physics2D } from '@gwenjs/physics2d';
 
 export default defineConfig({
   plugins: [
@@ -88,9 +88,9 @@ physics.loadTilemapPhysicsChunk(chunk, x, y, {
 - `onCollision` Callback: Can be defined directly in the prefab extension to handle logic locally.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-physics2d/src/types.ts`: Constants like `PHYSICS_MATERIAL_PRESETS`.
-- `packages/@gwenengine/plugin-physics2d/src/systems.ts`: `createPlatformerGroundedSystem` (uses sensors).
-- `packages/@gwenengine/plugin-physics2d/src/helpers/tilemap.ts`: Optimization logic for tilemaps.
+- `packages/@gwenjs/plugin-physics2d/src/types.ts`: Constants like `PHYSICS_MATERIAL_PRESETS`.
+- `packages/@gwenjs/plugin-physics2d/src/systems.ts`: `createPlatformerGroundedSystem` (uses sensors).
+- `packages/@gwenjs/plugin-physics2d/src/helpers/tilemap.ts`: Optimization logic for tilemaps.
 
 ## Constraints
 - **Unit Conversion**: The API expects **Meters**. Manual calls must divide pixels by `50`.

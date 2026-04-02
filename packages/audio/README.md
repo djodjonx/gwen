@@ -1,4 +1,4 @@
-#@gwenengine/audio
+#@gwenjs/audio
 
 **GWEN Audio Plugin — Web Audio API integration**
 
@@ -7,7 +7,7 @@ Manage sound effects, background music, and audio playback in your GWEN game.
 ## Installation
 
 ```bash
-npm install@gwenengine/audio
+npm install@gwenjs/audio
 ```
 
 ## Quick Start
@@ -16,8 +16,8 @@ npm install@gwenengine/audio
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenengine/kit';
-import { AudioPlugin } from '@gwenengine/audio';
+import { defineConfig } from '@gwenjs/kit';
+import { AudioPlugin } from '@gwenjs/audio';
 
 export default defineConfig({
   plugins: [new AudioPlugin({ masterVolume: 0.8 })],
@@ -27,7 +27,7 @@ export default defineConfig({
 ### Preload and Play Sounds
 
 ```typescript
-import type { EngineAPI } from '@gwenengine/core';
+import type { EngineAPI } from '@gwenjs/core';
 
 export function createAudioSystem(api: EngineAPI) {
   const audio = api.services.get('audio');
@@ -119,6 +119,6 @@ Uses the Web Audio API. Supported in all modern browsers:
 
 ## See Also
 
-- [@gwenengine/core](../engine-core/) — Core engine
-- [@gwenengine/input](../plugin-input/) — Input handling
-- [@gwenengine/gwen-plugin-debug](../plugin-debug/) — Debug overlay
+- [@gwenjs/core](../engine-core/) — Core engine
+- [@gwenjs/input](../plugin-input/) — Input handling
+- [@gwenjs/gwen-plugin-debug](../plugin-debug/) — Debug overlay

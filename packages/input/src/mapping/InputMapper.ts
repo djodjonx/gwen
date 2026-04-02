@@ -1,4 +1,4 @@
-// packages/@gwenengine/plugin-input/src/mapping/InputMapper.ts
+// packages/@gwenjs/plugin-input/src/mapping/InputMapper.ts
 import type { KeyboardInput } from '../keyboard.js';
 import type { GamepadInput } from '../gamepad.js';
 import { BindingType, InputType } from './types.js';

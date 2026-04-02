@@ -5,7 +5,7 @@
 Factory exported by the plugin to sync ECS positions to Rapier for kinematic bodies.
 
 ```ts
-import { createPhysicsKinematicSyncSystem } from '@gwenengine/physics2d';
+import { createPhysicsKinematicSyncSystem } from '@gwenjs/physics2d';
 
 const PhysicsKinematicSyncSystem = createPhysicsKinematicSyncSystem();
 

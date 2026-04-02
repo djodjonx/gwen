@@ -1,4 +1,4 @@
-#@gwenengine/core
+#@gwenjs/core
 
 **TypeScript SDK for GWEN Game Engine**
 
@@ -17,13 +17,13 @@ Complete framework for building web games with a powerful Rust/WASM core and fle
 ### Installation
 
 ```bash
-npm install@gwenengine/core
+npm install@gwenjs/core
 ```
 
 ### Basic Usage
 
 ```typescript
-import { Engine, defineConfig } from '@gwenengine/core';
+import { Engine, defineConfig } from '@gwenjs/core';
 
 // Define configuration
 const config = defineConfig({
@@ -148,7 +148,7 @@ const engine = new Engine(config);
 ### Example 1: Simple Game
 
 ```typescript
-import { Engine, defineConfig } from '@gwenengine/core';
+import { Engine, defineConfig } from '@gwenjs/core';
 
 const engine = new Engine(
   defineConfig({
@@ -204,9 +204,9 @@ engine.on('update', ({ deltaTime }) => {
 ### Example 3: With Plugins
 
 ```typescript
-import { Engine } from '@gwenengine/core';
-import { PhysicsPlugin } from '@gwenengine/gwen-physics';
-import { InputPlugin } from '@gwenengine/gwen-input';
+import { Engine } from '@gwenjs/core';
+import { PhysicsPlugin } from '@gwenjs/gwen-physics';
+import { InputPlugin } from '@gwenjs/gwen-input';
 
 const engine = new Engine();
 
@@ -231,7 +231,7 @@ engine.start();
 ### Creating a Plugin
 
 ```typescript
-import type { Plugin } from '@gwenengine/core';
+import type { Plugin } from '@gwenjs/core';
 
 export const MyPlugin: Plugin = {
   name: 'my-plugin',
@@ -303,7 +303,7 @@ engine.addComponent(entity, 'velocity', {
 Get the global engine instance:
 
 ```typescript
-import { getEngine, useEngine } from '@gwenengine/core';
+import { getEngine, useEngine } from '@gwenjs/core';
 
 // Get or create
 const engine = getEngine();
@@ -381,7 +381,7 @@ interface EngineConfig {
 Full TypeScript support with complete type definitions:
 
 ```typescript
-import type { EngineConfig, Entity, Component, Plugin } from '@gwenengine/core';
+import type { EngineConfig, Entity, Component, Plugin } from '@gwenjs/core';
 ```
 
 ## 🐛 Debug Mode

@@ -48,8 +48,8 @@ When bypass the FSM, use:
 - `spriteAnim:transition`: Emitted when the FSM changes states.
 
 ## Available Resources
-- `packages/@gwenengine/plugin-sprite-anim/src/types.ts`: `SpriteAnimController` and `SpriteAnimClip` type definitions.
-- `packages/@gwenengine/plugin-sprite-anim/src/runtime.ts`: Core animator engine.
+- `packages/@gwenjs/plugin-sprite-anim/src/types.ts`: `SpriteAnimController` and `SpriteAnimClip` type definitions.
+- `packages/@gwenjs/plugin-sprite-anim/src/runtime.ts`: Core animator engine.
 
 ## Constraints
 - **Sub-steps**: For high-speed animations or low FPS, use `fixedDelta` and `maxSubSteps` in config to prevent frame skips.

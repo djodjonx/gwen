@@ -5,8 +5,8 @@
  * that can be composed into a game's plugin list.
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import type { GwenEngine } from '@gwenengine/core';
+import { definePlugin } from '@gwenjs/kit';
+import type { GwenEngine } from '@gwenjs/core';
 import type { Physics3DAPI } from './types.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────

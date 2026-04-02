@@ -137,7 +137,7 @@ import { schema } from '../schema';
 
 ```typescript
 // External package importing
-import { Engine, defineConfig } from '@gwenengine/core';
+import { Engine, defineConfig } from '@gwenjs/core';
 ```
 
 ### ❌ Avoid
@@ -206,7 +206,7 @@ All test files (`.test.ts`, `.bench.ts`) import from the **public API**:
 
 ```typescript
 // ✅ Preferred (tests most common usage)
-import { Engine, defineConfig } from '@gwenengine/core';
+import { Engine, defineConfig } from '@gwenjs/core';
 
 // ✅ OK for internal tests (verify implementation)
 import { EntityManager } from '../src/core/ecs';
@@ -242,7 +242,7 @@ import { PluginManager } from './plugin-system/plugin-manager';
 **No changes needed!** External packages import from the barrel export:
 
 ```typescript
-import { Engine } from '@gwenengine/core'; // Still works ✓
+import { Engine } from '@gwenjs/core'; // Still works ✓
 ```
 
 ## Future Improvements

@@ -1,7 +1,7 @@
 import { definePrefab } from '../scene-utils.js';
 import type { PrefabCallbackApi } from '../scene-utils.js';
-import type { EntityId } from '@gwenengine/core';
-import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@gwenengine/physics2d/core';
+import type { EntityId } from '@gwenjs/core';
+import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@gwenjs/physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,

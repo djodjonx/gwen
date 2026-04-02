@@ -1,4 +1,4 @@
-import { createEntityId } from '@gwenengine/core';
+import { createEntityId } from '@gwenjs/core';
 import { describe, expect, it } from 'vitest';
 import type { CollisionEventsBatch } from '../src/types';
 import {

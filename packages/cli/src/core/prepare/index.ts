@@ -12,10 +12,18 @@ import { generateTsconfig } from './tsconfig-generator.js';
 import { generateDts } from './dts-generator.js';
 import { generateIndexHtml } from './html-generator.js';
 import { collectPluginTypingMeta } from './plugin-resolver.js';
-import { extractProjectMetadata } from './ast-extractor.js';
+import { extractProjectMetadata, type ExtractedMetadata } from './ast-extractor.js';
 import { validateMetadata } from './validator.js';
 import { runPluginSetups, GwenSetupError } from '../setup/setup-runner.js';
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
+import { loadFrameworkContext } from '../app-context.js';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 /**
  * Options for the prepare command
@@ -73,27 +81,38 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
     const loaded = await loadGwenConfig(projectDir);
     config = loaded.config;
     configPath = loaded.configPath;
-  } catch (error: any) {
-    result.errors.push(`Config error: ${error.message}`);
+  } catch (error: unknown) {
+    result.errors.push(`Config error: ${getErrorMessage(error)}`);
     return result;
   }
 
   logger.debug(`Config: ${configPath}`);
   logger.debug(`Output: ${gwenDir}`);
 
-  // 1.5. Run plugin setups
-  try {
-    await runPluginSetups(projectDir, config);
-  } catch (err) {
-    if (err instanceof GwenSetupError) {
-      result.errors.push(`[setup:${err.pluginName}] ${err.message}`);
+  // 1.5. Resolve runtime plugins from modules in framework mode.
+  if (config.modules.length > 0) {
+    try {
+      const framework = await loadFrameworkContext(projectDir);
+      config.plugins = framework.plugins;
+    } catch (error: unknown) {
+      result.errors.push(`Module setup error: ${getErrorMessage(error)}`);
       return result;
     }
-    throw err;
+  } else {
+    // Legacy fallback path (kept for non-module internal commands only).
+    try {
+      await runPluginSetups(projectDir, config);
+    } catch (err) {
+      if (err instanceof GwenSetupError) {
+        result.errors.push(`[setup:${err.pluginName}] ${err.message}`);
+        return result;
+      }
+      throw err;
+    }
   }
 
   // 1.7. AST extraction and validation
-  let extractedMeta;
+  let extractedMeta: ExtractedMetadata | undefined;
   try {
     extractedMeta = extractProjectMetadata(projectDir);
     const validationErrors = validateMetadata(extractedMeta);
@@ -111,8 +130,10 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
     if (options.strict && validationErrors.some((e) => e.severity === 'error')) {
       return result;
     }
-  } catch (error: any) {
-    logger.warn(`AST extraction failed: ${error.message}. Falling back to default metadata.`);
+  } catch (error: unknown) {
+    logger.warn(
+      `AST extraction failed: ${getErrorMessage(error)}. Falling back to default metadata.`,
+    );
   }
 
   // 2. Ensure .gwen/ directory exists
@@ -123,23 +144,23 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
     await generateTsconfigFile(gwenDir, projectDir, result);
     await generateDtsFile(gwenDir, projectDir, config, configPath, extractedMeta, result);
     await generateHtmlFile(gwenDir, config.html ?? {}, result);
-  } catch (error: any) {
-    result.errors.push(error.message);
+  } catch (error: unknown) {
+    result.errors.push(getErrorMessage(error));
     return result;
   }
 
   // 4. Update project tsconfig
   try {
     await ensureProjectTsconfig(projectDir, gwenDir);
-  } catch (error: any) {
-    logger.warn(`Failed to update tsconfig: ${error.message}`);
+  } catch (error: unknown) {
+    logger.warn(`Failed to update tsconfig: ${getErrorMessage(error)}`);
   }
 
   // 5. Update .gitignore
   try {
     await ensureGitignore(projectDir);
-  } catch (error: any) {
-    logger.warn(`Failed to update .gitignore: ${error.message}`);
+  } catch (error: unknown) {
+    logger.warn(`Failed to update .gitignore: ${getErrorMessage(error)}`);
   }
 
   result.success = true;
@@ -172,7 +193,7 @@ async function generateDtsFile(
   projectDir: string,
   config: GwenOptions,
   configPath: string,
-  extractedMeta: any, // type from ast-extractor.js
+  extractedMeta: ExtractedMetadata | undefined,
   result: PrepareResult,
 ): Promise<void> {
   const pluginTypingMeta = await collectPluginTypingMeta(projectDir, config);
@@ -202,7 +223,7 @@ async function generateDtsFile(
  */
 async function generateHtmlFile(
   gwenDir: string,
-  htmlConfig: Record<string, any>,
+  htmlConfig: { title?: string; background?: string },
   result: PrepareResult,
 ): Promise<void> {
   const filePath = path.join(gwenDir, 'index.html');
@@ -238,10 +259,10 @@ async function ensureProjectTsconfig(projectDir: string, _gwenDir: string): Prom
 
   interface TsConfig {
     extends?: string;
-    compilerOptions?: Record<string, any>;
+    compilerOptions?: Record<string, unknown>;
     include?: string[];
     exclude?: string[];
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   let tsconfig: TsConfig;

@@ -1,4 +1,4 @@
-#@gwenengine/gwen-renderer-canvas2d
+#@gwenjs/gwen-renderer-canvas2d
 
 **GWEN Canvas2D Renderer Plugin — 2D rendering with HTML Canvas**
 
@@ -7,7 +7,7 @@ Render sprites, shapes, and text using the Canvas 2D API.
 ## Installation
 
 ```bash
-npm install@gwenengine/gwen-renderer-canvas2d
+npm install@gwenjs/gwen-renderer-canvas2d
 ```
 
 ## Quick Start
@@ -16,8 +16,8 @@ npm install@gwenengine/gwen-renderer-canvas2d
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenengine/kit';
-import { Canvas2DRenderer } from '@gwenengine/gwen-renderer-canvas2d';
+import { defineConfig } from '@gwenjs/kit';
+import { Canvas2DRenderer } from '@gwenjs/gwen-renderer-canvas2d';
 
 export default defineConfig({
   canvas: 'game-canvas', // ID of your canvas element
@@ -158,7 +158,7 @@ function drawAnimatedSprite(sheet, frameIndex, x, y) {
 - Cache frequently-used colors as constants
 - Use `renderer.setCamera()` instead of translating individual objects
 - Consider sprite atlasing for many small sprites
-- Profile with [@gwenengine/gwen-plugin-debug](../plugin-debug/) to identify bottlenecks
+- Profile with [@gwenjs/gwen-plugin-debug](../plugin-debug/) to identify bottlenecks
 
 ## Browser Compatibility
 
@@ -167,6 +167,6 @@ function drawAnimatedSprite(sheet, frameIndex, x, y) {
 
 ## See Also
 
-- [@gwenengine/core](../engine-core/) — Core engine
-- [@gwenengine/gwen-plugin-debug](../plugin-debug/) — Performance monitoring
+- [@gwenjs/core](../engine-core/) — Core engine
+- [@gwenjs/gwen-plugin-debug](../plugin-debug/) — Performance monitoring
 - [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Physics2DAPI } from '@gwenengine/physics2d/core';
+import type { Physics2DAPI } from '@gwenjs/physics2d/core';
 import {
   buildPlatformerStaticGeometry,
   createPlatformerStaticGeometry,

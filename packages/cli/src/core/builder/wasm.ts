@@ -10,7 +10,7 @@ import type { BuildContext } from './context.js';
 import { resolveWasmPath } from './variant-detector.js';
 
 /**
- * Copy pre-compiled WASM artifacts from @gwenengine/core
+ * Copy pre-compiled WASM artifacts from @gwenjs/core
  * to the build output directory.
  *
  * @param ctx - Current build context

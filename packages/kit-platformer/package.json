@@ -1,5 +1,5 @@
 {
-  "name": "@gwenengine/kit-platformer",
+  "name": "@gwenjs/kit-platformer",
   "version": "1.0.0",
   "description": "GWEN Kit \u2014 opinionated factories for 2D platformer games",
   "files": [
@@ -25,16 +25,16 @@
     "lint": "oxlint src"
   },
   "devDependencies": {
-    "@gwenengine/cli": "workspace:*",
+    "@gwenjs/cli": "workspace:*",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.0.18"
   },
   "peerDependencies": {
-    "@gwenengine/core": "workspace:*",
-    "@gwenengine/kit": "workspace:*",
-    "@gwenengine/input": "workspace:*",
-    "@gwenengine/physics2d": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/kit": "workspace:*",
+    "@gwenjs/input": "workspace:*",
+    "@gwenjs/physics2d": "workspace:*"
   }
 }

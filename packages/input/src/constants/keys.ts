@@ -3,7 +3,7 @@
  * Values match KeyboardEvent.code (Web standard).
  *
  * @example
- * import { Keys } from '@gwenengine/input';
+ * import { Keys } from '@gwenjs/input';
  * bindings: [{ type: BindingType.Key, key: Keys.Space }]
  */
 export const Keys = {

@@ -15,7 +15,7 @@ import type {
   GwenHooks,
 } from '../src';
 
-describe('@gwenengine/schema - Hooks Contracts', () => {
+describe('@gwenjs/schema - Hooks Contracts', () => {
   describe('EngineLifecycleHooks', () => {
     it('should define all engine lifecycle hooks', () => {
       const hooks: EngineLifecycleHooks = {

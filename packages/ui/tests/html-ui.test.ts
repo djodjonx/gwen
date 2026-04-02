@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { HtmlUIPlugin, type HtmlUI } from '../src/index';
-import { createEntityId } from '@gwenengine/core';
-import type { GwenEngine } from '@gwenengine/core';
+import { createEntityId } from '@gwenjs/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Mock GwenEngine ──────────────────────────────────────────────────────
 

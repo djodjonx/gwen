@@ -3,7 +3,7 @@
 ## `new Physics2D(config)`
 
 ```ts
-import { Physics2D } from '@gwenengine/physics2d';
+import { Physics2D } from '@gwenjs/physics2d';
 
 export default defineConfig({
   plugins: [
@@ -265,11 +265,11 @@ See also: `./TILEMAP.md`
 Use domain subpaths when possible to keep bundle size minimal.
 
 ```ts
-import { getBodySnapshot } from '@gwenengine/physics2d/helpers/queries';
-import { moveKinematicByVelocity } from '@gwenengine/physics2d/helpers/movement';
-import { selectContactsForEntityId, getEntityCollisionContacts } from '@gwenengine/physics2d/helpers/contact';
-import { buildStaticGeometryChunk } from '@gwenengine/physics2d/helpers/static-geometry';
-import { createTilemapChunkOrchestrator } from '@gwenengine/physics2d/helpers/orchestration';
+import { getBodySnapshot } from '@gwenjs/physics2d/helpers/queries';
+import { moveKinematicByVelocity } from '@gwenjs/physics2d/helpers/movement';
+import { selectContactsForEntityId, getEntityCollisionContacts } from '@gwenjs/physics2d/helpers/contact';
+import { buildStaticGeometryChunk } from '@gwenjs/physics2d/helpers/static-geometry';
+import { createTilemapChunkOrchestrator } from '@gwenjs/physics2d/helpers/orchestration';
 ```
 
 ### Helper contracts

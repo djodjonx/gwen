@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
 
-const CORE_IMPORT = '@gwenengine/core';
+const CORE_IMPORT = '@gwenjs/core';
 
 export interface GwenTransformOptions {
   /** Enable compile-time transforms for defineComponent schemas. */

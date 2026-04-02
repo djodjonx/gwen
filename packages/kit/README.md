@@ -1,3 +1,3 @@
-# @gwenengine/kit
+# @gwenjs/kit
 
 Package kit for GWEN.

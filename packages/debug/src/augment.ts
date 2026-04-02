@@ -1,13 +1,13 @@
 /**
- * @file GwenProvides augmentations for @gwenengine/debug.
+ * @file GwenProvides augmentations for @gwenjs/debug.
  *
- * Importing any symbol from `@gwenengine/debug` automatically augments
- * `@gwenengine/core` with a typed debug service key.
+ * Importing any symbol from `@gwenjs/debug` automatically augments
+ * `@gwenjs/core` with a typed debug service key.
  */
 
 import type { DebugService } from './index.js';
 
-declare module '@gwenengine/core' {
+declare module '@gwenjs/core' {
   /**
    * Debug service slot in the engine's provide/inject registry.
    * Available after `engine.use(DebugPlugin())` completes setup.

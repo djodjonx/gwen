@@ -5,7 +5,7 @@
  * no direct WASM dependency.
  */
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
 import type { Physics3DAPI, Physics3DVec3, Physics3DQuat } from '../types.js';
 
 /**

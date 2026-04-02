@@ -4,11 +4,11 @@
  * Defines the static data structure of ECS components.
  * This DSL serves two purposes:
  * 1. Runtime TypeScript validation and type inference.
- * 2. Build-time WASM memory layout generation (by @gwenengine/cli).
+ * 2. Build-time WASM memory layout generation (by @gwenjs/cli).
  *
  * @example
  * ```typescript
- * import { defineComponent, Types, InferComponent } from '@gwenengine/core';
+ * import { defineComponent, Types, InferComponent } from '@gwenjs/core';
  *
  * export const Health = defineComponent({
  *   name: 'Health',

@@ -2,10 +2,10 @@
  * Typed project configuration helper for GWEN plugins.
  *
  * Provides plugin extension-merging utilities and type re-exports.
- * `defineConfig()` lives in `@gwenengine/app` — not here.
+ * `defineConfig()` lives in `@gwenjs/app` — not here.
  */
 
-import type { GwenOptions } from '@gwenengine/schema';
+import type { GwenOptions } from '@gwenjs/schema';
 
 /**
  * Re-export GwenOptions as GwenConfig for easier usage in CLI and tools.

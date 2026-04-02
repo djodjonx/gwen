@@ -37,11 +37,11 @@ export function gwenVirtualPlugin(options: GwenViteOptions): Plugin {
     load(id) {
       if (id !== RESOLVED_ENV) return;
 
-      // Read version from @gwenengine/core package.json
+      // Read version from @gwenjs/core package.json
       let version = '0.0.0';
       try {
         const require = createRequire(import.meta.url);
-        const pkg = require('@gwenengine/core/package.json') as { version: string };
+        const pkg = require('@gwenjs/core/package.json') as { version: string };
         version = pkg.version;
       } catch {
         // Fall back to '0.0.0' if the package is not resolvable

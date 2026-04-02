@@ -3,7 +3,7 @@
  *
  * Quaternions represent 3-D rotations as `(x, y, z, w)` where
  * the identity is `(0, 0, 0, 1)` — same convention as `Types.quat`
- * in `@gwenengine/core`.
+ * in `@gwenjs/core`.
  *
  * All functions are pure unless the name ends in `Mut`.
  */

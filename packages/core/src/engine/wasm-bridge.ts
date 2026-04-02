@@ -1,12 +1,12 @@
 /**
- * WASM Bridge — Interface between @gwenengine/core (TypeScript) and gwen_core.wasm (Rust).
+ * WASM Bridge — Interface between @gwenjs/core (TypeScript) and gwen_core.wasm (Rust).
  *
  * The Rust/WASM core is MANDATORY — no TypeScript fallback exists.
  * Call `await initWasm()` BEFORE creating the Engine, or an error is thrown.
  *
  * @example
  * ```typescript
- * await initWasm();          // Auto-resolves from @gwenengine/core/wasm/
+ * await initWasm();          // Auto-resolves from @gwenjs/core/wasm/
  * const engine = getEngine();
  * engine.start();
  * ```
@@ -792,7 +792,7 @@ const _typeIdViews = Array.from({ length: 17 }, (_, i) => _typeIdBuffer.subarray
  *
  * Resolution strategy (in order):
  *  1. In browser: /wasm/ relative to current origin.
- *     @gwenengine/vite serves this via middleware (dev)
+ *     @gwenjs/vite serves this via middleware (dev)
  *     and CLI copies it to dist/wasm/ (build).
  *  2. In Node (SSR/tests): null — initWasm() must receive explicit URL.
  *
@@ -830,7 +830,7 @@ export interface InitWasmOptions {
 /**
  * Load and initialize the gwen_core WASM module. **REQUIRED** before any Engine usage.
  *
- * **Without arguments**: Auto-resolves from `@gwenengine/core/wasm/light/`
+ * **Without arguments**: Auto-resolves from `@gwenjs/core/wasm/light/`
  * (pre-compiled artifacts published in the package — no Rust build needed).
  *
  * @param variant The core variant to load ('light', 'physics2d', 'physics3d')
@@ -867,7 +867,7 @@ export async function initWasm(
   if (!resolvedJsUrl) {
     throw new Error(
       `[GWEN] initWasm(): unable to resolve WASM glue URL for variant "${variant}".\n` +
-        'Make sure @gwenengine/core is correctly installed.',
+        'Make sure @gwenjs/core is correctly installed.',
     );
   }
 

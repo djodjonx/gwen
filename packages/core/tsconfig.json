@@ -19,11 +19,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "paths": {
-      "@gwenengine/core": [
-        "./src/index.ts"
-      ]
-    },
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false
   },

@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { AudioPlugin } from '@gwenengine/audio';
+ * import { AudioPlugin } from '@gwenjs/audio';
  *
  * export default defineConfig({
  *   plugins: [AudioPlugin({ masterVolume: 0.8 })],
@@ -18,9 +18,9 @@
  * ```
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import type { GwenPluginMeta } from '@gwenengine/kit';
-import type { GwenEngine } from '@gwenengine/core';
+import { definePlugin } from '@gwenjs/kit';
+import type { GwenPluginMeta } from '@gwenjs/kit';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ export interface AudioService {
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    audio: { from: '@gwenengine/audio', exportName: 'AudioService' },
+    audio: { from: '@gwenjs/audio', exportName: 'AudioService' },
   },
 };
 
@@ -204,7 +204,7 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
   };
 
   return {
-    name: '@gwenengine/audio',
+    name: '@gwenjs/audio',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {

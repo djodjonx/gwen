@@ -4,7 +4,7 @@
 
 ## What changed
 
-- Added `@gwenengine/sprite-anim` in `gwen.config.ts`.
+- Added `@gwenjs/sprite-anim` in `gwen.config.ts`.
 - Converted player, enemy, and bullet rendering to `extensions.spriteAnim` + `animator.draw(...)`.
 - Wired gameplay systems to animation controller parameters/triggers:
   - `moving` (player movement)

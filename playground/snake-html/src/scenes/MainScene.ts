@@ -1,4 +1,4 @@
-import { defineScene, UIComponent } from '@gwenengine/core';
+import { defineScene, UIComponent } from '@gwenjs/core';
 import { SnakeSystem } from '../systems/SnakeSystem';
 import { SnakeUI } from '../ui/SnakeUI';
 

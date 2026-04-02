@@ -241,14 +241,14 @@ describe('GwenContextError', () => {
 describe('GwenPluginNotFoundError', () => {
   it('supports options-object constructor (RFC-005 form)', () => {
     const err = new GwenPluginNotFoundError({
-      pluginName: '@gwenengine/physics2d',
-      hint: 'Add @gwenengine/physics2d to the modules array in gwen.config.ts',
+      pluginName: '@gwenjs/physics2d',
+      hint: 'Add @gwenjs/physics2d to the modules array in gwen.config.ts',
       docsUrl: 'https://gwenengine.dev/modules/physics2d',
     });
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(GwenPluginNotFoundError);
-    expect(err.pluginName).toBe('@gwenengine/physics2d');
-    expect(err.plugin).toBe('@gwenengine/physics2d');
+    expect(err.pluginName).toBe('@gwenjs/physics2d');
+    expect(err.plugin).toBe('@gwenjs/physics2d');
     expect(err.hint).toContain('gwen.config.ts');
     expect(err.docsUrl).toMatch(/^https?:\/\//);
   });
@@ -267,11 +267,11 @@ describe('GwenPluginNotFoundError', () => {
 
   it('message contains the plugin name', () => {
     const err = new GwenPluginNotFoundError({
-      pluginName: '@gwenengine/physics2d',
+      pluginName: '@gwenjs/physics2d',
       hint: 'hint text',
       docsUrl: 'https://example.com',
     });
-    expect(err.message).toContain('@gwenengine/physics2d');
+    expect(err.message).toContain('@gwenjs/physics2d');
   });
 
   it('has name GwenPluginNotFoundError', () => {

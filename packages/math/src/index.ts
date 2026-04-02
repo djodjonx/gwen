@@ -4,12 +4,12 @@
  * Import individual sub-modules for best tree-shaking:
  *
  * ```ts
- * import { lerp, clamp }          from '@gwenengine/math';
- * import { damp, dampVec3 }        from '@gwenengine/math';
- * import { spring1D, makeSpring1D } from '@gwenengine/math';
- * import { vec3Add, vec3Normalize } from '@gwenengine/math';
- * import { quatSlerp, quatFromEuler } from '@gwenengine/math';
- * import { colorFromHex, colorLerp } from '@gwenengine/math';
+ * import { lerp, clamp }          from '@gwenjs/math';
+ * import { damp, dampVec3 }        from '@gwenjs/math';
+ * import { spring1D, makeSpring1D } from '@gwenjs/math';
+ * import { vec3Add, vec3Normalize } from '@gwenjs/math';
+ * import { quatSlerp, quatFromEuler } from '@gwenjs/math';
+ * import { colorFromHex, colorLerp } from '@gwenjs/math';
  * ```
  */
 

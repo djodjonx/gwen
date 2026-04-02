@@ -1,7 +1,7 @@
 /**
- * @gwenengine/gwen-plugin-html-ui — déclarations de types pour imports Vite
+ * @gwenjs/gwen-plugin-html-ui — déclarations de types pour imports Vite
  *
- * Injecté automatiquement dans `.gwen/gwen.d.ts` via `/// <reference types="@gwenengine/gwen-plugin-html-ui/vite-env" />`
+ * Injecté automatiquement dans `.gwen/gwen.d.ts` via `/// <reference types="@gwenjs/gwen-plugin-html-ui/vite-env" />`
  * lorsque ce plugin est déclaré dans `gwen.config.ts`.
  *
  * Permet d'utiliser dans les fichiers UI :

@@ -3,9 +3,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveConfig, validateResolvedConfig } from '@gwenengine/schema';
+import { resolveConfig, validateResolvedConfig } from '@gwenjs/schema';
+import type { GwenConfigInput, GwenPluginBase } from '@gwenjs/schema';
 
-describe('@gwenengine/schema contract used by CLI', () => {
+describe('@gwenjs/schema contract used by CLI', () => {
   it('accepts valid config', () => {
     const conf = resolveConfig({
       engine: { maxEntities: 10_000, targetFPS: 120 },
@@ -18,21 +19,24 @@ describe('@gwenengine/schema contract used by CLI', () => {
   });
 
   it('accepts #fff and #ffffff background formats', () => {
-    expect(resolveConfig({ html: { background: '#fff' } as any }).html.background).toBe('#fff');
-    expect(resolveConfig({ html: { background: '#ffffff' } as any }).html.background).toBe(
-      '#ffffff',
-    );
+    const shortHex: GwenConfigInput = { html: { background: '#fff' } };
+    const longHex: GwenConfigInput = { html: { background: '#ffffff' } };
+    expect(resolveConfig(shortHex).html.background).toBe('#fff');
+    expect(resolveConfig(longHex).html.background).toBe('#ffffff');
   });
 
   it('rejects background if not hex', () => {
-    expect(() => resolveConfig({ html: { background: 'red' as any } as any })).toThrow(
+    expect(() => resolveConfig({ html: { background: 'red' as unknown as string } })).toThrow(
       'background must be a valid hex color',
     );
   });
 
   it('rejects invalid plugins container', () => {
     expect(() =>
-      validateResolvedConfig({ ...resolveConfig({}), plugins: {} as any } as any),
+      validateResolvedConfig({
+        ...resolveConfig({}),
+        plugins: {} as unknown as GwenPluginBase[],
+      }),
     ).toThrow('plugins must be an array');
   });
 });

@@ -1,11 +1,12 @@
 /**
- * Minimal scene and prefab utilities local to @gwenengine/kit-platformer.
+ * Minimal scene and prefab utilities local to @gwenjs/kit-platformer.
  *
  * These are thin wrappers that return their definition object as-is,
  * providing TypeScript type-checking for scene and prefab shapes.
  */
 
-import type { EntityId } from '@gwenengine/core';
+import type { EntityId } from '@gwenjs/core';
+import type { GwenPlugin } from '@gwenjs/kit';
 
 // ─── Scene types ──────────────────────────────────────────────────────────────
 
@@ -19,9 +20,7 @@ export interface SceneCallbackApi {
 }
 
 /** A local system entry — either a GwenPlugin object or a factory function. */
-export type LocalPluginEntry =
-  | { name: string; [key: string]: unknown }
-  | (() => { name: string; [key: string]: unknown });
+export type LocalPluginEntry = GwenPlugin | (() => GwenPlugin);
 
 export interface SceneDefinition {
   readonly name: string;

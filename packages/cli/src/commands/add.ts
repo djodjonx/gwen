@@ -6,8 +6,8 @@
  *
  * @example
  * ```bash
- * gwen add @gwenengine/physics
- * gwen add @gwenengine/audio --dev
+ * gwen add @gwenjs/physics
+ * gwen add @gwenjs/audio --dev
  * ```
  */
 

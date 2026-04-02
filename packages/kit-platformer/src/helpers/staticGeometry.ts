@@ -1,8 +1,8 @@
 import {
   buildStaticGeometryChunk,
   loadStaticGeometryChunk,
-} from '@gwenengine/physics2d/helpers/static-geometry';
-import type { Physics2DAPI, TilemapPhysicsChunkMap } from '@gwenengine/physics2d/core';
+} from '@gwenjs/physics2d/helpers/static-geometry';
+import type { Physics2DAPI, TilemapPhysicsChunkMap } from '@gwenjs/physics2d/core';
 
 /** Pixel-authored rectangular platform block centered on `(x, y)`. */
 export interface PlatformerLevelBlock {

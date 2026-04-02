@@ -14,6 +14,7 @@ import { defineCommand } from 'citty';
 import { setLogLevel, logger } from '../utils/logger.js';
 import { GLOBAL_ARGS } from '../utils/args.js';
 import { DEFAULT_PORT_PREVIEW, ExitCode } from '../utils/constants.js';
+import { parseError } from '../core/types/guards.js';
 
 function parsePort(input: unknown): number {
   const port = Number(input);
@@ -44,8 +45,8 @@ export default defineCommand({
     let port: number;
     try {
       port = parsePort(args.port);
-    } catch (error: any) {
-      logger.error('Invalid port:', error.message);
+    } catch (error: unknown) {
+      logger.error('Invalid port:', parseError(error));
       process.exit(ExitCode.ERROR_VALIDATION);
     }
 

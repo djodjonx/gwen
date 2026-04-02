@@ -7,7 +7,7 @@
  *
  * @example TypeScript plugin
  * ```typescript
- * import { definePlugin } from '@gwenengine/kit'
+ * import { definePlugin } from '@gwenjs/kit'
  *
  * export const AudioPlugin = definePlugin((config: AudioConfig) => ({
  *   name: 'AudioPlugin',
@@ -24,7 +24,7 @@
  * ```
  */
 
-import type { GwenPlugin, GwenEngine } from '@gwenengine/core';
+import type { GwenPlugin, GwenEngine } from '@gwenjs/core';
 
 export type { GwenEngine };
 

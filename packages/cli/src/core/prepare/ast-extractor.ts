@@ -160,7 +160,7 @@ function extractComponents(
       name = firstArg.getLiteralText();
       const factory = args[1];
       if (factory && (Node.isArrowFunction(factory) || Node.isFunctionExpression(factory))) {
-        const body = (factory as any).getBody();
+        const body = factory.getBody();
         let obj = body;
         if (Node.isParenthesizedExpression(obj)) {
           obj = obj.getExpression();

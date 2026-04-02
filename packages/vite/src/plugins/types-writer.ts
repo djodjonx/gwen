@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import type { GwenTypeTemplate } from '@gwenengine/kit';
+import type { GwenTypeTemplate } from '@gwenjs/kit';
 import type { GwenViteOptions } from '../types.js';
 
 /**

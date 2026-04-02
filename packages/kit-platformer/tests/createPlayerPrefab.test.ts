@@ -1,8 +1,8 @@
-// packages/@gwenengine/kit-platformer/tests/createPlayerPrefab.test.ts
+// packages/@gwenjs/kit-platformer/tests/createPlayerPrefab.test.ts
 import { describe, it, expect, vi } from 'vitest';
 import { createPlayerPrefab } from '../src/prefabs/player.js';
 import { PLATFORMER_CONTROLLER_DEFAULTS } from '../src/components/PlatformerController.js';
-import { SENSOR_ID_FOOT } from '@gwenengine/physics2d';
+import { SENSOR_ID_FOOT } from '@gwenjs/physics2d';
 
 const makeApi = () => {
   const components = new Map<string, any>();

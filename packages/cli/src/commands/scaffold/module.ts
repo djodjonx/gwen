@@ -42,7 +42,7 @@ async function promptModuleName(): Promise<string> {
  */
 function moduleTemplate(name: string): string {
   const exportName = `${name}Module`;
-  return `import { defineGwenModule } from '@gwenengine/app'
+  return `import { defineGwenModule } from '@gwenjs/app'
 
 /**
  * ${name} module

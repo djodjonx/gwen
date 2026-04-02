@@ -1,4 +1,4 @@
-// packages/@gwenengine/kit-platformer/tests/createPlatformerScene.test.ts
+// packages/@gwenjs/kit-platformer/tests/createPlatformerScene.test.ts
 import { describe, it, expect, vi } from 'vitest';
 import { createPlatformerScene } from '../src/scenes/platformer.js';
 

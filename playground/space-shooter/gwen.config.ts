@@ -2,12 +2,12 @@
  * Space Shooter — GWEN Configuration
  */
 
-import { defineConfig } from '@gwenengine/kit';
-import { InputPlugin } from '@gwenengine/input';
-import { AudioPlugin } from '@gwenengine/audio';
-import { HtmlUIPlugin } from '@gwenengine/ui';
-import { Canvas2DRenderer } from '@gwenengine/renderer-canvas2d';
-import { Physics2DPlugin } from '@gwenengine/physics2d';
+import { defineConfig } from '@gwenjs/kit';
+import { InputPlugin } from '@gwenjs/input';
+import { AudioPlugin } from '@gwenjs/audio';
+import { HtmlUIPlugin } from '@gwenjs/ui';
+import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d';
+import { Physics2DPlugin } from '@gwenjs/physics2d';
 
 export default defineConfig({
   engine: {

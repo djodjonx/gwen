@@ -1,5 +1,5 @@
-import { definePrefab, UIComponent } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import { definePrefab, UIComponent } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
 import { Position, Tag, TileSize, BoxState } from '../components/index.ts';
 
 /**

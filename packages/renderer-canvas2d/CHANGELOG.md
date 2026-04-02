@@ -1,4 +1,4 @@
-#@gwenengine/gwen-renderer-canvas2d
+#@gwenjs/gwen-renderer-canvas2d
 
 ## 1.0.0
 

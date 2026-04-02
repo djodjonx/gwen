@@ -4,10 +4,10 @@
 
 import { loadConfig } from 'c12';
 import { defu } from 'defu';
-import type { GwenPlugin, GwenBuildHooks } from '@gwenengine/kit';
+import type { GwenPlugin, GwenBuildHooks } from '@gwenjs/kit';
 
-/** Re-export for convenience — callers can import both from `@gwenengine/app`. */
-export type { GwenBuildHooks } from '@gwenengine/kit';
+/** Re-export for convenience — callers can import both from `@gwenjs/app`. */
+export type { GwenBuildHooks } from '@gwenjs/kit';
 
 // ─── GwenModuleOptions (augmentable) ─────────────────────────────────────────
 
@@ -16,8 +16,8 @@ export type { GwenBuildHooks } from '@gwenengine/kit';
  *
  * @example Adding physics2d options
  * ```typescript
- * // In @gwenengine/physics2d:
- * declare module '@gwenengine/app' {
+ * // In @gwenjs/physics2d:
+ * declare module '@gwenjs/app' {
  *   interface GwenModuleOptions {
  *     physics2d: { gravity: number }
  *   }
@@ -34,8 +34,8 @@ export interface GwenModuleOptions {}
  * @example
  * ```typescript
  * modules: [
- *   '@gwenengine/physics2d',
- *   ['@gwenengine/input', { gamepad: true }],
+ *   '@gwenjs/physics2d',
+ *   ['@gwenjs/input', { gamepad: true }],
  * ]
  * ```
  */
@@ -49,9 +49,9 @@ export type GwenModuleEntry = string | [name: string, options?: Record<string, u
  * @example
  * ```typescript
  * // gwen.config.ts
- * import { defineConfig } from '@gwenengine/app'
+ * import { defineConfig } from '@gwenjs/app'
  * export default defineConfig({
- *   modules: ['@gwenengine/physics2d'],
+ *   modules: ['@gwenjs/physics2d'],
  *   engine: { maxEntities: 5_000 },
  * })
  * ```
@@ -103,9 +103,9 @@ const DEFAULT_ENGINE = {
  *
  * @example
  * ```typescript
- * import { defineConfig } from '@gwenengine/app'
+ * import { defineConfig } from '@gwenjs/app'
  * export default defineConfig({
- *   modules: ['@gwenengine/physics2d'],
+ *   modules: ['@gwenjs/physics2d'],
  *   engine: { maxEntities: 5_000 },
  * })
  * ```
@@ -149,7 +149,6 @@ export async function resolveGwenConfig(rootDir?: string): Promise<ResolvedGwenC
     name: 'gwen',
     cwd: rootDir ?? process.cwd(),
     dotenv: true,
-    jitiOptions: { interopDefault: true },
   });
 
   return defu(

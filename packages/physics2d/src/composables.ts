@@ -1,5 +1,5 @@
 /**
- * @file RFC-009 — Composables for @gwenengine/physics2d.
+ * @file RFC-009 — Composables for @gwenjs/physics2d.
  *
  * These composables must be called inside an active engine context:
  * - Inside `defineSystem()`
@@ -7,8 +7,8 @@
  * - During a plugin lifecycle hook (setup, onUpdate, etc.)
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
 import type { Physics2DAPI } from './types.js';
 // Side-effect import: augments GwenProvides with 'physics2d'
 import './augment.js';
@@ -26,8 +26,8 @@ import './augment.js';
  *
  * @example
  * ```typescript
- * import { defineSystem, onUpdate } from '@gwenengine/core'
- * import { usePhysics2D } from '@gwenengine/physics2d'
+ * import { defineSystem, onUpdate } from '@gwenjs/core'
+ * import { usePhysics2D } from '@gwenjs/physics2d'
  *
  * export const gravitySystem = defineSystem(() => {
  *   const physics = usePhysics2D()
@@ -46,7 +46,7 @@ export function usePhysics2D(): Physics2DAPI {
   if (newService) return newService;
 
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/physics2d',
+    pluginName: '@gwenjs/physics2d',
     hint: 'Call engine.use(physics2dPlugin()) before starting the engine.',
     docsUrl: 'https://gwenengine.dev/plugins/physics2d',
   });

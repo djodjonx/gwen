@@ -1,8 +1,8 @@
-import { defineScene, UIComponent } from '@gwenengine/core';
-import { unpackEntityId } from '@gwenengine/core';
-import type { EntityId } from '@gwenengine/core';
-import type { Physics2DAPI } from '@gwenengine/physics2d';
-import type { HtmlUI } from '@gwenengine/ui';
+import { defineScene, UIComponent } from '@gwenjs/core';
+import { unpackEntityId } from '@gwenjs/core';
+import type { EntityId } from '@gwenjs/core';
+import type { Physics2DAPI } from '@gwenjs/physics2d';
+import type { HtmlUI } from '@gwenjs/ui';
 import {
   PlayerPrefab,
   FootSensorPrefab,

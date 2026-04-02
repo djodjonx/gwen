@@ -1,4 +1,4 @@
-// packages/@gwenengine/plugin-input/src/mapping/types.ts
+// packages/@gwenjs/plugin-input/src/mapping/types.ts
 import type { KeyCode } from '../constants/keys.js';
 import type { GamepadButtonId, GamepadAxisId } from '../constants/gamepad.js';
 

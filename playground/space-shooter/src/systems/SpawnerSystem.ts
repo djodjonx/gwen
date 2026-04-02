@@ -1,4 +1,4 @@
-import { defineSystem } from '@gwenengine/core';
+import { defineSystem } from '@gwenjs/core';
 
 const WAVE_INTERVAL = 3.5;
 const COLS = 5;

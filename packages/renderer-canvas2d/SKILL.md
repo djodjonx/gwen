@@ -13,7 +13,7 @@ GWEN Renderer Canvas 2D is the primary visual engine. It iterates over entities 
 ### 1. Configuration & Viewport
 Configure the renderer in `gwen.config.ts`.
 ```typescript
-import { Canvas2DRenderer } from '@gwenengine/renderer-canvas2d';
+import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d';
 
 export default defineConfig({
   plugins: [
@@ -38,7 +38,7 @@ Rendering depends on specific component data.
 ### 3. Primitive Shapes (`ShapeRenderer`)
 Draw custom overlays or debug shapes directly to the canvas in a system's `onDraw` phase.
 ```typescript
-import { ShapeRenderer } from '@gwenengine/renderer-canvas2d';
+import { ShapeRenderer } from '@gwenjs/renderer-canvas2d';
 
 // ctx: CanvasRenderingContext2D, injected in onDraw or available via renderer
 ShapeRenderer.drawRect(ctx, { x, y, w, h, color: 'blue', fill: true });
@@ -54,8 +54,8 @@ The camera is managed globally via the renderer service.
 - `worldToScreen(wx, wy)`: Useful for UI elements tracking world objects.
 
 ## Available Resources
-- `packages/@gwenengine/renderer-canvas2d/src/renderer.ts`: Main render loop implementation.
-- `packages/@gwenengine/renderer-canvas2d/src/shapes.ts`: `ShapeRenderer` helper class.
+- `packages/@gwenjs/renderer-canvas2d/src/renderer.ts`: Main render loop implementation.
+- `packages/@gwenjs/renderer-canvas2d/src/shapes.ts`: `ShapeRenderer` helper class.
 
 ## Constraints
 - **Antialiasing**: Use `pixelArt: true` for games that require sharp sprite edges (e.g., retro-style games).

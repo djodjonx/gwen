@@ -16,6 +16,7 @@ import { setLogLevel, logger } from '../utils/logger.js';
 import { GLOBAL_ARGS } from '../utils/args.js';
 import { ExitCode } from '../utils/constants.js';
 import { loadGwenConfig, findConfigFile } from '../core/config.js';
+import { parseError } from '../core/types/guards.js';
 
 export default defineCommand({
   meta: {
@@ -39,8 +40,8 @@ export default defineCommand({
 
       const result = await loadGwenConfig(process.cwd());
       console.log(JSON.stringify(result.config, null, 2));
-    } catch (error: any) {
-      logger.error('Failed to load config:', error.message);
+    } catch (error: unknown) {
+      logger.error('Failed to load config:', parseError(error));
       process.exit(ExitCode.ERROR_CONFIG);
     }
   },

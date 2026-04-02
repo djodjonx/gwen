@@ -1,11 +1,11 @@
 /**
- * @file Composables for @gwenengine/sprite-anim.
+ * @file Composables for @gwenjs/sprite-anim.
  *
  * Must be called inside an active engine context:
  * inside `defineSystem()`, `engine.run(fn)`, or a plugin lifecycle hook.
  */
 
-import { useEngine, GwenPluginNotFoundError } from '@gwenengine/core';
+import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { SpriteAnimatorService } from './index.js';
 import './augment.js';
 
@@ -30,8 +30,8 @@ export function useSpriteAnim(): SpriteAnimatorService {
   const service = engine.tryInject('animator');
   if (service) return service;
   throw new GwenPluginNotFoundError({
-    pluginName: '@gwenengine/sprite-anim',
-    hint: "Add '@gwenengine/sprite-anim' to modules in gwen.config.ts",
+    pluginName: '@gwenjs/sprite-anim',
+    hint: "Add '@gwenjs/sprite-anim' to modules in gwen.config.ts",
     docsUrl: 'https://gwenengine.dev/plugins/sprite-anim',
   });
 }

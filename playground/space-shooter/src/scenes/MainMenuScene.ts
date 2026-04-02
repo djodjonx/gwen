@@ -1,6 +1,6 @@
-import { defineScene, UIComponent } from '@gwenengine/core';
-import type { SceneManager } from '@gwenengine/core';
-import type { KeyboardInput } from '@gwenengine/input';
+import { defineScene, UIComponent } from '@gwenjs/core';
+import type { SceneManager } from '@gwenjs/core';
+import type { KeyboardInput } from '@gwenjs/input';
 import { MainMenuUI } from '../ui/MainMenuUI';
 
 export const MainMenuScene = defineScene('MainMenu', (scenes: SceneManager) => {

@@ -1,5 +1,5 @@
 /**
- * Tests @gwenengine/vite
+ * Tests @gwenjs/vite
  * Vérifie la résolution du module virtuel et les options du plugin.
  */
 

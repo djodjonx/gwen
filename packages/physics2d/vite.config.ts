@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
-  plugins: [dts({ include: ['src'], outDir: 'dist', rollupTypes: true })],
+  plugins: [dts({ include: ['src'], outDir: 'dist', rollupTypes: false })],
   build: {
     lib: {
       entry: {
@@ -22,11 +22,11 @@ export default defineConfig({
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rollupOptions: {
-      external: ['@gwenengine/core', '@gwenengine/kit'],
+      external: ['@gwenjs/core', '@gwenjs/kit'],
       output: {
         globals: {
-          '@gwenengine/core': 'GwenEngineCore',
-          '@gwenengine/kit': 'GwenKit',
+          '@gwenjs/core': 'GwenEngineCore',
+          '@gwenjs/kit': 'GwenKit',
         },
       },
     },

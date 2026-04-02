@@ -8,7 +8,7 @@
  * ## Quick-start
  *
  * ```ts
- * import { makeSpring1D, stepSpring1D } from '@gwenengine/math';
+ * import { makeSpring1D, stepSpring1D } from '@gwenjs/math';
  *
  * const opts  = { stiffness: 200, damping: 20 };
  * const state = makeSpring1D(0); // start at 0

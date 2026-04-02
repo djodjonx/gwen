@@ -1,4 +1,4 @@
-import { defineComponent, Types } from '@gwenengine/core';
+import { defineComponent, Types } from '@gwenjs/core';
 
 /**
  * Standard position component used by the Platformer Kit.

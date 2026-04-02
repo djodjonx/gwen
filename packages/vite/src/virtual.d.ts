@@ -6,7 +6,7 @@
  *
  * @example tsconfig.json
  * ```json
- * { "compilerOptions": { "types": ["@gwenengine/vite/virtual"] } }
+ * { "compilerOptions": { "types": ["@gwenjs/vite/virtual"] } }
  * ```
  */
 
@@ -20,7 +20,7 @@ declare module 'virtual:gwen/auto-imports' {
 }
 
 declare module 'virtual:gwen/env' {
-  /** The current version of `@gwenengine/core`. */
+  /** The current version of `@gwenjs/core`. */
   export const GWEN_VERSION: string;
 
   /**

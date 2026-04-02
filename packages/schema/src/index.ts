@@ -3,7 +3,7 @@
  *
  * Single source of truth for GWEN engine configuration types and defaults.
  *
- * @module @gwenengine/schema
+ * @module @gwenjs/schema
  */
 
 // Types
@@ -11,6 +11,8 @@ export type {
   GwenTypeRefMeta,
   GwenPluginMeta,
   GwenPluginBase,
+  GwenHookHandler,
+  GwenModuleEntry,
   GwenOptions,
   GwenConfigInput,
   DeepPartial,
@@ -29,4 +31,4 @@ export type {
 
 // Runtime
 export { defaultOptions, resolveConfig } from './defaults.js';
-export { validateResolvedConfig } from './validate.js';
+export { validateResolvedConfig, assertModuleFirstInput } from './validate.js';

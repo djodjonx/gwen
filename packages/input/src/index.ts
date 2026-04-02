@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { InputPlugin } from '@gwenengine/input';
+ * import { InputPlugin } from '@gwenjs/input';
  *
  * export default defineConfig({
  *   plugins: [InputPlugin()],
@@ -16,9 +16,9 @@
  * ```
  */
 
-import { definePlugin } from '@gwenengine/kit';
-import type { GwenPluginMeta } from '@gwenengine/kit';
-import type { GwenEngine } from '@gwenengine/core';
+import { definePlugin } from '@gwenjs/kit';
+import type { GwenPluginMeta } from '@gwenjs/kit';
+import type { GwenEngine } from '@gwenjs/core';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
@@ -52,9 +52,9 @@ export interface InputPluginServices {
 
 export const pluginMeta: GwenPluginMeta = {
   serviceTypes: {
-    keyboard: { from: '@gwenengine/input', exportName: 'KeyboardInput' },
-    mouse: { from: '@gwenengine/input', exportName: 'MouseInput' },
-    gamepad: { from: '@gwenengine/input', exportName: 'GamepadInput' },
+    keyboard: { from: '@gwenjs/input', exportName: 'KeyboardInput' },
+    mouse: { from: '@gwenjs/input', exportName: 'MouseInput' },
+    gamepad: { from: '@gwenjs/input', exportName: 'GamepadInput' },
   },
 };
 
@@ -80,7 +80,7 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
   let target: EventTarget;
 
   return {
-    name: '@gwenengine/input',
+    name: '@gwenjs/input',
     meta: pluginMeta,
 
     setup(engine: GwenEngine): void {

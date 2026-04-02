@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FpsTracker } from '../src/fps-tracker';
 import { DebugPlugin } from '../src/index';
-import type { GwenEngine } from '@gwenengine/core';
+import type { GwenEngine } from '@gwenjs/core';
 
 // ── Mock GwenEngine ───────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ describe('DebugPlugin', () => {
   });
 
   it('a le nom correct', () => {
-    expect(new DebugPlugin().name).toBe('@gwenengine/debug');
+    expect(new DebugPlugin().name).toBe('@gwenjs/debug');
   });
 
   it("enregistre le service debug via engine.provide() à l'init", () => {

@@ -1,4 +1,4 @@
-import { defineUI } from '@gwenengine/core';
+import { defineUI } from '@gwenjs/core';
 
 /**
  * HudUI — affiche le score via HtmlUIPlugin.

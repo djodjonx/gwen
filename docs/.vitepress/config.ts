@@ -13,6 +13,7 @@ export default defineConfig({
       { text: 'Core Concepts', link: '/core/components' },
       { text: 'API', link: '/api/overview' },
       { text: 'CLI', link: '/cli/commands' },
+      { text: 'Plugins', link: '/plugins/index' },
       { text: 'GitHub', link: 'https://github.com/djodjonx/gwen' },
     ],
 
@@ -56,7 +57,18 @@ export default defineConfig({
       {
         text: 'Plugins',
         items: [
+          { text: 'Plugins Overview', link: '/plugins/index' },
           { text: 'Official Plugins', link: '/plugins/official' },
+          { text: 'Input', link: '/plugins/input' },
+          { text: 'Audio', link: '/plugins/audio' },
+          { text: 'Debug', link: '/plugins/debug' },
+          { text: 'Canvas2D Renderer', link: '/plugins/renderer-canvas2d' },
+          { text: 'Physics2D', link: '/plugins/physics2d' },
+          { text: 'Physics3D', link: '/plugins/physics3d' },
+          { text: 'Sprite Anim', link: '/plugins/sprite-anim' },
+          { text: 'HTML UI', link: '/plugins/ui' },
+          { text: 'R3F Adapter', link: '/plugins/r3f' },
+          { text: 'Vite Plugin', link: '/plugins/vite' },
           { text: 'Using & Creating Plugins', link: '/plugins/creating' },
           { text: 'Input Mapping', link: '/plugins/input-mapping' },
           { text: 'Kit Platformer', link: '/plugins/kit-platformer' },

@@ -13,7 +13,7 @@ Options:
 Example:
 
 ```ts
-import { createSpriteAnimSystem } from '@gwenengine/gwen-plugin-sprite-anim';
+import { createSpriteAnimSystem } from '@gwenjs/gwen-plugin-sprite-anim';
 
 const SpriteAnimSystem = createSpriteAnimSystem({
   fixedDelta: 1 / 60,

@@ -1,6 +1,6 @@
-import type { GwenEngine, GwenPlugin } from '@gwenengine/core';
-import type { InputMapper } from '@gwenengine/input';
-import type { Physics2DAPI } from '@gwenengine/physics2d/core';
+import type { GwenEngine, GwenPlugin } from '@gwenjs/core';
+import type { InputMapper } from '@gwenjs/input';
+import type { Physics2DAPI } from '@gwenjs/physics2d/core';
 import { PlatformerIntent } from '../components/PlatformerIntent.js';
 
 /**

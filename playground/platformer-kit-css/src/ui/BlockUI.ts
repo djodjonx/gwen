@@ -1,4 +1,4 @@
-import { defineUI } from '@gwenengine/core';
+import { defineUI } from '@gwenjs/core';
 import { BlockVisual } from '../components';
 import blockHtml from './templates/block.html?raw';
 import blockCss from './styles/block.css?inline';

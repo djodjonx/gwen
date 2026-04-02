@@ -7,8 +7,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { defineGwenModule } from '@gwenengine/kit';
-import type { GwenModule, AutoImport, GwenTypeTemplate } from '@gwenengine/kit';
+import { defineGwenModule } from '@gwenjs/kit';
+import type { GwenModule, AutoImport, GwenTypeTemplate } from '@gwenjs/kit';
 import { GwenApp } from '../src/app.js';
 import { resolveConfig } from '../src/config.js';
 

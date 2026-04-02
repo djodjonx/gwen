@@ -1,4 +1,4 @@
-#@gwenengine/cli
+#@gwenjs/cli
 
 **GWEN CLI — Command-line interface for game development**
 
@@ -7,9 +7,9 @@ Build, develop, and scaffold GWEN game projects from the command line.
 ## Installation
 
 ```bash
-npm install -D@gwenengine/cli
+npm install -D@gwenjs/cli
 # or globally
-npm install -g@gwenengine/cli
+npm install -g@gwenjs/cli
 ```
 
 ## Quick Start
@@ -83,9 +83,9 @@ Configure your game engine:
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenengine/kit';
-import { InputPlugin } from '@gwenengine/input';
-import { AudioPlugin } from '@gwenengine/audio';
+import { defineConfig } from '@gwenjs/kit';
+import { InputPlugin } from '@gwenjs/input';
+import { AudioPlugin } from '@gwenjs/audio';
 
 export default defineConfig({
   // Canvas element ID
@@ -103,7 +103,7 @@ export default defineConfig({
 
 ```typescript
 import { defineConfig } from 'vite';
-import { gwen } from '@gwenengine/vite';
+import { gwen } from '@gwenjs/vite';
 
 export default defineConfig({
   plugins: [
@@ -158,7 +158,7 @@ npm run preview
 
 ```typescript
 // src/scenes/GameScene.ts
-import { defineScene, defineComponent, Types } from '@gwenengine/core';
+import { defineScene, defineComponent, Types } from '@gwenjs/core';
 
 const Position = defineComponent('Position', {
   x: Types.f32,
@@ -184,8 +184,8 @@ export const GameScene = defineScene({
 
 ```typescript
 // gwen.config.ts
-import { InputPlugin } from '@gwenengine/input';
-import { AudioPlugin } from '@gwenengine/audio';
+import { InputPlugin } from '@gwenjs/input';
+import { AudioPlugin } from '@gwenjs/audio';
 
 export default defineConfig({
   plugins: [new InputPlugin(), new AudioPlugin()],
@@ -222,6 +222,6 @@ gwen dev --port 3001
 
 ## See Also
 
-- [@gwenengine/core](../engine-core/) — Core engine API
-- [@gwenengine/vite](../vite-plugin/) — Vite integration
+- [@gwenjs/core](../engine-core/) — Core engine API
+- [@gwenjs/vite](../vite-plugin/) — Vite integration
 - [GWEN Documentation](https://gwen.dev/docs)

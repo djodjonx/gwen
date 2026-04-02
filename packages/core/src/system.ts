@@ -1,5 +1,5 @@
 /**
- * @file RFC-005 — Composable-first system definition for @gwenengine/core
+ * @file RFC-005 — Composable-first system definition for @gwenjs/core
  *
  * Provides `defineSystem()` and the lifecycle composables (`onUpdate`, `onBeforeUpdate`,
  * `onAfterUpdate`, `onRender`) for writing game systems without class boilerplate.

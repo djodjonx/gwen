@@ -10,12 +10,6 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "paths": {
-      "@gwenengine/kit": ["../kit/src/index.ts"],
-      "@gwenengine/schema": ["../schema/src/index.ts"],
-      "@gwenengine/vite": ["../vite-plugin/src/index.ts"],
-      "@gwenengine/core": ["../engine-core/src/index.ts"]
-    },
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false
   },

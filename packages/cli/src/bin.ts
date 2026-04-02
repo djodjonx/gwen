@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @gwenengine/cli — Main entry point
+ * @gwenjs/cli — Main entry point
  *
  * CLI entry point using Citty framework.
  * All commands are defined in src/commands/*.ts

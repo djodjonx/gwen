@@ -1,4 +1,4 @@
-// packages/@gwenengine/plugin-input/src/gamepad.ts
+// packages/@gwenjs/plugin-input/src/gamepad.ts
 
 /**
  * GamepadInput — wraps the Web Gamepad API with per-frame snapshotting.
