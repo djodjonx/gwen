@@ -57,18 +57,6 @@ export interface SceneMetadata {
 }
 
 /**
- * Metadata for a service provided by a plugin.
- */
-export interface ServiceMetadata {
-  /** Service name */
-  name: string;
-  /** Module path to import from */
-  from: string;
-  /** Export name in the module */
-  exportName: string;
-}
-
-/**
  * Result of project-wide metadata extraction.
  */
 export interface ExtractedMetadata {
@@ -78,8 +66,6 @@ export interface ExtractedMetadata {
   systems: Map<string, SystemMetadata>;
   /** Map of scene name -> metadata */
   scenes: Map<string, SceneMetadata>;
-  /** Map of service name -> metadata */
-  pluginServices: Map<string, ServiceMetadata>;
 }
 
 /**
@@ -99,7 +85,6 @@ export function extractProjectMetadata(rootDir: string): ExtractedMetadata {
     components: new Map(),
     systems: new Map(),
     scenes: new Map(),
-    pluginServices: new Map(),
   };
 
   logger.debug(`Extracting metadata from ${rootDir}...`);
@@ -116,9 +101,6 @@ export function extractProjectMetadata(rootDir: string): ExtractedMetadata {
     extractSystems(sourceFile, metadata.systems);
     extractScenes(sourceFile, metadata.scenes);
   }
-
-  // TODO: Extract plugin services from gwen.config.ts
-  extractPluginServicesFromConfig(project, rootDir, metadata.pluginServices);
 
   return metadata;
 }
@@ -316,65 +298,5 @@ function extractScenes(sourceFile: SourceFile, scenes: Map<string, SceneMetadata
         line: call.getStartLineNumber(),
       });
     }
-  }
-}
-
-/**
- * Extracts plugin services from gwen.config.ts and definePlugin calls.
- */
-function extractPluginServicesFromConfig(
-  project: Project,
-  _rootDir: string,
-  services: Map<string, ServiceMetadata>,
-): void {
-  // Find gwen.config.ts
-  const hasConfig = project
-    .getSourceFiles()
-    .some((f: SourceFile) => f.getBaseName().startsWith('gwen.config.'));
-
-  if (!hasConfig) {
-    return;
-  }
-
-  // Extract definePlugin calls if they are in the config or imported
-  // For now, let's look for definePlugin calls across all project files
-  for (const sourceFile of project.getSourceFiles()) {
-    sourceFile
-      .getDescendantsOfKind(SyntaxKind.CallExpression)
-      .filter((c: CallExpression) => c.getExpression().getText() === 'definePlugin')
-      .forEach((call: CallExpression) => {
-        const arg = call.getArguments()[0];
-        if (Node.isObjectLiteralExpression(arg)) {
-          const providesProp = arg.getProperty('provides');
-          if (Node.isPropertyAssignment(providesProp)) {
-            const initializer = providesProp.getInitializer();
-            if (Node.isObjectLiteralExpression(initializer)) {
-              for (const prop of initializer.getProperties()) {
-                if (Node.isPropertyAssignment(prop)) {
-                  const serviceName = prop.getName();
-                  const val = prop.getInitializer();
-                  if (Node.isObjectLiteralExpression(val)) {
-                    const from = val
-                      .getProperty('from')
-                      ?.asKind(SyntaxKind.PropertyAssignment)
-                      ?.getInitializer()
-                      ?.getText()
-                      .replace(/['"`]/g, '');
-                    const exportName = val
-                      .getProperty('exportName')
-                      ?.asKind(SyntaxKind.PropertyAssignment)
-                      ?.getInitializer()
-                      ?.getText()
-                      .replace(/['"`]/g, '');
-                    if (from && exportName) {
-                      services.set(serviceName, { name: serviceName, from, exportName });
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
   }
 }
