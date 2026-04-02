@@ -1,6 +1,6 @@
-#@gwenjs/gwen-plugin-html-ui
+# @gwenjs/gwen-plugin-html-ui
 
-Plugin GWEN pour le rendu UI via le DOM HTML.
+GWEN plugin for UI rendering via the HTML DOM.
 
 ## Installation
 
@@ -13,9 +13,9 @@ export default defineConfig({
 });
 ```
 
-## Types Vite — `*.html?raw`
+## Vite Types — `*.html?raw`
 
-Pour utiliser l'import de fichiers HTML bruts, ajouter une référence dans votre `tsconfig.json` :
+To use raw HTML file imports, add a reference in your `tsconfig.json`:
 
 ```json
 {
@@ -25,13 +25,13 @@ Pour utiliser l'import de fichiers HTML bruts, ajouter une référence dans votr
 }
 ```
 
-Ou via un `/// <reference>` dans n'importe quel fichier `.d.ts` de votre projet :
+Or via a `/// <reference>` in any `.d.ts` file in your project:
 
 ```ts
 /// <reference types="@gwenjs/gwen-plugin-html-ui/vite-env" />
 ```
 
-Cela active l'autocomplétion pour :
+This enables autocompletion for:
 
 ```ts
 import scoreHtml from './score.html?raw';
@@ -68,7 +68,7 @@ export const ScoreUI = defineUI({
 ```
 
 ```html
-<!-- src/ui/score.html — vraie autocomplétion HTML/CSS dans l'IDE -->
+<!-- src/ui/score.html — full HTML/CSS autocompletion in the IDE -->
 <style>
   .hud {
     position: fixed;
@@ -91,7 +91,7 @@ export const ScoreUI = defineUI({
 </div>
 ```
 
-## Service `HtmlUI`
+## `HtmlUI` Service
 
 ```ts
 interface HtmlUI {
