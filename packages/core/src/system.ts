@@ -27,7 +27,7 @@
  */
 
 import { useEngine } from './context.js';
-import type { GwenPlugin, WasmModuleHandle } from './engine/gwen-engine.js';
+import type { GwenPlugin, GwenProvides, WasmModuleHandle } from './engine/gwen-engine.js';
 import type { ComponentDefinition, ComponentSchema } from './schema.js';
 
 /** A component selector accepted by {@link useQuery}. */
@@ -274,6 +274,62 @@ export type LiveQuery<T = unknown> = Iterable<T>;
 export function useQuery(components: ComponentDef[]): LiveQuery {
   const engine = useEngine();
   return engine.createLiveQuery(components);
+}
+
+// ─── useService ───────────────────────────────────────────────────────────────
+
+/**
+ * Resolves a service registered via {@link GwenEngine.provide} inside the current engine context.
+ *
+ * This composable is the primary way to access plugin services from within a
+ * {@link defineSystem} setup callback. Plugin packages extend the {@link GwenProvides}
+ * interface via declaration merging to expose fully-typed, zero-cast service keys.
+ *
+ * Two call signatures are supported:
+ * - **Typed** — when the key is declared in `GwenProvides` via declaration merging,
+ *   the return type is inferred automatically (no cast needed).
+ * - **Generic fallback** — pass a plain `string` and supply a type parameter `T`
+ *   for cases where the plugin has not yet declared its key.
+ *
+ * @typeParam K - A key of the augmented {@link GwenProvides} map (typed overload)
+ * @param key - The service key as registered with `engine.provide(key, value)`
+ * @returns The service registered under `key`
+ *
+ * @throws {GwenContextError} If called outside an active engine context
+ * @throws {GwenPluginNotFoundError} If no service has been registered under `key`
+ *
+ * @example
+ * ```typescript
+ * // 1. Plugin extends GwenProvides (declaration merging):
+ * declare module '@gwenjs/core' {
+ *   interface GwenProvides {
+ *     physics2d: Physics2DAPI
+ *   }
+ * }
+ *
+ * // 2. Plugin registers the service during setup:
+ * engine.provide('physics2d', physicsAPI)
+ *
+ * // 3. System resolves at setup time — fully typed, no cast:
+ * export const movementSystem = defineSystem(() => {
+ *   const physics = useService('physics2d') // inferred as Physics2DAPI
+ *
+ *   onUpdate((dt) => {
+ *     physics.step(dt)
+ *   })
+ * })
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Generic fallback when GwenProvides is not yet augmented:
+ * const myService = useService<MyServiceAPI>('my-service')
+ * ```
+ */
+export function useService<K extends keyof GwenProvides>(key: K): GwenProvides[K];
+export function useService<T = unknown>(key: string): T;
+export function useService(key: string): unknown {
+  return useEngine().inject(key as keyof GwenProvides);
 }
 
 // ─── useWasmModule ────────────────────────────────────────────────────────────

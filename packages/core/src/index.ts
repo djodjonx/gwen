@@ -37,6 +37,7 @@ export {
   onAfterUpdate,
   onRender,
   useQuery,
+  useService,
   useWasmModule,
 } from './system';
 export type { LiveQuery, ComponentDef } from './system';
