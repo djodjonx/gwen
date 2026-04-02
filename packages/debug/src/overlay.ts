@@ -1,8 +1,8 @@
 /**
- * DebugOverlay — Overlay HTML en surimpression pour les métriques de debug.
+ * DebugOverlay — HTML overlay for debug metrics.
  *
- * Crée un <div> positionné en fixed sur le viewport, rafraîchi à chaque
- * appel à `update()`. La couleur du texte passe au rouge quand le FPS chute.
+ * Creates a fixed-position <div> on the viewport, refreshed on each
+ * call to `update()`. Text colour turns red when FPS drops.
  */
 import type { DebugMetrics, DebugOverlayConfig } from './types';
 
@@ -49,7 +49,7 @@ export class DebugOverlay {
       whiteSpace: 'pre',
     });
 
-    // Appliquer la position (top/right/bottom/left)
+    // Apply position (top/right/bottom/left)
     posStyle.split(';').forEach((rule) => {
       const [prop, val] = rule.split(':');
       if (prop && val) {
@@ -58,7 +58,7 @@ export class DebugOverlay {
     });
   }
 
-  /** Met à jour le contenu de l'overlay avec les métriques courantes. */
+  /** Updates the overlay content with the current metrics. */
   update(metrics: DebugMetrics): void {
     const color = metrics.isDropping ? this.config.colorDrop : this.config.colorNormal;
     const dropMarker = metrics.isDropping ? ' ⚠ DROP' : '';
@@ -82,12 +82,12 @@ export class DebugOverlay {
     this.el.textContent = lines.join('\n');
   }
 
-  /** Retire l'overlay du DOM. */
+  /** Removes the overlay from the DOM. */
   destroy(): void {
     this.el.remove();
   }
 
-  /** Masque/affiche l'overlay. */
+  /** Shows/hides the overlay. */
   setVisible(visible: boolean): void {
     this.el.style.display = visible ? 'block' : 'none';
   }

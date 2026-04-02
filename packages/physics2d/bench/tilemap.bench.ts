@@ -12,6 +12,7 @@
 
 import { describe, bench } from 'vitest';
 import { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from '../src/index';
+import { makeTiles } from './fixtures';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -25,25 +26,6 @@ const TILE_SIZE_PX = 16;
 // ---------------------------------------------------------------------------
 // Pre-computed fixtures (outside bench calls — zero-alloc hot path)
 // ---------------------------------------------------------------------------
-
-/**
- * Generates a deterministic synthetic terrain tile array.
- *
- * @param width  - Map width in tiles.
- * @param height - Map height in tiles.
- * @returns Flat tile array where 1 = solid, 0 = empty.
- */
-function makeTiles(width: number, height: number): number[] {
-  const tiles = new Array<number>(width * height).fill(0);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (y > height - 5 || (y % 11 === 0 && x % 3 !== 0) || (x % 17 === 0 && y % 5 < 3)) {
-        tiles[y * width + x] = 1;
-      }
-    }
-  }
-  return tiles;
-}
 
 const tiles = makeTiles(MAP_WIDTH_TILES, MAP_HEIGHT_TILES);
 

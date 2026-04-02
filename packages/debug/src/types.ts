@@ -1,97 +1,97 @@
 /**
- * Types publics du plugin de debug GWEN.
+ * Public types for the GWEN debug plugin.
  */
 
-// ── Métriques exposées ────────────────────────────────────────────────────────
+// ── Exposed metrics ───────────────────────────────────────────────────────────
 
-/** Snapshot complet des métriques de debug pour une frame. */
+/** Full snapshot of debug metrics for a frame. */
 export interface DebugMetrics {
-  /** FPS instantané (1 / deltaTime) */
+  /** Instantaneous FPS (1 / deltaTime) */
   fps: number;
-  /** FPS moyen glissant sur la fenêtre configurée (ex: 60 dernières frames) */
+  /** Rolling average FPS over the configured window (e.g. last 60 frames) */
   rollingFps: number;
-  /** FPS minimum observé sur la fenêtre glissante */
+  /** Minimum FPS observed over the rolling window */
   minFps: number;
-  /** FPS maximum observé sur la fenêtre glissante */
+  /** Maximum FPS observed over the rolling window */
   maxFps: number;
-  /** Gigue : écart-type du FPS sur la fenêtre glissante */
+  /** Jitter: FPS standard deviation over the rolling window */
   jitter: number;
-  /** Durée de la frame courante en millisecondes */
+  /** Current frame duration in milliseconds */
   frameTimeMs: number;
-  /** Numéro de la frame courante */
+  /** Current frame number */
   frameCount: number;
-  /** Nombre d'entités actives dans le monde */
+  /** Number of active entities in the world */
   entityCount: number;
-  /** Mémoire JS utilisée en Mo (Chrome uniquement, undefined ailleurs) */
+  /** JS memory used in MB (Chrome only, undefined elsewhere) */
   memoryMB: number | undefined;
-  /** true si le FPS est en dessous du seuil de chute configuré */
+  /** true if the FPS is below the configured drop threshold */
   isDropping: boolean;
-  /** Horodatage de la dernière chute détectée (ms depuis epoch), ou 0 */
+  /** Timestamp of the last detected drop (ms since epoch), or 0 */
   lastDropAt: number;
 }
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
-/** Comportement déclenché lors d'une chute de FPS. */
+/** Behaviour triggered when an FPS drop is detected. */
 export interface FpsDropConfig {
   /**
-   * Seuil en FPS en dessous duquel une chute est signalée.
+   * FPS threshold below which a drop is reported.
    * @default 45
    */
   threshold?: number;
   /**
-   * Callback appelé à chaque frame où le FPS passe sous le seuil.
-   * @param currentFps FPS instantané au moment de la chute
-   * @param metrics Snapshot complet des métriques
+   * Callback invoked every frame the FPS falls below the threshold.
+   * @param currentFps Instantaneous FPS at the time of the drop
+   * @param metrics Full metrics snapshot
    */
   onDrop?: (currentFps: number, metrics: DebugMetrics) => void;
   /**
-   * Nombre de frames consécutives sous le seuil avant de déclencher le callback.
-   * Évite les faux-positifs sur un pic isolé.
+   * Number of consecutive frames below the threshold before triggering the callback.
+   * Avoids false positives on an isolated spike.
    * @default 3
    */
   gracePeriodFrames?: number;
 }
 
-/** Configuration du DebugPlugin. */
+/** DebugPlugin configuration. */
 export interface DebugPluginConfig {
   /**
-   * Taille de la fenêtre glissante pour le calcul du FPS moyen.
+   * Size of the rolling window used for average FPS calculation.
    * @default 60
    */
   rollingWindowSize?: number;
-  /** Détection et callback de chute de FPS. */
+  /** FPS drop detection and callback. */
   fpsDrop?: FpsDropConfig;
   /**
-   * Affiche un overlay HTML en surimpression avec les métriques.
+   * Renders an HTML overlay on top of the viewport with live metrics.
    * @default false
    */
   overlay?: boolean | DebugOverlayConfig;
   /**
-   * Tous les combien de frames les métriques sont-elles recalculées/affichées.
-   * Réduire pour moins de charge ; augmenter pour plus de réactivité.
+   * How many frames between each metrics recalculation/display.
+   * Lower for less overhead; higher for more responsiveness.
    * @default 10
    */
   updateInterval?: number;
 }
 
-/** Options de l'overlay HTML. */
+/** HTML overlay options. */
 export interface DebugOverlayConfig {
   /**
-   * Position de l'overlay dans la page.
+   * Position of the overlay in the page.
    * @default 'top-left'
    */
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   /**
-   * Couleur du texte en état normal.
+   * Text colour in normal state.
    * @default '#00ff88'
    */
   colorNormal?: string;
   /**
-   * Couleur du texte quand le FPS chute.
+   * Text colour when FPS drops.
    * @default '#ff4444'
    */
   colorDrop?: string;
-  /** Opacité du fond (0-1). @default 0.75 */
+  /** Background opacity (0-1). @default 0.75 */
   backgroundOpacity?: number;
 }

@@ -1,8 +1,8 @@
 # Input Mapping
 
-Le système d'Input Mapping de `@djodjonx/gwen-plugin-input` permet de déclarer
-des actions logiques (Jump, Move) indépendantes du dispositif physique
-(clavier, manette). Zéro magic string — tout est typé via TypeScript.
+The Input Mapping system of `@djodjonx/gwen-plugin-input` lets you declare
+logical actions (Jump, Move) independent of the physical device
+(keyboard, gamepad). Zero magic strings — everything is typed via TypeScript.
 
 ## Installation
 
@@ -10,7 +10,7 @@ des actions logiques (Jump, Move) indépendantes du dispositif physique
 import { InputPlugin } from '@djodjonx/gwen-plugin-input';
 import { PlatformerDefaultInputMap } from '@djodjonx/gwen-kit-platformer';
 
-// Dans gwen.config.ts :
+// In gwen.config.ts:
 export default defineConfig({
   plugins: [
     new InputPlugin({ actionMap: PlatformerDefaultInputMap }),
@@ -18,7 +18,7 @@ export default defineConfig({
 });
 ```
 
-## Déclarer une ActionMap
+## Declaring an ActionMap
 
 ```ts
 import { Keys, GamepadButtons, BindingType, InputType } from '@djodjonx/gwen-plugin-input';
@@ -48,7 +48,7 @@ export const MyInputMap: InputMapConfig = {
 };
 ```
 
-## Utiliser l'InputMapper dans un système
+## Using the InputMapper in a system
 
 ```ts
 import { defineSystem } from '@djodjonx/gwen-engine-core';
@@ -59,44 +59,44 @@ export const PlayerSystem = defineSystem('PlayerSystem', () => {
 
   return {
     onInit(api) {
-      // Résoudre en onInit — jamais en onUpdate
+      // Resolve in onInit — never in onUpdate
       mapper = api.services.get('inputMapper') as InputMapper;
     },
 
     onUpdate(api, dt) {
       const move = mapper.readAxis2D('Move');     // { x: -1|0|1, y: -1|0|1 }
-      const jump = mapper.isActionJustPressed('Jump'); // true sur la 1ère frame
+      const jump = mapper.isActionJustPressed('Jump'); // true on the 1st frame
     },
   };
 });
 ```
 
-## Référence API
+## API Reference
 
 ### `InputMapper`
 
-| Méthode | Description |
+| Method | Description |
 |---|---|
-| `isActionPressed(action)` | `true` si l'action est maintenue ce frame |
-| `isActionJustPressed(action)` | `true` sur la première frame d'appui |
-| `isActionJustReleased(action)` | `true` sur la première frame de relâchement |
-| `readAxis2D(action)` | Vecteur `{x, y}` normalisé depuis un binding Axis2D |
+| `isActionPressed(action)` | `true` if the action is held this frame |
+| `isActionJustPressed(action)` | `true` on the first frame of press |
+| `isActionJustReleased(action)` | `true` on the first frame of release |
+| `readAxis2D(action)` | Normalized `{x, y}` vector from an Axis2D binding |
 
-### Constantes `Keys`
+### `Keys` constants
 
-Toutes les touches standards Web (`KeyboardEvent.code`) :
+All standard Web keys (`KeyboardEvent.code`):
 `Keys.A`…`Keys.Z`, `Keys.Space`, `Keys.ArrowUp`, `Keys.F1`…`Keys.F12`, etc.
 
-### Constantes `GamepadButtons`
+### `GamepadButtons` constants
 
-Layout Xbox / Standard Gamepad API :
+Xbox / Standard Gamepad API layout:
 `GamepadButtons.South` (A), `GamepadButtons.East` (B), `GamepadButtons.DPadUp`, etc.
 
-## Types de binding
+## Binding types
 
-| Type | Interface | Utilisation |
+| Type | Interface | Usage |
 |---|---|---|
-| `BindingType.Key` | `KeyBinding` | Touche clavier |
-| `BindingType.GamepadButton` | `GamepadButtonBinding` | Bouton manette |
-| `BindingType.GamepadAxis` | `GamepadAxisBinding` | Stick analogique |
-| `BindingType.Composite2D` | `Composite2DBinding` | 4 touches → vecteur 2D |
+| `BindingType.Key` | `KeyBinding` | Keyboard key |
+| `BindingType.GamepadButton` | `GamepadButtonBinding` | Gamepad button |
+| `BindingType.GamepadAxis` | `GamepadAxisBinding` | Analog stick |
+| `BindingType.Composite2D` | `Composite2DBinding` | 4 keys → 2D vector |

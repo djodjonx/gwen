@@ -1,6 +1,6 @@
 /**
  * Tests @gwenjs/vite
- * Vérifie la résolution du module virtuel et les options du plugin.
+ * Verifies virtual module resolution and plugin options.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -119,7 +119,7 @@ describe('virtual:gwen-manifest — load', () => {
   });
 });
 
-// ── Options par défaut ────────────────────────────────────────────────────────
+// ── Default options ───────────────────────────────────────────────────────────
 
 describe('plugin options defaults', () => {
   it('wasmMode defaults to debug', () => {

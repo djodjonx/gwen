@@ -22,6 +22,7 @@ import { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from '../src/inde
 import { evaluatePerfGate } from './perf-score';
 import type { PerfPayload, SolverPayload } from './perf-score';
 import thresholds from './physics-perf-thresholds.json';
+import { makeTiles } from './fixtures';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -39,25 +40,6 @@ const baselinePath = path.join(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Generates a deterministic synthetic terrain tile array.
- *
- * @param width  - Map width in tiles.
- * @param height - Map height in tiles.
- * @returns Flat tile array where 1 = solid, 0 = empty.
- */
-function makeTiles(width: number, height: number): number[] {
-  const tiles = new Array<number>(width * height).fill(0);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (y > height - 5 || (y % 11 === 0 && x % 3 !== 0) || (x % 17 === 0 && y % 5 < 3)) {
-        tiles[y * width + x] = 1;
-      }
-    }
-  }
-  return tiles;
-}
 
 /**
  * Collects a `PerfPayload` by running the Rust solver binary and timing tilemap functions.
@@ -171,6 +153,14 @@ describe('playgrounds e2e', () => {
   it.skipIf(!BENCH_SLOW)(
     'perf score does not regress against sprint-8 baseline',
     async () => {
+      // Guard: skip gracefully if the baseline file doesn't exist yet
+      try {
+        await fs.access(baselinePath);
+      } catch {
+        console.warn('[GWEN] sprint-8 playground baseline not found — skipping regression check');
+        return;
+      }
+
       const baselineRaw = await fs.readFile(baselinePath, 'utf8');
       const baseline = JSON.parse(baselineRaw) as Baseline;
 

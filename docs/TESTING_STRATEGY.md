@@ -1,19 +1,19 @@
 # Testing Strategy - GWEN Framework
 
-## Convention de Tests Rust
+## Rust Testing Conventions
 
-Le projet suit la meilleure pratique Rust pour l'organisation des tests:
+The project follows Rust best practices for test organization:
 
-### 1. Unit Tests (dans les modules)
+### 1. Unit Tests (inside modules)
 
-**Localisation:** `src/module.rs` → `#[cfg(test)] mod tests`
+**Location:** `src/module.rs` → `#[cfg(test)] mod tests`
 
-**Quand:**
-- Tests de fonctions/structures PRIVÉES
-- Tests simples et rapides
-- Helpers ou utilities internes
+**When:**
+- Tests for PRIVATE functions/structures
+- Simple and fast tests
+- Internal helpers or utilities
 
-**Exemple:**
+**Example:**
 ```rust
 // allocator.rs
 mod tests {
@@ -22,21 +22,21 @@ mod tests {
 }
 ```
 
-**Modules avec unit tests:**
-- ✅ `allocator.rs` - test `align_offset()` (fonction privée)
-- ✅ `events.rs` - tests simples d'enregistrement
+**Modules with unit tests:**
+- ✅ `allocator.rs` - test `align_offset()` (private function)
+- ✅ `events.rs` - simple registration tests
 
-### 2. Integration Tests (fichiers séparés)
+### 2. Integration Tests (separate files)
 
-**Localisation:** `tests/*.rs`
+**Location:** `tests/*.rs`
 
-**Quand:**
-- Tests de l'API PUBLIQUE
-- Tests complexes avec plusieurs composants
-- Tests avec state/fixtures
-- Tests de scénarios réalistes
+**When:**
+- Tests for the PUBLIC API
+- Complex tests with multiple components
+- Tests with state/fixtures
+- Tests for realistic scenarios
 
-**Exemple:**
+**Example:**
 ```rust
 // tests/entity_tests.rs
 use gwen_core::entity::*;
@@ -45,47 +45,47 @@ use gwen_core::entity::*;
 fn test_allocate_multiple() { ... }
 ```
 
-**Fichiers de test:**
+**Test files:**
 - ✅ `tests/entity_tests.rs` - 11 tests
 - ✅ `tests/component_tests.rs` - 14 tests
 - ✅ `tests/query_tests.rs` - 21 tests
 - ✅ `tests/allocator_tests.rs` - 23 tests
 - ✅ `tests/integration_tests.rs` - global tests
 
-### 3. Avantages de cette approche
+### 3. Benefits of this approach
 
 | Aspect | Unit Tests | Integration Tests |
 |--------|-----------|-------------------|
-| Compilation | Rapide | Plus lent (complet) |
+| Compilation | Fast | Slower (full) |
 | Scope | Module-level | Crate-level |
-| Access | Code privé + public | Code public uniquement |
-| Dépendances | Minimales | Peuvent dépendre d'autres crates |
-| Finalité | Implémentation | API contract |
+| Access | Private + public code | Public code only |
+| Dependencies | Minimal | Can depend on other crates |
+| Purpose | Implementation | API contract |
 | Execution | `cargo test --lib` | `cargo test --test` |
 
-### 4. Exécution des tests
+### 4. Running tests
 
 ```bash
-# Tous les tests
+# All tests
 cargo test
 
-# Seulement unit tests
+# Unit tests only
 cargo test --lib
 
-# Seulement integration tests
+# Integration tests only
 cargo test --test
 
-# Un fichier spécifique
+# A specific file
 cargo test --test entity_tests
 
-# Un test spécifique
+# A specific test
 cargo test test_allocate_multiple
 
-# Avec output
+# With output
 cargo test -- --nocapture
 ```
 
-## Structure Actuelle ✅
+## Current Structure ✅
 
 ```
 crates/gwen-core/
@@ -106,20 +106,20 @@ crates/gwen-core/
     └── integration_tests.rs (1 placeholder)
 ```
 
-## Bonnes pratiques respectées ✅
+## Best Practices Followed ✅
 
-- ✅ Unit tests pour implémentation interne
-- ✅ Integration tests pour API publique
-- ✅ Pas de doublons de tests
-- ✅ Tests organisés par module
-- ✅ Naming clairs (`*_tests.rs`)
-- ✅ 88 tests au total
+- ✅ Unit tests for internal implementation
+- ✅ Integration tests for public API
+- ✅ No duplicate tests
+- ✅ Tests organized by module
+- ✅ Clear naming (`*_tests.rs`)
+- ✅ 88 tests total
 - ✅ 100% pass rate
 - ✅ 80%+ coverage
 
-## Résumé
+## Summary
 
-**La structure actuelle est OPTIMALE et suit les conventions Rust.**
+**The current structure is OPTIMAL and follows Rust conventions.**
 
-Pas besoin de changements! 🎉
+No changes needed! 🎉
 

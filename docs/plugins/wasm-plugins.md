@@ -209,8 +209,8 @@ calling it a second time within the same frame returns `[]`.
 
 ### SharedArrayBuffer opt-in (`wasm.sharedMemory`)
 
-GWEN v2 utilise le **Plugin Data Bus** par defaut (pas de SAB requis).
-Un plugin active explicitement le chemin SAB via `sharedMemory: true`.
+GWEN v2 uses the **Plugin Data Bus** by default (no SAB required).
+A plugin explicitly opts into the SAB path via `sharedMemory: true`.
 
 ```typescript
 wasm: {
@@ -221,9 +221,9 @@ wasm: {
 ```
 
 Rules:
-- `sharedMemory: false` (ou absent) => DataBus-only, aucun header COOP/COEP requis.
+- `sharedMemory: false` (or absent) => DataBus-only, no COOP/COEP headers required.
 - `sharedMemory: true` => requires cross-origin isolation (COOP/COEP).
-- si `sharedMemory: true` et `sharedMemoryBytes <= 0`, l'initialisation echoue explicitement.
+- if `sharedMemory: true` and `sharedMemoryBytes <= 0`, initialization fails explicitly.
 
 ### Setting `sharedMemoryBytes = 0`
 
@@ -401,7 +401,7 @@ wasm-pack build crates/gwen-plugin-my-plugin \
 
 ## 7. Creating the TypeScript package
 
-### `src/index.ts` — implémentation complète
+### `src/index.ts` — complete implementation
 
 ```typescript
 import type {
@@ -486,7 +486,7 @@ export function myPlugin(config: MyPluginConfig = {}): MyPlugin {
 }
 ```
 
-### `package.json` — champ `gwen` requis
+### `package.json` — required `gwen` field
 
 ```json
 {

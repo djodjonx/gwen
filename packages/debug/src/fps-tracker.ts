@@ -1,8 +1,8 @@
 /**
- * FpsTracker — Ring buffer pour le calcul du FPS glissant.
+ * FpsTracker — Ring buffer for rolling FPS calculation.
  *
- * Stocke les `N` derniers deltatimes (en secondes) dans un buffer circulaire
- * et calcule la moyenne, le min, le max et la gigue (écart-type) à la demande.
+ * Stores the last `N` delta times (in seconds) in a circular buffer
+ * and computes the average, min, max and jitter (standard deviation) on demand.
  */
 export class FpsTracker {
   private readonly buffer: Float32Array;
@@ -15,16 +15,16 @@ export class FpsTracker {
     this.buffer = new Float32Array(this.size);
   }
 
-  /** Enregistre un nouveau delta (en secondes). */
+  /** Records a new delta (in seconds). */
   push(deltaSeconds: number): void {
-    // Ignorer les deltas aberrants (pause de l'onglet, etc.)
+    // Ignore outlier deltas (tab pause, etc.)
     const clamped = Math.max(0.001, Math.min(1.0, deltaSeconds));
     this.buffer[this.head] = clamped;
     this.head = (this.head + 1) % this.size;
     if (this.count < this.size) this.count++;
   }
 
-  /** FPS instantané basé sur le dernier delta enregistré. */
+  /** Instantaneous FPS based on the last recorded delta. */
   instantFps(): number {
     if (this.count === 0) return 0;
     const lastIdx = (this.head - 1 + this.size) % this.size;
@@ -32,7 +32,7 @@ export class FpsTracker {
     return last > 0 ? 1 / last : 0;
   }
 
-  /** FPS moyen sur la fenêtre glissante. */
+  /** Average FPS over the rolling window. */
   rollingFps(): number {
     if (this.count === 0) return 0;
     let sum = 0;
@@ -43,7 +43,7 @@ export class FpsTracker {
     return avgDelta > 0 ? 1 / avgDelta : 0;
   }
 
-  /** FPS minimum observé dans la fenêtre. */
+  /** Minimum FPS observed in the window. */
   minFps(): number {
     if (this.count === 0) return 0;
     let maxDelta = 0;
@@ -53,7 +53,7 @@ export class FpsTracker {
     return maxDelta > 0 ? 1 / maxDelta : 0;
   }
 
-  /** FPS maximum observé dans la fenêtre. */
+  /** Maximum FPS observed in the window. */
   maxFps(): number {
     if (this.count === 0) return 0;
     let minDelta = Infinity;
@@ -64,8 +64,8 @@ export class FpsTracker {
   }
 
   /**
-   * Gigue : écart-type du FPS (en FPS) sur la fenêtre.
-   * Une valeur élevée indique un rendu irrégulier (stuttering).
+   * Jitter: FPS standard deviation (in FPS) over the window.
+   * A high value indicates irregular rendering (stuttering).
    */
   jitter(): number {
     if (this.count < 2) return 0;
@@ -79,7 +79,7 @@ export class FpsTracker {
     return Math.sqrt(variance / this.count);
   }
 
-  /** Réinitialise le buffer. */
+  /** Resets the buffer. */
   reset(): void {
     this.head = 0;
     this.count = 0;

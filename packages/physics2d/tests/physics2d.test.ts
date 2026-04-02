@@ -615,7 +615,7 @@ describe('readCollisionEventsFromBuffer', () => {
     expect(readCollisionEventsFromBuffer(buf)).toEqual([]);
   });
 
-  it('1 event écrit manuellement → lu correctement', () => {
+  it('1 manually written event → read correctly', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true);
@@ -628,7 +628,7 @@ describe('readCollisionEventsFromBuffer', () => {
     expect(events[0]).toEqual({ started: true });
   });
 
-  it('avance read_head après lecture', () => {
+  it('advances read_head after reading', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true);
@@ -637,7 +637,7 @@ describe('readCollisionEventsFromBuffer', () => {
     expect(view.getUint32(4, true)).toBe(1);
   });
 
-  it('appel double → 2e appel retourne []', () => {
+  it('double call → 2nd call returns []', () => {
     const buf = new ArrayBuffer(8 + 256 * 11);
     const view = new DataView(buf);
     view.setUint32(0, 1, true);
@@ -714,7 +714,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     expect(mockWasmPlugin.physics_add_rigid_body).not.toHaveBeenCalled();
   });
 
-  it('crée un ball collider si radius est fourni', async () => {
+  it('creates a ball collider if radius is provided', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -740,7 +740,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('crée un box collider si hw + hh sont fournis', async () => {
+  it('creates a box collider if hw + hh are provided', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -766,7 +766,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('initialise la position à (0,0) par défaut dans addRigidBody', async () => {
+  it('initialises position to (0,0) by default in addRigidBody', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -790,7 +790,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('utilise restitution et friction si fournis', async () => {
+  it('uses restitution and friction if provided', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -815,7 +815,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('utilise restitution=0 et friction=0 par défaut', async () => {
+  it('defaults to restitution=0 and friction=0', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -837,7 +837,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('ne crée pas de collider si colliders[] est vide', async () => {
+  it('does not create a collider when colliders[] is empty', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -849,12 +849,12 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     expect(mockWasmPlugin.physics_add_box_collider).not.toHaveBeenCalled();
   });
 
-  it('le hook est bien enregistré via engine.hooks.hook', async () => {
+  it('the hook is properly registered via engine.hooks.hook', async () => {
     const { engine } = await boot();
     expect(engine.hooks.hook).toHaveBeenCalledWith('prefab:instantiate', expect.any(Function));
   });
 
-  it('mass et gravityScale sont transmis à add_rigid_body', async () => {
+  it('mass and gravityScale are passed to add_rigid_body', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -880,7 +880,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('ccdEnabled per-body override est transmis à add_rigid_body', async () => {
+  it('ccdEnabled per-body override is passed to add_rigid_body', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -905,7 +905,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('additionalSolverIterations est transmis à add_rigid_body', async () => {
+  it('additionalSolverIterations is passed to add_rigid_body', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -930,7 +930,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('linearDamping et angularDamping sont transmis', async () => {
+  it('linearDamping and angularDamping are passed', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -956,7 +956,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('initialVelocity est convertie pixels→mètres', async () => {
+  it('initialVelocity is converted from pixels to metres', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -981,7 +981,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('isSensor=true est transmis au collider (1)', async () => {
+  it('isSensor=true is passed to the collider (1)', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: { bodyType: 'kinematic', colliders: [{ shape: 'ball', radius: 8, isSensor: true }] },
@@ -1001,7 +1001,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('isSensor absent → 0 par défaut', async () => {
+  it('isSensor absent → defaults to 0', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: { bodyType: 'kinematic', colliders: [{ shape: 'ball', radius: 8 }] },
@@ -1021,7 +1021,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('density est transmise au collider box', async () => {
+  it('density is passed to the box collider', async () => {
     const { engine } = await boot();
     await engine.hooks._trigger('prefab:instantiate', entityId, {
       physics: {
@@ -1045,7 +1045,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('crée des colliders vNext depuis colliders[]', async () => {
+  it('creates vNext colliders from colliders[]', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {
@@ -1087,7 +1087,7 @@ describe('Physics2DPlugin — prefab:instantiate hook', () => {
     );
   });
 
-  it('utilise bodyType=dynamic par défaut sur le schema vNext', async () => {
+  it('defaults to bodyType=dynamic on vNext schema', async () => {
     const { engine } = await boot();
 
     await engine.hooks._trigger('prefab:instantiate', entityId, {

@@ -56,7 +56,7 @@ describe('InputMapper — keyboard', () => {
     expect(m.readAxis2D('Move')).toEqual({ x: 1, y: 0 });
   });
 
-  it('readAxis2D rien → {x:0, y:0}', () => {
+  it('readAxis2D nothing → {x:0, y:0}', () => {
     const m = new InputMapper();
     m.init(moveMap, makeKeyboard() as any, makeGamepad() as any);
     expect(m.readAxis2D('Move')).toEqual({ x: 0, y: 0 });
@@ -68,7 +68,7 @@ describe('InputMapper — keyboard', () => {
     expect(m.isActionPressed('Jump')).toBe(true);
   });
 
-  it('isActionJustPressed Space première frame → true', () => {
+  it('isActionJustPressed Space first frame → true', () => {
     const m = new InputMapper();
     m.init(moveMap, makeKeyboard([], [Keys.Space]) as any, makeGamepad() as any);
     expect(m.isActionJustPressed('Jump')).toBe(true);
@@ -82,15 +82,15 @@ describe('InputMapper — gamepad', () => {
     expect(m.isActionPressed('Jump')).toBe(true);
   });
 
-  it('isActionJustPressed South première frame → true', () => {
+  it('isActionJustPressed South first frame → true', () => {
     const m = new InputMapper();
     m.init(moveMap, makeKeyboard() as any, makeGamepad([GamepadButtons.South], []) as any);
     expect(m.isActionJustPressed('Jump')).toBe(true);
   });
 
-  it('isActionJustPressed South frame suivante → false', () => {
+  it('isActionJustPressed South next frame → false', () => {
     const m = new InputMapper();
-    // curr et prev identiques = held, pas justPressed
+    // curr and prev identical = held, not justPressed
     m.init(
       moveMap,
       makeKeyboard() as any,
@@ -100,14 +100,14 @@ describe('InputMapper — gamepad', () => {
   });
 });
 
-describe('InputMapper — cas limites', () => {
-  it('action inconnue → false', () => {
+describe('InputMapper — edge cases', () => {
+  it('unknown action → false', () => {
     const m = new InputMapper();
     m.init(moveMap, makeKeyboard() as any, makeGamepad() as any);
     expect(m.isActionPressed('Unknown')).toBe(false);
   });
 
-  it('action inconnue readAxis2D → {x:0, y:0}', () => {
+  it('unknown action readAxis2D → {x:0, y:0}', () => {
     const m = new InputMapper();
     m.init(moveMap, makeKeyboard() as any, makeGamepad() as any);
     expect(m.readAxis2D('Unknown')).toEqual({ x: 0, y: 0 });

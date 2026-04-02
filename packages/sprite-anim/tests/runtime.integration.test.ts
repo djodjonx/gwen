@@ -1,14 +1,14 @@
 /**
  * @file runtime.integration.test.ts
  * @description
- * Tests d'intégration du runtime sprite-anim.
+ * Integration tests for the sprite-anim runtime.
  *
- * Testent le runtime complet (`SpriteAnimRuntime`) de bout en bout :
+ * Tests the full runtime (`SpriteAnimRuntime`) end-to-end:
  * - Lifecycle (attach/detach/has/clear)
  * - Simulation (tick, loop, one-shot, chain, speed, pause/resume/stop)
- * - Contrôleur (setParam, setTrigger, setState, resetTrigger)
+ * - Controller (setParam, setTrigger, setState, resetTrigger)
  * - Culling (setCulled/isCulled)
- * - getState (snapshot, identité référentielle, cache)
+ * - getState (snapshot, referential identity, cache)
  * - draw (mock canvas, cullRect, flipX)
  * - DI (events sink, imageLoader, logger)
  * - Pool (attach → detach → reattach)
@@ -65,7 +65,7 @@ function id(n: number): EntityId {
   return BigInt(n) as EntityId;
 }
 
-/** Crée un mock canvas minimaliste avec `drawImage` espionnable. */
+/** Creates a minimal mock canvas with a spyable `drawImage`. */
 function mockCtx() {
   const drawImage = vi.fn();
   return {
@@ -79,7 +79,7 @@ function mockCtx() {
   } as unknown as CanvasRenderingContext2D;
 }
 
-/** Crée un ImageLoader qui simule une image chargée immédiatement. */
+/** Creates an ImageLoader that simulates an image loaded synchronously. */
 function mockImageLoader(): SpriteAnimImageLoader {
   return {
     createImage() {
@@ -90,7 +90,7 @@ function mockImageLoader(): SpriteAnimImageLoader {
         width: 256,
         height: 256,
       };
-      // déclenche onload de façon synchrone dès que src est assigné
+      // triggers onload synchronously as soon as src is assigned
       Object.defineProperty(img, 'src', {
         set(val: string) {
           srcValue = val;
@@ -116,12 +116,12 @@ describe('lifecycle', () => {
     expect(rt.has(id(1))).toBe(false);
   });
 
-  it('has retourne false pour entite non attachee', () => {
+  it('has returns false for non-attached entity', () => {
     const rt = new SpriteAnimRuntime();
     expect(rt.has(id(99))).toBe(false);
   });
 
-  it('clear vide toutes les instances', () => {
+  it('clear empties all instances', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.attach('Hero', id(2), BASE_EXT);
@@ -130,7 +130,7 @@ describe('lifecycle', () => {
     expect(rt.has(id(2))).toBe(false);
   });
 
-  it('reattach après detach fonctionne', () => {
+  it('reattach after detach works', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.detach(id(1));
@@ -143,14 +143,14 @@ describe('lifecycle', () => {
 // ─── Simulation ───────────────────────────────────────────────────────────────
 
 describe('simulation', () => {
-  it('tick avance la frame', () => {
+  it('tick advances the frame', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
-    rt.tick(1 / 8); // 1 frame à 8fps
+    rt.tick(1 / 8); // 1 frame at 8fps
     expect(rt.getState(id(1))?.frameCursor).toBe(1);
   });
 
-  it('ignore deltaTime negatif ou zero', () => {
+  it('ignores negative or zero deltaTime', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.tick(-1);
@@ -170,7 +170,7 @@ describe('simulation', () => {
     expect(rt.getState(id(1))?.frameCursor).toBeGreaterThan(0);
   });
 
-  it('stop remet a l etat initial et pause', () => {
+  it('stop resets to initial state and pauses', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setParam(id(1), 'moving', true);
@@ -181,11 +181,11 @@ describe('simulation', () => {
     expect(s?.state).toBe('idle');
   });
 
-  it('setSpeed multiplie la vitesse d avance', () => {
+  it('setSpeed multiplies the advance speed', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setSpeed(id(1), 2);
-    rt.tick(1 / 8); // 1 frame à 8fps × 2 = ~2 frames
+    rt.tick(1 / 8); // 1 frame at 8fps × 2 = ~2 frames
     expect(rt.getState(id(1))?.frameCursor).toBeGreaterThanOrEqual(1);
   });
 
@@ -197,7 +197,7 @@ describe('simulation', () => {
   });
 });
 
-// ─── Contrôleur ───────────────────────────────────────────────────────────────
+// ─── Controller ───────────────────────────────────────────────────────────────
 
 describe('controleur', () => {
   it('setParam + tick → transition bool', () => {
@@ -217,37 +217,37 @@ describe('controleur', () => {
     expect(rt.getParam(id(1), 'shoot')).toBe(false);
   });
 
-  it('setState force un etat immediatement', () => {
+  it('setState forces a state immediately', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setState(id(1), 'run');
     expect(rt.getState(id(1))?.state).toBe('run');
   });
 
-  it('resetTrigger annule un trigger en attente', () => {
+  it('resetTrigger cancels a pending trigger', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setTrigger(id(1), 'shoot');
     rt.resetTrigger(id(1), 'shoot');
     rt.tick(1 / 8);
-    expect(rt.getState(id(1))?.state).toBe('idle'); // pas transité
+    expect(rt.getState(id(1))?.state).toBe('idle'); // did not transition
   });
 
-  it('play force un clip direct', () => {
+  it('play forces a direct clip', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.play(id(1), 'run', { interrupt: true });
     expect(rt.getState(id(1))?.clip).toBe('run');
   });
 
-  it('getParam retourne la valeur courante', () => {
+  it('getParam returns the current value', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setParam(id(1), 'moving', true);
     expect(rt.getParam(id(1), 'moving')).toBe(true);
   });
 
-  it('getParam retourne undefined pour parametre inconnu', () => {
+  it('getParam returns undefined for unknown parameter', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     expect(rt.getParam(id(1), 'unknown')).toBeUndefined();
@@ -257,7 +257,7 @@ describe('controleur', () => {
 // ─── Culling ──────────────────────────────────────────────────────────────────
 
 describe('culling', () => {
-  it('setCulled skippe le tick', () => {
+  it('setCulled skips the tick', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setCulled(id(1), true);
@@ -267,7 +267,7 @@ describe('culling', () => {
     expect(rt.getState(id(1))?.frameCursor).toBe(before);
   });
 
-  it('desactive le culling reprend le tick', () => {
+  it('disabling culling resumes the tick', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.setCulled(id(1), true);
@@ -281,12 +281,12 @@ describe('culling', () => {
 // ─── getState / snapshot cache ────────────────────────────────────────────────
 
 describe('getState', () => {
-  it('retourne null si entite non attachee', () => {
+  it('returns null for non-attached entity', () => {
     const rt = new SpriteAnimRuntime();
     expect(rt.getState(id(99))).toBeNull();
   });
 
-  it('retourne un snapshot apres attach', () => {
+  it('returns a snapshot after attach', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     const s = rt.getState(id(1));
@@ -294,7 +294,7 @@ describe('getState', () => {
     expect(s?.paused).toBe(false);
   });
 
-  it('retourne la meme reference si aucune mutation', () => {
+  it('returns the same reference when no mutation', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     const s1 = rt.getState(id(1));
@@ -302,7 +302,7 @@ describe('getState', () => {
     expect(s1).toBe(s2);
   });
 
-  it('retourne une nouvelle reference apres mutation', () => {
+  it('returns a new reference after mutation', () => {
     const rt = new SpriteAnimRuntime();
     rt.attach('Hero', id(1), BASE_EXT);
     const s1 = rt.getState(id(1));
@@ -322,7 +322,7 @@ describe('setVisible', () => {
     expect(rt.getState(id(1))?.visible).toBe(false);
   });
 
-  it('entite invisible non dessinee', () => {
+  it('invisible entity is not drawn', () => {
     const rt = new SpriteAnimRuntime({ imageLoader: mockImageLoader() });
     const ctx = mockCtx();
     rt.attach('Hero', id(1), BASE_EXT);
@@ -337,7 +337,7 @@ describe('setVisible', () => {
 // ─── DI : events sink ─────────────────────────────────────────────────────────
 
 describe('DI: events', () => {
-  it('emet onFrame a chaque avance de frame', () => {
+  it('emits onFrame on every frame advance', () => {
     const onFrame = vi.fn();
     const rt = new SpriteAnimRuntime({ events: { onFrame } });
     rt.attach('Hero', id(1), BASE_EXT);
@@ -345,7 +345,7 @@ describe('DI: events', () => {
     expect(onFrame).toHaveBeenCalled();
   });
 
-  it('emet onComplete en fin de clip one-shot', () => {
+  it('emits onComplete at the end of a one-shot clip', () => {
     const onComplete = vi.fn();
     const rt = new SpriteAnimRuntime({ events: { onComplete } });
     rt.attach('Hero', id(1), BASE_EXT);
@@ -354,7 +354,7 @@ describe('DI: events', () => {
     expect(onComplete).toHaveBeenCalled();
   });
 
-  it('emet onTransition lors d une transition de controleur', () => {
+  it('emits onTransition during a controller transition', () => {
     const onTransition = vi.fn();
     const rt = new SpriteAnimRuntime({ events: { onTransition } });
     rt.attach('Hero', id(1), BASE_EXT);
@@ -367,13 +367,13 @@ describe('DI: events', () => {
 // ─── DI : imageLoader ─────────────────────────────────────────────────────────
 
 describe('DI: imageLoader', () => {
-  it('utilise imageLoader injecte pour charger l atlas', () => {
+  it('uses injected imageLoader to load the atlas', () => {
     const loader = mockImageLoader();
     const rt = new SpriteAnimRuntime({ imageLoader: loader });
     const ctx = mockCtx();
     rt.attach('Hero', id(1), BASE_EXT);
     rt.tick(1 / 8);
-    // 1er draw: déclenche le chargement, 2e draw: image disponible
+    // 1st draw: triggers loading, 2nd draw: image available
     expect(rt.draw(ctx, id(1), 0, 0)).toBe(false);
     const drawn = rt.draw(ctx, id(1), 0, 0);
     expect(drawn).toBe(true);
@@ -392,7 +392,7 @@ describe('DI: imageLoader', () => {
 // ─── DI : logger ──────────────────────────────────────────────────────────────
 
 describe('DI: logger', () => {
-  it('appelle logger.warn pour UI sans clips valides', () => {
+  it('calls logger.warn for UI with no valid clips', () => {
     const warn = vi.fn();
     const rt = new SpriteAnimRuntime({ logger: { warn } });
     rt.attach('Empty', id(1), {
@@ -407,13 +407,13 @@ describe('DI: logger', () => {
 // ─── Pool ─────────────────────────────────────────────────────────────────────
 
 describe('pool', () => {
-  it('reattache une entite après detach depuis le pool', () => {
+  it('reattaches an entity after detach from pool', () => {
     const rt = new SpriteAnimRuntime({}, { maxFrameAdvancesPerEntity: 16 });
     rt.attach('Hero', id(1), BASE_EXT);
     rt.tick(0.5);
     rt.detach(id(1));
     rt.attach('Hero', id(2), BASE_EXT);
-    // l'instance réutilisée doit être propre
+    // the reused instance must be clean
     const s = rt.getState(id(2));
     expect(s?.frameCursor).toBe(0);
     expect(s?.paused).toBe(false);

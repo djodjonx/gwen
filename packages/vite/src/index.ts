@@ -1,17 +1,17 @@
 /**
- * @gwenjs/vite — Plugin Vite pour les projets GWEN
+ * @gwenjs/vite — Vite plugin for GWEN projects
  *
- * Fonctionnalités :
- *  1. **WASM hot-reload** : surveille les fichiers `.rs` du crate Rust,
- *     relance `wasm-pack build` en arrière-plan et déclenche un HMR
- *     complet quand le `.wasm` change.
- *  2. **Injection WASM via middleware** : sert les fichiers WASM directement
- *     depuis les sources (sans copie vers public/) en mode dev.
- *     En build de prod, les émet comme assets Rollup dans dist/wasm/.
- *  3. **Injection du manifeste** : injecte `gwen-manifest.json` comme
- *     variable virtuelle `__GWEN_MANIFEST__` accessible dans le code.
+ * Features:
+ *  1. **WASM hot-reload**: watches `.rs` files in the Rust crate,
+ *     re-runs `wasm-pack build` in the background and triggers a full HMR
+ *     when the `.wasm` changes.
+ *  2. **WASM injection via middleware**: serves WASM files directly
+ *     from sources (without copying to public/) in dev mode.
+ *     In production build, emits them as Rollup assets in dist/wasm/.
+ *  3. **Manifest injection**: injects `gwen-manifest.json` as
+ *     the virtual variable `__GWEN_MANIFEST__` accessible in code.
  *
- * Usage dans vite.config.ts :
+ * Usage in vite.config.ts:
  * ```typescript
  * import { gwen } from '@gwenjs/vite';
  *
@@ -46,31 +46,31 @@ export interface GwenPluginOptions {
    */
   variant?: CoreVariant;
   /**
-   * Chemin vers le crate Rust à compiler (dossier contenant Cargo.toml).
-   * Si omis, le plugin cherche Cargo.toml dans les dossiers parents.
+   * Path to the Rust crate to compile (folder containing Cargo.toml).
+   * If omitted, the plugin searches for Cargo.toml in parent directories.
    */
   cratePath?: string;
   /**
-   * Préfixe URL sous lequel les fichiers WASM sont servis.
-   * Défaut : '/wasm'
+   * URL prefix under which WASM files are served.
+   * Default: '/wasm'
    */
   wasmPublicPath?: string;
   /**
-   * Active le watch des fichiers .rs pour le hot-reload WASM.
-   * Défaut : true en mode dev, false en mode build.
+   * Enables watching .rs files for WASM hot-reload.
+   * Default: true in dev mode, false in build mode.
    */
   watch?: boolean;
   /**
-   * Mode de compilation wasm-pack ('release' | 'debug').
-   * Défaut : 'debug' en mode dev pour des rebuilds plus rapides.
+   * wasm-pack compilation mode ('release' | 'debug').
+   * Default: 'debug' in dev mode for faster rebuilds.
    */
   wasmMode?: 'release' | 'debug';
   /**
-   * Chemin vers le manifeste gwen-manifest.json.
-   * Si fourni, son contenu est injecté comme `__GWEN_MANIFEST__`.
+   * Path to the gwen-manifest.json manifest.
+   * If provided, its contents are injected as `__GWEN_MANIFEST__`.
    */
   manifestPath?: string;
-  /** Active les logs détaillés. */
+  /** Enables verbose logging. */
   verbose?: boolean;
 }
 
@@ -117,11 +117,11 @@ function scanScenes(projectRoot: string): SceneInfo[] {
       const namedMatch = classMatch ?? constMatch;
       const className = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
 
-      // defineScene forme 2 = export const + defineScene('string', factory)
+      // defineScene form 2 = export const + defineScene('string', factory)
       const isFactory =
         !!constMatch && /defineScene\s*\(\s*['"`][^'"`,]+['"`]\s*,/.test(source) && !classMatch;
 
-      // Toute autre constante exportée est traitée comme un objet direct (Forme 1)
+      // Any other exported constant is treated as a direct object (Form 1)
       const isConst = !!constMatch && !isFactory && !classMatch;
 
       const sceneName =
@@ -275,9 +275,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   let server: ViteDevServer | null = null;
 
   /**
-   * Répertoire source des fichiers WASM à servir :
-   * - Sans crate Rust : @gwenjs/core/wasm/
-   * - Avec crate Rust  : dossier de sortie wasm-pack (dans .gwen/wasm/)
+   * Source directory of WASM files to serve:
+   * - Without Rust crate: @gwenjs/core/wasm/
+   * - With Rust crate: wasm-pack output directory (in .gwen/wasm/)
    */
   let wasmSourceDir: string | null = null;
 
@@ -317,8 +317,8 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   }
 
   /**
-   * Trouve le répertoire contenant les artefacts WASM pré-compilés dans
-   * @gwenjs/core/wasm/ de manière robuste via la résolution de module.
+   * Finds the directory containing pre-compiled WASM artefacts in
+   * @gwenjs/core/wasm/ robustly via module resolution.
    */
   function findPrecompiledWasmDir(root: string): string | null {
     try {
@@ -346,7 +346,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   }
 
   /**
-   * Retourne les fichiers WASM/JS depuis wasmSourceDir récursivement.
+   * Returns WASM/JS files from wasmSourceDir recursively.
    */
   function listWasmFiles(dir: string, base: string = ''): string[] {
     if (!fs.existsSync(dir)) return [];
@@ -365,10 +365,10 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
   }
 
   /**
-   * En présence d'un crate Rust custom : compile avec wasm-pack vers .gwen/wasm/
-   * (hors de public/ pour ne pas polluer le repo).
-   * Sans crate Rust : pointe simplement vers engine-core/wasm/.
-   * Dans tous les cas, met à jour wasmSourceDir.
+   * With a custom Rust crate: compiles with wasm-pack into .gwen/wasm/
+   * (outside public/ to avoid polluting the repo).
+   * Without a Rust crate: simply points to engine-core/wasm/.
+   * In all cases, updates wasmSourceDir.
    */
   function buildWasm(root: string): boolean {
     const crate = resolveCratePath(root);

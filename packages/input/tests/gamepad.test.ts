@@ -14,10 +14,10 @@ describe('GamepadInput', () => {
     (globalThis as any).navigator = {};
   }
 
-  it('isButtonJustPressed — rising edge détecté', () => {
+  it('isButtonJustPressed — rising edge detected', () => {
     const g = new GamepadInput();
 
-    // Frame 1 : bouton 0 relâché
+    // Frame 1: button 0 released
     Object.defineProperty(navigator, 'getGamepads', {
       value: () => [makeGamepadState([false])],
       configurable: true,
@@ -25,7 +25,7 @@ describe('GamepadInput', () => {
     g.update();
     expect(g.isButtonJustPressed(0, 0)).toBe(false);
 
-    // Frame 2 : bouton 0 pressé
+    // Frame 2: button 0 pressed
     Object.defineProperty(navigator, 'getGamepads', {
       value: () => [makeGamepadState([true])],
       configurable: true,
@@ -34,13 +34,13 @@ describe('GamepadInput', () => {
     expect(g.isButtonJustPressed(0, 0)).toBe(true);
     expect(g.isButtonPressed(0, 0)).toBe(true);
 
-    // Frame 3 : bouton toujours pressé → plus justPressed
+    // Frame 3: button still pressed → no longer justPressed
     g.update();
     expect(g.isButtonJustPressed(0, 0)).toBe(false);
     expect(g.isButtonPressed(0, 0)).toBe(true);
   });
 
-  it('isButtonJustReleased — falling edge détecté', () => {
+  it('isButtonJustReleased — falling edge detected', () => {
     const g = new GamepadInput();
 
     Object.defineProperty(navigator, 'getGamepads', {
@@ -58,7 +58,7 @@ describe('GamepadInput', () => {
     expect(g.isButtonPressed(0, 0)).toBe(false);
   });
 
-  it('pas de gamepad connecté → retourne false sans erreur', () => {
+  it('no gamepad connected → returns false without error', () => {
     const g = new GamepadInput();
     Object.defineProperty(navigator, 'getGamepads', {
       value: () => [null],

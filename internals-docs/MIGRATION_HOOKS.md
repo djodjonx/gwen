@@ -2,17 +2,17 @@
 
 ## Overview
 
-GWEN Engine v0.2.0 introduit le nouveau système de hooks basé sur `@unjs/hookable`, remplaçant l'ancienne API `on()/off()/emit()`.
+GWEN Engine v0.2.0 introduces the new hooks system based on `@unjs/hookable`, replacing the old `on()/off()/emit()` API.
 
-**Breaking Changes:** ✅ Faible impact - les anciennes méthodes fonctionnent toujours (déprécié)
+**Breaking Changes:** ✅ Low impact - old methods still work (deprecated)
 
-**Migration Path:** Graduelle - vous pouvez migrer progressivement
+**Migration Path:** Gradual - you can migrate progressively
 
 ---
 
 ## Quick Summary
 
-### Avant (v0.1.x) ❌
+### Before (v0.1.x) ❌
 ```typescript
 engine.on('entityCreated', (data) => {
   console.log('Entity created:', data.id);
@@ -23,7 +23,7 @@ engine.on('componentAdded', (data) => {
 });
 ```
 
-### Après (v0.2.0+) ✅
+### After (v0.2.0+) ✅
 ```typescript
 api.hooks.hook('entity:create', (id) => {
   console.log('Entity created:', id);

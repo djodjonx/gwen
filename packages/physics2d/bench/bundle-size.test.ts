@@ -60,10 +60,14 @@ describe('bundle size (tree-shaking)', () => {
   beforeAll(async () => {
     if (!BENCH_SLOW) return;
 
-    execFileSync('pnpm', ['--filter', '@gwenjs/physics2d', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
+    try {
+      execFileSync('pnpm', ['--filter', '@gwenjs/physics2d', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      throw new Error(`[GWEN] pnpm build @gwenjs/physics2d failed: ${(err as Error).message}`);
+    }
 
     for (const entry of ENTRIES) {
       const stat = await fs.stat(path.join(distRoot, entry));

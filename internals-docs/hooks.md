@@ -1,23 +1,23 @@
-# 🔌 Guide d'utilisation des Hooks GWEN
+# 🔌 GWEN Hooks Usage Guide
 
 ## Introduction
 
-GWEN utilise `@unjs/hookable` (version 5.5.3) pour gérer les hooks du moteur. Les hooks permettent aux plugins d'étendre et de personnaliser le comportement du moteur sans modifier son code interne.
+GWEN uses `@unjs/hookable` (version 5.5.3) to manage engine hooks. Hooks allow plugins to extend and customize engine behavior without modifying its internal code.
 
-## Concepts clés
+## Key Concepts
 
-### Qu'est-ce qu'un hook ?
+### What is a hook?
 
-Un hook est un point d'extension nommé dans le moteur où les plugins peuvent enregistrer des handlers. Quand le moteur atteint ce point, tous les handlers enregistrés pour ce hook sont appelés **dans l'ordre d'enregistrement**.
+A hook is a named extension point in the engine where plugins can register handlers. When the engine reaches that point, all registered handlers for that hook are called **in registration order**.
 
-### Hooks synchrones vs asynchrones
+### Synchronous vs asynchronous hooks
 
-- **Hooks informations** : les handlers ne retournent rien (`void`)
-- **Hooks asynchrones** : `callHook()` retourne une Promise que vous devez attendre
+- **Informational hooks**: handlers return nothing (`void`)
+- **Asynchronous hooks**: `callHook()` returns a Promise that you must await
 
-## API des Hooks
+## Hooks API
 
-### Enregistrer un hook
+### Registering a hook
 
 ```typescript
 import { defineSystem } from '@djodjonx/gwen-engine-core';
@@ -26,110 +26,110 @@ export const MySystem = defineSystem({
   name: 'MySystem',
 
   onInit(api) {
-    // Enregistrer un handler pour 'entity:create'
+    // Register a handler for 'entity:create'
     api.hooks.hook('entity:create', (id) => {
-      console.log(`Entity créée: ${id}`);
+      console.log(`Entity created: ${id}`);
     });
 
-    // Le hook retourne une fonction pour se désinscrire
+    // The hook returns an unregister function
     const unregister = api.hooks.hook('entity:destroy', (id) => {
-      console.log(`Entity détruite: ${id}`);
+      console.log(`Entity destroyed: ${id}`);
     });
 
-    // Vous pouvez vous désinscrire plus tard
+    // You can unregister later
     // unregister();
   }
 });
 ```
 
-### Appeler un hook
+### Calling a hook
 
-Les hooks sont normalement appelés automatiquement par le moteur. Mais vous pouvez aussi les appeler manuellement :
+Hooks are normally called automatically by the engine. But you can also call them manually:
 
 ```typescript
-// Hook informatif (synchrone)
-api.hooks.callHook('mon:hook:custom', donnees);
+// Informational hook (synchronous)
+api.hooks.callHook('my:custom:hook', data);
 
-// Avec await (pour hooks asynchrones)
-await api.hooks.callHook('mon:hook:async', donnees);
+// With await (for async hooks)
+await api.hooks.callHook('my:async:hook', data);
 ```
 
-### Ordre d'exécution
+### Execution order
 
-Les handlers d'un même hook sont exécutés **séquentiellement**, dans l'ordre d'enregistrement :
+Handlers for the same hook are executed **sequentially**, in registration order:
 
 ```typescript
-api.hooks.hook('test', () => console.log('1. Premier'));
-api.hooks.hook('test', () => console.log('2. Deuxième'));
-api.hooks.hook('test', () => console.log('3. Troisième'));
+api.hooks.hook('test', () => console.log('1. First'));
+api.hooks.hook('test', () => console.log('2. Second'));
+api.hooks.hook('test', () => console.log('3. Third'));
 
 await api.hooks.callHook('test');
 // Output:
-// 1. Premier
-// 2. Deuxième
-// 3. Troisième
+// 1. First
+// 2. Second
+// 3. Third
 ```
 
-## Hooks du système
+## System Hooks
 
 ### 🎮 Engine Lifecycle
 
-| Hook | Paramètres | Description |
+| Hook | Parameters | Description |
 |------|-----------|------------|
-| `engine:init` | - | Moteur initialisé |
-| `engine:start` | - | Game loop démarrée |
-| `engine:stop` | - | Game loop arrêtée |
-| `engine:tick` | `deltaTime: number` | Chaque frame |
+| `engine:init` | - | Engine initialized |
+| `engine:start` | - | Game loop started |
+| `engine:stop` | - | Game loop stopped |
+| `engine:tick` | `deltaTime: number` | Each frame |
 
 ### 🧩 Plugin Lifecycle
 
-| Hook | Paramètres | Description |
+| Hook | Parameters | Description |
 |------|-----------|------------|
-| `plugin:register` | `plugin: TsPlugin` | Plugin enregistré |
-| `plugin:init` | `plugin: TsPlugin, api: EngineAPI` | Plugin initialisé |
-| `plugin:beforeUpdate` | `api: EngineAPI, dt: number` | Avant update (input capture) |
-| `plugin:update` | `api: EngineAPI, dt: number` | Après WASM (game logic) |
-| `plugin:render` | `api: EngineAPI` | Rendu |
-| `plugin:destroy` | `plugin: TsPlugin` | Plugin détruit |
+| `plugin:register` | `plugin: TsPlugin` | Plugin registered |
+| `plugin:init` | `plugin: TsPlugin, api: EngineAPI` | Plugin initialized |
+| `plugin:beforeUpdate` | `api: EngineAPI, dt: number` | Before update (input capture) |
+| `plugin:update` | `api: EngineAPI, dt: number` | After WASM (game logic) |
+| `plugin:render` | `api: EngineAPI` | Render |
+| `plugin:destroy` | `plugin: TsPlugin` | Plugin destroyed |
 
 ### 🎬 Entity Management
 
-| Hook | Paramètres | Description |
+| Hook | Parameters | Description |
 |------|-----------|------------|
-| `entity:create` | `id: EntityId` | Entité créée |
-| `entity:destroy` | `id: EntityId` | Avant destruction |
-| `entity:destroyed` | `id: EntityId` | Après destruction |
+| `entity:create` | `id: EntityId` | Entity created |
+| `entity:destroy` | `id: EntityId` | Before destruction |
+| `entity:destroyed` | `id: EntityId` | After destruction |
 
 ### 📦 Component Management
 
-| Hook | Paramètres | Description |
+| Hook | Parameters | Description |
 |------|-----------|------------|
-| `component:add` | `id: EntityId, type: string, data: unknown` | Composant ajouté |
-| `component:remove` | `id: EntityId, type: string` | Avant suppression |
-| `component:removed` | `id: EntityId, type: string` | Après suppression |
-| `component:update` | `id: EntityId, type: string, data: unknown` | Composant mis à jour |
+| `component:add` | `id: EntityId, type: string, data: unknown` | Component added |
+| `component:remove` | `id: EntityId, type: string` | Before removal |
+| `component:removed` | `id: EntityId, type: string` | After removal |
+| `component:update` | `id: EntityId, type: string, data: unknown` | Component updated |
 
 ### 🎪 Scene Management
 
-| Hook | Paramètres | Description |
+| Hook | Parameters | Description |
 |------|-----------|------------|
-| `scene:beforeLoad` | `name: string` | Avant chargement |
-| `scene:load` | `name: string` | Scène chargée |
-| `scene:loaded` | `name: string` | Après chargement |
-| `scene:beforeUnload` | `name: string` | Avant déchargement |
-| `scene:unload` | `name: string` | Scène déchargée |
-| `scene:unloaded` | `name: string` | Après déchargement |
+| `scene:beforeLoad` | `name: string` | Before loading |
+| `scene:load` | `name: string` | Scene loaded |
+| `scene:loaded` | `name: string` | After loading |
+| `scene:beforeUnload` | `name: string` | Before unloading |
+| `scene:unload` | `name: string` | Scene unloaded |
+| `scene:unloaded` | `name: string` | After unloading |
 
 ### 🔧 Custom Hooks
 
-Vous pouvez créer vos propres hooks :
+You can create your own hooks:
 
 ```typescript
 export const PhysicsPlugin = defineSystem({
   name: 'PhysicsPlugin',
 
   onUpdate(api, dt) {
-    // Émettre un hook custom
+    // Emit a custom hook
     api.hooks.callHook('physics:collision' as any, {
       bodyA: entity1,
       bodyB: entity2
@@ -137,17 +137,17 @@ export const PhysicsPlugin = defineSystem({
   }
 });
 
-// Enregistrer un handler
+// Register a handler
 api.hooks.hook('physics:collision' as any, (event) => {
-  console.log('Collision entre', event.bodyA, event.bodyB);
+  console.log('Collision between', event.bodyA, event.bodyB);
 });
 ```
 
-## Exemples pratiques
+## Practical Examples
 
-### 1. Plugin de profiling
+### 1. Profiling plugin
 
-Mesurez les performances de vos systèmes :
+Measure the performance of your systems:
 
 ```typescript
 export const ProfilingPlugin = defineSystem({
@@ -168,9 +168,9 @@ export const ProfilingPlugin = defineSystem({
 });
 ```
 
-### 2. Plugin de validation
+### 2. Validation plugin
 
-Validez les données avant qu'elles ne soient ajoutées :
+Validate data before it is added:
 
 ```typescript
 export const ValidationPlugin = defineSystem({
@@ -179,16 +179,16 @@ export const ValidationPlugin = defineSystem({
   onInit(api) {
     api.hooks.hook('component:add', (id, type, data) => {
       if (type === 'Position' && (!data.x || !data.y)) {
-        throw new Error('Position requiert x et y');
+        throw new Error('Position requires x and y');
       }
     });
   }
 });
 ```
 
-### 3. Plugin de persistance
+### 3. Persistence plugin
 
-Enregistrez les modifications d'entités :
+Record entity changes:
 
 ```typescript
 export const PersistencePlugin = defineSystem({
@@ -211,7 +211,7 @@ export const PersistencePlugin = defineSystem({
       });
     });
 
-    // Sauvegarder périodiquement
+    // Save periodically
     setInterval(() => {
       console.log('Saving changes:', changes);
       changes.length = 0;
@@ -220,9 +220,9 @@ export const PersistencePlugin = defineSystem({
 });
 ```
 
-### 4. Plugin de debug
+### 4. Debug plugin
 
-Loguez tous les événements pour le débogage :
+Log all events for debugging:
 
 ```typescript
 export const DebugEventsPlugin = defineSystem({
@@ -246,9 +246,9 @@ export const DebugEventsPlugin = defineSystem({
 });
 ```
 
-## Gestion des erreurs
+## Error Handling
 
-Hookable (v5+) propage les erreurs au lieu de les avaler. Gérez-les correctement :
+Hookable (v5+) propagates errors instead of swallowing them. Handle them correctly:
 
 ```typescript
 try {
@@ -258,52 +258,52 @@ try {
 }
 ```
 
-## Désabonnement
+## Unsubscribing
 
-Pour arrêter d'écouter un hook :
+To stop listening to a hook:
 
 ```typescript
-// Méthode 1 : Fonction retournée
+// Method 1: Returned function
 const unregister = api.hooks.hook('entity:create', (id) => {
   console.log('Entity created:', id);
 });
 
-// Plus tard...
-unregister(); // ✅ Hook désabonné
+// Later...
+unregister(); // ✅ Hook unsubscribed
 ```
 
 ## Best Practices
 
-✅ **À faire :**
-- Enregistrer les hooks dans `onInit()`
-- Garder les handlers légers et rapides
-- Gérer les erreurs dans les handlers async
-- Utiliser les noms de hooks descriptifs pour les custom hooks
-- Documenter les hooks custom que vous créez
+✅ **Do:**
+- Register hooks in `onInit()`
+- Keep handlers lightweight and fast
+- Handle errors in async handlers
+- Use descriptive hook names for custom hooks
+- Document custom hooks you create
 
-❌ **À éviter :**
-- Enregistrer des hooks dans les autres lifecycles
-- Faire de longues opérations dans les handlers (bloque la frame)
-- Créer des dépendances circulaires entre hooks
-- Oublier de désinscrire si vous le faites dynamiquement
+❌ **Avoid:**
+- Registering hooks in other lifecycles
+- Long operations in handlers (blocks the frame)
+- Creating circular dependencies between hooks
+- Forgetting to unregister if done dynamically
 
-## Migration de l'ancienne API
+## Migrating from the old API
 
-Si vous utilisiez `engine.on()` / `engine.off()` (déprécié) :
+If you were using `engine.on()` / `engine.off()` (deprecated):
 
 ```typescript
-// ❌ Ancien style (déprécié)
+// ❌ Old style (deprecated)
 engine.on('entityCreated', (data) => {
   console.log('Entity created:', data.id);
 });
 
-// ✅ Nouveau style
+// ✅ New style
 api.hooks.hook('entity:create', (id) => {
   console.log('Entity created:', id);
 });
 ```
 
-Mappings :
+Mappings:
 - `entityCreated` → `entity:create`
 - `entityDestroyed` → `entity:destroyed`
 - `componentAdded` → `component:add`
@@ -311,5 +311,5 @@ Mappings :
 
 ---
 
-**Voir aussi :** [Système de Plugins](./plugins/creating.md) | [Architecture Engine](./ARCHITECTURE.md)
+**See also:** [Plugin System](./plugins/creating.md) | [Engine Architecture](./ARCHITECTURE.md)
 

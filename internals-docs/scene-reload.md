@@ -2,7 +2,7 @@
 
 ## Overview
 
-Le système de reload de scenes permet de contrôler si une scene doit être rechargée (détruite et recréée) lorsqu'on y retourne.
+The scene reload system lets you control whether a scene should be reloaded (destroyed and recreated) when returning to it.
 
 **Comportement par défaut**: `reloadOnReenter: true` (comme Unity/Godot)
 
@@ -15,11 +15,11 @@ interface Scene {
   readonly name: string;
 
   /**
-   * Contrôle si la scene reload quand on y retourne.
+   * Controls whether the scene reloads when returning to it.
    *
-   * - `true` (default): Full reload (comme Unity/Godot)
-   * - `false`: Keep state (comme Phaser pause/resume)
-   * - `function`: Décision dynamique basée sur le contexte
+   * - `true` (default): Full reload (like Unity/Godot)
+   * - `false`: Keep state (like Phaser pause/resume)
+   * - `function`: Dynamic decision based on context
    *
    * @default true
    */
@@ -39,19 +39,19 @@ interface Scene {
 
 ```typescript
 interface ReloadContext {
-  /** Scene d'où on vient */
+  /** Scene we are coming from */
   fromScene: string | null;
 
-  /** Scene vers laquelle on va */
+  /** Scene we are navigating to */
   toScene: string;
 
-  /** True si c'est un re-enter */
+  /** True if this is a re-enter */
   isReenter: boolean;
 
-  /** Nombre de fois qu'on est entré dans cette scene */
+  /** Number of times we have entered this scene */
   enterCount: number;
 
-  /** Data custom passée via scene.load(name, data) */
+  /** Custom data passed via scene.load(name, data) */
   data?: Record<string, unknown>;
 }
 ```
@@ -70,7 +70,7 @@ type ReloadEvaluator = (
 ### 1. Boolean Simple
 
 ```typescript
-// Reload toujours (default - comme Unity/Godot)
+// Always reload (default - like Unity/Godot)
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true,
   systems: [MovementSystem, PlayerSystem],
@@ -82,12 +82,12 @@ export const GameScene = defineScene('Game', () => ({
 ```
 
 ```typescript
-// Jamais reload (comme pause menu)
+// Never reload (like a pause menu)
 export const PauseScene = defineScene('Pause', () => ({
   reloadOnReenter: false,
   systems: [PauseSystem],
   onEnter(api) {
-    // Garde l'état
+    // Keeps state
   },
   onExit(api) {}
 }));
@@ -96,7 +96,7 @@ export const PauseScene = defineScene('Pause', () => ({
 ### 2. Function Evaluator - Conditionnel
 
 ```typescript
-// Reload seulement après game over
+// Reload only after game over
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: (api, ctx) => {
     return ctx.data?.reason === 'gameOver';
@@ -114,7 +114,7 @@ if (lives <= 0) {
 ```
 
 ```typescript
-// Reload après 3+ morts
+// Reload after 3+ deaths
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: (api, ctx) => {
     return ctx.enterCount > 3;
@@ -127,7 +127,7 @@ export const GameScene = defineScene('Game', () => ({
 ```
 
 ```typescript
-// Logic complexe avec services
+// Complex logic with services
 export const BossScene = defineScene('Boss', () => ({
   reloadOnReenter: (api, ctx) => {
     const gameState = api.services.get('gameState');
@@ -145,7 +145,7 @@ export const BossScene = defineScene('Boss', () => ({
 
 ### scene:willReload
 
-Appelé avant qu'une scene soit rechargée.
+Called before a scene is reloaded.
 
 ```typescript
 api.hooks.hook('scene:willReload', (name, context) => {
@@ -153,7 +153,7 @@ api.hooks.hook('scene:willReload', (name, context) => {
   console.log(`Reason: ${context.data?.reason}`);
   console.log(`Enter count: ${context.enterCount}`);
 
-  // Sauvegarder l'état avant reload
+  // Save state before reload
   saveGameState();
 
   // Analytics
@@ -164,11 +164,11 @@ api.hooks.hook('scene:willReload', (name, context) => {
 });
 ```
 
-## Comportement Détaillé
+## Detailed Behavior
 
 ### Reload (reloadOnReenter: true)
 
-Quand une scene reload :
+When a scene reloads:
 
 1. ✅ `scene:willReload` hook appelé
 2. ✅ `scene:beforeUnload` hook appelé
@@ -183,27 +183,27 @@ Quand une scene reload :
 11. ✅ `onEnter()` appelé
 12. ✅ `scene:loaded` hook appelé
 
-**Résultat** : État complètement frais, comme si la scene était chargée pour la première fois.
+**Result**: Completely fresh state, as if the scene was loaded for the first time.
 
 ### No Reload (reloadOnReenter: false)
 
-Quand une scene NE reload PAS :
+When a scene does NOT reload:
 
-1. ❌ Aucun hook appelé
-2. ❌ onExit/onEnter NON appelés
-3. ❌ Systèmes gardent leur état (closures)
-4. ❌ Entités persistent
-5. ✅ La scene continue exactement où elle en était
+1. ❌ No hooks called
+2. ❌ onExit/onEnter NOT called
+3. ❌ Systems keep their state (closures)
+4. ❌ Entities persist
+5. ✅ The scene continues exactly where it left off
 
-**Résultat** : État préservé, comme un "pause/resume".
+**Result**: Preserved state, like a "pause/resume".
 
-## Cas d'Usage
+## Use Cases
 
-### Game Scene - Reload par défaut
+### Game Scene - Default Reload
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  // Default true → reload toujours
+  // Default true → always reload
   ui: [BackgroundUI, PlayerUI, EnemyUI],
   systems: [MovementSystem, PlayerSystem, SpawnerSystem],
 
@@ -229,11 +229,11 @@ if (keyboard.isPressed('R')) {
 }
 ```
 
-### Pause Menu - Pas de reload
+### Pause Menu - No reload
 
 ```typescript
 export const PauseScene = defineScene('Pause', () => ({
-  reloadOnReenter: false, // Garde l'état
+  reloadOnReenter: false, // Keeps state
 
   ui: [PauseUI],
 
@@ -247,13 +247,13 @@ export const PauseScene = defineScene('Pause', () => ({
 }));
 ```
 
-### Conditionnel - Game Over vs Retry
+### Conditional - Game Over vs Retry
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: (api, ctx) => {
-    // Reload seulement si game over
-    // Pas de reload si juste retry rapide
+    // Reload only on game over
+    // No reload for a quick retry
     return ctx.data?.reason === 'gameOver';
   },
 
@@ -267,29 +267,29 @@ if (lives <= 0) {
   api.scene.load('Game', { reason: 'gameOver' });
 }
 
-// Quick retry → pas de reload
+// Quick retry → no reload
 if (keyboard.isPressed('R')) {
   api.scene.load('Game', { reason: 'retry' });
 }
 ```
 
-## Comparaison avec Autres Moteurs
+## Comparison with Other Engines
 
-| Moteur | Comportement | GWEN Équivalent |
+| Engine | Behavior | GWEN Equivalent |
 |--------|--------------|-----------------|
-| **Unity** | Toujours reload | `reloadOnReenter: true` (default) |
-| **Godot** | Toujours reload | `reloadOnReenter: true` (default) |
+| **Unity** | Always reload | `reloadOnReenter: true` (default) |
+| **Godot** | Always reload | `reloadOnReenter: true` (default) |
 | **Phaser** | start/restart/pause/resume | `reloadOnReenter: boolean` |
-| **Unreal** | Toujours reload | `reloadOnReenter: true` (default) |
+| **Unreal** | Always reload | `reloadOnReenter: true` (default) |
 
 ## Best Practices
 
 ### ✅ DO
 
 ```typescript
-// Utiliser default (true) pour game scenes
+// Use default (true) for game scenes
 export const GameScene = defineScene('Game', () => ({
-  // reloadOnReenter non spécifié → true par défaut
+  // reloadOnReenter not specified → true by default
   systems: [MovementSystem],
   onEnter(api) {},
   onExit(api) {}
@@ -317,11 +317,11 @@ export const BossScene = defineScene('Boss', () => ({
 ### ❌ DON'T
 
 ```typescript
-// ❌ Ne pas utiliser factories manuelles
+// ❌ Do not use manual factories
 export const GameScene = defineScene('Game', () => ({
   systems: [
-    () => MovementSystem, // ❌ Pas besoin !
-    () => PlayerSystem,   // ❌ reloadOnReenter gère ça
+    () => MovementSystem, // ❌ Not needed!
+    () => PlayerSystem,   // ❌ reloadOnReenter handles this
   ],
   onEnter(api) {},
   onExit(api) {}
@@ -329,7 +329,7 @@ export const GameScene = defineScene('Game', () => ({
 
 // ✅ Utiliser reloadOnReenter à la place
 export const GameScene = defineScene('Game', () => ({
-  reloadOnReenter: true, // ✅ Systèmes recréés automatiquement
+  reloadOnReenter: true, // ✅ Systems recreated automatically
   systems: [MovementSystem, PlayerSystem],
   onEnter(api) {},
   onExit(api) {}
@@ -338,11 +338,11 @@ export const GameScene = defineScene('Game', () => ({
 
 ## Troubleshooting
 
-### Problème : Systèmes gardent leur état après game over
+### Problem: Systems keep state after game over
 
-**Cause** : `reloadOnReenter` est `false` ou absent sur une vieille scene.
+**Cause**: `reloadOnReenter` is `false` or absent on an old scene.
 
-**Solution** : Ajouter `reloadOnReenter: true` (ou laisser default).
+**Solution**: Add `reloadOnReenter: true` (or leave as default).
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
@@ -353,18 +353,18 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-### Problème : Hook scene:willReload pas appelé
+### Problem: Hook scene:willReload not called
 
-**Cause** : Le reload ne se produit pas (reloadOnReenter est false).
+**Cause**: The reload is not happening (reloadOnReenter is false).
 
-**Solution** : Vérifier la valeur de `reloadOnReenter`.
+**Solution**: Check the value of `reloadOnReenter`.
 
 ```typescript
 // Debug
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: (api, ctx) => {
     console.log('Evaluating reload:', ctx);
-    return true; // Forcez true pour tester
+    return true; // Force true to test
   },
   systems: [MovementSystem],
   onEnter(api) {},
@@ -372,11 +372,11 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-### Problème : enterCount ne s'incrémente pas
+### Problem: enterCount does not increment
 
-**Cause** : Normal - `enterCount` est cumulatif sur toute la session.
+**Cause**: Normal — `enterCount` is cumulative for the whole session.
 
-**Solution** : Si vous voulez reset, utilisez la data :
+**Solution**: If you want to reset, use data:
 
 ```typescript
 let sessionDeaths = 0;
@@ -392,9 +392,9 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-## Migration depuis Code Existant
+## Migrating from Existing Code
 
-### Avant (avec factories manuelles)
+### Before (with manual factories)
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
@@ -408,13 +408,13 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-### Après (avec reloadOnReenter)
+### After (with reloadOnReenter)
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  reloadOnReenter: true, // ← Nouveau !
+  reloadOnReenter: true, // ← New!
   systems: [
-    MovementSystem,    // ← Plus de factories
+    MovementSystem,    // ← No more factories
     PlayerSystem,
     SpawnerSystem,
   ],
@@ -423,11 +423,11 @@ export const GameScene = defineScene('Game', () => ({
 }));
 ```
 
-**Bénéfices** :
-- ✅ Code plus simple
-- ✅ Intent clair
-- ✅ Contrôle fin avec function evaluator
-- ✅ Hooks pour observer les reloads
+**Benefits**:
+- ✅ Simpler code
+- ✅ Clear intent
+- ✅ Fine-grained control with function evaluator
+- ✅ Hooks to observe reloads
 
 ## Testing
 
@@ -456,19 +456,19 @@ it('should reload scene when reloadOnReenter is true', () => {
 
 ## Performance
 
-**Reload** (default) :
-- ⚠️ Coût: Moyen (destruction + recréation)
-- ✅ Bénéfice: État garanti frais, pas de bugs de state
+**Reload** (default):
+- ⚠️ Cost: Medium (destruction + recreation)
+- ✅ Benefit: Guaranteed fresh state, no state bugs
 
-**No Reload** (false) :
-- ✅ Coût: Zéro (pas d'opérations)
-- ⚠️ Risque: État peut être corrompu
+**No Reload** (false):
+- ✅ Cost: Zero (no operations)
+- ⚠️ Risk: State can be corrupted
 
-**Recommandation** : Utiliser le default (reload) sauf si performance critique ET vous maîtrisez parfaitement la gestion d'état.
+**Recommendation**: Use the default (reload) unless performance is critical AND you have full control over state management.
 
 ---
 
 **Status** : ✅ Stable depuis v0.2.0
-**Tested** : 13 tests passent
+**Tested** : 13 tests pass
 **Inspired by** : Unity, Godot, Phaser
 

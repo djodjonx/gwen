@@ -51,7 +51,7 @@ function createMockEngine(overrides: Partial<{ frameCount: number }> = {}): Gwen
 // ── FpsTracker ────────────────────────────────────────────────────────────────
 
 describe('FpsTracker', () => {
-  it('retourne 0 si vide', () => {
+  it('returns 0 when empty', () => {
     const t = new FpsTracker(10);
     expect(t.instantFps()).toBe(0);
     expect(t.rollingFps()).toBe(0);
@@ -60,13 +60,13 @@ describe('FpsTracker', () => {
     expect(t.jitter()).toBe(0);
   });
 
-  it('calcule le FPS instantané correctement', () => {
+  it('computes instantaneous FPS correctly', () => {
     const t = new FpsTracker(10);
     t.push(1 / 60); // 60 FPS
     expect(t.instantFps()).toBeCloseTo(60, 0);
   });
 
-  it('calcule le rolling FPS sur la fenêtre', () => {
+  it('computes rolling FPS over the window', () => {
     const t = new FpsTracker(4);
     t.push(1 / 60);
     t.push(1 / 60);
@@ -75,7 +75,7 @@ describe('FpsTracker', () => {
     expect(t.rollingFps()).toBeCloseTo(60, 0);
   });
 
-  it('détecte le min et max', () => {
+  it('detects min and max', () => {
     const t = new FpsTracker(10);
     t.push(1 / 30); // 30 FPS
     t.push(1 / 60); // 60 FPS
@@ -84,42 +84,42 @@ describe('FpsTracker', () => {
     expect(t.maxFps()).toBeCloseTo(120, 0);
   });
 
-  it('calcule une gigue non nulle avec des deltas variés', () => {
+  it('computes non-zero jitter with varied deltas', () => {
     const t = new FpsTracker(10);
     t.push(1 / 30);
     t.push(1 / 120);
     expect(t.jitter()).toBeGreaterThan(0);
   });
 
-  it('gigue nulle avec des deltas identiques', () => {
+  it('jitter is zero with identical deltas', () => {
     const t = new FpsTracker(10);
     for (let i = 0; i < 5; i++) t.push(1 / 60);
     expect(t.jitter()).toBeCloseTo(0, 1);
   });
 
-  it('fonctionne en buffer circulaire (overflow)', () => {
+  it('works as a circular buffer (overflow)', () => {
     const t = new FpsTracker(3);
     t.push(1 / 30);
     t.push(1 / 30);
     t.push(1 / 30);
-    t.push(1 / 60); // écrase le 1er slot
+    t.push(1 / 60); // overwrites the 1st slot
     t.push(1 / 60);
     t.push(1 / 60);
-    // Les 3 derniers slots devraient être 60 FPS
+    // The last 3 slots should all be 60 FPS
     expect(t.rollingFps()).toBeCloseTo(60, 0);
   });
 
-  it('reset remet tout à zéro', () => {
+  it('reset clears everything to zero', () => {
     const t = new FpsTracker(10);
     t.push(1 / 60);
     t.reset();
     expect(t.instantFps()).toBe(0);
   });
 
-  it('clamp les deltas aberrants', () => {
+  it('clamps outlier deltas', () => {
     const t = new FpsTracker(5);
-    t.push(-1); // négatif → clamped à 0.001
-    t.push(999); // trop grand → clamped à 1.0 (= 1 FPS)
+    t.push(-1); // negative → clamped to 0.001
+    t.push(999); // too large → clamped to 1.0 (= 1 FPS)
     expect(t.instantFps()).toBeGreaterThanOrEqual(1);
   });
 });
@@ -133,17 +133,17 @@ describe('DebugPlugin', () => {
     engine = createMockEngine({ frameCount: 42 });
   });
 
-  it('a le nom correct', () => {
+  it('has the correct name', () => {
     expect(new DebugPlugin().name).toBe('@gwenjs/debug');
   });
 
-  it("enregistre le service debug via engine.provide() à l'init", () => {
+  it('registers the debug service via engine.provide() on init', () => {
     const plugin = new DebugPlugin();
     plugin.setup(engine);
     expect(engine.tryInject('debug' as any)).toBeDefined();
   });
 
-  it('getMetrics() retourne des métriques avec des valeurs initiales', () => {
+  it('getMetrics() returns metrics with initial values', () => {
     const engine2 = createMockEngine({ frameCount: 10 });
 
     const plugin = new DebugPlugin({ updateInterval: 1 });
@@ -161,7 +161,7 @@ describe('DebugPlugin', () => {
     expect(m.isDropping).toBe(false);
   });
 
-  it('détecte une chute de FPS après la grace period', () => {
+  it('detects an FPS drop after the grace period', () => {
     const engine2 = createMockEngine({ frameCount: 100 });
     const onDrop = vi.fn();
 
@@ -181,7 +181,7 @@ describe('DebugPlugin', () => {
     expect(onDrop).toHaveBeenCalledTimes(3);
   });
 
-  it('ne déclenche pas de chute si FPS OK', () => {
+  it('does not trigger a drop when FPS is OK', () => {
     const onDrop = vi.fn();
     const plugin = new DebugPlugin({
       updateInterval: 1,
@@ -194,7 +194,7 @@ describe('DebugPlugin', () => {
     expect(onDrop).not.toHaveBeenCalled();
   });
 
-  it('reset remet le tracker à zéro', () => {
+  it('reset clears the tracker', () => {
     const engine2 = createMockEngine();
 
     const plugin = new DebugPlugin({ updateInterval: 1 });
@@ -211,7 +211,7 @@ describe('DebugPlugin', () => {
     expect(m).toBeDefined();
   });
 
-  it("teardown ne jette pas d'erreur", () => {
+  it('teardown does not throw', () => {
     const plugin = new DebugPlugin();
     plugin.setup(engine);
     expect(() => plugin.teardown!()).not.toThrow();

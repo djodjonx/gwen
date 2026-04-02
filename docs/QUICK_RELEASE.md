@@ -1,82 +1,82 @@
-# 🚀 Guide Rapide : Première Release npm
+# 🚀 Quick Guide: First npm Release
 
-## Prérequis (à faire une seule fois)
+## Prerequisites (do once)
 
 ```bash
-# 1. Installer wasm-pack
+# 1. Install wasm-pack
 cargo install wasm-pack
 
-# 2. Se connecter à npm
+# 2. Log in to npm
 npm login
 
-# 3. (Optionnel) Configurer GitHub Actions
-# Créer un token npm : https://www.npmjs.com/settings/YOUR_USERNAME/tokens
-# Ajouter dans GitHub : Settings → Secrets → Actions
-# Nom: NPM_TOKEN, Valeur: votre token
+# 3. (Optional) Configure GitHub Actions
+# Create an npm token: https://www.npmjs.com/settings/YOUR_USERNAME/tokens
+# Add to GitHub: Settings → Secrets → Actions
+# Name: NPM_TOKEN, Value: your token
 ```
 
-## Workflow de Release (3 étapes)
+## Release Workflow (3 steps)
 
-### 1. Créer un changeset (après chaque modification)
+### 1. Create a changeset (after each change)
 
 ```bash
 pnpm changeset
-# → Sélectionnez les packages modifiés (Espace)
-# → Choisissez le type : patch/minor/major
-# → Écrivez un résumé
+# → Select changed packages (Space)
+# → Choose type: patch/minor/major
+# → Write a summary
 
 git add .changeset/*.md
 git commit -m "chore: add changeset"
 git push
 ```
 
-### 2. Bump les versions (quand vous êtes prêt)
+### 2. Bump versions (when ready)
 
 ```bash
 pnpm changeset:version
-# → Met à jour package.json
-# → Génère les CHANGELOG.md
+# → Updates package.json
+# → Generates CHANGELOG.md
 
 git add -A
 git commit -m "chore: version packages"
 git push
 ```
 
-### 3. Publier sur npm
+### 3. Publish to npm
 
 ```bash
 # Build WASM + TypeScript
 ./scripts/build-wasm.sh
 pnpm build:ts
 
-# Publier
+# Publish
 pnpm publish -r --access public
 
-# Créer le tag git
+# Create the git tag
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-## Ou laissez GitHub Actions le faire automatiquement
+## Or let GitHub Actions do it automatically
 
-Une fois le token `NPM_TOKEN` configuré dans GitHub :
+Once the `NPM_TOKEN` token is configured in GitHub:
 
-1. Push sur `main` → CI crée un PR "Version Packages"
-2. Merge le PR → CI publie automatiquement sur npm
+1. Push to `main` → CI creates a "Version Packages" PR
+2. Merge the PR → CI publishes automatically to npm
 
-## Résumé des fichiers utiles créés
+## Summary of useful files created
 
-| Fichier | Usage |
+| File | Usage |
 |---------|-------|
-| `scripts/build-wasm.sh` | **Build WASM** (essentiel avant publish) |
-| `docs/DEPLOYMENT.md` | Guide pour vos utilisateurs (headers HTTP) |
-| `.github/workflows/release.yml` | CI/CD automatique (optionnel) |
+| `scripts/build-wasm.sh` | **Build WASM** (essential before publish) |
+| `docs/DEPLOYMENT.md` | User guide (HTTP headers) |
+| `.github/workflows/release.yml` | Automatic CI/CD (optional) |
 
-## Commandes de référence
+## Reference Commands
 
 ```bash
 # Development
-pnpm dev                    # Dev mode avec watch
+pnpm dev                    # Dev mode with watch
 pnpm test                   # Tests
 pnpm lint                   # Linter
 
@@ -85,7 +85,7 @@ pnpm lint                   # Linter
 pnpm build:ts               # Build TypeScript
 
 # Release (via Changesets)
-pnpm changeset              # Créer un changeset
+pnpm changeset              # Create a changeset
 pnpm changeset:version      # Bump versions
 pnpm release                # Publish to npm
 ```
@@ -98,14 +98,14 @@ pnpm release                # Publish to npm
 
 ---
 
-**C'est tout ! 🎉**
+**That's it! 🎉**
 
-La prochaine fois que vous ajoutez une feature :
+Next time you add a feature:
 ```bash
-# 1. Codez
+# 1. Write code
 # 2. pnpm changeset
 # 3. git commit && push
-# 4. Quand prêt : pnpm changeset:version
+# 4. When ready: pnpm changeset:version
 # 5. ./scripts/build-wasm.sh && pnpm build:ts && pnpm release
 ```
 

@@ -1,21 +1,21 @@
 # 🎮 GWEN Framework — AI Agent Skill
 
-Gwen est un moteur de jeu ECS (Entity Component System) hybride ultra-performant, utilisant **Rust (Wasm)** pour le coeur du moteur et **TypeScript** pour l'API, l'outillage et le rendu.
+Gwen is an ultra-performant hybrid ECS (Entity Component System) game engine, using **Rust (Wasm)** for the engine core and **TypeScript** for the API, tooling, and rendering.
 
-## 🏗️ Architecture & Arborescence
+## 🏗️ Architecture & Directory Structure
 
-Gwen suit une convention stricte de "Convention over Configuration" :
-- `gwen.config.ts` : Point d'entrée de la configuration (plugins, moteur, html).
-- `src/components/` : Définition des données (Schémas).
-- `src/systems/` : Logique de jeu (Update loop).
-- `src/scenes/` : Orchestration (Niveaux, Menus).
-- `src/prefabs/` : Modèles d'entités réutilisables.
-- `src/ui/` : Rendu visuel (Canvas 2D ou HTML/CSS).
+Gwen follows a strict "Convention over Configuration" approach:
+- `gwen.config.ts`: Configuration entry point (plugins, engine, html).
+- `src/components/`: Data definitions (Schemas).
+- `src/systems/`: Game logic (Update loop).
+- `src/scenes/`: Orchestration (Levels, Menus).
+- `src/prefabs/`: Reusable entity templates.
+- `src/ui/`: Visual rendering (Canvas 2D or HTML/CSS).
 
-## 🛠️ API Core (TypeScript)
+## 🛠️ Core API (TypeScript)
 
-### 1. Composants (`defineComponent`)
-Les composants sont des structures de données pures.
+### 1. Components (`defineComponent`)
+Components are pure data structures.
 ```typescript
 import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
@@ -25,8 +25,8 @@ export const Position = defineComponent({
 });
 ```
 
-### 2. Systèmes (`defineSystem`)
-Les systèmes s'exécutent à chaque frame.
+### 2. Systems (`defineSystem`)
+Systems run every frame.
 ```typescript
 export const MovementSystem = defineSystem({
   name: 'MovementSystem',
@@ -40,8 +40,8 @@ export const MovementSystem = defineSystem({
 });
 ```
 
-### 3. Scènes (`defineScene`)
-Gèrent le cycle de vie et l'activation des systèmes/UI.
+### 3. Scenes (`defineScene`)
+Manage the lifecycle and activation of systems/UI.
 ```typescript
 export const GameScene = defineScene('Game', () => ({
   systems: [MovementSystem, CollisionSystem],
@@ -54,12 +54,12 @@ export const GameScene = defineScene('Game', () => ({
 ```
 
 ### 4. UI (`defineUI`)
-Rendu spécifique à une entité possédant un `UIComponent`.
+Entity-specific rendering for entities with a `UIComponent`.
 ```typescript
 export const PlayerUI = defineUI({
   name: 'PlayerUI',
   render(api, id) {
-    const { ctx } = api.services.get('renderer'); // Service auto-typé
+    const { ctx } = api.services.get('renderer'); // Auto-typed service
     const pos = api.getComponent(id, Position);
     ctx.fillRect(pos.x, pos.y, 20, 20);
   }
@@ -68,26 +68,26 @@ export const PlayerUI = defineUI({
 
 ## 🔌 Plugins & Services
 
-Gwen est extensible via des plugins. Les services exposés par les plugins sont accessibles via `api.services.get('name')`.
-- **Keyboard** : `api.services.get('keyboard')` -> `isPressed(key)`
-- **Renderer** : `api.services.get('renderer')` -> `ctx` (CanvasRenderingContext2D)
-- **Audio** : `api.services.get('audio')` -> `play(sound, options)`
-- **Physics2D** : Intégration Rust native pour les collisions.
+Gwen is extensible via plugins. Services exposed by plugins are accessible via `api.services.get('name')`.
+- **Keyboard**: `api.services.get('keyboard')` -> `isPressed(key)`
+- **Renderer**: `api.services.get('renderer')` -> `ctx` (CanvasRenderingContext2D)
+- **Audio**: `api.services.get('audio')` -> `play(sound, options)`
+- **Physics2D**: Native Rust integration for collisions.
 
-## 🚀 Workflow de développement
+## 🚀 Development Workflow
 
-1. **Configuration** : Ajouter les plugins dans `gwen.config.ts`.
-2. **Préparation** : Lancer `gwen prepare` (ou `pnpm dev`) pour générer les types automatiques des services.
-3. **Entités** : Utiliser `api.createEntity()` ou `api.prefabs.instantiate()`.
-4. **Scènes** : Charger via `api.scene.load('SceneName')`.
+1. **Configuration**: Add plugins in `gwen.config.ts`.
+2. **Preparation**: Run `gwen prepare` (or `pnpm dev`) to generate automatic service types.
+3. **Entities**: Use `api.createEntity()` or `api.prefabs.instantiate()`.
+4. **Scenes**: Load via `api.scene.load('SceneName')`.
 
 ## 💡 Patterns & Best Practices
 
-- **Typed Services** : Ne jamais typer manuellement les services. Gwen les génère dynamiquement dans `GwenDefaultServices` lors du `gwen prepare`.
-- **No Service Casts** : Interdit d'écrire `api.services.get('physics') as Physics2DAPI` dans les apps/playgrounds.
-  - Mauvais : `const physics = api.services.get('physics') as Physics2DAPI;`
-  - Bon : `const physics = api.services.get('physics');`
-  - Prérequis : lancer `gwen prepare` (ou `pnpm dev`) pour avoir les types à jour.
-- **Prefabs over Manual Creation** : Toujours préférer les prefabs pour la création d'entités complexes.
-- **Scene State** : Utiliser `api.services.register()` pour partager des données persistantes entre les scènes.
-- **Hybrid Rendering** : On peut mixer `Canvas2DRenderer` pour le jeu et `HtmlUIPlugin` pour les menus/overlays.
+- **Typed Services**: Never manually type services. Gwen generates them dynamically in `GwenDefaultServices` during `gwen prepare`.
+- **No Service Casts**: Writing `api.services.get('physics') as Physics2DAPI` in apps/playgrounds is forbidden.
+  - Bad: `const physics = api.services.get('physics') as Physics2DAPI;`
+  - Good: `const physics = api.services.get('physics');`
+  - Prerequisite: run `gwen prepare` (or `pnpm dev`) to have up-to-date types.
+- **Prefabs over Manual Creation**: Always prefer prefabs for creating complex entities.
+- **Scene State**: Use `api.services.register()` to share persistent data between scenes.
+- **Hybrid Rendering**: You can mix `Canvas2DRenderer` for the game and `HtmlUIPlugin` for menus/overlays.

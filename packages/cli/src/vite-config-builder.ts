@@ -1,10 +1,10 @@
 /**
  * @gwenjs/cli — vite-config-builder
  *
- * Génère une InlineConfig Vite complète depuis gwen.config.ts.
- * C'est le cœur de l'offuscation Vite : l'utilisateur ne voit jamais vite.config.ts.
+ * Generates a complete Vite InlineConfig from gwen.config.ts.
+ * This is the core of Vite abstraction: the user never sees vite.config.ts.
  *
- * Ce module est utilisé par `gwen dev` et `gwen build`.
+ * Used by `gwen dev` and `gwen build`.
  */
 
 import * as path from 'node:path';
@@ -24,7 +24,7 @@ export async function buildViteConfig(
   _configPath: string,
   options: ViteConfigOptions,
 ): Promise<InlineConfig> {
-  // Chercher le vite-plugin gwen dans node_modules ou le monorepo
+  // Look for the gwen vite-plugin in node_modules or the monorepo
   const gwenPlugin = await loadGwenVitePlugin(projectDir);
 
   if (!gwenPlugin) {
@@ -33,7 +33,7 @@ export async function buildViteConfig(
     );
   }
 
-  // Headers COOP/COEP requis pour SharedArrayBuffer (WASM threads)
+  // COOP/COEP headers required for SharedArrayBuffer (WASM threads)
   const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -41,7 +41,7 @@ export async function buildViteConfig(
 
   const config: InlineConfig = {
     root: projectDir,
-    configFile: false, // On passe la config inline — pas de vite.config.ts
+    configFile: false, // Passing the config inline — no vite.config.ts
     mode: options.mode,
 
     define: {
@@ -94,7 +94,7 @@ export async function buildViteConfig(
   return config;
 }
 
-// ── Chargement dynamique du vite-plugin gwen ──────────────────────────────────
+// ── Dynamic loading of the gwen vite-plugin ───────────────────────────────────
 
 interface GwenVitePluginOptions {
   watch: boolean;
@@ -141,4 +141,4 @@ async function loadGwenVitePlugin(_projectDir: string): Promise<GwenVitePluginFa
   return null;
 }
 
-// ── Aliases monorepo / node_modules ──────────────────────────────────────────
+// ── Monorepo / node_modules aliases ──────────────────────────────────────────

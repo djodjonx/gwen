@@ -21,16 +21,16 @@ export class EngineComponentRegistry {
   private typeIds = new Map<ComponentType, number>();
 
   /**
-   * Cache TS des typeIds actifs par slot d'entité.
+   * TS-side cache of active typeIds per entity slot.
    *
-   * Clé : slot index (raw, pas packed EntityId) — invariant par rapport à la génération.
-   * Valeur : Set des typeIds attachés à ce slot.
+   * Key: slot index (raw, not packed EntityId) — invariant with respect to generation.
+   * Value: Set of typeIds attached to this slot.
    *
-   * Invariant : ce cache reste synchronisé avec l'état WASM via les méthodes
-   * internes de `Engine` (`_addComponentInternal`, `_removeComponentInternal`,
+   * Invariant: this cache stays in sync with the WASM state via the internal
+   * methods of `Engine` (`_addComponentInternal`, `_removeComponentInternal`,
    * `_destroyEntityInternal`).
    *
-   * Élimine O(N×M) appels WASM dans getEntityTypeIds() — remplacés par une lecture O(1).
+   * Eliminates O(N×M) WASM calls in getEntityTypeIds() — replaced by an O(1) read.
    */
   private entityTypeCache = new Map<number, Set<number>>();
 
