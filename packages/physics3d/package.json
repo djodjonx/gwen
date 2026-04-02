@@ -1,7 +1,7 @@
 {
   "name": "@gwenjs/physics3d",
   "version": "1.0.0",
-  "description": "3D physics plugin foundation for GWEN \u2014 Rapier3D adapter surface",
+  "description": "3D physics plugin foundation for GWEN — Rapier3D adapter surface",
   "files": [
     "dist"
   ],
@@ -29,14 +29,5 @@
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.2"
-  },
-  "gwen": {
-    "type": "typescript",
-    "serviceTypes": {
-      "physics3d": {
-        "from": "@gwenjs/physics3d",
-        "exportName": "Physics3DAPI"
-      }
-    }
   }
 }

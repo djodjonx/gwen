@@ -42,12 +42,16 @@ describe('prepare integration', () => {
     expect(fs.existsSync(join(tmpDir, '.gwen', 'types', 'env.d.ts'))).toBe(true);
   });
 
-  it('generates .gwen/tsconfig.json (not tsconfig.generated.json)', async () => {
+  it('generates .gwen/tsconfig.json with correct shape', async () => {
     writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
     expect(result.success).toBe(true);
-    expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.json'))).toBe(true);
-    expect(fs.existsSync(join(tmpDir, '.gwen', 'tsconfig.generated.json'))).toBe(false);
+    const tsconfigPath = join(tmpDir, '.gwen', 'tsconfig.json');
+    expect(fs.existsSync(tsconfigPath)).toBe(true);
+    const content = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
+    expect(content).toHaveProperty('compilerOptions');
+    expect(content.compilerOptions).toMatchObject({ noEmit: true });
+    expect(content.include).toEqual(expect.arrayContaining([expect.stringContaining('types')]));
   });
 
   it('patches tsconfig.json to extend .gwen/tsconfig.json', async () => {
@@ -70,9 +74,10 @@ describe('prepare integration', () => {
     expect(result.errors[0]).toMatch(/Config/i);
   });
 
-  it('succeeds with no modules declared', async () => {
+  it('generates baseline files even with no modules', async () => {
     writeConfig(tmpDir, MODULES_CONFIG, 'gwen.config.ts');
     const result = await prepare({ projectDir: tmpDir });
     expect(result.success).toBe(true);
+    expect(result.files.length).toBeGreaterThan(0);
   });
 });

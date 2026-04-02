@@ -33,14 +33,5 @@
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.2"
-  },
-  "gwen": {
-    "type": "typescript",
-    "serviceTypes": {
-      "renderer": {
-        "from": "@gwenjs/gwen-renderer-canvas2d",
-        "exportName": "Canvas2DRendererService"
-      }
-    }
   }
 }

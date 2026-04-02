@@ -1,7 +1,7 @@
 {
   "name": "@gwenjs/physics2d",
   "version": "1.0.0",
-  "description": "2D physics plugin for GWEN \u2014 pure adapter for core WASM",
+  "description": "2D physics plugin for GWEN — pure adapter for core WASM",
   "files": [
     "dist"
   ],
@@ -67,26 +67,5 @@
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.2"
-  },
-  "gwen": {
-    "type": "typescript",
-    "serviceTypes": {
-      "physics": {
-        "from": "@gwenjs/physics2d",
-        "exportName": "Physics2DAPI"
-      }
-    },
-    "hookTypes": {
-      "physics:collision": {
-        "from": "@gwenjs/physics2d",
-        "exportName": "Physics2DPluginHooks"
-      }
-    },
-    "prefabExtensionTypes": {
-      "physics": {
-        "from": "@gwenjs/physics2d",
-        "exportName": "Physics2DPrefabExtension"
-      }
-    }
   }
 }

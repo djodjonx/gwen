@@ -1,7 +1,7 @@
 {
   "name": "@gwenjs/ui",
   "version": "1.0.0",
-  "description": "GWEN HTML UI plugin \u2014 DOM renderer for defineUI",
+  "description": "GWEN HTML UI plugin — DOM renderer for defineUI",
   "files": [
     "dist"
   ],
@@ -39,16 +39,5 @@
   },
   "peerDependencies": {
     "@gwenjs/core": "workspace:*"
-  },
-  "gwen": {
-    "typeReferences": [
-      "@gwenjs/gwen-plugin-html-ui/vite-env"
-    ],
-    "serviceTypes": {
-      "htmlUI": {
-        "from": "@gwenjs/gwen-plugin-html-ui",
-        "exportName": "HtmlUI"
-      }
-    }
   }
 }

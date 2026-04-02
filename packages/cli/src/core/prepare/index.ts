@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
-import { logger } from '../../utils/logger.js';
+import { logger, setLogLevel } from '../../utils/logger.js';
 import { GwenApp, resolveGwenConfig } from '@gwenjs/app';
 
 function getErrorMessage(error: unknown): string {
@@ -42,6 +42,15 @@ export interface PrepareResult {
 export async function prepare(options: PrepareOptions = {}): Promise<PrepareResult> {
   const projectDir = path.resolve(options.projectDir ?? process.cwd());
   const gwenDir = path.join(projectDir, '.gwen');
+
+  if (options.verbose) {
+    setLogLevel({ verbose: true });
+  }
+  if (options.strict) {
+    logger.warn(
+      '--strict has no effect in the module-first pipeline and will be removed in a future release.',
+    );
+  }
   const result: PrepareResult = { success: false, gwenDir, files: [], errors: [] };
 
   // 1. Resolve config
@@ -54,9 +63,14 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
       'gwen.config.cjs',
     ].find((f) => existsSync(path.join(projectDir, f)));
     if (!configFile) {
-      result.errors.push(`Config file not found: gwen.config.ts not found in ${projectDir}`);
+      result.errors.push(
+        `No config file found in ${projectDir} (expected gwen.config.ts/.js/.mjs/.cjs)`,
+      );
       return result;
     }
+    // resolveGwenConfig re-discovers the config via c12 using the same search
+    // order. The configFile guard above ensures at least one candidate exists,
+    // making the dual-discovery safe.
     config = await resolveGwenConfig(projectDir);
   } catch (error) {
     result.errors.push(`Config error: ${getErrorMessage(error)}`);
@@ -78,7 +92,7 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   // 3. Collect generated files
   const typesDir = path.join(gwenDir, 'types');
   if (existsSync(typesDir)) {
-    for (const f of readdirSync(typesDir)) {
+    for (const f of readdirSync(typesDir, { recursive: true }) as string[]) {
       result.files.push(path.join(typesDir, f));
     }
   }

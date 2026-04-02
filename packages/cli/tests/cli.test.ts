@@ -23,7 +23,7 @@ describe('prepare', () => {
   it('fails gracefully if no gwen.config.ts found', async () => {
     const result = await prepare({ projectDir: tmp });
     expect(result.success).toBe(false);
-    expect(result.errors[0]).toMatch(/Config file|gwen.config.ts not found/);
+    expect(result.errors[0]).toMatch(/No config file found|gwen\.config\.(ts|js|mjs|cjs)/);
   });
 
   it('generates .gwen/tsconfig.json', async () => {
