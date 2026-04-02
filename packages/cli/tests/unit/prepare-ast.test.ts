@@ -173,5 +173,4 @@ describe('AST Extractor & Validator', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
-
 });
