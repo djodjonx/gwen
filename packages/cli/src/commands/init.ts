@@ -16,6 +16,7 @@
  * ```bash
  * gwen init
  * gwen init my-game
+ * gwen init my-game --modules @gwenjs/input,@gwenjs/physics2d
  * ```
  */
 
@@ -63,6 +64,11 @@ export const initCommand = defineCommand({
       description: 'Project directory name',
       required: false,
     },
+    modules: {
+      type: 'string',
+      description: 'Comma-separated list of modules to include (skips interactive prompt)',
+      alias: 'm',
+    },
   },
   async run({ args }) {
     let name = (args.name as string | undefined)?.trim() ?? '';
@@ -80,10 +86,29 @@ export const initCommand = defineCommand({
       process.exit(1);
     }
 
-    const selectedModules: string[] = (await consola.prompt('Select modules:', {
-      type: 'multiselect',
-      options: STARTER_MODULES,
-    })) as unknown as string[];
+    const VALID_MODULE_VALUES = new Set(STARTER_MODULES.map((m) => m.value));
+
+    let selectedModules: string[];
+    const modulesArg = (args.modules as string | undefined)?.trim();
+    if (modulesArg !== undefined) {
+      selectedModules = modulesArg
+        ? modulesArg
+            .split(',')
+            .map((m) => m.trim())
+            .filter((m) => {
+              if (!VALID_MODULE_VALUES.has(m)) {
+                logger.warn(`[GWEN:init] Unknown module "${m}" ignored.`);
+                return false;
+              }
+              return true;
+            })
+        : [];
+    } else {
+      selectedModules = (await consola.prompt('Select modules:', {
+        type: 'multiselect',
+        options: STARTER_MODULES,
+      })) as unknown as string[];
+    }
 
     const projectDir = path.join(process.cwd(), name);
 
