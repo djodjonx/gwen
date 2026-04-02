@@ -3,7 +3,7 @@
 #
 # This script:
 # 1. Builds gwen-core with different Cargo features (light, physics2d, physics3d)
-# 2. Places each variant in its own subdirectory in @djodjonx/engine-core/wasm/
+# 2. Places each variant in its own subdirectory in @gwenjs/core/wasm/
 # 3. Optimizes the output with wasm-opt if available
 # 4. Cleans up unnecessary wasm-pack artifacts
 
@@ -19,7 +19,7 @@ NC='\033[0m'
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CRATE_DIR="$PROJECT_ROOT/crates/gwen-core"
-ENGINE_CORE_WASM="$PROJECT_ROOT/packages/@djodjonx/engine-core/wasm"
+ENGINE_CORE_WASM="$PROJECT_ROOT/packages/core/wasm"
 
 # Functions
 log_info() {

@@ -16,7 +16,7 @@ TARGET_PHYSICS2D=220
 
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WASM_BASE="$PROJECT_ROOT/packages/@djodjonx/engine-core/wasm"
+WASM_BASE="$PROJECT_ROOT/packages/core/wasm"
 
 log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
 log_success() { echo -e "${GREEN}✓${NC} $*"; }
