@@ -28,6 +28,9 @@ export function gwenWasmPlugin(options: GwenViteOptions): Plugin {
   let isBuild = false;
   let variant: 'debug' | 'release' = 'debug';
 
+  /** Cached base64-encoded WASM binary for build mode. Null means uncached. */
+  let buildCache: string | null = null;
+
   return {
     name: 'gwen:wasm',
     enforce: 'pre',
@@ -36,6 +39,8 @@ export function gwenWasmPlugin(options: GwenViteOptions): Plugin {
       isBuild = config.command === 'build';
       const requested = options.wasm?.variant ?? 'auto';
       variant = requested === 'auto' ? (isBuild ? 'release' : 'debug') : requested;
+      // Invalidate cache on every new build configuration to avoid stale data
+      buildCache = null;
     },
 
     resolveId(id) {
@@ -54,11 +59,13 @@ export function gwenWasmPlugin(options: GwenViteOptions): Plugin {
         );
       }
 
-      // In build mode, inline the binary as a base64 data URL
+      // In build mode, inline the binary as a base64 data URL.
+      // Cache the result to avoid repeated readFileSync calls across multiple chunks.
       if (isBuild) {
-        const binary = readFileSync(wasmPath);
-        const b64 = binary.toString('base64');
-        return `export const wasmUrl = 'data:application/wasm;base64,${b64}'`;
+        if (buildCache === null) {
+          buildCache = readFileSync(wasmPath).toString('base64');
+        }
+        return `export const wasmUrl = 'data:application/wasm;base64,${buildCache}'`;
       }
 
       // In dev mode, serve as a static asset for faster iteration
