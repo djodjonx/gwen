@@ -7,8 +7,10 @@
  * Created files:
  *  - package.json
  *  - gwen.config.ts
- *  - src/main.ts
- *  - index.html
+ *  - src/scenes/game.ts
+ *
+ * No `index.html` or `src/main.ts` are needed — the framework generates
+ * a virtual entry point (`/@gwenjs/gwen-entry`) and serves its own HTML.
  *
  * @example
  * ```bash
@@ -44,25 +46,9 @@ const STARTER_MODULES = [
   { value: '@gwenjs/debug', label: 'Debug overlay', hint: 'Performance HUD and inspector' },
 ];
 
-/**
- * Minimal `index.html` boilerplate that loads the TypeScript entry point.
- *
- * @param name - The project name used as the HTML `<title>`.
- */
-function indexHtmlTemplate(name: string): string {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${name}</title>
-  </head>
-  <body>
-    <canvas id="canvas"></canvas>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
-</html>
-`;
+/** Starter scene scaffold. */
+function starterSceneTemplate(): string {
+  return `import { defineScene } from '@gwenjs/core'\n\nexport const GameScene = defineScene('Game', () => ({\n  systems: [],\n}))\n`;
 }
 
 /** Named export consumed by bin.ts and tests. */
@@ -104,7 +90,7 @@ export const initCommand = defineCommand({
     logger.info(`Creating project in ${projectDir} …`);
 
     // Create directory tree.
-    await fs.mkdir(path.join(projectDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(projectDir, 'src', 'scenes'), { recursive: true });
 
     // --- package.json ---
     const gwenVersion = await getGwenVersion();
@@ -145,15 +131,12 @@ export const initCommand = defineCommand({
       'utf8',
     );
 
-    // --- src/main.ts ---
+    // --- src/scenes/game.ts ---
     await fs.writeFile(
-      path.join(projectDir, 'src', 'main.ts'),
-      `import { createEngine } from '@gwenjs/core'\n\nconst engine = await createEngine()\nawait engine.run()\n`,
+      path.join(projectDir, 'src', 'scenes', 'game.ts'),
+      starterSceneTemplate(),
       'utf8',
     );
-
-    // --- index.html ---
-    await fs.writeFile(path.join(projectDir, 'index.html'), indexHtmlTemplate(name), 'utf8');
 
     logger.success(`✓ Project "${name}" created successfully.`);
     logger.info(`  cd ${name} && pnpm install && pnpm dev`);

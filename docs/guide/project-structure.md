@@ -11,11 +11,9 @@ my-game/
 │   ├── prefabs/         # Entity templates
 │   ├── scenes/          # Scene definitions
 │   ├── systems/         # Game logic
-│   ├── ui/              # UI layers
-│   └── main.ts          # Engine bootstrap
+│   └── ui/              # UI layers
 ├── .gwen/               # Generated — do not edit
 ├── gwen.config.ts        # Framework entry point
-├── vite.config.ts        # Vite + @gwenjs/vite plugin
 ├── package.json
 └── tsconfig.json
 ```
@@ -78,27 +76,15 @@ src/ui/
 └── index.ts
 ```
 
-### `src/main.ts`
-
-The engine bootstrap. This file creates the engine from your config and starts the game loop:
-
-```typescript
-import { createEngine } from '@gwenjs/core'
-import config from '../gwen.config'
-
-const engine = await createEngine(config)
-engine.start()
-```
-
 ## Config & Tooling Files
 
 ### `gwen.config.ts`
 
 The single entry point for all framework configuration: target FPS, max entities, WASM modules, and the plugin list. See [Installation](/guide/installation) for a full example.
 
-### `vite.config.ts`
-
-Standard Vite config with the `@gwenjs/vite` plugin added. The plugin handles WASM asset loading, hot-reload for WASM binaries, and the manifest used by `gwen build`.
+::: info No `vite.config.ts` or `main.ts` needed
+GWEN manages Vite internally. The CLI builds the Vite config programmatically from `gwen.config.ts`. The framework also generates a virtual entry point (`/@gwenjs/gwen-entry`) that auto-discovers your scenes and bootstraps the engine — no hand-written bootstrap file required. Advanced Vite customisation is done via the [`vite:` key in `gwen.config.ts`](/config/vite-extend).
+:::
 
 ## The `.gwen/` Directory
 
