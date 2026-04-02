@@ -16,6 +16,12 @@
 export interface GwenPluginBase {
   /** Unique plugin name used for identification and debugging */
   name: string;
+  /**
+   * npm package name for this plugin.
+   * Used by the CLI to resolve `<packageName>/setup` for build-time hooks.
+   * Falls back to `name` when absent.
+   */
+  packageName?: string;
   /** Services provided by this plugin to the engine */
   provides?: Record<string, unknown>;
   /** Hooks provided by this plugin to the engine */
