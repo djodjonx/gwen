@@ -55,7 +55,16 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench:solver": "node ./bench/bench-physics2d-solver.mjs",
+    "bench:tilemap": "node ./bench/bench-physics2d-tilemap.mjs",
+    "bench:bundle-size": "node ./bench/bench-physics2d-bundle-size.mjs",
+    "bench:score": "node ./bench/physics-perf-score.mjs",
+    "test:bench:solver": "node ./bench/check-physics-solver-bench.test.mjs",
+    "test:bench:tilemap": "node ./bench/check-physics-tilemap-bench.test.mjs",
+    "test:bench:tree-shaking": "node ./bench/check-physics-tree-shaking.test.mjs",
+    "test:bench:score": "node ./bench/check-physics-perf-score.test.mjs",
+    "test:e2e:playgrounds": "node ./bench/check-physics-playgrounds-e2e.test.mjs"
   },
   "dependencies": {
     "@gwenjs/core": "workspace:*",
