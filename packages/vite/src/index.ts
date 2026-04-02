@@ -441,7 +441,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
     // Register srcDir with Vite's Chokidar instance for reliable cross-platform watching
     devServer.watcher.add(srcDir);
     devServer.watcher.on('change', (filePath) => {
-      if (!filePath.startsWith(srcDir)) return;
+      if (!filePath.startsWith(srcDir + path.sep)) return;
       if (!filePath.endsWith('.rs')) return;
       log(`Rust file changed: ${filePath} — rebuilding WASM...`);
 
@@ -552,7 +552,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         // Register scenesDir with Vite's Chokidar instance for reliable cross-platform watching
         devServer.watcher.add(scenesDir);
         devServer.watcher.on('change', (filePath) => {
-          if (!filePath.startsWith(scenesDir)) return;
+          if (!filePath.startsWith(scenesDir + path.sep)) return;
           const mod = devServer.moduleGraph.getModuleById(RESOLVED_SCENES);
           if (mod) devServer.moduleGraph.invalidateModule(mod);
           const entryMod = devServer.moduleGraph.getModuleById(RESOLVED_ENTRY);

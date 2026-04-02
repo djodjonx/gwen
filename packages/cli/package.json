@@ -16,10 +16,6 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
-    },
-    "./setup": {
-      "types": "./src/core/setup/types.ts",
-      "import": "./src/core/setup/types.ts"
     }
   },
   "scripts": {

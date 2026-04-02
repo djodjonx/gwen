@@ -12,10 +12,6 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
-    },
-    "./setup": {
-      "types": "./dist/index.setup.d.ts",
-      "import": "./dist/index.setup.js"
     }
   },
   "scripts": {
