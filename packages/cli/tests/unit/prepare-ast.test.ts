@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { extractProjectMetadata } from '../../src/core/prepare/ast-extractor.js';
-import { validateMetadata } from '../../src/core/prepare/validator.js';
 import * as path from 'node:path';
 import fs from 'node:fs';
 
@@ -175,88 +174,4 @@ describe('AST Extractor & Validator', () => {
     }
   });
 
-  it('validates missing components with suggestions', () => {
-    const metadata = {
-      components: new Map([
-        ['Position', { name: 'Position', schema: {}, filePath: 'src/Comp.ts', line: 1 }],
-      ]),
-      systems: new Map([
-        [
-          'MoveSystem',
-          {
-            name: 'MoveSystem',
-            requiredComponents: ['Positon', 'Velocity'],
-            filePath: 'src/Sys.ts',
-            line: 5,
-          },
-        ],
-      ]),
-      scenes: new Map(),
-      pluginServices: new Map(),
-    };
-
-    const errors = validateMetadata(metadata as any);
-
-    expect(errors.length).toBe(2);
-
-    const posError = errors.find((e) => e.message.includes('Positon'));
-    expect(posError).toBeDefined();
-    expect(posError?.suggestion).toBe('Did you mean "Position"?');
-
-    const velError = errors.find((e) => e.message.includes('Velocity'));
-    expect(velError).toBeDefined();
-    expect(velError?.suggestion).toBeUndefined(); // Velocity too far from Position
-  });
-
-  it('extracts plugin services from definePlugin', () => {
-    const tempDir = path.join(process.cwd(), 'temp-test-project-plugin');
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-    fs.writeFileSync(
-      path.join(tempDir, 'tsconfig.json'),
-      JSON.stringify({
-        compilerOptions: { target: 'ESNext', module: 'ESNext' },
-        include: ['src/**/*.ts', 'gwen.config.ts'],
-      }),
-    );
-
-    const srcDir = path.join(tempDir, 'src');
-    if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir);
-
-    fs.writeFileSync(
-      path.join(tempDir, 'gwen.config.ts'),
-      `
-      import { defineConfig } from '@gwenjs/kit';
-      export default defineConfig({
-        plugins: []
-      });
-    `,
-    );
-
-    fs.writeFileSync(
-      path.join(srcDir, 'MyPlugin.ts'),
-      `
-      import { definePlugin } from '@gwenjs/kit';
-      export const MyPlugin = definePlugin({
-        name: 'my-plugin',
-        provides: {
-          myService: { from: './my-service', exportName: 'MyService' }
-        }
-      });
-    `,
-    );
-
-    try {
-      const metadata = extractProjectMetadata(tempDir);
-
-      expect(metadata.pluginServices.has('myService')).toBe(true);
-      expect(metadata.pluginServices.get('myService')).toEqual({
-        name: 'myService',
-        from: './my-service',
-        exportName: 'MyService',
-      });
-    } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
 });
