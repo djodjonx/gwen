@@ -19,7 +19,6 @@
  */
 
 import { definePlugin } from '@gwenjs/kit';
-import type { GwenPluginMeta } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/core';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -102,12 +101,6 @@ export interface AudioService {
   /** Returns the underlying AudioContext, or `null` before `setup`. */
   getContext(): AudioContext | null;
 }
-
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    audio: { from: '@gwenjs/audio', exportName: 'AudioService' },
-  },
-};
 
 // ── AudioPlugin ───────────────────────────────────────────────────────────────
 
@@ -205,7 +198,6 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
 
   return {
     name: '@gwenjs/audio',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       context = new AudioContext();

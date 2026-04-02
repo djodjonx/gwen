@@ -8,43 +8,6 @@
  */
 
 /**
- * Type reference metadata for plugin services and hooks.
- *
- * @example
- * ```ts
- * const ref: GwenTypeRefMeta = {
- *   from: '@my/plugin',
- *   exportName: 'MyServiceAPI'
- * };
- * ```
- */
-export interface GwenTypeRefMeta {
-  /** Module path where the type is exported from */
-  from: string;
-  /** Export name of the type in that module */
-  exportName: string;
-}
-
-/**
- * Plugin metadata for type inference and documentation.
- *
- * Contains information about services and hooks provided by a plugin,
- * enabling the CLI to generate accurate type definitions.
- */
-export interface GwenPluginMeta {
-  /** Type references for this plugin (future extension) */
-  typeReferences?: string[];
-  /** Service types provided by this plugin, keyed by service name */
-  serviceTypes?: Record<string, GwenTypeRefMeta>;
-  /** Hook types provided by this plugin, keyed by hook name */
-  hookTypes?: Record<string, GwenTypeRefMeta>;
-  /** Prefab extension types provided by this plugin, keyed by extension key */
-  prefabExtensionTypes?: Record<string, GwenTypeRefMeta>;
-  /** UI extension types provided by this plugin, keyed by extension key */
-  uiExtensionTypes?: Record<string, GwenTypeRefMeta>;
-}
-
-/**
  * Base interface for GWEN plugins.
  *
  * Minimal structure required for all plugins.
@@ -53,10 +16,6 @@ export interface GwenPluginMeta {
 export interface GwenPluginBase {
   /** Unique plugin name used for identification and debugging */
   name: string;
-  /** Optional package name used by CLI setup resolution. */
-  packageName?: string;
-  /** Optional plugin metadata for type inference */
-  meta?: GwenPluginMeta;
   /** Services provided by this plugin to the engine */
   provides?: Record<string, unknown>;
   /** Hooks provided by this plugin to the engine */

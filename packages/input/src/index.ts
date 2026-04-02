@@ -17,7 +17,6 @@
  */
 
 import { definePlugin } from '@gwenjs/kit';
-import type { GwenPluginMeta } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/core';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
@@ -50,14 +49,6 @@ export interface InputPluginServices {
   gamepad: GamepadInput;
 }
 
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    keyboard: { from: '@gwenjs/input', exportName: 'KeyboardInput' },
-    mouse: { from: '@gwenjs/input', exportName: 'MouseInput' },
-    gamepad: { from: '@gwenjs/input', exportName: 'GamepadInput' },
-  },
-};
-
 export interface InputPluginConfig {
   /** Canvas element for mouse position offset. */
   canvas?: HTMLCanvasElement;
@@ -81,7 +72,6 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
 
   return {
     name: '@gwenjs/input',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       target =

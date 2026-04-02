@@ -72,9 +72,6 @@ export type {
   GwenHookable,
 } from '@gwenjs/core';
 
-// Schema metadata types used by plugin authors.
-export type { GwenPluginMeta, GwenTypeRefMeta } from '@gwenjs/schema';
-
 // ── Runtime re-exports (values, not types) ────────────────────────────────────
 
 export { createEntityId, unpackEntityId } from '@gwenjs/core';

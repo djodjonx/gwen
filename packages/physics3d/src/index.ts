@@ -11,7 +11,6 @@
 import { definePlugin } from '@gwenjs/kit';
 import { getWasmBridge, createEntityId, unpackEntityId } from '@gwenjs/core';
 import type { EntityId, GwenEngine } from '@gwenjs/core';
-import type { GwenPluginMeta } from '@gwenjs/kit';
 
 import type {
   Physics3DAPI,
@@ -57,34 +56,6 @@ const MAX_EVENTS_3D = 1024;
 const COLLIDER_ID_ABSENT = 0xffff;
 
 // ─── Plugin metadata ────────────────────────────────────────────────────────────
-
-/**
- * Static CLI metadata for `gwen prepare` code generation.
- */
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    physics3d: {
-      from: '@gwenjs/physics3d',
-      exportName: 'Physics3DAPI',
-    },
-  },
-  hookTypes: {
-    'physics3d:collision': {
-      from: '@gwenjs/physics3d',
-      exportName: 'Physics3DPluginHooks',
-    },
-    'physics3d:sensor:changed': {
-      from: '@gwenjs/physics3d',
-      exportName: 'Physics3DPluginHooks',
-    },
-  },
-  prefabExtensionTypes: {
-    physics3d: {
-      from: '@gwenjs/physics3d',
-      exportName: 'Physics3DPrefabExtension',
-    },
-  },
-};
 
 // ─── Internal types ─────────────────────────────────────────────────────────────
 
@@ -1071,7 +1042,6 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
   return {
     name: '@gwenjs/physics3d',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       _engine = engine;

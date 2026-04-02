@@ -8,8 +8,6 @@
 
 // Types
 export type {
-  GwenTypeRefMeta,
-  GwenPluginMeta,
   GwenPluginBase,
   GwenHookHandler,
   GwenModuleEntry,

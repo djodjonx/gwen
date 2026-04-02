@@ -9,7 +9,6 @@
 import { definePlugin } from '@gwenjs/kit';
 import { unpackEntityId, createEntityId, getWasmBridge } from '@gwenjs/core';
 import type { GwenEngine } from '@gwenjs/core';
-import type { GwenPluginMeta } from '@gwenjs/kit';
 
 import type {
   Physics2DConfig,
@@ -86,37 +85,6 @@ export { PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE };
 
 const EVENT_STRIDE = 16;
 const MAX_EVENTS = 512;
-
-// ─── Plugin metadata ─────────────────────────────────────────────────────────
-
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    physics: {
-      from: '@gwenjs/physics2d',
-      exportName: 'Physics2DAPI',
-    },
-  },
-  hookTypes: {
-    'physics:collision': {
-      from: '@gwenjs/physics2d',
-      exportName: 'Physics2DPluginHooks',
-    },
-    'physics:collision:batch': {
-      from: '@gwenjs/physics2d',
-      exportName: 'Physics2DPluginHooks',
-    },
-    'physics:sensor:changed': {
-      from: '@gwenjs/physics2d',
-      exportName: 'Physics2DPluginHooks',
-    },
-  },
-  prefabExtensionTypes: {
-    physics: {
-      from: '@gwenjs/physics2d',
-      exportName: 'Physics2DPrefabExtension',
-    },
-  },
-};
 
 // ─── Plugin implementation ───────────────────────────────────────────────────
 
@@ -379,7 +347,6 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
   return {
     name: '@gwenjs/physics2d',
-    meta: pluginMeta,
     provides: { physics: {} as Physics2DAPI },
     providesHooks: {} as Physics2DPluginHooks,
     extensions: { prefab: {} as Physics2DPrefabExtension },

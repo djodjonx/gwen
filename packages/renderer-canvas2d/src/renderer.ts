@@ -14,7 +14,7 @@
  */
 
 import { definePlugin } from '@gwenjs/kit';
-import type { EntityId, GwenEngine, GwenPluginMeta } from '@gwenjs/kit';
+import type { EntityId, GwenEngine } from '@gwenjs/kit';
 
 // ── Component types ───────────────────────────────────────────────────────────
 
@@ -97,12 +97,6 @@ export interface RendererService {
 }
 
 // ── Canvas2DRenderer ──────────────────────────────────────────────────────────
-
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    renderer: { from: '@gwenjs/gwen-renderer-canvas2d', exportName: 'Canvas2DRendererService' },
-  },
-};
 
 export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {}) => {
   const pixelRatio =
@@ -228,7 +222,6 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
 
   return {
     name: '@gwenjs/renderer-canvas2d',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       _engine = engine;

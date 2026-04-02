@@ -1,5 +1,5 @@
 import { definePlugin } from '@gwenjs/kit';
-import type { EntityId, GwenEngine, GwenPluginMeta } from '@gwenjs/kit';
+import type { EntityId, GwenEngine } from '@gwenjs/kit';
 import { SpriteAnimRuntime } from './runtime';
 import type {
   SpriteAnimPluginConfig,
@@ -29,32 +29,6 @@ export type {
   SpriteAnimUIExtension,
   SpriteAnimatorService,
 } from './types';
-
-export const pluginMeta: GwenPluginMeta = {
-  serviceTypes: {
-    animator: { from: '@gwenjs/gwen-plugin-sprite-anim', exportName: 'SpriteAnimatorService' },
-  },
-  hookTypes: {
-    'spriteAnim:complete': {
-      from: '@gwenjs/gwen-plugin-sprite-anim',
-      exportName: 'SpriteAnimPluginHooks',
-    },
-    'spriteAnim:frame': {
-      from: '@gwenjs/gwen-plugin-sprite-anim',
-      exportName: 'SpriteAnimPluginHooks',
-    },
-    'spriteAnim:transition': {
-      from: '@gwenjs/gwen-plugin-sprite-anim',
-      exportName: 'SpriteAnimPluginHooks',
-    },
-  },
-  uiExtensionTypes: {
-    spriteAnim: {
-      from: '@gwenjs/gwen-plugin-sprite-anim',
-      exportName: 'SpriteAnimUIExtension',
-    },
-  },
-};
 
 export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {}) => {
   const autoUpdate = config.autoUpdate ?? true;
@@ -135,7 +109,6 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
 
   return {
     name: '@gwenjs/sprite-anim',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       _engine = engine;

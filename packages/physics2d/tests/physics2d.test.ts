@@ -156,11 +156,6 @@ describe('Physics2DPlugin', () => {
     expect(plugin.name).toBe('@gwenjs/physics2d');
   });
 
-  it('declares physics service in meta', () => {
-    const plugin = Physics2DPlugin();
-    expect(plugin.meta!.serviceTypes).toHaveProperty('physics');
-  });
-
   it('has a provides.physics key', () => {
     const plugin = Physics2DPlugin();
     expect(plugin.provides).toHaveProperty('physics');

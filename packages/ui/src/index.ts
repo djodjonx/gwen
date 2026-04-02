@@ -26,23 +26,10 @@
  */
 
 import { definePlugin } from '@gwenjs/kit';
-import type { EntityId, GwenPluginMeta } from '@gwenjs/kit';
+import type { EntityId } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/core';
 // Side-effect: augments GwenProvides with 'htmlUI' key, enabling typed provide/inject.
 import './augment.js';
-
-// ── Plugin metadata ───────────────────────────────────────────────────────────
-
-/**
- * Static metadata consumed by `gwen prepare` to inject
- * `/// <reference types="@gwenjs/gwen-plugin-html-ui/vite-env" />` into `.gwen/gwen.d.ts`.
- */
-export const pluginMeta: GwenPluginMeta = {
-  typeReferences: ['@gwenjs/gwen-plugin-html-ui/vite-env'],
-  serviceTypes: {
-    htmlUI: { from: '@gwenjs/gwen-plugin-html-ui', exportName: 'HtmlUI' },
-  },
-};
 
 // ── HtmlUI service ────────────────────────────────────────────────────────────
 
@@ -165,7 +152,6 @@ export const HtmlUIPlugin = definePlugin(() => {
 
   return {
     name: '@gwenjs/ui',
-    meta: pluginMeta,
 
     setup(engine: GwenEngine): void {
       if (typeof document !== 'undefined') {
