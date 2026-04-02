@@ -120,7 +120,7 @@ describe('selectResolvedContactsForEntityId', () => {
 // ─── movement helpers ─────────────────────────────────────────────────────────
 
 describe('moveKinematicByVelocity', () => {
-  function makePhysics(returns = { x: 0, y: 0, z: 0 }): Physics3DAPI {
+  function makePhysics(_returns = { x: 0, y: 0, z: 0 }): Physics3DAPI {
     return {
       setKinematicPosition: vi.fn(() => true),
       getBodyState: vi.fn(),

@@ -514,7 +514,7 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('error message includes actionable hint to call loadWasmModule', () => {
-      const engine = createEngine() as unknown as GwenEngine;
+      const _engine = createEngine() as unknown as GwenEngine;
       // createEngine is async, but the cast lets us test the sync path
       // — use a properly awaited engine instead
       expect(true).toBe(true); // placeholder, covered by test above

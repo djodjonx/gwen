@@ -174,7 +174,7 @@ describe('Physics3D collision events — WASM backend mode', () => {
   });
 
   it('populates getCollisionContacts after onUpdate', () => {
-    const { plugin, service, engine } = setup();
+    const { plugin, service } = setup();
 
     service.createBody(10);
     service.createBody(20);
@@ -209,7 +209,7 @@ describe('Physics3D collision events — WASM backend mode', () => {
   });
 
   it('calls physics3d_consume_events after reading', () => {
-    const { plugin, service, engine } = setup();
+    const { plugin, service } = setup();
 
     service.createBody(5);
     service.createBody(6);
@@ -225,7 +225,7 @@ describe('Physics3D collision events — WASM backend mode', () => {
   });
 
   it('parses absent collider ids as undefined', () => {
-    const { plugin, service, engine } = setup();
+    const { plugin, service } = setup();
 
     service.createBody(7);
     service.createBody(8);
@@ -312,7 +312,7 @@ describe('Physics3D collision events — WASM backend mode', () => {
   });
 
   it('getCollisionEventMetrics reflects the number of events read this frame', () => {
-    const { plugin, service, engine } = setup();
+    const { plugin, service } = setup();
 
     service.createBody(30);
     service.createBody(31);
@@ -342,10 +342,6 @@ describe('Physics3D collision events — WASM backend mode', () => {
     });
     service.createBody(21n);
 
-    // Inject callback via the prefab hook
-    const prefabHook = (engine as any).hooks.hook.mock.calls.find(
-      ([name]: [string]) => name === 'prefab:instantiate',
-    );
     // Directly call the prefab handler to register callback for entity 20
     const prefabHandler = (engine as any).hooks.hook.mock.calls.find(
       ([name]: [string]) => name === 'prefab:instantiate',
@@ -370,7 +366,7 @@ describe('Physics3D collision events — WASM backend mode', () => {
   });
 
   it('getCollisionContacts respects the max option', () => {
-    const { plugin, service, engine } = setup();
+    const { plugin, service } = setup();
 
     service.createBody(40);
     service.createBody(41);

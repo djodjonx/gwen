@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   quatIdentity,
-  quatClone,
   quatFromAxisAngle,
   quatFromEuler,
   quatFromTo,
-  quatLookAt,
   quatMultiply,
-  quatDot,
   quatConjugate,
   quatInverse,
   quatNormalize,
@@ -17,9 +14,9 @@ import {
   quatToEuler,
   quatEquals,
 } from '../src/quat.js';
-import { vec3Length, vec3Normalize } from '../src/vec3.js';
+import { vec3Length } from '../src/vec3.js';
 
-const approx = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) < eps;
+const _approx = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) < eps;
 
 describe('quatIdentity', () => {
   it('returns (0,0,0,1)', () => expect(quatIdentity()).toEqual({ x: 0, y: 0, z: 0, w: 1 }));

@@ -28,7 +28,7 @@ export interface PhysicsKinematicSyncSystemOptions {
  * are wired into the V2 engine.
  */
 export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSystemOptions = {}) {
-  const pixelsPerMeter = options.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER;
+  const _pixelsPerMeter = options.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER;
   const _positionComponent = options.positionComponent ?? DEFAULT_POSITION_COMPONENT;
 
   let _physics: Physics2DAPI | null = null;

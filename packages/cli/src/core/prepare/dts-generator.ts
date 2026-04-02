@@ -165,9 +165,9 @@ export async function generateDts(
 
   const directImportBlock = imports.length > 0 ? `${imports.join('\n')}\n\n` : '';
   const serviceBody = serviceOverrides ? `\n${serviceOverrides}\n` : '';
-  const prefabBody = prefabOverrides ? `\n${prefabOverrides}\n` : '';
-  const sceneBody = sceneOverrides ? `\n${sceneOverrides}\n` : '';
-  const uiBody = uiOverrides ? `\n${uiOverrides}\n` : '';
+  const _prefabBody = prefabOverrides ? `\n${prefabOverrides}\n` : '';
+  const _sceneBody = sceneOverrides ? `\n${sceneOverrides}\n` : '';
+  const _uiBody = uiOverrides ? `\n${uiOverrides}\n` : '';
   const hookExtendsClause =
     uniqueHookExtends.length > 0 ? ` extends ${uniqueHookExtends.join(', ')}` : '';
 
