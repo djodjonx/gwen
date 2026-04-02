@@ -48,3 +48,7 @@ docs/.vitepress/dist/
 
 # Coverage reports
 coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+**/*.tsbuildinfo
