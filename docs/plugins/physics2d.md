@@ -1,7 +1,6 @@
 # Physics 2D Plugin
 
 **Package:** `@gwenjs/physics2d`
-**Module type:** WASM module (add to `wasm: []`, not `plugins: []`)
 **Service key:** `physics` (`Physics2DAPI`)
 
 2D rigid-body physics powered by [Rapier2D](https://rapier.rs/) compiled to WASM. The physics world runs in a dedicated WASM module that shares `SharedArrayBuffer` memory with the engine core, keeping simulation data off the JS heap.
@@ -9,25 +8,24 @@
 ## Install
 
 ```bash
-pnpm add @gwenjs/physics2d
+gwen add @gwenjs/physics2d
 ```
 
 ## Register
 
-Physics2D is a **WASM module**, not a standard plugin. Add it to the `wasm` array in `gwen.config.ts`:
+Add `@gwenjs/physics2d` to the `modules` array in `gwen.config.ts`:
 
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { physics2D } from '@gwenjs/physics2d'
 
 export default defineConfig({
-  wasm: [
-    physics2D({
+  modules: [
+    ['@gwenjs/physics2d', {
       gravity: 9.81,
       qualityPreset: 'medium',
       ccdEnabled: true,
-    }),
+    }],
   ],
 })
 ```
@@ -166,10 +164,6 @@ export const physicsSetupSystem = defineSystem(() => {
   })
 })
 ```
-
-::: warning WASM module, not a plugin
-`physics2D(...)` goes in `wasm: []`, not `plugins: []`. WASM modules initialise their shared-memory region before any TypeScript plugin `setup()` runs.
-:::
 
 ## Related
 

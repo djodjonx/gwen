@@ -16,7 +16,7 @@ pnpm add @gwenjs/r3f react react-dom @react-three/fiber three
 ## Install
 
 ```bash
-pnpm add @gwenjs/r3f
+gwen add @gwenjs/r3f
 ```
 
 ## Register
@@ -24,13 +24,12 @@ pnpm add @gwenjs/r3f
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { R3FPlugin } from '@gwenjs/r3f'
 
 export default defineConfig({
-  plugins: [
-    new R3FPlugin({
+  modules: [
+    ['@gwenjs/r3f', {
       mountTo: document.getElementById('app')!,
-    }),
+    }],
   ],
 })
 ```

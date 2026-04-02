@@ -171,14 +171,13 @@ Only register `@gwenjs/debug` in development builds. Vite strips the dead branch
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { DebugPlugin } from '@gwenjs/debug'
 
 export default defineConfig({
-  plugins: [
-    // ...other plugins
+  modules: [
+    // ...other modules
 
     // Zero cost in production — tree-shaken away
-    ...(import.meta.env.DEV ? [new DebugPlugin()] : []),
+    ...(import.meta.env.DEV ? ['@gwenjs/debug'] : []),
   ],
 })
 ```

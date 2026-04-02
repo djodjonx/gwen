@@ -1,110 +1,57 @@
 # Vite Plugin
 
 **Package:** `@gwenjs/vite`
-**Type:** Build-time Vite plugin — not a runtime plugin, not registered in `gwen.config.ts`
+**Type:** Framework internal — used by the GWEN CLI, not installed by users
 
-Vite plugin that enables first-class GWEN support in a Vite project: WASM hot-reload during development, AST-based code transforms, and an optimised WASM build cache. Compatible with both Rollup and Rolldown bundlers.
+::: warning Not for user installation
+`@gwenjs/vite` is an internal dependency of `@gwenjs/cli`. Game developers and plugin authors **never** install or import it directly. GWEN manages Vite entirely through `gwen.config.ts`. This page is for **framework contributors** only.
+:::
 
-## Install
+The GWEN CLI runs Vite with `configFile: false` and builds the Vite configuration programmatically from your `gwen.config.ts`. There is no `vite.config.ts` in a GWEN project.
 
-```bash
-pnpm add @gwenjs/vite --save-dev
-```
+## What it does
 
-## Register
+`@gwenjs/vite` provides the internal Vite plugin that the CLI injects automatically when running `gwen dev` or `gwen build`:
 
-Add `gwenPlugin()` to your `vite.config.ts` — this is separate from your `gwen.config.ts`:
+- **WASM hot-reload** — reloads `.wasm` binaries during `gwen dev` without a full page refresh
+- **Auto-import transform** — injects `as const` assertions and resolves composable imports from `gwen.config.ts` modules
+- **Build optimization** — configures Rollup/Rolldown to bundle and hash `.wasm` files correctly for production
+- **`SharedArrayBuffer` headers** — sets the required COOP/COEP headers in dev and preview servers automatically
 
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite'
-import { gwenPlugin } from '@gwenjs/vite'
+## Extending Vite from `gwen.config.ts`
 
-export default defineConfig({
-  plugins: [
-    gwenPlugin(),
-  ],
-})
-```
+If you need to extend the Vite configuration (advanced cases only), use the `vite:` key in `gwen.config.ts`:
 
-That is all that is required for a standard project scaffolded with `create-gwen-app`. Advanced options are documented below.
-
-## Features
-
-### WASM hot-reload
-
-In `vite dev`, the plugin watches `*.wasm` files (including those rebuilt by `cargo watch`) via Chokidar. When a WASM binary changes on disk it triggers a minimal HMR update — only the affected WASM module is reloaded, not the full page.
-
-### `gwenTransform`
-
-An AST-based transform pass powered by [oxc-parser](https://oxc.rs/). It runs on every `.ts` / `.tsx` file in the project and handles:
-
-- **Auto-import injection** — `defineSystem`, `defineScene`, `useService`, and other GWEN composables are injected automatically if used but not explicitly imported.
-- **`as const` hoisting** — component schema literals and config objects are transformed to `as const` at compile time, enabling full literal-type inference without hand-annotating every object.
-
-### WASM build cache
-
-During production builds, WASM binaries are base64-encoded and inlined. The plugin caches the encoding step keyed by the binary's hash, so rebuilds only re-encode changed modules.
-
-### `gwen prepare` integration
-
-Running `gwen prepare` (or starting `pnpm dev`) invokes the plugin's type-generation pipeline to write `.gwen/*.d.ts`. The Vite plugin wires this into the dev-server startup sequence automatically — you rarely need to run `gwen prepare` manually.
-
-## Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `configPath` | `string` | `'gwen.config.ts'` | Path to your `gwen.config.ts` relative to `vite.root`. |
-| `wasmDirs` | `string[]` | `['node_modules/@gwenjs']` | Directories watched for `.wasm` changes in dev mode. |
-| `hotReload` | `boolean` | `true` | Enable WASM hot-reload in dev mode. |
-| `transform` | `boolean \| GwenTransformOptions` | `true` | Enable/configure the `gwenTransform` AST pass. |
-| `autoImport` | `boolean` | `true` | Inject missing GWEN imports automatically (part of transform). |
-| `inlineWasm` | `boolean` | `true` | Base64-inline WASM in production builds. Set `false` to emit separate `.wasm` files. |
-| `wasmCacheDir` | `string` | `'.gwen/cache'` | Directory for the WASM encoding cache. |
-
-### `GwenTransformOptions`
-
-```typescript
-interface GwenTransformOptions {
-  autoImport?:    boolean   // default true
-  asConstHoist?:  boolean   // default true
-  include?:       string[]  // glob patterns to include (default: ['**/*.ts', '**/*.tsx'])
-  exclude?:       string[]  // glob patterns to exclude
-}
-```
-
-## Example
-
-```typescript
-// vite.config.ts — typical project setup
-import { defineConfig } from 'vite'
-import { gwenPlugin } from '@gwenjs/vite'
-import react from '@vitejs/plugin-react'   // only if using @gwenjs/r3f
+```ts
+import { defineConfig } from '@gwenjs/app'
 
 export default defineConfig({
-  plugins: [
-    gwenPlugin({
-      wasmDirs:  ['node_modules/@gwenjs', 'crates/'],
-      inlineWasm: false,   // emit separate .wasm files for better caching
-    }),
-    react(),
-  ],
-  server: {
-    headers: {
-      // Required for SharedArrayBuffer (WASM shared memory)
-      'Cross-Origin-Opener-Policy':   'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-    },
+  modules: ['@gwenjs/input'],
+  vite: {
+    // extend Vite config here
+    define: { '__MY_FLAG__': 'true' },
+    build: { target: 'esnext' },
   },
 })
 ```
 
-::: warning COOP/COEP headers required
-`SharedArrayBuffer` — used by GWEN's zero-copy WASM memory — requires the `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers on the document. The example above shows how to set them in the Vite dev server. For production, configure them on your CDN or server.
-:::
+See [Extending Vite](/config/vite-extend) for the full guide.
+
+## Module-level Vite plugins
+
+Modules can register additional Vite plugins via `kit.addVitePlugin()` inside their `setup()`. This is the correct place for third-party integrations (e.g. React, Solid) rather than a user-facing `vite.config.ts`.
+
+## WASM hot-reload
+
+During `gwen dev`, the plugin watches `*.wasm` files for changes. When a binary is updated (e.g., after a Rust recompile), the engine reloads the affected module in place — no full page refresh, game state is preserved where possible.
+
+```
+[gwen] WASM hot-reload: physics2d.wasm updated → reloading module
+```
 
 ## Related
 
-- [Extending Vite](/config/vite-extend) — full guide to advanced Vite configuration for GWEN
+- [Extending Vite](/config/vite-extend) — how to customise Vite from `gwen.config.ts`
+- [Extending Vite](/config/vite-extend) — how to customise Vite from `gwen.config.ts`
 - [Physics 2D](/plugins/physics2d) — WASM module that benefits from hot-reload in dev
-- [Debug Plugin](/plugins/debug) — `import.meta.env.DEV` is injected by this plugin
+- [Debug Plugin](/plugins/debug) — `import.meta.env.DEV` is injected at build time

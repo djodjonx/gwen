@@ -1,88 +1,62 @@
 # Extending Vite
 
-GWEN's Vite integration lives in `@gwenjs/vite`. It must be present in your `vite.config.ts` for the dev server and build pipeline to work correctly.
+GWEN manages Vite internally — there is no `vite.config.ts` in a GWEN project. The CLI reads `gwen.config.ts` and builds the Vite configuration programmatically. For advanced use cases, you can extend that configuration via the `vite:` key in `gwen.config.ts`.
 
-## The @gwenjs/vite plugin
-
-`gwenPlugin()` is a standard Vite plugin that provides:
-
-- **WASM hot-reload** — reloads `.wasm` binaries during `gwen dev` without a full page refresh
-- **Auto-import transform** — injects `as const` assertions and resolves composable imports from `gwen.config.ts` modules
-- **Build optimization** — configures Rollup/Rolldown to bundle and hash `.wasm` files correctly for production
-
-## Minimal vite.config.ts
+## The `vite:` key
 
 ```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-import { gwenPlugin } from '@gwenjs/vite'
+import { defineConfig } from '@gwenjs/app'
 
 export default defineConfig({
-  plugins: [
-    gwenPlugin(),
-  ],
-})
-```
-
-This is all you need to get started. `gwenPlugin()` reads your `gwen.config.ts` automatically.
-
-## Plugin options
-
-```ts
-gwenPlugin({
-  wasmDir: 'public/wasm',       // directory to scan for .wasm files
-  autoImports: true,             // enable auto-import transform (default: true)
-  configFile: 'gwen.config.ts', // path to gwen config (default: project root)
-})
-```
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `wasmDir` | `string` | `'public/wasm'` | Directory watched for WASM hot-reload |
-| `autoImports` | `boolean` | `true` | Enables composable auto-import transform |
-| `configFile` | `string` | `'gwen.config.ts'` | Path to the GWEN config file |
-
-## Customizing Vite
-
-`gwenPlugin()` is a regular Vite plugin — you can combine it freely with any other Vite plugins or config options:
-
-```ts
-import { defineConfig } from 'vite'
-import { gwenPlugin } from '@gwenjs/vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [
-    gwenPlugin(),
-    react(), // add other plugins alongside
-  ],
-  build: {
-    target: 'esnext',
-    outDir: 'dist',
-  },
-  server: {
-    port: 3000,
+  modules: ['@gwenjs/input'],
+  vite: {
+    // extend Vite config here (for advanced cases)
+    define: { '__MY_FLAG__': 'true' },
+    build: {
+      target: 'esnext',
+      outDir: 'dist',
+    },
+    server: {
+      port: 3000,
+    },
   },
 })
 ```
+
+The `vite:` object is deep-merged with the configuration the CLI generates. You can override most Vite options here, but GWEN-managed settings (WASM loading, COOP/COEP headers, HMR) are always applied regardless.
 
 ::: tip
-You don't need to configure WASM MIME types or `SharedArrayBuffer` headers manually — `gwenPlugin()` handles both for dev and production.
+Most projects never need the `vite:` key. Reach for it only when you need to customise the Vite build pipeline beyond what GWEN configures by default.
 :::
+
+## Adding Vite plugins via modules
+
+Modules can register additional Vite plugins via `kit.addVitePlugin()` inside their `setup()`. This is the correct pattern for framework-level integrations (e.g. React, Solid, SVG loading) rather than the `vite:` key:
+
+```ts
+// packages/my-module/src/module.ts
+import { defineGwenModule } from '@gwenjs/kit'
+import react from '@vitejs/plugin-react'
+
+export default defineGwenModule({
+  meta: { name: 'my-module' },
+  setup(_options, kit) {
+    kit.addVitePlugin(react())
+  },
+})
+```
 
 ## WASM hot-reload
 
-During `gwen dev`, the plugin watches the `wasmDir` for `.wasm` file changes. When a binary is updated (e.g., after a Rust recompile), the engine reloads the affected module in place — no full page refresh, game state is preserved where possible.
+During `gwen dev`, the CLI watches `.wasm` files for changes. When a binary is updated (e.g., after a Rust recompile), the affected WASM module is hot-reloaded without a full page refresh.
 
 ```
 [gwen] WASM hot-reload: physics2d.wasm updated → reloading module
 ```
 
-To trigger a manual reload in your own tooling, emit the `gwen:wasm-update` HMR event with the module name.
-
 ## Hooks via gwen.config.ts
 
-Some Vite build behavior can be extended through lifecycle hooks in `gwen.config.ts` rather than in `vite.config.ts`. This keeps GWEN-specific logic separate from generic Vite config:
+Some Vite build behavior can be extended through lifecycle hooks in `gwen.config.ts`:
 
 ```ts
 // gwen.config.ts

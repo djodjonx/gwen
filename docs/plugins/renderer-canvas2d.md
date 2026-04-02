@@ -8,7 +8,7 @@ Hardware-accelerated 2D renderer built on the browser's Canvas2D API. Automatica
 ## Install
 
 ```bash
-pnpm add @gwenjs/renderer-canvas2d
+gwen add @gwenjs/renderer-canvas2d
 ```
 
 ## Register
@@ -16,15 +16,14 @@ pnpm add @gwenjs/renderer-canvas2d
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
 
 export default defineConfig({
-  plugins: [
-    new Canvas2DRenderer({
+  modules: [
+    ['@gwenjs/renderer-canvas2d', {
       width: 800,
       height: 600,
       pixelRatio: window.devicePixelRatio,
-    }),
+    }],
   ],
 })
 ```

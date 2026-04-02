@@ -8,7 +8,7 @@ Unified input handling for keyboard, mouse, and gamepad. Supports raw per-device
 ## Install
 
 ```bash
-pnpm add @gwenjs/input
+gwen add @gwenjs/input
 ```
 
 ## Register
@@ -16,18 +16,17 @@ pnpm add @gwenjs/input
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { InputPlugin } from '@gwenjs/input'
 
 export default defineConfig({
-  plugins: [
-    new InputPlugin({
+  modules: [
+    ['@gwenjs/input', {
       inputMap: {
         jump:   { keys: ['Space', 'ArrowUp'],   buttons: [0] },
         attack: { keys: ['KeyZ'],               buttons: [2] },
         left:   { keys: ['ArrowLeft', 'KeyA'],  axes:   [{ axis: 0, dir: -1 }] },
         right:  { keys: ['ArrowRight', 'KeyD'], axes:   [{ axis: 0, dir:  1 }] },
       },
-    }),
+    }],
   ],
 })
 ```

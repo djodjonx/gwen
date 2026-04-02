@@ -2,6 +2,31 @@
 
 Full reference for every `gwen` CLI command. All commands read `gwen.config.ts` from the project root unless `--config` is specified.
 
+## `gwen add`
+
+Installs a GWEN module package and automatically registers it in `gwen.config.ts`. Uses the project's detected package manager (npm, pnpm, yarn, or bun).
+
+```sh
+gwen add <module-name> [--dev]
+```
+
+| Option | Description |
+|---|---|
+| `--dev` | Install the package as a devDependency |
+| `--config <path>` | Path to a custom `gwen.config.ts` |
+
+### Examples
+
+```sh
+gwen add @gwenjs/physics2d
+gwen add @gwenjs/input
+gwen add @gwenjs/debug --dev
+```
+
+After running `gwen add`, the module is added to `gwen.config.ts` under the `modules` key and installed in `node_modules`. You can then run `gwen prepare` to regenerate service type declarations.
+
+---
+
 ## `gwen dev`
 
 Starts the Vite development server with WASM hot-reload enabled.

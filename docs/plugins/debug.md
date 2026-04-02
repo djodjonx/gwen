@@ -8,7 +8,7 @@ On-canvas debug overlay for development. Displays performance stats, entity coun
 ## Install
 
 ```bash
-pnpm add @gwenjs/debug --save-dev
+gwen add @gwenjs/debug --dev
 ```
 
 ## Register
@@ -16,13 +16,12 @@ pnpm add @gwenjs/debug --save-dev
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { DebugPlugin } from '@gwenjs/debug'
 
 export default defineConfig({
-  plugins: [
-    // Only registered in development — zero cost in production builds
-    import.meta.env.DEV ? new DebugPlugin({ position: 'top-left' }) : null,
-  ].filter(Boolean),
+  modules: [
+    // Only in development — zero cost in production builds
+    ...(import.meta.env.DEV ? [['@gwenjs/debug', { position: 'top-left' }]] : []),
+  ],
 })
 ```
 

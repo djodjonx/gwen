@@ -26,38 +26,28 @@ Plugin code never runs at module-import time — only when the engine starts. Th
 | [`@gwenjs/ui`](/plugins/ui) | HTML/CSS overlay UI | `ui` |
 | [`@gwenjs/r3f`](/plugins/r3f) | React Three Fiber adapter | `r3f` |
 | [`@gwenjs/debug`](/plugins/debug) | Debug overlay | `debug` |
-| [`@gwenjs/vite`](/plugins/vite) | Vite build plugin | — (build-time) |
+| [`@gwenjs/vite`](/plugins/vite) | Vite build plugin (CLI internal — not installed by users) | — (build-time) |
 
-## Registering Plugins
+## Registering Modules
 
-Plugins fall into two categories in `gwen.config.ts`:
-
-- **`plugins`** — standard TypeScript runtime plugins
-- **`wasm`** — WASM modules (physics engines, custom native modules)
+All official GWEN capabilities are registered in `gwen.config.ts` using the `modules` array. Each entry is a package name string (no options) or a `[name, options]` tuple:
 
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { InputPlugin } from '@gwenjs/input'
-import { AudioPlugin } from '@gwenjs/audio'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
-import { physics2D } from '@gwenjs/physics2d'
-import { DebugPlugin } from '@gwenjs/debug'
 
 export default defineConfig({
-  core: {
+  engine: {
     maxEntities: 10_000,
     targetFPS: 60,
   },
-  wasm: [
-    physics2D({ gravity: 9.81 }),
+  modules: [
+    '@gwenjs/input',
+    '@gwenjs/audio',
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+    ['@gwenjs/physics2d', { gravity: 9.81 }],
+    ...(import.meta.env.DEV ? ['@gwenjs/debug'] : []),
   ],
-  plugins: [
-    new InputPlugin(),
-    new AudioPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-    import.meta.env.DEV && new DebugPlugin(),
-  ].filter(Boolean),
 })
 ```
 

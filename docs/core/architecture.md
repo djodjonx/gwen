@@ -48,11 +48,16 @@ See [Components](./components.md) and [Systems](./systems.md) for details.
 
 ## Plugin System
 
-Plugins extend the engine with new capabilities. Each plugin implements the `GwenPlugin` interface with optional `setup()` and `teardown()` hooks, then is registered via `engine.use(plugin)`.
+Plugins extend the engine with new capabilities. Each plugin implements the `GwenPlugin` interface with optional `setup()` and `teardown()` hooks. In standard projects, plugins are loaded by declaring their module names in `gwen.config.ts` — no manual instantiation needed.
 
 ```ts
-engine.use(new InputPlugin())
-engine.use(new Canvas2DRenderer({ width: 800, height: 600 }))
+// gwen.config.ts
+export default defineConfig({
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+  ],
+})
 ```
 
 The engine context is active during `setup()` and throughout all frame phases, so composables like `useQuery()` and `useService()` work seamlessly inside any plugin or system. See [Engine Context](./context.md) for how this works.
@@ -81,21 +86,18 @@ Your project's entry point is `gwen.config.ts` at the repo root, using `defineCo
 ```ts
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { physics2D } from '@gwenjs/physics2d'
-import { InputPlugin } from '@gwenjs/input'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
 
 export default defineConfig({
-  core: { maxEntities: 10_000, targetFPS: 60 },
-  wasm: [physics2D({ gravity: 9.81 })],
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
+  engine: { maxEntities: 10_000, targetFPS: 60 },
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+    ['@gwenjs/physics2d', { gravity: 9.81 }],
   ],
 })
 ```
 
-Entries in `modules: []` run at **build/prepare time** (via `gwen prepare`) and can install plugins, generate types, and configure the engine before the game starts.
+Each entry in `modules: []` is either a package name string (no options) or a `[name, options]` tuple. The `gwen` CLI reads this file to install plugins, generate types, and configure the engine before the game starts.
 
 ::: tip Next steps
 - [Components](./components.md) — define typed data

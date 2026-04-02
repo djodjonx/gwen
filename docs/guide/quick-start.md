@@ -45,7 +45,6 @@ my-game/
 │   ├── ui/              # UI layers (defineUI)
 │   └── main.ts          # Engine bootstrap
 ├── gwen.config.ts        # Framework entry point
-├── vite.config.ts
 ├── package.json
 └── tsconfig.json
 ```
@@ -79,25 +78,12 @@ Then register it in your scene or `main.ts`:
 engine.use(movementSystem)
 ```
 
-## Add a Plugin
+## Add a Module
 
-Plugins extend the engine with services like input, physics, audio, and rendering. Open `gwen.config.ts` and add `InputPlugin`:
-
-```typescript
-import { defineConfig } from '@gwenjs/app'
-import { InputPlugin } from '@gwenjs/input'
-
-export default defineConfig({
-  plugins: [
-    new InputPlugin(),
-  ],
-})
-```
-
-Install the package if you haven't already:
+Modules extend the engine with services like input, physics, audio, and rendering. Run `gwen add` to install a module and register it in `gwen.config.ts` automatically:
 
 ```sh
-pnpm add @gwenjs/input
+gwen add @gwenjs/input
 ```
 
 Now `useInput()` is available inside any system.

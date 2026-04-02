@@ -8,7 +8,7 @@ HTML/CSS overlay rendered above the game canvas. Build reactive game UIs — hea
 ## Install
 
 ```bash
-pnpm add @gwenjs/ui
+gwen add @gwenjs/ui
 ```
 
 ## Register
@@ -16,12 +16,9 @@ pnpm add @gwenjs/ui
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { UIPlugin } from '@gwenjs/ui'
 
 export default defineConfig({
-  plugins: [
-    new UIPlugin(),
-  ],
+  modules: ['@gwenjs/ui'],
 })
 ```
 

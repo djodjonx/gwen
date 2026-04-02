@@ -40,6 +40,7 @@ The `gwen` binary is a thin wrapper around Vite and the GWEN toolchain. It:
 
 | Command | Description |
 |---|---|
+| `gwen add` | Install a module package and register it in `gwen.config.ts` |
 | `gwen dev` | Start the development server with WASM hot-reload |
 | `gwen build` | Production build via Vite + Rollup/Rolldown with WASM optimization |
 | `gwen preview` | Locally preview the production build |

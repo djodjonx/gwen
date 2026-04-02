@@ -220,30 +220,20 @@ Wire everything together in `gwen.config.ts` at the project root.
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { physics2D }          from '@gwenjs/physics2d'
-import { InputPlugin }        from '@gwenjs/input'
-import { Canvas2DRenderer }   from '@gwenjs/renderer-canvas2d'
 import { GameScene }          from './src/scenes/game'
 
 export default defineConfig({
-  core: { maxEntities: 1_000, targetFPS: 60 },
+  engine: { maxEntities: 1_000, targetFPS: 60 },
 
-  wasm: [
-    physics2D({ gravity: 0 }),   // top-down shooter — no gravity
-  ],
-
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+    ['@gwenjs/physics2d', { gravity: 0 }],   // top-down shooter — no gravity
   ],
 
   initialScene: GameScene,
 })
 ```
-
-::: info WASM vs plugins
-Physics runs as a WASM module (listed under `wasm`). Input and rendering run as TypeScript plugins (listed under `plugins`). See [Architecture](/guide/what-is-gwen) for why.
-:::
 
 After editing the config, run `pnpm gwen prepare` to regenerate service types.
 
@@ -259,7 +249,7 @@ After editing the config, run `pnpm gwen prepare` to regenerate service types.
 | `api.instantiate` | Spawning entities |
 | `api.emit` / `onEvent` | Score counter |
 | `defineScene` + `onEnter` | Initial wave spawn |
-| `defineConfig` | Plugin registration |
+| `defineConfig` | Module registration |
 
 **Further reading**
 

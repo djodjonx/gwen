@@ -41,15 +41,16 @@ Every engine capability is a plugin. GWEN ships a full set of official plugins, 
 | `@gwenjs/sprite-anim` | Sprite animation |
 | `@gwenjs/r3f` | React Three Fiber integration |
 
-Plugins register themselves with `engine.use(plugin)`. They expose services, inject frame-phase hooks, and integrate seamlessly with the composable system pattern.
+Modules register themselves with GWEN by declaring them in `gwen.config.ts`. They expose services, inject frame-phase hooks, and integrate seamlessly with the composable system pattern.
 
 ```typescript
 import { defineConfig } from '@gwenjs/app'
-import { InputPlugin } from '@gwenjs/input'
-import { Physics2D } from '@gwenjs/physics2d'
 
 export default defineConfig({
-  plugins: [new InputPlugin(), new Physics2D({ gravity: 9.81 })],
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/physics2d', { gravity: 9.81 }],
+  ],
 })
 ```
 

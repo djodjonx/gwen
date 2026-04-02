@@ -8,7 +8,7 @@ Web Audio API wrapper with support for sound effects, music tracks, and per-chan
 ## Install
 
 ```bash
-pnpm add @gwenjs/audio
+gwen add @gwenjs/audio
 ```
 
 ## Register
@@ -16,11 +16,10 @@ pnpm add @gwenjs/audio
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { AudioPlugin } from '@gwenjs/audio'
 
 export default defineConfig({
-  plugins: [
-    new AudioPlugin({ masterVolume: 0.8 }),
+  modules: [
+    ['@gwenjs/audio', { masterVolume: 0.8 }],
   ],
 })
 ```

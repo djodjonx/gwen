@@ -184,16 +184,13 @@ export { scorePlugin } from './plugin'
 export type { ScoreService } from './plugin'
 ```
 
-Game developers add it to their `gwen.config.ts`:
+Game developers install your plugin with:
 
-```ts
-// user's gwen.config.ts
-import { scorePlugin } from '@my-org/gwen-score'
-
-export default defineConfig({
-  plugins: [scorePlugin],
-})
+```sh
+gwen add @my-org/gwen-score
 ```
+
+This installs the package and registers it in their `gwen.config.ts` automatically.
 
 ---
 

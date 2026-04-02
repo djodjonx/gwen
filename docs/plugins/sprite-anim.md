@@ -8,7 +8,7 @@ Frame-by-frame sprite sheet animation. Define named clips with a frame range and
 ## Install
 
 ```bash
-pnpm add @gwenjs/sprite-anim
+gwen add @gwenjs/sprite-anim
 ```
 
 ## Register
@@ -16,19 +16,17 @@ pnpm add @gwenjs/sprite-anim
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { SpriteAnimPlugin } from '@gwenjs/sprite-anim'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
 
 export default defineConfig({
-  plugins: [
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-    new SpriteAnimPlugin(),
+  modules: [
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+    '@gwenjs/sprite-anim',
   ],
 })
 ```
 
 ::: tip Order matters
-Register `Canvas2DRenderer` before `SpriteAnimPlugin` so the renderer's `onRender` hook runs after animations have advanced the current frame.
+Register `@gwenjs/renderer-canvas2d` before `@gwenjs/sprite-anim` so the renderer's `onRender` hook runs after animations have advanced the current frame.
 :::
 
 ## Service API

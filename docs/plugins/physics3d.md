@@ -1,7 +1,6 @@
 # Physics 3D Plugin
 
 **Package:** `@gwenjs/physics3d`
-**Module type:** WASM module (add to `wasm: []`, not `plugins: []`)
 **Service key:** `physics3d` (`Physics3DAPI`)
 
 3D rigid-body physics powered by [Rapier3D](https://rapier.rs/) compiled to WASM. Follows the same integration pattern as [`@gwenjs/physics2d`](/plugins/physics2d) — if you're familiar with that plugin, you already know most of this one.
@@ -9,7 +8,7 @@
 ## Install
 
 ```bash
-pnpm add @gwenjs/physics3d
+gwen add @gwenjs/physics3d
 ```
 
 ## Register
@@ -17,14 +16,13 @@ pnpm add @gwenjs/physics3d
 ```typescript
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { physics3D } from '@gwenjs/physics3d'
 
 export default defineConfig({
-  wasm: [
-    physics3D({
+  modules: [
+    ['@gwenjs/physics3d', {
       gravity: { x: 0, y: -9.81, z: 0 },
       qualityPreset: 'medium',
-    }),
+    }],
   ],
 })
 ```
@@ -114,10 +112,6 @@ export const physics3DSetupSystem = defineSystem(() => {
   })
 })
 ```
-
-::: warning WASM module, not a plugin
-`physics3D(...)` goes in `wasm: []`, not `plugins: []`.
-:::
 
 ## Related
 

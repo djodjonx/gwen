@@ -19,13 +19,15 @@ The file must be at the project root and export a default config object. Both `g
 
 `defineConfig` is imported from `@gwenjs/app`. It provides full TypeScript inference and IntelliSense across all config fields — no manual type casting required.
 
-## Core options
+## Engine options
 
 ```ts
-core: {
-  maxEntities: 10_000, // default
-  targetFPS: 60,       // default
-  debug: false,        // default
+engine: {
+  maxEntities: 10_000,      // default
+  targetFPS: 60,            // default
+  variant: 'physics2d',     // 'light' | 'physics2d' | 'physics3d'
+  loop: 'internal',         // 'internal' | 'external'
+  maxDeltaSeconds: 0.1,     // default
 }
 ```
 
@@ -33,59 +35,40 @@ core: {
 |---|---|---|---|
 | `maxEntities` | `number` | `10_000` | ECS entity pool size allocated in WASM |
 | `targetFPS` | `number` | `60` | Target frame rate for the game loop |
-| `debug` | `boolean` | `false` | Enables verbose logging and debug overlays |
-
-## Plugins
-
-```ts
-import { InputPlugin } from '@gwenjs/input'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
-
-export default defineConfig({
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-  ],
-})
-```
-
-Plugins are runtime instances that run in the browser. They integrate with the 8-phase frame loop and can expose services via `useMyService()` composables.
-
-::: tip
-Order matters. Plugins are initialized in array order. Place rendering plugins after logic plugins.
-:::
-
-## WASM modules
-
-```ts
-import { physics2D } from '@gwenjs/physics2d'
-
-export default defineConfig({
-  wasm: [
-    physics2D({ gravity: 9.81 }),
-  ],
-})
-```
-
-WASM modules are separate `.wasm` binaries loaded at runtime. They communicate with `gwen-core.wasm` via a `SharedArrayBuffer` — zero-copy, zero JS overhead per frame.
-
-See [Modules & WASM Modules](./modules.md) for loading custom WASM modules and working with shared memory.
+| `variant` | `'light' \| 'physics2d' \| 'physics3d'` | `'light'` | WASM core variant to load |
+| `loop` | `'internal' \| 'external'` | `'internal'` | Frame loop driver |
+| `maxDeltaSeconds` | `number` | `0.1` | Maximum clamped delta time per frame |
 
 ## Modules
 
-```ts
-import { myBuildModule } from './modules/my-module'
+Modules are the primary way to add capabilities to GWEN. Each entry is either a package name string (no options) or a `[name, options]` tuple:
 
+```ts
 export default defineConfig({
   modules: [
-    myBuildModule(),
+    '@gwenjs/input',                                               // string = no options
+    '@gwenjs/audio',
+    ['@gwenjs/physics2d', { gravity: 9.81 }],                    // tuple = with options
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
   ],
 })
 ```
 
-Modules are **build-time** composition roots that run in Node.js during `gwen dev` and `gwen prepare`. They install plugins, register auto-imports, and produce type metadata. They never run in the browser.
+::: tip
+Order matters. Modules are initialised in array order. Place rendering modules after logic modules.
+:::
 
-See [Modules & WASM Modules](./modules.md) for defining your own modules.
+## Advanced: direct plugin registration
+
+For cases where you need to directly register a `GwenPlugin` instance (without a module wrapper), use `plugins: []`:
+
+```ts
+export default defineConfig({
+  plugins: [myCustomPlugin],
+})
+```
+
+This is an advanced escape hatch. For all official `@gwenjs/*` packages, use `modules: []` instead.
 
 ## Hooks
 
@@ -110,28 +93,19 @@ See [Extending Vite](./vite-extend.md) for extending Vite build behavior via hoo
 
 ```ts
 import { defineConfig } from '@gwenjs/app'
-import { physics2D } from '@gwenjs/physics2d'
-import { InputPlugin } from '@gwenjs/input'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
-import { AudioPlugin } from '@gwenjs/audio'
-import { DebugPlugin } from '@gwenjs/debug'
 
 export default defineConfig({
-  core: {
+  engine: {
     maxEntities: 5_000,
     targetFPS: 60,
-    debug: true,
   },
 
-  wasm: [
-    physics2D({ gravity: 9.81 }),
-  ],
-
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-    new AudioPlugin(),
-    new DebugPlugin(),
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+    ['@gwenjs/physics2d', { gravity: 9.81 }],
+    '@gwenjs/audio',
+    ...(import.meta.env.DEV ? ['@gwenjs/debug'] : []),
   ],
 
   hooks: {

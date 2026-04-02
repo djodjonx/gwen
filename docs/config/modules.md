@@ -1,18 +1,40 @@
 # Modules & WASM Modules
 
-GWEN distinguishes between two kinds of modules: **build-time modules** (Node.js) and **WASM modules** (runtime binaries). Both are registered in `gwen.config.ts` but serve very different purposes.
+## Using modules in gwen.config.ts
 
-## What are modules?
+The `modules` array is the primary way to add capabilities to your GWEN project. Each entry is either a package name string (no options) or a `[name, options]` tuple:
 
-Build-time modules are composition roots that run in **Node.js** — not in the browser. They are called during `gwen dev` and `gwen prepare` to:
+```ts
+// gwen.config.ts
+import { defineConfig } from '@gwenjs/app'
 
-- Install plugins programmatically
+export default defineConfig({
+  modules: [
+    '@gwenjs/input',                                               // string = no options
+    '@gwenjs/audio',
+    '@gwenjs/debug',
+    ['@gwenjs/physics2d', { gravity: 9.81 }],                    // tuple = with options
+    ['@gwenjs/physics3d', { gravity: { x: 0, y: -9.81, z: 0 } }],
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
+  ],
+})
+```
+
+WASM-backed modules (like `@gwenjs/physics2d`) are registered the same way as pure TypeScript modules — there is no separate `wasm: []` array.
+
+## What are build-time modules?
+
+Behind the scenes, each `@gwenjs/*` package ships a **build-time module** — a Node.js composition root that runs during `gwen dev` and `gwen prepare` to:
+
+- Install the runtime plugin
 - Register auto-imports for composables
 - Provide type metadata that `gwen prepare` uses to generate `.gwen/types/`
 
-They are the extension point for library authors and kit packages that need to hook into the build pipeline.
+As a game developer you never write these — you just list the package name in `modules: []`.
 
-## Defining a module
+## Authoring a module (plugin authors only)
+
+If you're publishing a reusable GWEN plugin, wrap it in `defineGwenModule` so consumers get auto-imports and generated types:
 
 ```ts
 // modules/my-module.ts
@@ -49,27 +71,9 @@ export default defineConfig({
 If you're building a reusable kit (like `@gwenjs/kit-platformer`), ship it as a module so users only need one line in their config.
 :::
 
-## WASM modules
+## Loading custom WASM binaries at runtime
 
-WASM modules are a **completely different concept** — they are compiled `.wasm` binaries loaded at **runtime** in the browser. They are listed in the `wasm: []` array in your config:
-
-```ts
-import { physics2D } from '@gwenjs/physics2d'
-import { physics3D } from '@gwenjs/physics3d'
-
-export default defineConfig({
-  wasm: [
-    physics2D({ gravity: 9.81 }),
-    physics3D(),
-  ],
-})
-```
-
-GWEN's official WASM plugins (physics2D, physics3D) are pre-compiled and shipped as npm packages. You do not need Rust to use them.
-
-## Loading WASM modules at runtime
-
-For custom WASM binaries, use `engine.loadWasmModule()` inside a system or plugin:
+For custom WASM binaries (not npm packages), use `engine.loadWasmModule()` inside a system or plugin:
 
 ```ts
 const handle = await engine.loadWasmModule({

@@ -212,13 +212,16 @@ export const myModule = defineGwenModule({
 Configure a GWEN project. This is the composition root read by the `gwen` CLI.
 
 ```ts
-defineConfig(config: {
-  core?: CoreOptions          // maxEntities, targetFPS, …
-  wasm?: WasmPluginDef[]      // WASM adapters (physics2D, physics3D)
-  plugins?: GwenPlugin[]      // runtime plugins
-  modules?: GwenModule[]      // build-time modules
-  hooks?: LifecycleHooks      // onReady, onError, …
-}): GwenConfig
+defineConfig(config: GwenUserConfig): GwenConfig
+
+// GwenUserConfig:
+{
+  modules?: (string | [string, options?])[]   // module names/tuples
+  engine?: EngineOptions                       // maxEntities, targetFPS, …
+  vite?: Record<string, unknown>               // extend Vite config
+  hooks?: Partial<GwenBuildHooks>              // build lifecycle hooks
+  plugins?: GwenPlugin[]                       // advanced: direct plugin registration
+}
 ```
 
 **Example:**
@@ -226,16 +229,13 @@ defineConfig(config: {
 ```ts
 // gwen.config.ts
 import { defineConfig } from '@gwenjs/app'
-import { physics2D } from '@gwenjs/physics2d'
-import { InputPlugin } from '@gwenjs/input'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
 
 export default defineConfig({
-  core: { maxEntities: 10_000, targetFPS: 60 },
-  wasm: [physics2D({ gravity: 9.81 })],
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
+  engine: { maxEntities: 10_000, targetFPS: 60 },
+  modules: [
+    '@gwenjs/input',
+    ['@gwenjs/physics2d', { gravity: 9.81 }],
+    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
   ],
 })
 ```

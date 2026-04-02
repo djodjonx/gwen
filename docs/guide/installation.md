@@ -20,7 +20,7 @@ pnpm install
 pnpm dev
 ```
 
-The create wizard sets up Vite, TypeScript, the GWEN Vite plugin, and an initial scene for you. Skip to [Run gwen prepare](#run-gwen-prepare) when done.
+The create wizard sets up Vite, TypeScript, and an initial scene for you. Skip to [Run gwen prepare](#run-gwen-prepare) when done.
 
 ## Manual Setup
 
@@ -37,7 +37,7 @@ pnpm init
 
 ```sh
 pnpm add @gwenjs/core @gwenjs/app
-pnpm add -D @gwenjs/vite vite typescript
+pnpm add -D @gwenjs/cli vite typescript
 ```
 
 ### 3. Create `gwen.config.ts`
@@ -48,11 +48,11 @@ This is the framework entry point. Place it at the project root:
 import { defineConfig } from '@gwenjs/app'
 
 export default defineConfig({
-  core: {
+  engine: {
     maxEntities: 10_000,
     targetFPS: 60,
   },
-  plugins: [],
+  modules: [],
 })
 ```
 
@@ -81,56 +81,39 @@ engine.start()
 </html>
 ```
 
-### 6. Create `vite.config.ts`
+::: info No `vite.config.ts` needed
+GWEN manages Vite internally — like Nuxt does. The CLI reads `gwen.config.ts` and builds the Vite config programmatically. You never create a `vite.config.ts`. Advanced Vite customisation is done via the [`vite:` key in `gwen.config.ts`](/config/vite-extend).
+:::
 
-The `@gwenjs/vite` plugin handles WASM loading and hot-reload:
-
-```typescript
-import { defineConfig } from 'vite'
-import gwen from '@gwenjs/vite'
-
-export default defineConfig({
-  plugins: [gwen()],
-})
-```
-
-### 7. Add scripts to `package.json`
+### 6. Add scripts to `package.json`
 
 ```json
 {
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "gwen dev",
+    "build": "gwen build",
     "prepare": "gwen prepare"
   }
 }
 ```
 
-## Install Plugins
+## Add Modules
 
-Install only the plugins your game needs. Each plugin is a separate package:
+Use the `gwen add` command to add a module. It installs the package with your detected package manager **and** registers it in `gwen.config.ts` automatically:
 
 ```sh
-pnpm add @gwenjs/input @gwenjs/physics2d @gwenjs/renderer-canvas2d
+gwen add @gwenjs/input
+gwen add @gwenjs/physics2d
+gwen add @gwenjs/renderer-canvas2d
 ```
 
-Then register them in `gwen.config.ts`:
+You can also pass `--dev` to install as a dev dependency:
 
-```typescript
-import { InputPlugin } from '@gwenjs/input'
-import { Physics2D } from '@gwenjs/physics2d'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
-
-export default defineConfig({
-  plugins: [
-    new InputPlugin(),
-    new Physics2D({ gravity: 9.81 }),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-  ],
-})
+```sh
+gwen add @gwenjs/debug --dev
 ```
 
-See the [Plugins reference](/plugins/) for the full list of official plugins and their options.
+See the [Plugins reference](/plugins/) for the full list of official modules and their options.
 
 ## Run gwen prepare
 

@@ -202,7 +202,13 @@ impl Sim {
 }
 ```
 
-The compiled `.wasm` is checked into the npm package under `dist/` or `wasm/`. Users never run `wasm-pack` — they install your npm package and get the binary.
+The compiled `.wasm` is checked into the npm package under `dist/` or `wasm/`. Users never run `wasm-pack` — they install your npm package and get the binary:
+
+```sh
+gwen add @acme/my-module
+```
+
+`gwen add` installs the package and registers it in the user's `gwen.config.ts` automatically.
 
 ```
 my-plugin/

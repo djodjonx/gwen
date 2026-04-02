@@ -33,13 +33,19 @@ engine.stop(): void
 ```ts
 const engine = createEngine()
 
+// Advanced: directly register plugins
+// (most projects use modules in gwen.config.ts instead)
 engine
-  .use(new InputPlugin())
-  .use(new Canvas2DRenderer({ width: 800, height: 600 }))
+  .use(inputPlugin)
+  .use(canvas2DRenderer)
   .use(movementSystem)
 
 await engine.start()
 ```
+
+::: tip Module-first pattern
+In standard projects, plugins are registered by listing their package names in the `modules` array in `gwen.config.ts`. Direct `engine.use()` calls are available for advanced / manual bootstrapping.
+:::
 
 ---
 
