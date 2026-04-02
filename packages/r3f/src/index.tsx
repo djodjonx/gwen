@@ -107,22 +107,40 @@ export function GwenLoop(): null {
 /**
  * Resolve a service registered in GWEN ServiceLocator.
  *
+ * This is the **React-context** variant of the core `useService()` composable.
+ * It retrieves the service from the engine exposed via {@link GwenProvider}.
+ * Prefer this hook inside R3F components; use core's `useService()` inside
+ * {@link defineSystem} callbacks.
+ *
+ * @typeParam T - Expected service API type
+ * @param name - Service name as registered in the engine
+ * @returns The service instance cast to `T`
+ *
  * @example
- * const physics = useService<Physics2DAPI>('physics');
+ * ```tsx
+ * const physics = useGwenService<Physics2DAPI>('physics2d')
+ * ```
  */
-export function useService<T = unknown>(name: string): T {
+export function useGwenService<T = unknown>(name: string): T {
   const engine = useGwenEngine();
   return engine.getAPI().services.get(name) as T;
 }
 
 /**
  * Read physics body state from a service (default: `physics3d`) and keep it synced each frame.
+ *
+ * Uses {@link useGwenService} internally to resolve the physics service by name.
+ *
+ * @typeParam T - Physics body state shape returned by the service
+ * @param entityId - The entity whose body state to read
+ * @param serviceName - Service key to resolve (defaults to `'physics3d'`)
+ * @returns Current body state, or `undefined` if not yet available
  */
 export function usePhysicsBodyState<T = unknown>(
   entityId: GwenEntityIdLike,
   serviceName = 'physics3d',
 ): T | undefined {
-  const physics = useService<{ getBodyState?: (id: GwenEntityIdLike) => unknown }>(serviceName);
+  const physics = useGwenService<{ getBodyState?: (id: GwenEntityIdLike) => unknown }>(serviceName);
   const [state, setState] = useState<T | undefined>(() =>
     physics?.getBodyState ? (physics.getBodyState(entityId) as T | undefined) : undefined,
   );

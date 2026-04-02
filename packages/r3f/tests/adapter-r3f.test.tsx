@@ -17,7 +17,7 @@ import {
   GwenProvider,
   GwenLoop,
   useGwenEngine,
-  useService,
+  useGwenService,
   usePhysicsBodyState,
   useEvent,
   useQuery,
@@ -127,12 +127,12 @@ describe('gwen-adapter-r3f', () => {
     });
   });
 
-  it('useService resolves service from engine API', async () => {
+  it('useGwenService resolves service from engine API', async () => {
     const engine = makeEngineMock();
     let service: unknown = null;
 
     function Probe() {
-      service = useService('physics3d');
+      service = useGwenService('physics3d');
       return null;
     }
 
