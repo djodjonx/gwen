@@ -35,6 +35,7 @@
     "bench:ecs": "vitest bench --run bench/ecs.bench.ts",
     "bench:query": "vitest bench --run bench/query.bench.ts",
     "bench:simulation": "vitest bench --run bench/simulation.bench.ts",
+    "bench:simulation-wasm": "vitest bench --run bench/simulation-wasm.bench.ts",
     "bench:ci": "vitest bench --run",
     "watch": "vite build --watch"
   },
