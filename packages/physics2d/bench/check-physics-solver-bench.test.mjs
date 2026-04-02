@@ -6,9 +6,9 @@ import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 
-const raw = execFileSync('node', ['./scripts/bench-physics2d-solver.mjs', '--json'], {
+const raw = execFileSync('node', ['./packages/physics2d/bench/bench-physics2d-solver.mjs', '--json'], {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();

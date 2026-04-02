@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tree-shaking baseline check for @djodjonx/gwen-plugin-physics2d.
+ * Tree-shaking baseline check for @gwenjs/physics2d.
  *
  * Pass logic:
  * - Runs bench-physics2d-bundle-size with --json to get all dist entry sizes.
@@ -23,9 +23,9 @@ import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 
-const raw = execFileSync('node', ['./scripts/bench-physics2d-bundle-size.mjs', '--json'], {
+const raw = execFileSync('node', ['./packages/physics2d/bench/bench-physics2d-bundle-size.mjs', '--json'], {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();

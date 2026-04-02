@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
-const pkgRoot = path.resolve(repoRoot, 'packages/@djodjonx/plugin-physics2d');
+const repoRoot = path.resolve(__dirname, '../../..');
+const pkgRoot = path.resolve(repoRoot, 'packages/physics2d');
 const distRoot = path.resolve(pkgRoot, 'dist');
 const jsonMode = process.argv.includes('--json');
 
@@ -25,7 +25,7 @@ const entries = [
   'debug.js',
 ];
 
-execFileSync('pnpm', ['--filter', '@djodjonx/gwen-plugin-physics2d', 'build'], {
+execFileSync('pnpm', ['--filter', '@gwenjs/physics2d', 'build'], {
   cwd: repoRoot,
   stdio: 'pipe',
 });
@@ -39,7 +39,7 @@ for (const entry of entries) {
 
 const report = {
   scenario: 'bundle-size-tree-shaking',
-  package: '@djodjonx/gwen-plugin-physics2d',
+  package: '@gwenjs/physics2d',
   entries: sizes,
   rules: {
     coreNotLargerThanIndex: sizes['core.js'] <= sizes['index.js'],

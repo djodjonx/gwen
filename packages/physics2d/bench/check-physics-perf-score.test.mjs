@@ -11,12 +11,12 @@ import { evaluatePerfGate } from './physics-perf-score.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 const thresholds = JSON.parse(
   await fs.readFile(path.resolve(__dirname, 'physics-perf-thresholds.json'), 'utf8'),
 );
 
-const nominalRaw = execFileSync('node', ['./scripts/physics-perf-score.mjs', '--json'], {
+const nominalRaw = execFileSync('node', ['./packages/physics2d/bench/physics-perf-score.mjs', '--json'], {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();
@@ -51,7 +51,7 @@ await fs.writeFile(degradedPath, JSON.stringify(degradedPayload), 'utf8');
 
 const degradedCliRaw = execFileSync(
   'node',
-  ['./scripts/physics-perf-score.mjs', '--json', '--input', degradedPath],
+  ['./packages/physics2d/bench/physics-perf-score.mjs', '--json', '--input', degradedPath],
   {
     cwd: repoRoot,
     encoding: 'utf8',

@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 const thresholdsPath = path.resolve(__dirname, 'physics-perf-thresholds.json');
 
 function parseArgs(argv) {
@@ -35,8 +35,8 @@ function runJsonCommand(command, args) {
 }
 
 function collectBenchPayload() {
-  const solver = runJsonCommand('node', ['./scripts/bench-physics2d-solver.mjs', '--json']);
-  const tilemap = runJsonCommand('node', ['./scripts/bench-physics2d-tilemap.mjs', '--json']);
+  const solver = runJsonCommand('node', ['./packages/physics2d/bench/bench-physics2d-solver.mjs', '--json']);
+  const tilemap = runJsonCommand('node', ['./packages/physics2d/bench/bench-physics2d-tilemap.mjs', '--json']);
   return { solver, tilemap };
 }
 

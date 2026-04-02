@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 const baselinePath = path.resolve(
   repoRoot,
   'specs/enhance-physic/benchmarks/sprint-8-playgrounds-baseline.json',
@@ -20,7 +20,7 @@ function run(command, args, cwd = repoRoot) {
 run('pnpm', ['--dir', 'playground/mario-css', 'run', 'typecheck']);
 run('pnpm', ['--dir', 'playground/space-shooter-2', 'exec', 'tsc', '--noEmit']);
 
-const scoreRaw = execFileSync('node', ['./scripts/physics-perf-score.mjs', '--json'], {
+const scoreRaw = execFileSync('node', ['./packages/physics2d/bench/physics-perf-score.mjs', '--json'], {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();

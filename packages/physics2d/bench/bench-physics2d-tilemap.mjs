@@ -6,10 +6,10 @@ import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 const pluginDistEntry = path.resolve(
   repoRoot,
-  'packages/@djodjonx/plugin-physics2d/dist/index.js',
+  'packages/physics2d/dist/index.js',
 );
 
 const args = new Set(process.argv.slice(2));

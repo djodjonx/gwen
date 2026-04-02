@@ -6,15 +6,15 @@ import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 
 // Build plugin dist first so the bench can import dist/index.js reliably.
-execFileSync('pnpm', ['--filter', '@djodjonx/gwen-plugin-physics2d', 'build'], {
+execFileSync('pnpm', ['--filter', '@gwenjs/physics2d', 'build'], {
   cwd: repoRoot,
   stdio: 'pipe',
 });
 
-const raw = execFileSync('node', ['./scripts/bench-physics2d-tilemap.mjs', '--json'], {
+const raw = execFileSync('node', ['./packages/physics2d/bench/bench-physics2d-tilemap.mjs', '--json'], {
   cwd: repoRoot,
   encoding: 'utf8',
 }).trim();

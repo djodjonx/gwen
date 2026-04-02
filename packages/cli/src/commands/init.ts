@@ -96,7 +96,7 @@ export const initCommand = defineCommand({
     await fs.mkdir(path.join(projectDir, 'src'), { recursive: true });
 
     // --- package.json ---
-    const moduleDeps = Object.fromEntries(selectedModules.map((m) => [m, '^1.0.0']));
+    const moduleDeps = Object.fromEntries(selectedModules.map((m) => [m, `^${__GWEN_VERSION__}`]));
     const packageJson = {
       name,
       type: 'module',
@@ -106,13 +106,13 @@ export const initCommand = defineCommand({
         postinstall: 'gwen prepare',
       },
       dependencies: {
-        '@gwenjs/core': '^1.0.0',
-        '@gwenjs/app': '^1.0.0',
+        '@gwenjs/core': `^${__GWEN_VERSION__}`,
+        '@gwenjs/app': `^${__GWEN_VERSION__}`,
         ...moduleDeps,
       },
       devDependencies: {
-        '@gwenjs/cli': '^1.0.0',
-        '@gwenjs/vite': '^1.0.0',
+        '@gwenjs/cli': `^${__GWEN_VERSION__}`,
+        '@gwenjs/vite': `^${__GWEN_VERSION__}`,
         vite: '^8.0.0',
       },
     };
