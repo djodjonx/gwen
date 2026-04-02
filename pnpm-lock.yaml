@@ -319,21 +319,24 @@ importers:
         specifier: workspace:*
         version: link:../kit
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.37
+        version: 20.19.37
       '@vitest/coverage-v8':
         specifier: ^4.1.2
-        version: 4.1.2(vitest@4.1.2(@types/node@25.3.3)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2)))
+        version: 4.1.2(vitest@4.1.2(@types/node@20.19.37)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@20.19.37)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2)))
       typescript:
         specifier: ^6.0.2
         version: 6.0.2
       vite:
         specifier: ^8.0.3
-        version: 8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2)
+        version: 8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@20.19.37)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2)
       vite-plugin-dts:
         specifier: ^4.5.4
-        version: 4.5.4(@types/node@25.3.3)(rollup@4.59.0)(typescript@6.0.2)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+        version: 4.5.4(@types/node@20.19.37)(rollup@4.59.0)(typescript@6.0.2)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@20.19.37)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
       vitest:
         specifier: ^4.1.2
-        version: 4.1.2(@types/node@25.3.3)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+        version: 4.1.2(@types/node@20.19.37)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@20.19.37)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
 
   packages/physics3d:
     dependencies:
@@ -5077,20 +5080,6 @@ snapshots:
       std-env: 4.0.0
       tinyrainbow: 3.1.0
       vitest: 4.1.2(@types/node@20.19.37)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@20.19.37)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
-
-  '@vitest/coverage-v8@4.1.2(vitest@4.1.2(@types/node@25.3.3)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2)))':
-    dependencies:
-      '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.1.2
-      ast-v8-to-istanbul: 1.0.0
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-reports: 3.2.0
-      magicast: 0.5.2
-      obug: 2.1.1
-      std-env: 4.0.0
-      tinyrainbow: 3.1.0
-      vitest: 4.1.2(@types/node@25.3.3)(jsdom@28.1.0)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
 
   '@vitest/expect@4.1.2':
     dependencies:

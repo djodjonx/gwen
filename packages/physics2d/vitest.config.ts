@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: false,
+    include: ['src/**/*.test.ts', 'bench/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/helpers/**', 'src/helpers-*.ts'],
@@ -15,5 +16,8 @@ export default defineConfig({
         statements: 80,
       },
     },
+  },
+  benchmark: {
+    include: ['bench/**/*.bench.ts'],
   },
 });
