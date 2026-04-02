@@ -5,7 +5,7 @@
  * Import from `@gwenjs/core` as usual — this file re-exports everything.
  *
  * Module map:
- *   types/global-augment.ts  — GwenDefaultServices, GwenDefaultHooks (declare global)
+ *   types/global-augment.ts  — GwenPrefabExtensions, GwenSceneExtensions, GwenUIExtensions (declare global)
  *   types/entity.ts          — EntityId, ComponentType, ComponentAccessor, Vector2D, Color
  *   types/engine-config.ts   — EngineConfig
  */
