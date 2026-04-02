@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { appendModuleToConfig } from '../../dist/utils/config-writer.js';
+import { appendModuleToConfig } from '../../dist/packages/cli/src/utils/config-writer.js';
 
 /** Creates an isolated temp directory for each test. */
 async function makeTempDir(): Promise<string> {

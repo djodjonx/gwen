@@ -4,11 +4,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import prepareCommand from '../../dist/cli/src/commands/prepare.js';
-import devCommand from '../../dist/cli/src/commands/dev.js';
-import buildCommand from '../../dist/cli/src/commands/build.js';
-import lintCommand from '../../dist/cli/src/commands/lint.js';
-import formatCommand from '../../dist/cli/src/commands/format.js';
+import prepareCommand from '../../dist/packages/cli/src/commands/prepare.js';
+import devCommand from '../../dist/packages/cli/src/commands/dev.js';
+import buildCommand from '../../dist/packages/cli/src/commands/build.js';
+import lintCommand from '../../dist/packages/cli/src/commands/lint.js';
+import formatCommand from '../../dist/packages/cli/src/commands/format.js';
 
 describe('Command definitions', () => {
   describe('prepare command', () => {

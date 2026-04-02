@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { CHECKS } from '../../dist/commands/doctor.js';
+import { CHECKS } from '../../dist/packages/cli/src/commands/doctor.js';
 
 describe('CHECKS (doctor health checks)', () => {
   afterEach(() => {

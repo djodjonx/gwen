@@ -12,9 +12,9 @@ import fs from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Production : dist/ compilé présent → l'utiliser directement
-const distBin = path.join(__dirname, 'dist', 'bin.js');
-if (fs.existsSync(distBin)) {
+// Production : dist/ compilé présent → l'utiliser directement (sauf si GWEN_CLI_FORCE_JITI=1)
+const distBin = path.join(__dirname, 'dist', 'packages', 'cli', 'src', 'bin.js');
+if (!process.env.GWEN_CLI_FORCE_JITI && fs.existsSync(distBin)) {
   await import(distBin);
 } else {
   // Dev monorepo : exécuter src/bin.ts via jiti (comme Nuxt)

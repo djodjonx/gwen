@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { detectPackageManager } from '../../dist/utils/package-manager.js';
+import { detectPackageManager } from '../../dist/packages/cli/src/utils/package-manager.js';
 
 /** Creates an isolated temp directory for each test. */
 async function makeTempDir(): Promise<string> {

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { logger, setLogLevel } from '../../dist/cli/src/utils/logger.js';
+import { logger, setLogLevel } from '../../dist/packages/cli/src/utils/logger.js';
 
 describe('Logger', () => {
   beforeEach(() => {

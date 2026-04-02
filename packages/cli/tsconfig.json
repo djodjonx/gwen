@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "rootDir": "../..",
     "outDir": "./dist",
     "strict": true,
     "declaration": true,
@@ -11,7 +12,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "noUncheckedIndexedAccess": false,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"],

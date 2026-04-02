@@ -18,8 +18,8 @@
       "import": "./src/index.ts"
     },
     "./setup": {
-      "types": "./dist/cli/src/core/setup/types.d.ts",
-      "import": "./dist/cli/src/core/setup/types.js"
+      "types": "./src/core/setup/types.ts",
+      "import": "./src/core/setup/types.ts"
     }
   },
   "scripts": {
@@ -50,10 +50,11 @@
     "ts-morph": "^25.0.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.0.18",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "@types/node": "^20",
+    "@vitest/coverage-v8": "^4.1.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.2"
   }
 }
