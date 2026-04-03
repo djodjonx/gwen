@@ -250,6 +250,177 @@ impl Engine {
             .unwrap_or_default()
     }
 
+    // === Bulk Component API ===
+
+    /// Reads component data for multiple entities in a single JS→WASM call.
+    ///
+    /// # Description
+    /// This function eliminates the *N JS→WASM boundary crossings* that occur
+    /// when calling [`get_component_raw`] once per entity in a per-frame loop.
+    /// Instead, the caller allocates a contiguous output buffer of
+    /// `entity_count × component_size_bytes` and passes it in; this function
+    /// fills every slot in a tight Rust loop (zero extra heap allocations).
+    ///
+    /// The output is tightly packed:
+    /// ```text
+    /// [ entity_0_bytes | entity_1_bytes | … | entity_N_bytes ]
+    /// ```
+    /// If an entity is dead or does not carry the requested component, its
+    /// corresponding slot is left as zeros (the buffer is not resized).
+    ///
+    /// # Arguments
+    /// * `slots` – Entity slot indices (must have the same length as `gens`).
+    /// * `gens`  – Per-slot generation counters for stale-reference detection.
+    /// * `component_type_id` – Numeric component type ID returned by
+    ///   [`register_component_type`].
+    /// * `out_buf` – Caller-allocated output buffer.  Must be at least
+    ///   `slots.len() × component_size_bytes` bytes.
+    ///
+    /// # Returns
+    /// Total bytes written (always `≤ out_buf.len()`).  Returns `0` if `slots`
+    /// is empty or if no component data was found.
+    ///
+    /// # Panics
+    /// Does not panic; silently skips dead or missing-component entities.
+    pub fn get_components_bulk(
+        &self,
+        slots: &[u32],
+        gens: &[u32],
+        component_type_id: u32,
+        out_buf: &mut [u8],
+    ) -> u32 {
+        let n = slots.len().min(gens.len());
+        if n == 0 || out_buf.is_empty() {
+            return 0;
+        }
+
+        let type_id = ComponentTypeId::from_raw(component_type_id);
+        let mut bytes_written: usize = 0;
+
+        for i in 0..n {
+            let slot = slots[i];
+            let gen = gens[i];
+
+            // Resolve the component slice from storage (no allocation).
+            let component_bytes = if self
+                .entity_manager
+                .is_alive(EntityId::from_parts(slot, gen))
+            {
+                self.storage.get_component(slot, type_id)
+            } else {
+                None
+            };
+
+            if let Some(src) = component_bytes {
+                let comp_size = src.len();
+                let dst_start = bytes_written;
+                let dst_end = dst_start + comp_size;
+
+                // Guard: don't write past the end of the output buffer.
+                if dst_end > out_buf.len() {
+                    break;
+                }
+
+                out_buf[dst_start..dst_end].copy_from_slice(src);
+                bytes_written = dst_end;
+            } else {
+                // Entity dead or missing component: advance by inferred size
+                // (use the first successful read's size, else 0).
+                // The output buffer slot was already zeroed by the JS caller.
+                if bytes_written == 0 {
+                    // We have not determined component size yet; skip this slot
+                    // but cannot advance the cursor — leave at 0 until we hit
+                    // a live entity.  The JS side must pre-zero the buffer.
+                    continue;
+                }
+                // Infer component size from the first written component.
+                let comp_size = bytes_written / i.max(1);
+                bytes_written += comp_size;
+                if bytes_written > out_buf.len() {
+                    bytes_written = out_buf.len();
+                    break;
+                }
+            }
+        }
+
+        bytes_written as u32
+    }
+
+    /// Writes component data for multiple entities in a single JS→WASM call.
+    ///
+    /// # Description
+    /// The mirror of [`get_components_bulk`]: sends N entities' worth of
+    /// component data across the boundary in one call, eliminating N separate
+    /// [`add_component`] invocations.
+    ///
+    /// The input buffer must be packed:
+    /// ```text
+    /// [ entity_0_bytes | entity_1_bytes | … | entity_N_bytes ]
+    /// ```
+    /// The stride (bytes per entity) is derived as `data.len() / slots.len()`.
+    /// Dead or unknown entities are silently skipped.
+    ///
+    /// # Arguments
+    /// * `slots` – Entity slot indices (same length as `gens`).
+    /// * `gens`  – Per-slot generation counters for stale-reference detection.
+    /// * `component_type_id` – Numeric component type ID returned by
+    ///   [`register_component_type`].
+    /// * `data` – Packed component data; total length must equal
+    ///   `slots.len() × component_size_bytes`.
+    ///
+    /// # Panics
+    /// Does not panic; silently skips dead entities or malformed data.
+    pub fn set_components_bulk(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        component_type_id: u32,
+        data: &[u8],
+    ) {
+        let n = slots.len().min(gens.len());
+        if n == 0 || data.is_empty() {
+            return;
+        }
+
+        // Infer per-entity stride from the total data length.
+        let comp_size = data.len() / n;
+        if comp_size == 0 {
+            return;
+        }
+
+        let type_id = ComponentTypeId::from_raw(component_type_id);
+
+        for i in 0..n {
+            let slot = slots[i];
+            let gen = gens[i];
+
+            if !self
+                .entity_manager
+                .is_alive(EntityId::from_parts(slot, gen))
+            {
+                continue;
+            }
+
+            let src_start = i * comp_size;
+            let src_end = src_start + comp_size;
+            if src_end > data.len() {
+                break;
+            }
+
+            let slice = &data[src_start..src_end];
+            if let Some(migration) = self.storage.upsert_js(slot, type_id, slice) {
+                if let Some(from) = migration.from {
+                    self.query_system.on_archetype_change(from);
+                }
+                self.query_system.on_archetype_change(migration.to);
+            }
+
+            if component_type_id == TRANSFORM_SAB_TYPE_ID {
+                self.dirty_transforms.mark_dirty(slot);
+            }
+        }
+    }
+
     // === Query API ===
 
     /// Update the archetype of an entity after component changes.

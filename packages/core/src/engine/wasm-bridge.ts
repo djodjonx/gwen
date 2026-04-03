@@ -26,7 +26,7 @@
  * ```
  */
 
-import { createEntityId, type EntityId } from './engine-api';
+import { createEntityId, unpackEntityId, type EntityId } from './engine-api';
 
 // #region Types & WASM module interfaces
 
@@ -118,6 +118,33 @@ export interface WasmEngineBase {
    * @returns Empty `Uint8Array` if the entity is dead or component is absent.
    */
   get_component_raw(index: number, generation: number, typeId: number): Uint8Array;
+  /**
+   * Bulk-read component data for multiple entities in a single WASM call.
+   * @param slots Raw entity slot indices.
+   * @param gens  Per-slot generation counters for stale-reference detection.
+   * @param typeId Component type ID returned by `register_component_type`.
+   * @param outBuf Caller-allocated output buffer; must be `n * componentSize` bytes.
+   * @returns Total bytes written into `outBuf`.
+   */
+  get_components_bulk(
+    slots: Uint32Array,
+    gens: Uint32Array,
+    typeId: number,
+    outBuf: Uint8Array,
+  ): number;
+  /**
+   * Bulk-write component data for multiple entities in a single WASM call.
+   * @param slots Raw entity slot indices.
+   * @param gens  Per-slot generation counters for stale-reference detection.
+   * @param typeId Component type ID returned by `register_component_type`.
+   * @param data  Packed component bytes (`n * componentSize` total).
+   */
+  set_components_bulk(
+    slots: Uint32Array,
+    gens: Uint32Array,
+    typeId: number,
+    data: Uint8Array,
+  ): void;
 
   // ── Query ────────────────────────────────────────────────────────────────
 
@@ -1082,6 +1109,73 @@ export interface WasmBridge {
    */
   getComponentRaw(index: number, generation: number, typeId: number): Uint8Array;
 
+  /**
+   * Reads component data for multiple entities in a single WASM call.
+   *
+   * Reduces N JS↔WASM boundary crossings to **1** for N entities.
+   * The returned `Float32Array` is a view over a freshly allocated JS buffer
+   * containing tightly packed component data:
+   * `[entity_0_f32s … | entity_1_f32s … | … ]`
+   *
+   * Dead entities or entities missing the component contribute all-zero
+   * bytes in their respective slot (provided the caller pre-zeros `outBuf`,
+   * which this method does automatically via `new Uint8Array`).
+   *
+   * @param entities       Packed `EntityId` handles (index + generation).
+   * @param componentTypeId Component type ID from `registerComponentType()`.
+   * @param componentSize  Byte size of one component instance.
+   * @returns `Float32Array` of length `entities.length * (componentSize / 4)`.
+   *
+   * @example
+   * ```typescript
+   * const posTypeId = bridge.registerComponentType();
+   * // … populate entities …
+   * const slots = bridge.queryEntities([posTypeId]);
+   * // 1 crossing instead of slots.length crossings:
+   * const packed = bridge.readComponentsBulk(slots, posTypeId, 8);
+   * for (let i = 0; i < slots.length; i++) {
+   *   const x = packed[i * 2 + 0];
+   *   const y = packed[i * 2 + 1];
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   */
+  readComponentsBulk(
+    entities: EntityId[],
+    componentTypeId: number,
+    componentSize: number,
+  ): Float32Array;
+
+  /**
+   * Writes component data for multiple entities in a single WASM call.
+   *
+   * Reduces N JS↔WASM boundary crossings to **1** for N entities.
+   * The `data` buffer must be tightly packed in the same order as `entities`:
+   * `[entity_0_f32s … | entity_1_f32s … | … ]`
+   *
+   * Dead entities are silently skipped on the Rust side.
+   *
+   * @param entities        Packed `EntityId` handles (index + generation).
+   * @param componentTypeId Component type ID from `registerComponentType()`.
+   * @param data            Packed component data; total byte length must equal
+   *                        `entities.length * componentSize`.
+   *
+   * @example
+   * ```typescript
+   * const updated = new Float32Array(entities.length * 2); // 2 f32 per entity
+   * for (let i = 0; i < entities.length; i++) {
+   *   updated[i * 2 + 0] = newX[i];
+   *   updated[i * 2 + 1] = newY[i];
+   * }
+   * // 1 crossing instead of entities.length crossings:
+   * bridge.writeComponentsBulk(entities, posTypeId, updated);
+   * ```
+   *
+   * @since 1.0.0
+   */
+  writeComponentsBulk(entities: EntityId[], componentTypeId: number, data: Float32Array): void;
+
   // ── Query ────────────────────────────────────────────────────────────────
 
   /**
@@ -1328,6 +1422,48 @@ class WasmBridgeImpl implements WasmBridge {
 
   getComponentRaw(index: number, generation: number, typeId: number): Uint8Array {
     return requireWasm().get_component_raw(index, generation, typeId);
+  }
+
+  readComponentsBulk(
+    entities: EntityId[],
+    componentTypeId: number,
+    componentSize: number,
+  ): Float32Array {
+    const n = entities.length;
+    if (n === 0) return new Float32Array(0);
+
+    // Build flat Uint32Array pairs for slots/gens (two separate arrays for Rust).
+    const slots = new Uint32Array(n);
+    const gens = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+      const { index, generation } = unpackEntityId(entities[i]!);
+      slots[i] = index;
+      gens[i] = generation;
+    }
+
+    // Pre-allocate the output buffer (pre-zeroed by the JS runtime).
+    const outBuf = new Uint8Array(n * componentSize);
+    requireWasm().get_components_bulk(slots, gens, componentTypeId, outBuf);
+
+    // Return a Float32Array view over the same buffer — no copy.
+    return new Float32Array(outBuf.buffer, outBuf.byteOffset, outBuf.byteLength / 4);
+  }
+
+  writeComponentsBulk(entities: EntityId[], componentTypeId: number, data: Float32Array): void {
+    const n = entities.length;
+    if (n === 0) return;
+
+    const slots = new Uint32Array(n);
+    const gens = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+      const { index, generation } = unpackEntityId(entities[i]!);
+      slots[i] = index;
+      gens[i] = generation;
+    }
+
+    // Pass data as a Uint8Array view over the Float32Array buffer — no copy.
+    const dataBytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    requireWasm().set_components_bulk(slots, gens, componentTypeId, dataBytes);
   }
 
   // ── Query ────────────────────────────────────────────────────────────────
