@@ -50,6 +50,24 @@ export interface ActorPluginOptions {
 }
 
 /**
+ * Options for the `gwen:layout` sub-plugin.
+ */
+export interface GwenLayoutOptions {
+  /**
+   * Glob patterns for layout source files.
+   * @default ['src/layouts/**\/*.ts', 'src/**\/*.layout.ts']
+   */
+  include?: string[];
+
+  /**
+   * Disable debug name injection (default: false).
+   * When `false`, `defineLayout(...)` calls are wrapped with `Object.assign(..., { __layoutName__: 'Name' })`.
+   * @default false
+   */
+  disableNameInjection?: boolean;
+}
+
+/**
  * Top-level options for the `gwenVitePlugin` / individual sub-plugins.
  */
 export interface GwenViteOptions {
@@ -83,4 +101,7 @@ export interface GwenViteOptions {
 
   /** Options for the actor auto-discovery sub-plugin. */
   actors?: ActorPluginOptions;
+
+  /** Options for the layout virtual module sub-plugin. */
+  layout?: GwenLayoutOptions;
 }
