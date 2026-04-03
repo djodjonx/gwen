@@ -36,6 +36,7 @@ export default defineConfig({
           { text: 'Systems', link: '/core/systems' },
           { text: 'Prefabs', link: '/core/prefabs' },
           { text: 'Scenes', link: '/core/scenes' },
+          { text: 'Layouts', link: '/guide/layouts' },
         ],
       },
       {
@@ -53,6 +54,7 @@ export default defineConfig({
           { text: 'Helpers (define*)', link: '/api/helpers' },
           { text: 'Composables (use*)', link: '/api/composables' },
           { text: 'Engine API', link: '/api/engine' },
+          { text: 'Layout API', link: '/api/layout' },
         ],
       },
       {
