@@ -16,7 +16,7 @@
  * ```
  */
 
-import type { SystemDefinition } from './system';
+import type { GwenPlugin } from './engine/gwen-engine';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ export interface SceneDefinition {
   /** Unique scene name used by the engine router. */
   readonly name: string;
   /** Systems that run each frame while this scene is active. */
-  readonly systems: SystemDefinition[];
+  readonly systems: GwenPlugin[];
 }
 
 /**
@@ -46,7 +46,7 @@ export interface SceneOptions {
   /** Unique scene name. */
   name: string;
   /** Systems that run each frame while this scene is active. */
-  systems?: SystemDefinition[];
+  systems?: GwenPlugin[];
 }
 
 /**
@@ -89,7 +89,7 @@ export interface SceneFactory {
  */
 export function defineScene(
   name: string,
-  factory: (registry: SceneRegistry) => { systems?: SystemDefinition[] },
+  factory: (registry: SceneRegistry) => { systems?: GwenPlugin[] },
 ): SceneFactory;
 
 /**
@@ -109,7 +109,7 @@ export function defineScene(options: SceneOptions): SceneDefinition;
 
 export function defineScene(
   nameOrOptions: string | SceneOptions,
-  factory?: (registry: SceneRegistry) => { systems?: SystemDefinition[] },
+  factory?: (registry: SceneRegistry) => { systems?: GwenPlugin[] },
 ): SceneFactory | SceneDefinition {
   if (typeof nameOrOptions === 'string') {
     // Factory form: defineScene('Name', factory)
