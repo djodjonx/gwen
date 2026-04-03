@@ -13,6 +13,7 @@ vi.mock('@react-three/fiber', () => ({
   },
 }));
 
+// Import from the legacy adapter directly so the GwenEngineLike mock is compatible.
 import {
   GwenProvider,
   GwenLoop,
@@ -24,7 +25,7 @@ import {
   useComponentValue,
   useEntityTransform,
   type GwenEngineLike,
-} from '../src/index';
+} from '../src/adapter';
 
 interface EngineMockControls {
   setQuery(ids: Array<string | number | bigint>): void;
