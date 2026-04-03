@@ -7,11 +7,11 @@
 
 /** All system file contents indexed by their relative path under `src/systems/`. */
 export interface SystemTemplates {
-  'movement.ts': string
-  'input.ts': string
-  'collision.ts': string
-  'spawn.ts': string
-  'render.ts': string
+  'movement.ts': string;
+  'input.ts': string;
+  'collision.ts': string;
+  'spawn.ts': string;
+  'render.ts': string;
 }
 
 /**
@@ -26,7 +26,7 @@ export function systemsTemplate(): SystemTemplates {
     'collision.ts': collisionSystem(),
     'spawn.ts': spawnSystem(),
     'render.ts': renderSystem(),
-  }
+  };
 }
 
 // ─── Movement system ──────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ export const MovementSystem = defineSystem(function MovementSystem() {
     }
   })
 })
-`
+`;
 }
 
 // ─── Input system ─────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ export const InputSystem = defineSystem(function InputSystem() {
     }
   })
 })
-`
+`;
 }
 
 // ─── Collision system ─────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ export const CollisionSystem = defineSystem(function CollisionSystem() {
     }
   })
 })
-`
+`;
 }
 
 // ─── Spawn system ─────────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ export const SpawnSystem = defineSystem(function SpawnSystem() {
     engine.addComponent(id, AsteroidTag, { radius, rotation: 0, rotSpeed })
   })
 })
-`
+`;
 }
 
 // ─── Render system ────────────────────────────────────────────────────────────
@@ -523,5 +523,5 @@ export const RenderSystem = defineSystem(function RenderSystem() {
     }
   })
 })
-`
+`;
 }

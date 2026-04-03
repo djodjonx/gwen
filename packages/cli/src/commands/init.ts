@@ -6,4 +6,4 @@
  *
  * All logic and templates now live under `commands/init/`.
  */
-export { initCommand } from './init/index.js'
+export { initCommand } from './init/index.js';

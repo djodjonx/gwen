@@ -265,14 +265,19 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
 
       const getComp = (_engine as any).getComponent as (id: EntityId, name: string) => unknown;
 
-      const entities = [..._engine.createLiveQuery(['transform'])] as EntityId[];
-      const sorted = entities.slice().sort((a: EntityId, b: EntityId) => {
-        const sa = getComp(a, 'sprite') as SpriteComponent | undefined;
-        const sb = getComp(b, 'sprite') as SpriteComponent | undefined;
+      // String-based live query — renderer doesn't own typed ComponentDef objects.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const liveQuery = (_engine as any).createLiveQuery(['transform']) as Iterable<{
+        id: EntityId;
+      }>;
+      const entities = [...liveQuery];
+      const sorted = entities.slice().sort((a, b) => {
+        const sa = getComp(a.id, 'sprite') as SpriteComponent | undefined;
+        const sb = getComp(b.id, 'sprite') as SpriteComponent | undefined;
         return (sa?.zOrder ?? 0) - (sb?.zOrder ?? 0);
       });
 
-      for (const id of sorted) {
+      for (const { id } of sorted) {
         const transform = getComp(id, 'transform') as TransformComponent | undefined;
         if (!transform) continue;
         const sprite = getComp(id, 'sprite') as SpriteComponent | undefined;

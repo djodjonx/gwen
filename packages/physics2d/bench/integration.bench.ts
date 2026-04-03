@@ -52,6 +52,7 @@ function makeMockPhysics(): Physics2DAPI {
       droppedSinceLastRead: 0,
       droppedCritical: 0,
       droppedNonCritical: 0,
+      coalesced: false,
       events: [],
     }),
     getCollisionContacts: () => [],
@@ -124,6 +125,7 @@ function makeBatch(events: CollisionEvent[]): CollisionEventsBatch {
     droppedSinceLastRead: 0,
     droppedCritical: 0,
     droppedNonCritical: 0,
+    coalesced: false,
     events,
   };
 }

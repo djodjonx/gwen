@@ -27,31 +27,31 @@
  * ```
  */
 
-import fs from 'node:fs/promises'
-import path from 'node:path'
-import { readPackageJSON } from 'pkg-types'
-import { consola } from 'consola'
-import { defineCommand } from 'citty'
-import { logger } from '../../utils/logger.js'
-import { packageJsonTemplate } from './templates/package-json.js'
-import { tsconfigTemplate } from './templates/tsconfig.js'
-import { oxlintTemplate } from './templates/oxlint.js'
-import { oxfmtTemplate } from './templates/oxfmt.js'
-import { gwenConfigTemplate } from './templates/gwen-config.js'
-import { readmeTemplate } from './templates/readme.js'
-import { componentsTemplate } from './templates/game/components.js'
-import { systemsTemplate } from './templates/game/systems.js'
-import { sceneTemplate } from './templates/game/scene.js'
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { readPackageJSON } from 'pkg-types';
+import { consola } from 'consola';
+import { defineCommand } from 'citty';
+import { logger } from '../../utils/logger.js';
+import { packageJsonTemplate } from './templates/package-json.js';
+import { tsconfigTemplate } from './templates/tsconfig.js';
+import { oxlintTemplate } from './templates/oxlint.js';
+import { oxfmtTemplate } from './templates/oxfmt.js';
+import { gwenConfigTemplate } from './templates/gwen-config.js';
+import { readmeTemplate } from './templates/readme.js';
+import { componentsTemplate } from './templates/game/components.js';
+import { systemsTemplate } from './templates/game/systems.js';
+import { sceneTemplate } from './templates/game/scene.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Read the CLI's own published version to stamp into scaffolded package.json. */
 async function getGwenVersion(): Promise<string> {
   try {
-    const pkg = await readPackageJSON(new URL('../..', import.meta.url).pathname)
-    return pkg.version ?? '1.0.0'
+    const pkg = await readPackageJSON(new URL('../..', import.meta.url).pathname);
+    return pkg.version ?? '1.0.0';
   } catch {
-    return '1.0.0'
+    return '1.0.0';
   }
 }
 
@@ -62,8 +62,8 @@ async function getGwenVersion(): Promise<string> {
  * @param content  - UTF-8 content to write.
  */
 async function write(filePath: string, content: string): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, content, 'utf8')
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, content, 'utf8');
 }
 
 // ─── Module list ──────────────────────────────────────────────────────────────
@@ -79,9 +79,9 @@ const OPTIONAL_MODULES = [
   { value: '@gwenjs/audio', label: 'Audio', hint: 'Web Audio API integration' },
   { value: '@gwenjs/r3f', label: 'React Three Fiber', hint: 'R3F renderer adapter' },
   { value: '@gwenjs/debug', label: 'Debug overlay', hint: 'Performance HUD and inspector' },
-]
+];
 
-const VALID_MODULE_VALUES = new Set(OPTIONAL_MODULES.map((m) => m.value))
+const VALID_MODULE_VALUES = new Set(OPTIONAL_MODULES.map((m) => m.value));
 
 // ─── Command ──────────────────────────────────────────────────────────────────
 
@@ -99,31 +99,30 @@ export const initCommand = defineCommand({
     },
     modules: {
       type: 'string',
-      description:
-        'Comma-separated list of optional modules to include (skips interactive prompt)',
+      description: 'Comma-separated list of optional modules to include (skips interactive prompt)',
       alias: 'm',
     },
   },
   async run({ args }) {
     // ── Project name ─────────────────────────────────────────────────────────
-    let name = (args.name as string | undefined)?.trim() ?? ''
+    let name = (args.name as string | undefined)?.trim() ?? '';
 
     if (!name) {
       name = (await consola.prompt('Project name:', {
         type: 'text',
         default: 'my-game',
-      })) as string
-      name = name.trim()
+      })) as string;
+      name = name.trim();
     }
 
     if (!name) {
-      logger.error('[GWEN:init] Project name cannot be empty.')
-      process.exit(1)
+      logger.error('[GWEN:init] Project name cannot be empty.');
+      process.exit(1);
     }
 
     // ── Optional module selection ─────────────────────────────────────────────
-    let extraModules: string[]
-    const modulesArg = (args.modules as string | undefined)?.trim()
+    let extraModules: string[];
+    const modulesArg = (args.modules as string | undefined)?.trim();
 
     if (modulesArg !== undefined) {
       extraModules = modulesArg
@@ -132,57 +131,57 @@ export const initCommand = defineCommand({
             .map((m) => m.trim())
             .filter((m) => {
               if (!VALID_MODULE_VALUES.has(m)) {
-                logger.warn(`[GWEN:init] Unknown module "${m}" ignored.`)
-                return false
+                logger.warn(`[GWEN:init] Unknown module "${m}" ignored.`);
+                return false;
               }
-              return true
+              return true;
             })
-        : []
+        : [];
     } else {
       extraModules = (await consola.prompt('Select optional modules:', {
         type: 'multiselect',
         options: OPTIONAL_MODULES,
-      })) as unknown as string[]
+      })) as unknown as string[];
     }
 
-    const projectDir = path.join(process.cwd(), name)
+    const projectDir = path.join(process.cwd(), name);
 
-    logger.info(`Creating project in ${projectDir} …`)
+    logger.info(`Creating project in ${projectDir} …`);
 
     // ── Generate files ────────────────────────────────────────────────────────
-    const gwenVersion = await getGwenVersion()
+    const gwenVersion = await getGwenVersion();
 
     // Config files (project root)
-    await write(path.join(projectDir, 'package.json'), packageJsonTemplate(name, gwenVersion, extraModules))
-    await write(path.join(projectDir, 'tsconfig.json'), tsconfigTemplate())
-    await write(path.join(projectDir, 'oxlint.json'), oxlintTemplate())
-    await write(path.join(projectDir, '.oxfmtrc.json'), oxfmtTemplate())
-    await write(path.join(projectDir, 'gwen.config.ts'), gwenConfigTemplate(extraModules))
-    await write(path.join(projectDir, 'README.md'), readmeTemplate(name))
+    await write(
+      path.join(projectDir, 'package.json'),
+      packageJsonTemplate(name, gwenVersion, extraModules),
+    );
+    await write(path.join(projectDir, 'tsconfig.json'), tsconfigTemplate());
+    await write(path.join(projectDir, 'oxlint.json'), oxlintTemplate());
+    await write(path.join(projectDir, '.oxfmtrc.json'), oxfmtTemplate());
+    await write(path.join(projectDir, 'gwen.config.ts'), gwenConfigTemplate(extraModules));
+    await write(path.join(projectDir, 'README.md'), readmeTemplate(name));
 
     // Game source — components
-    await write(
-      path.join(projectDir, 'src', 'components', 'game.ts'),
-      componentsTemplate(),
-    )
+    await write(path.join(projectDir, 'src', 'components', 'game.ts'), componentsTemplate());
 
     // Game source — systems
-    const systems = systemsTemplate()
+    const systems = systemsTemplate();
     for (const [filename, content] of Object.entries(systems)) {
-      await write(path.join(projectDir, 'src', 'systems', filename), content)
+      await write(path.join(projectDir, 'src', 'systems', filename), content);
     }
 
     // Game source — scene
-    await write(path.join(projectDir, 'src', 'scenes', 'game.ts'), sceneTemplate())
+    await write(path.join(projectDir, 'src', 'scenes', 'game.ts'), sceneTemplate());
 
     // ── Done ──────────────────────────────────────────────────────────────────
-    logger.success(`✓ Project "${name}" created successfully.`)
-    logger.info('')
-    logger.info('  Next steps:')
-    logger.info(`    cd ${name}`)
-    logger.info('    pnpm install')
-    logger.info('    pnpm dev')
-    logger.info('')
-    logger.info('  Open http://localhost:5173 to play the Starfield Shooter landing game.')
+    logger.success(`✓ Project "${name}" created successfully.`);
+    logger.info('');
+    logger.info('  Next steps:');
+    logger.info(`    cd ${name}`);
+    logger.info('    pnpm install');
+    logger.info('    pnpm dev');
+    logger.info('');
+    logger.info('  Open http://localhost:5173 to play the Starfield Shooter landing game.');
   },
-})
+});
