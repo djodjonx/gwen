@@ -90,7 +90,9 @@ packages/vite/src/optimizer/
   └── types.ts                           ← Internal optimizer types
 
 crates/gwen-core/src/
-  ├── bulk_ops.rs                        ← New: bulk ECS operations (see §5)
+  ├── bulk_ops.rs                        ← New: pure ECS bulk ops — no physics dep (see §5)
+  ├── bulk_ops_physics2d.rs              ← New: physics2d bulk ops (feature = "physics2d")
+  ├── bulk_ops_physics3d.rs              ← New: physics3d bulk ops (feature = "physics3d")
   ├── query_buffer.rs                    ← Existing: static query buffer
   └── bindings.rs                        ← Existing: wasm_bindgen exports
 ```
@@ -267,17 +269,43 @@ onUpdate((dt) => {
 
 ## 6. New Rust Bulk APIs Required
 
-The existing `get_components_bulk` / `set_components_bulk` cover most cases. The following additional APIs need to be implemented in `crates/gwen-core/src/bulk_ops.rs`.
+The existing `get_components_bulk` / `set_components_bulk` cover most cases. The following additional APIs need to be implemented, **split across three modules** matching the three engine tiers.
 
-### Design Principles for Rust APIs
+### Engine Tiers
+
+```
+Tier 1 — Core only       crates/gwen-core/src/bulk_ops.rs
+                          Feature flags: none (always compiled)
+                          Bundle: ~30KB WASM gzip
+                          Depends on: ECS archetype store only
+
+Tier 2 — Core + Physics2D crates/gwen-core/src/bulk_ops_physics2d.rs
+                          Feature flags: #[cfg(feature = "physics2d")]
+                          Bundle: ~120KB WASM gzip (adds Rapier2D)
+                          Depends on: bulk_ops.rs + Rapier2D
+
+Tier 3 — Core + Physics3D crates/gwen-core/src/bulk_ops_physics3d.rs
+                          Feature flags: #[cfg(feature = "physics3d")]
+                          Bundle: ~280KB WASM gzip (adds Rapier3D)
+                          Depends on: bulk_ops.rs + Rapier3D
+```
+
+The Vite plugin reads which tier is active from `gwen.config.ts` and emits code accordingly — it never emits `bulk_physics2d_*` calls for a core-only project.
+
+---
+
+### Design Principles for all Rust Bulk APIs
 
 - **No allocations in hot paths** — all output goes into caller-provided buffers
 - **Single WASM export per operation** — no multi-call protocols
 - **Stable binary interface** — changes require version bump in `Cargo.toml`
-- **Documented stride and layout** — every function must document its buffer layout in its doc comment
-- **Separate module** — `bulk_ops.rs` is isolated from `bindings.rs` for clarity
+- **Documented stride and layout** — every function MUST document its buffer layout in its Rust doc comment
+- **Tier isolation** — `bulk_ops.rs` must NOT import anything from `physics2d/` or `physics3d/`
+- **Test file per module** — `tests/bulk_ops_tests.rs`, `tests/bulk_ops_physics2d_tests.rs`, etc.
 
-### API Catalogue
+---
+
+### Tier 1 — `bulk_ops.rs` (pure ECS, no physics)
 
 #### Already exists (do NOT change signatures — used by WasmBridge)
 
@@ -308,20 +336,20 @@ pub fn query_entities_to_buffer(component_type_ids: &[u32]) -> u32
 pub fn get_query_result_ptr() -> *const u32
 ```
 
-#### To implement — Archetype-Aware Bulk Ops
+#### To implement in `bulk_ops.rs`
 
 ```rust
-/// Read multiple component types for all entities matching a query in one call.
+/// Read multiple component types for all entities matching a query in ONE call.
 ///
-/// # Buffer layout (out_buf)
-/// `[component_A_for_e0 | component_B_for_e0 | ... | component_A_for_e1 | ...]`
-/// Interleaved by entity (AoS layout for cache friendliness when reading all
-/// components of one entity together, e.g., physics integration).
+/// # Buffer layout (out_buf) — AoS interleaved by entity
+/// `[compA_e0 | compB_e0 | ... | compA_e1 | compB_e1 | ...]`
+/// Stride per entity = sum(component_sizes).
+/// Dead entities → zero-filled slot.
 ///
 /// # Arguments
-/// - `component_type_ids`: component types to read (in order)
-/// - `component_sizes`: byte size per component (same order)
-/// - `out_buf`: pre-allocated by caller, length = entity_count × sum(component_sizes)
+/// - `component_type_ids`: types to read (in order, length N)
+/// - `component_sizes`: byte size per type (same order, length N)
+/// - `out_buf`: caller-allocated, length = entity_count × sum(component_sizes)
 /// - Returns: number of entities written
 #[wasm_bindgen]
 pub fn query_read_components_bulk(
@@ -332,16 +360,15 @@ pub fn query_read_components_bulk(
 ```
 
 ```rust
-/// Write multiple component types for all currently-queried entities in one call.
-/// Must be called after `query_entities_to_buffer` (uses same entity set).
+/// Write multiple component types for the last-queried entity set in ONE call.
+/// Must be called after `query_entities_to_buffer` (reuses its result buffer).
 ///
-/// # Buffer layout (data)
-/// Same interleaved AoS layout as `query_read_components_bulk`.
+/// # Buffer layout (data) — same AoS interleaved layout as query_read_components_bulk
 ///
 /// # Arguments
-/// - `component_type_ids`: component types to write
-/// - `component_sizes`: byte size per component
-/// - `data`: packed component data
+/// - `component_type_ids`: types to write
+/// - `component_sizes`: byte size per type
+/// - `data`: packed component data, length = entity_count × sum(component_sizes)
 #[wasm_bindgen]
 pub fn query_write_components_bulk(
     component_type_ids: &[u32],
@@ -351,11 +378,12 @@ pub fn query_write_components_bulk(
 ```
 
 ```rust
-/// Compute linear velocity integration for all entities matching a query.
-/// This is the canonical "Movement System" operation, entirely in WASM.
+/// Integrate velocity into position for all entities matching the query.
+/// Fully in WASM — zero JS loop, zero boundary crossings for entity data.
 ///
-/// Reads Position + Velocity components, integrates, writes Position.
-/// Layout expected: Position = { x: f32, y: f32 }, Velocity = { x: f32, y: f32 }
+/// Expected component schemas (f32, little-endian):
+///   Position: { x: f32, y: f32 }  — 8 bytes
+///   Velocity: { x: f32, y: f32 }  — 8 bytes
 ///
 /// # Arguments
 /// - `position_type_id`: registered component type ID for Position
@@ -363,10 +391,17 @@ pub fn query_write_components_bulk(
 /// - `delta_time`: frame delta in seconds
 /// - Returns: number of entities updated
 ///
-/// This is a Tier-2 API (physics-independent). For full physics, use the
-/// physics2d/3d step functions instead.
+/// NOTE: This is physics-INDEPENDENT movement (kinematic, not simulated).
+/// For Rapier-simulated bodies, use `physics2d_step` / `physics3d_step` instead.
 #[wasm_bindgen]
 pub fn bulk_integrate_velocity_2d(
+    position_type_id: u32,
+    velocity_type_id: u32,
+    delta_time: f32,
+) -> u32
+
+#[wasm_bindgen]
+pub fn bulk_integrate_velocity_3d(
     position_type_id: u32,
     velocity_type_id: u32,
     delta_time: f32,
@@ -374,58 +409,206 @@ pub fn bulk_integrate_velocity_2d(
 ```
 
 ```rust
-/// Apply a uniform transform (translation + rotation + scale) to a set of entities.
-/// Designed for camera, particle systems, and non-physics movement.
+/// Apply a delta transform (translate + rotate) to a set of entities in ONE call.
+/// For non-physics movement: camera pan, parallax layers, UI elements.
 ///
 /// # Arguments
-/// - `entity_slots`: raw entity slot indices (from query buffer)
-/// - `entity_gens`: generation counters (must match)
-/// - `transform_type_id`: registered type ID for the Transform component
-/// - `delta_x`, `delta_y`: translation delta
+/// - `entity_slots`: raw slot indices (from query buffer)
+/// - `entity_gens`: generation counters (parallel array to slots)
+/// - `transform_type_id`: registered type ID for Transform component
+/// - `delta_x`, `delta_y`: world-space translation delta
 /// - `delta_rotation`: rotation delta in radians
 #[wasm_bindgen]
 pub fn bulk_apply_transform_2d(
-    entity_slots: &[u32],
-    entity_gens: &[u32],
+    entity_slots: &[u32], entity_gens: &[u32],
     transform_type_id: u32,
-    delta_x: f32,
-    delta_y: f32,
-    delta_rotation: f32,
+    delta_x: f32, delta_y: f32, delta_rotation: f32,
+)
+
+#[wasm_bindgen]
+pub fn bulk_apply_transform_3d(
+    entity_slots: &[u32], entity_gens: &[u32],
+    transform_type_id: u32,
+    delta_x: f32, delta_y: f32, delta_z: f32,
+    delta_qx: f32, delta_qy: f32, delta_qz: f32, delta_qw: f32,
 )
 ```
 
-### Module Structure for `bulk_ops.rs`
+### Module header for `bulk_ops.rs`
 
 ```rust
 // crates/gwen-core/src/bulk_ops.rs
 //
-// Bulk ECS operations — all WASM-exported functions that operate on
-// multiple entities in one call.
+// Tier 1 — Pure ECS bulk operations.
+// NO physics imports. NO Rapier dependency.
 //
 // MAINTENANCE RULES:
-// 1. Never change an existing function signature without bumping WASM_API_VERSION.
-// 2. New functions go at the bottom to keep existing offsets stable.
-// 3. Every function MUST document its buffer layout in the doc comment.
-// 4. No allocations inside hot paths — use pre-allocated buffers only.
-// 5. Test every function in tests/bulk_ops_tests.rs before merging.
-
-mod bulk_ops {
-  // ... implementations
-}
+//   1. Never change an existing function signature — bump WASM_API_VERSION if you must.
+//   2. New functions go at the bottom (stable ABI ordering).
+//   3. Every function MUST document its buffer layout in the doc comment.
+//   4. No allocations inside function bodies — use static/pre-allocated buffers only.
+//   5. Tests live in crates/gwen-core/tests/bulk_ops_tests.rs.
+//   6. This file MUST NOT import from physics2d/ or physics3d/.
 ```
+
+---
+
+### Tier 2 — `bulk_ops_physics2d.rs` (`#[cfg(feature = "physics2d")]`)
+
+```rust
+// crates/gwen-core/src/bulk_ops_physics2d.rs
+//
+// Tier 2 — Physics2D bulk operations (requires Rapier2D).
+// Feature flag: physics2d
+//
+// MAINTENANCE RULES:
+//   Same as bulk_ops.rs, plus:
+//   7. Only import from Rapier2D and bulk_ops (Tier 1).
+//   8. Tests live in crates/gwen-core/tests/bulk_ops_physics2d_tests.rs.
+```
+
+```rust
+/// Synchronize all ECS Transform components → Rapier2D rigid bodies in ONE call.
+/// Call this BEFORE physics2d_step() each frame.
+///
+/// # Behaviour
+/// For each entity with both a Transform component and a registered Rapier body:
+///   - Copies (pos_x, pos_y, rotation) from ECS → Rapier body
+///   - Marks body as kinematic-position-based for this frame
+///
+/// # Arguments
+/// - `transform_type_id`: ECS component type ID for Transform
+/// - Returns: number of bodies synchronized
+#[cfg(feature = "physics2d")]
+#[wasm_bindgen]
+pub fn physics2d_bulk_sync_to_rapier(transform_type_id: u32) -> u32
+```
+
+```rust
+/// Synchronize all Rapier2D rigid body results → ECS Transform components in ONE call.
+/// Call this AFTER physics2d_step() each frame.
+///
+/// # Behaviour
+/// Reads (translation, rotation) from every simulated Rapier body and writes
+/// back to the corresponding ECS Transform component.
+///
+/// # Arguments
+/// - `transform_type_id`: ECS component type ID for Transform
+/// - Returns: number of components updated
+#[cfg(feature = "physics2d")]
+#[wasm_bindgen]
+pub fn physics2d_bulk_sync_from_rapier(transform_type_id: u32) -> u32
+```
+
+```rust
+/// Apply impulses to multiple bodies in ONE call.
+/// Useful for explosion radius, damage knockback, etc.
+///
+/// # Buffer layout (impulses) — AoS per entity
+/// `[impulse_x: f32 | impulse_y: f32]` per entity, 8 bytes total per entity.
+///
+/// # Arguments
+/// - `entity_slots`, `entity_gens`: target entity set
+/// - `impulses`: pre-packed impulse buffer
+#[cfg(feature = "physics2d")]
+#[wasm_bindgen]
+pub fn physics2d_bulk_apply_impulse(
+    entity_slots: &[u32], entity_gens: &[u32],
+    impulses: &[u8],
+)
+```
+
+---
+
+### Tier 3 — `bulk_ops_physics3d.rs` (`#[cfg(feature = "physics3d")]`)
+
+```rust
+// crates/gwen-core/src/bulk_ops_physics3d.rs
+//
+// Tier 3 — Physics3D bulk operations (requires Rapier3D).
+// Feature flag: physics3d
+//
+// MAINTENANCE RULES:
+//   Same as bulk_ops.rs, plus:
+//   7. Only import from Rapier3D and bulk_ops (Tier 1).
+//   8. Tests live in crates/gwen-core/tests/bulk_ops_physics3d_tests.rs.
+```
+
+```rust
+/// Synchronize ECS Transform3D → Rapier3D rigid bodies (position + quaternion).
+#[cfg(feature = "physics3d")]
+#[wasm_bindgen]
+pub fn physics3d_bulk_sync_to_rapier(transform_type_id: u32) -> u32
+
+/// Synchronize Rapier3D results → ECS Transform3D components.
+#[cfg(feature = "physics3d")]
+#[wasm_bindgen]
+pub fn physics3d_bulk_sync_from_rapier(transform_type_id: u32) -> u32
+
+/// Apply impulses to multiple 3D bodies.
+/// Buffer layout per entity: [ix: f32 | iy: f32 | iz: f32] = 12 bytes.
+#[cfg(feature = "physics3d")]
+#[wasm_bindgen]
+pub fn physics3d_bulk_apply_impulse(
+    entity_slots: &[u32], entity_gens: &[u32],
+    impulses: &[u8],
+)
+```
+
+---
+
+### Tier Separation in `lib.rs`
+
+```rust
+// crates/gwen-core/src/lib.rs
+
+mod bulk_ops;                           // Always included
+
+#[cfg(feature = "physics2d")]
+mod bulk_ops_physics2d;
+
+#[cfg(feature = "physics3d")]
+mod bulk_ops_physics3d;
+```
+
+### Module Structure for `bulk_ops.rs` (remove duplicate)
+
+See Tier Separation in `lib.rs` above — that block supersedes this.
 
 ---
 
 ## 7. The `gwen:optimizer` Vite Plugin
 
-### Plugin Lifecycle
+### Tier Awareness
+
+The plugin reads `gwen.config.ts` at `buildStart` to detect which WASM tier is active:
 
 ```ts
 // packages/vite/src/plugins/optimizer.ts
 
+type WasmTier = 'core' | 'physics2d' | 'physics3d'
+
+function detectTier(options: GwenViteOptions): WasmTier {
+  if (options.wasm?.some(m => m.name === 'physics3d')) return 'physics3d'
+  if (options.wasm?.some(m => m.name === 'physics2d')) return 'physics2d'
+  return 'core'
+}
+```
+
+The tier determines which bulk call variants the code generator can emit:
+
+| Tier | Available bulk ops |
+|---|---|
+| `core` | `query_read_components_bulk`, `query_write_components_bulk`, `bulk_integrate_velocity_*`, `bulk_apply_transform_*` |
+| `physics2d` | All of core + `physics2d_bulk_sync_to_rapier`, `physics2d_bulk_sync_from_rapier`, `physics2d_bulk_apply_impulse` |
+| `physics3d` | All of core + `physics3d_bulk_sync_to_rapier`, `physics3d_bulk_sync_from_rapier`, `physics3d_bulk_apply_impulse` |
+
+### Plugin Lifecycle
+
+```ts
 export function gwenOptimizerPlugin(options: GwenViteOptions): Plugin {
-  // Build-time component manifest (populated during build start)
   const manifest = new ComponentManifestResolver()
+  const tier = detectTier(options)
 
   return {
     name: 'gwen:optimizer',
@@ -438,12 +621,10 @@ export function gwenOptimizerPlugin(options: GwenViteOptions): Plugin {
     },
 
     transform(code: string, id: string) {
-      // Only transform .ts / .tsx files
       if (!id.match(/\.(tsx?)$/)) return null
-      // Skip node_modules
       if (id.includes('node_modules')) return null
 
-      const optimizer = new GwenEcsOptimizer(code, id, manifest)
+      const optimizer = new GwenEcsOptimizer(code, id, manifest, tier)
       return optimizer.transform()
     },
   }
@@ -541,11 +722,17 @@ export const WASM_BULK_API_VERSION = 1  // increment when bulk_ops.rs changes si
 
 ### Adding a New Bulk Operation
 
-1. Add the Rust function to `crates/gwen-core/src/bulk_ops.rs`
+**Determine the correct tier first:**
+- Pure ECS (no Rapier) → `bulk_ops.rs`
+- Requires Rapier2D → `bulk_ops_physics2d.rs` with `#[cfg(feature = "physics2d")]`
+- Requires Rapier3D → `bulk_ops_physics3d.rs` with `#[cfg(feature = "physics3d")]`
+
+Then:
+1. Add the Rust function to the correct tier file
 2. Document buffer layout in the doc comment (see §6)
-3. Add tests in `crates/gwen-core/tests/bulk_ops_tests.rs`
+3. Add tests in the matching `tests/bulk_ops_*_tests.rs`
 4. Add the TypeScript wrapper in `packages/core/src/engine/wasm-bridge.ts`
-5. If the Vite optimizer can use it, add a pattern in `optimizer/pattern-detector.ts`
+5. If the Vite optimizer can use it, register it in `optimizer/pattern-detector.ts` with its tier
 6. Increment `WASM_BULK_API_VERSION` in wasm-bridge
 7. Update this document (§6 API catalogue)
 
@@ -602,31 +789,38 @@ Frame:
 
 > **This section tracks the phased rollout. Update status as work progresses.**
 
-### Phase 0 — Foundation (prerequisite)
+### Phase 0 — Foundation (prerequisite for all phases)
 - [ ] `defineComponent` exposes `_typeId`, `_byteSize`, `_f32Stride`, `_fields` at runtime
 - [ ] `ComponentManifest` buildable statically from `defineComponent` schema literals
-- [ ] Add `bulk_ops.rs` module with `query_read_components_bulk` + `query_write_components_bulk`
-- [ ] Add `queryReadBulk` / `queryWriteBulk` to `WasmBridge`
+- [ ] **Tier 1 Rust:** Add `bulk_ops.rs` with `query_read_components_bulk` + `query_write_components_bulk`
+- [ ] **Tier 1 Rust:** Add `bulk_integrate_velocity_2d/3d` + `bulk_apply_transform_2d/3d`
+- [ ] **Tier 2 Rust:** Add `bulk_ops_physics2d.rs` behind `#[cfg(feature = "physics2d")]`
+- [ ] **Tier 3 Rust:** Add `bulk_ops_physics3d.rs` behind `#[cfg(feature = "physics3d")]`
+- [ ] Wire the 3 modules into `lib.rs` with correct `#[cfg]` guards
+- [ ] Add `queryReadBulk` / `queryWriteBulk` to TypeScript `WasmBridge`
+- [ ] Rust unit tests: `tests/bulk_ops_tests.rs`, `tests/bulk_ops_physics2d_tests.rs`, `tests/bulk_ops_physics3d_tests.rs`
 
 ### Phase 1 — Level 2 Transform (highest ROI)
 - [ ] `ast-walker.ts`: parse TS files, detect `useQuery` + `for...of` + `e.get/set` pattern
 - [ ] `pattern-detector.ts`: classify loops as pure / impure
-- [ ] `code-generator.ts`: emit bulk read + plain loop + bulk write
+- [ ] `code-generator.ts`: emit tier-aware bulk read + plain loop + bulk write
+- [ ] `detectTier(options)` reads `gwen.config.ts` to select available ops
 - [ ] Source map support via `magic-string`
 - [ ] Tests: `tests/optimizer/level2.test.ts` (transform output verified)
-- [ ] Benchmark: MovementSystem 10K entities before/after
+- [ ] Benchmark: MovementSystem 10K entities — core / physics2d / physics3d tiers
 
 ### Phase 2 — Level 1 Transform
 - [ ] `ast-walker.ts`: detect `useComponent(X)` + property access in `onUpdate`
 - [ ] `code-generator.ts`: replace Proxy access with direct `ComponentDef._data[]` access
 - [ ] Tests: `tests/optimizer/level1.test.ts`
 
-### Phase 3 — WASM Built-ins (for common patterns)
-- [ ] `bulk_integrate_velocity_2d` Rust API + bindings
-- [ ] Pattern: detect velocity integration → emit single WASM call
-- [ ] `bulk_apply_transform_2d` for non-physics movement
+### Phase 3 — WASM Built-ins (canonical patterns → single WASM call)
+- [ ] Detect velocity integration pattern → emit `bulk_integrate_velocity_2d/3d` (Tier 1)
+- [ ] Detect physics sync bookend → emit `physics2d_bulk_sync_to_rapier` (Tier 2)
+- [ ] Detect impulse apply → emit `physics2d_bulk_apply_impulse` (Tier 2)
 
 ### Phase 4 — Polish
 - [ ] `@gwen-no-optimize` / `@gwen-force-bulk` annotations
 - [ ] Dev-mode warning when a transformable pattern is skipped
 - [ ] DevTools integration: label bulk calls in WASM profiling
+- [ ] Update `internals-docs/gwen-ecs-optimizer.md` with final API surface after Phase 3
