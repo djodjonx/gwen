@@ -8,6 +8,7 @@ describe('API surface (RFC-V2-013)', () => {
     expect(typeof core.getWasmBridge).toBe('function');
     expect(typeof core.defineSystem).toBe('function');
     expect(typeof core.defineScene).toBe('function');
+    expect(typeof core.definePrefab).toBe('function');
     expect(typeof core.detectCoreVariant).toBe('function');
     expect(typeof core.detectSharedMemoryRequired).toBe('function');
   });
@@ -22,6 +23,5 @@ describe('API surface (RFC-V2-013)', () => {
     expect('PluginDataBus' in core).toBe(false);
     expect('isWasmPlugin' in core).toBe(false);
     expect('ConfigBuilder' in core).toBe(false);
-    expect('definePrefab' in core).toBe(false);
   });
 });

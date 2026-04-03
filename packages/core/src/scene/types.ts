@@ -1,29 +1,9 @@
 // packages/core/src/scene/types.ts
 import type { GwenPlugin } from '../engine/gwen-engine.js';
 
-// ─── Prefab ───────────────────────────────────────────────────────────────────
-
-/**
- * A component entry in a prefab: component definition reference + default values.
- * Kept intentionally generic to avoid coupling to the ECS schema types.
- */
-export interface PrefabComponentEntry {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  def: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaults: Record<string, any>;
-}
-
-/**
- * Defines the memory layout of an actor: a list of components + default values.
- * Produced by `definePrefab()`.
- */
-export interface PrefabDefinition {
-  /** Debug name (injected by Vite transform, else 'anonymous'). */
-  readonly __prefabName__: string;
-  /** Declared components, in insertion order. */
-  readonly components: PrefabComponentEntry[];
-}
+// Prefab types live in core — re-exported here for convenience
+export type { PrefabComponentEntry, PrefabDefinition } from '../define-prefab.js';
+import type { PrefabDefinition } from '../define-prefab.js';
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 

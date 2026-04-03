@@ -51,6 +51,9 @@ export type {
   SceneRegistry,
 } from './scene/define-scene.js';
 
+export { definePrefab } from './define-prefab.js';
+export type { PrefabDefinition, PrefabComponentEntry } from './define-prefab.js';
+
 // WASM Bridge
 export {
   initWasm,
