@@ -56,11 +56,37 @@ export interface ActorInstance<PublicAPI = void> {
 }
 
 /**
+ * Actor plugin that extends {@link GwenPlugin} with `spawn` and `despawn` methods.
+ *
+ * These methods are not part of the standard `GwenPlugin` interface; they are
+ * exposed here for internal use by `defineActor` and `useActor`.
+ *
+ * @template Props - The props type accepted by `spawn`.
+ */
+export interface ActorPlugin<Props = void> extends GwenPlugin {
+  /**
+   * Spawn a new actor instance.
+   *
+   * @param props - Optional props forwarded to the actor factory.
+   * @returns The ECS entity ID of the spawned instance.
+   */
+  spawn(props?: Props): bigint;
+
+  /**
+   * Despawn the actor instance associated with the given entity ID.
+   * Calls all `_destroy` callbacks and event cleanups before destroying the entity.
+   *
+   * @param entityId - The entity ID returned by `spawn`.
+   */
+  despawn(entityId: bigint): void;
+}
+
+/**
  * Definition of an actor produced by `defineActor()`.
  */
 export interface ActorDefinition<Props = void, PublicAPI = void> {
   /** Internal ECS plugin — pass to `engine.use()`. */
-  readonly _plugin: GwenPlugin;
+  readonly _plugin: ActorPlugin<Props>;
   /** Live instance registry (entityId → instance). */
   readonly _instances: Map<bigint, ActorInstance<PublicAPI>>;
   /** Prefab declaring memory layout. */
