@@ -711,6 +711,26 @@ impl Engine {
             .unwrap_or(0.0)
     }
 
+    /// Get entity local rotation in radians.
+    #[wasm_bindgen]
+    pub fn get_entity_local_rotation(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.rotation())
+            .unwrap_or(0.0)
+    }
+
+    /// Returns true if the entity has a parent in the TransformSystem.
+    #[wasm_bindgen]
+    pub fn has_entity_parent(&self, index: u32) -> bool {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.parent().is_some())
+            .unwrap_or(false)
+    }
+
     /// Propagate dirty transforms from roots to leaves. Call once per frame before rendering.
     ///
     /// After this call, `get_entity_world_x/y/rotation` return up-to-date world values.
