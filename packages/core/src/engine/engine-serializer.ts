@@ -80,7 +80,7 @@ export class EngineSerializer {
 
     this._growIfNeeded(layout.byteLength);
 
-    const bytesWritten = layout.serialize!(
+    const bytesWritten = layout.serialize(
       data as Record<string, ComponentFieldValue>,
       this.scratchView,
     );
@@ -109,7 +109,7 @@ export class EngineSerializer {
 
     const localBuf = new Uint8Array(this.scratchBuffer, 0, layout.byteLength);
     localBuf.set(raw.subarray(0, layout.byteLength));
-    return layout.deserialize!(this.scratchView) as Record<string, ComponentFieldValue>;
+    return layout.deserialize(this.scratchView) as Record<string, ComponentFieldValue>;
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────

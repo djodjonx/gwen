@@ -118,8 +118,16 @@ export interface ComponentSchema {
 export interface SchemaLayout<T> {
   byteLength: number;
   hasString: boolean;
-  serialize?: (data: T, view: DataView) => number;
-  deserialize?: (view: DataView) => T;
+  /**
+   * Serialize `data` into `view` and return the total bytes written.
+   * Always present — `computeSchemaLayout` unconditionally produces this function.
+   */
+  serialize: (data: T, view: DataView) => number;
+  /**
+   * Deserialize a component from `view` and return the typed value.
+   * Always present — `computeSchemaLayout` unconditionally produces this function.
+   */
+  deserialize: (view: DataView) => T;
 }
 
 // ── Internal types for serialization ──────────────────────────────────────────
@@ -146,14 +154,20 @@ interface SchemaTypeHandler {
   ): FieldValue | Record<string, number>;
 }
 
-/** Field names for each composite spatial type. */
-const COMPOSITE_FIELDS: Record<string, readonly string[]> = {
-  vec2: ['x', 'y'],
-  vec3: ['x', 'y', 'z'],
-  vec4: ['x', 'y', 'z', 'w'],
-  quat: ['x', 'y', 'z', 'w'],
-  color: ['r', 'g', 'b', 'a'],
-};
+/**
+ * Field names for each composite spatial type.
+ *
+ * Derived directly from `Types` to stay in sync automatically. Adding a new
+ * composite type to `Types` is the single source of truth — no manual update here.
+ */
+const COMPOSITE_FIELDS: Record<string, readonly string[]> = Object.fromEntries(
+  Object.values(Types)
+    .filter(
+      (t): t is Extract<(typeof Types)[keyof typeof Types], { fields: readonly string[] }> =>
+        'fields' in t,
+    )
+    .map((t) => [t.type, t.fields]),
+);
 
 import { GlobalStringPoolManager } from './utils/string-pool.js';
 
