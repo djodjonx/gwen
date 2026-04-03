@@ -197,7 +197,17 @@ export function defineSystem(setup: () => void): GwenPlugin {
   const _render: RenderFn[] = [];
 
   return {
-    name: setup.name || 'anonymous-system',
+    name: (() => {
+      if (!setup.name) {
+        console.warn(
+          '[GWEN] defineSystem() called with an anonymous function. ' +
+            'This makes debugging and plugin deduplication difficult. ' +
+            'Please use a named function: defineSystem(function mySystem() { ... })',
+        );
+        return 'anonymous-system';
+      }
+      return setup.name;
+    })(),
 
     setup(_engine): void {
       // The engine context is already set by engine.use() wrapping.

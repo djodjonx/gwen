@@ -384,19 +384,11 @@ export interface PhysicsEntitySnapshot {
   velocity: { x: number; y: number } | null;
 }
 
-/** Collision event resolved to packed EntityIds for ECS consumption. */
-export interface ResolvedCollisionContact {
-  /** Packed EntityId for participant A. */
-  entityA: EntityId;
-  /** Packed EntityId for participant B. */
-  entityB: EntityId;
-  /** `true` when contact started, `false` when it ended. */
-  started: boolean;
-  /** Optional stable collider id for side A. */
-  aColliderId?: number;
-  /** Optional stable collider id for side B. */
-  bColliderId?: number;
-}
+/**
+ * Collision event resolved to packed EntityIds for ECS consumption.
+ * @deprecated Use {@link CollisionContact} instead.
+ */
+export type ResolvedCollisionContact = CollisionContact;
 
 /** Runtime loader that keeps tilemap physics chunks in sync with a visible set. */
 export interface TilemapChunkOrchestrator {

@@ -32,6 +32,10 @@ export interface SceneDefinition {
   readonly name: string;
   /** Systems that run each frame while this scene is active. */
   readonly systems: GwenPlugin[];
+  /** Optional callback fired when the engine routes to this scene. */
+  readonly onEnter?: () => void | Promise<void>;
+  /** Optional callback fired when the engine routes away from this scene. */
+  readonly onExit?: () => void | Promise<void>;
 }
 
 /**
@@ -47,6 +51,10 @@ export interface SceneOptions {
   name: string;
   /** Systems that run each frame while this scene is active. */
   systems?: GwenPlugin[];
+  /** Optional callback fired when the engine routes to this scene. */
+  onEnter?: () => void | Promise<void>;
+  /** Optional callback fired when the engine routes away from this scene. */
+  onExit?: () => void | Promise<void>;
 }
 
 /**
@@ -89,7 +97,11 @@ export interface SceneFactory {
  */
 export function defineScene(
   name: string,
-  factory: (registry: SceneRegistry) => { systems?: GwenPlugin[] },
+  factory: (registry: SceneRegistry) => {
+    systems?: GwenPlugin[];
+    onEnter?: () => void | Promise<void>;
+    onExit?: () => void | Promise<void>;
+  },
 ): SceneFactory;
 
 /**
@@ -109,22 +121,33 @@ export function defineScene(options: SceneOptions): SceneDefinition;
 
 export function defineScene(
   nameOrOptions: string | SceneOptions,
-  factory?: (registry: SceneRegistry) => { systems?: GwenPlugin[] },
+  factory?: (registry: SceneRegistry) => {
+    systems?: GwenPlugin[];
+    onEnter?: () => void | Promise<void>;
+    onExit?: () => void | Promise<void>;
+  },
 ): SceneFactory | SceneDefinition {
   if (typeof nameOrOptions === 'string') {
     // Factory form: defineScene('Name', factory)
     const name = nameOrOptions;
     const fn = (registry: SceneRegistry): SceneDefinition => {
       const result = factory!(registry);
-      return { name, systems: result.systems ?? [] };
+      return {
+        name,
+        systems: result.systems ?? [],
+        onEnter: result.onEnter,
+        onExit: result.onExit,
+      };
     };
     Object.defineProperty(fn, 'sceneName', { value: name, writable: false });
     return fn as SceneFactory;
   }
 
-  // Options form: defineScene({ name, systems })
+  // Options form: defineScene({ name, systems, ...hooks })
   return {
     name: nameOrOptions.name,
     systems: nameOrOptions.systems ?? [],
+    onEnter: nameOrOptions.onEnter,
+    onExit: nameOrOptions.onExit,
   };
 }

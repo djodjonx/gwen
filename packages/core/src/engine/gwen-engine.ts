@@ -463,6 +463,13 @@ export interface GwenEngine {
   readonly maxEntities: number;
   readonly targetFPS: number;
   readonly maxDeltaSeconds: number;
+  /**
+   * Identifies which core WASM binary is actively loaded running the engine.
+   *
+   * This is a **read-only reflection** of the state established during engine creation.
+   * It is not a runtime configuration property. The loaded variant dictates whether
+   * physics hooks (via `wasmBridge`) use fast native Rust code or TypeScript fallbacks.
+   */
   readonly variant: 'light' | 'physics2d' | 'physics3d';
 
   // ─── Stats ──────────────────────────────────────────────────────────────
@@ -1075,6 +1082,18 @@ class GwenEngineImpl implements GwenEngine {
   }
 
   // ─── Scoped hooks proxy ───────────────────────────────────────────────────
+  //
+  // RFC-001 (Plugin Lifecycle):
+  // We provide `engineWithScopedHooks` (a Proxy of the engine) to `plugin.setup()`.
+  // This proxy captures the plugin's name. Any hook registered via `engine.hooks.hook()`
+  // by this plugin is trapped and tracked by `PluginHookTracker` using this captured name.
+  //
+  // CRITICAL async factory lifetime warning:
+  // If `plugin.setup()` is async, or returning an async factory, the Proxy
+  // instance (`engineWithScopedHooks`) is bound to the closure at invocation time.
+  // Avoid leaking this proxy outside setup; subsequent system/feature
+  // declarations should ideally use the actual resolved engine from context.
+  //
 
   private _createScopedHooks(pluginName: string): Hookable<GwenRuntimeHooks> {
     const tracker = this._tracker;
