@@ -1566,6 +1566,73 @@ impl Engine {
     ) {
         self.set_components_bulk(slots, gens, write_type_id, data);
     }
+
+    // === Bulk Physics2D API (Tier 2) ===
+
+    /// Bulk-sync Rapier physics2D → ECS transforms.
+    ///
+    /// One WASM boundary crossing per frame instead of N per-entity crossings.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_sync_from_rapier`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_sync_from_rapier(
+        &mut self,
+        transform_type_id: u32,
+        out_slots: &mut [u32],
+        out_gens: &mut [u32],
+        out_buf: &mut [u8],
+    ) -> Vec<u32> {
+        let (count, bytes) = crate::bulk_ops_physics2d::physics2d_bulk_sync_from_rapier(
+            self,
+            transform_type_id,
+            out_slots,
+            out_gens,
+            out_buf,
+        );
+        vec![count, bytes]
+    }
+
+    /// Bulk-sync ECS transforms → Rapier physics2D.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_sync_to_rapier`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_sync_to_rapier(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        transform_type_id: u32,
+        data: &[u8],
+    ) {
+        crate::bulk_ops_physics2d::physics2d_bulk_sync_to_rapier(
+            self, slots, gens, transform_type_id, data,
+        );
+    }
+
+    /// Bulk-apply impulses to physics2D entities.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_apply_impulse`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_apply_impulse(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        rigidbody_type_id: u32,
+        impulse_data: &[u8],
+    ) {
+        crate::bulk_ops_physics2d::physics2d_bulk_apply_impulse(
+            self, slots, gens, rigidbody_type_id, impulse_data,
+        );
+    }
 }
 
 #[cfg(test)]
