@@ -201,20 +201,31 @@ function generateEntryModule(hasScenesDir: boolean): string {
   ];
 
   if (hasScenesDir) {
-    lines.push('import { registerScenes, mainScene } from "/@gwenjs/gwen-scenes";');
+    lines.push('import { registerScenes } from "/@gwenjs/gwen-scenes";');
   }
 
-  lines.push(
+  const bootstrapLines = [
     '',
     'async function bootstrap() {',
     '  const variant = detectCoreVariant(gwenConfig);',
     '  const requireSAB = detectSharedMemoryRequired(gwenConfig);',
     '  await initWasm(variant, { requireSAB });',
-    // createEngine is now async — must be awaited
-    hasScenesDir
-      ? '  const { engine } = await createEngine(gwenConfig, registerScenes, mainScene);'
-      : '  const { engine } = await createEngine(gwenConfig);',
-    '  engine.start();',
+    '  const engine = await createEngine(gwenConfig.engine ?? {});',
+    '  for (const plugin of (gwenConfig.plugins ?? [])) {',
+    '    await engine.use(plugin);',
+    '  }',
+  ];
+
+  if (hasScenesDir) {
+    bootstrapLines.push(
+      '  const usages = [];',
+      '  registerScenes({ register(scene) { for (const s of scene.systems ?? []) usages.push(engine.use(s)); } });',
+      '  await Promise.all(usages);',
+    );
+  }
+
+  bootstrapLines.push(
+    '  await engine.start();',
     '}',
     '',
     'bootstrap().catch(err => {',
@@ -223,6 +234,7 @@ function generateEntryModule(hasScenesDir: boolean): string {
     '});',
   );
 
+  lines.push(...bootstrapLines);
   return lines.join('\n');
 }
 
