@@ -207,8 +207,8 @@ function generateEntryModule(hasScenesDir: boolean): string {
   lines.push(
     '',
     'async function bootstrap() {',
-    '  const variant = detectCoreVariant(gwenConfig as any);',
-    '  const requireSAB = detectSharedMemoryRequired(gwenConfig as any);',
+    '  const variant = detectCoreVariant(gwenConfig);',
+    '  const requireSAB = detectSharedMemoryRequired(gwenConfig);',
     '  await initWasm(variant, { requireSAB });',
     // createEngine is now async — must be awaited
     hasScenesDir
