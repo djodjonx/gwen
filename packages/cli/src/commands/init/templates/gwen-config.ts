@@ -31,7 +31,7 @@ export default defineConfig({
   modules: [${extraModulesList}],
   plugins: [
     Canvas2DRenderer({ width: 800, height: 600, background: '#0a0a1a' }),
-    new InputPlugin(),
+    InputPlugin(),
   ],
 })
 `;

@@ -37,12 +37,12 @@ export const GameScene = defineScene('Game', () => {
   engine.addComponent(playerId, Velocity, { x: 0, y: 0 })
   engine.addComponent(playerId, Size, { w: 28, h: 28 })
   engine.addComponent(playerId, Shooter, { cooldown: 0.22, timer: 0 })
-  engine.addComponent(playerId, PlayerTag, { active: 1 })
+  engine.addComponent(playerId, PlayerTag, { active: true })
   engine.addComponent(playerId, Score, { value: 0, lives: 3, invincible: 0 })
 
   return {
     systems: [InputSystem, MovementSystem, CollisionSystem, SpawnSystem, RenderSystem],
   }
 })
-`
+`;
 }

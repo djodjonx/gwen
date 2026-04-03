@@ -38,7 +38,7 @@ export const Size = defineComponent({
 /** Marks the entity as the player-controlled ship. */
 export const PlayerTag = defineComponent({
   name: 'playerTag',
-  schema: { active: Types.u8 },
+  schema: { active: Types.bool },
 })
 
 /**
@@ -69,5 +69,5 @@ export const Score = defineComponent({
   name: 'score',
   schema: { value: Types.i32, lives: Types.i32, invincible: Types.f32 },
 })
-`
+`;
 }
