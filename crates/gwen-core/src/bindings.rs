@@ -72,8 +72,8 @@ impl From<EntityId> for JsEntityId {
 /// Main engine exported to JavaScript
 #[wasm_bindgen]
 pub struct Engine {
-    entity_manager: EntityManager,
-    storage: ArchetypeStorage,
+    pub(crate) entity_manager: EntityManager,
+    pub(crate) storage: ArchetypeStorage,
     query_system: QuerySystem,
     gameloop: GameLoop,
     /// Monotonically increasing counter used by `register_component_type`.
@@ -1476,6 +1476,229 @@ impl Engine {
             self.gameloop.frame_count(),
             self.gameloop.total_time()
         )
+    }
+
+    // === Bulk Query-Read API (Tier 1) ===
+
+    /// Query entities that have ALL given component types and bulk-read one component type.
+    ///
+    /// Combines an archetype-cached query and a bulk component read into a **single** WASM
+    /// boundary crossing, eliminating N per-entity crossings that dominate frame budgets at
+    /// scale.  Uses the same archetype-based [`QuerySystem`] as [`query_entities_to_buffer`],
+    /// so repeated queries with the same filter set are served from cache.
+    ///
+    /// # Arguments
+    /// * `component_type_ids` – Entity must possess ALL of these component type IDs.
+    ///   Passing an empty slice returns `[0, 0]` immediately.
+    /// * `read_type_id`       – The component type whose bytes are packed into `out_buf`.
+    /// * `out_slots`          – Caller-provided `Uint32Array` (len ≥ expected entity count).
+    ///   Filled with matching entity slot indices on return.
+    /// * `out_gens`           – Caller-provided `Uint32Array` (same length as `out_slots`).
+    ///   Filled with matching entity generation counters on return.
+    /// * `out_buf`            – Caller-provided `Uint8Array` for packed component data.
+    ///
+    /// # Returns
+    /// A two-element `Vec<u32>` `[entity_count, bytes_written]`.  After the call,
+    /// `out_slots[0..entity_count]` and `out_gens[0..entity_count]` identify the matched
+    /// entities, and `out_buf[0..bytes_written]` contains their packed component data.
+    ///
+    /// If `entity_count == BULK_MAX_ENTITIES` (10 000), the result was truncated — the scene
+    /// has more matching entities than the buffer can hold.
+    ///
+    /// # Performance
+    /// One WASM boundary crossing regardless of entity count.
+    /// Query results are archetype-cached; subsequent frames with the same filter are fast.
+    pub fn query_read_bulk(
+        &mut self,
+        component_type_ids: &[u32],
+        read_type_id: u32,
+        out_slots: &mut [u32],
+        out_gens: &mut [u32],
+        out_buf: &mut [u8],
+    ) -> Vec<u32> {
+        if component_type_ids.is_empty() {
+            return vec![0, 0];
+        }
+
+        // Step 1: archetype-based query (cached, same path as query_entities_to_buffer)
+        let types: Vec<crate::ecs::component::ComponentTypeId> = component_type_ids
+            .iter()
+            .map(|&id| crate::ecs::component::ComponentTypeId::from_raw(id))
+            .collect();
+        let query_id = QueryId::new(types, self.storage.registry());
+        let results = self.query_system.query(&self.storage, query_id);
+        let entities = results.entities();
+
+        // Step 2: fill out_slots / out_gens and bulk-read component data.
+        // `results` is a cloned QueryResult (owned value, not borrowing self),
+        // so reborrowing self here is safe despite the earlier &mut self.query_system.
+        let (count, bytes) = crate::bulk_ops::fill_and_read_bulk(
+            self,
+            entities,
+            read_type_id,
+            out_slots,
+            out_gens,
+            out_buf,
+        );
+        vec![count, bytes]
+    }
+
+    /// Write back component data for a previously-queried entity set in one WASM call.
+    ///
+    /// Pass the `out_slots` and `out_gens` filled by [`query_read_bulk`] together with
+    /// updated packed component bytes.  Dead entities (stale generation) are silently skipped.
+    ///
+    /// # Arguments
+    /// * `slots`          – Entity slot indices (from a prior `query_read_bulk` call).
+    /// * `gens`           – Per-slot generation counters (from a prior `query_read_bulk` call).
+    /// * `write_type_id`  – Component type ID to write.
+    /// * `data`           – Packed component bytes; total length must equal
+    ///   `slots.len() × component_size_bytes`.
+    ///
+    /// # Performance
+    /// One WASM boundary crossing regardless of entity count.
+    pub fn query_write_bulk(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        write_type_id: u32,
+        data: &[u8],
+    ) {
+        self.set_components_bulk(slots, gens, write_type_id, data);
+    }
+
+    // === Bulk Physics2D API (Tier 2) ===
+
+    /// Bulk-sync Rapier physics2D → ECS transforms.
+    ///
+    /// One WASM boundary crossing per frame instead of N per-entity crossings.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_sync_from_rapier`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_sync_from_rapier(
+        &mut self,
+        transform_type_id: u32,
+        out_slots: &mut [u32],
+        out_gens: &mut [u32],
+        out_buf: &mut [u8],
+    ) -> Vec<u32> {
+        let (count, bytes) = crate::bulk_ops_physics2d::physics2d_bulk_sync_from_rapier(
+            self,
+            transform_type_id,
+            out_slots,
+            out_gens,
+            out_buf,
+        );
+        vec![count, bytes]
+    }
+
+    /// Bulk-sync ECS transforms → Rapier physics2D.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_sync_to_rapier`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_sync_to_rapier(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        transform_type_id: u32,
+        data: &[u8],
+    ) {
+        crate::bulk_ops_physics2d::physics2d_bulk_sync_to_rapier(
+            self, slots, gens, transform_type_id, data,
+        );
+    }
+
+    /// Bulk-apply impulses to physics2D entities.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics2d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics2d::physics2d_bulk_apply_impulse`] for details.
+    #[cfg(feature = "physics2d")]
+    #[wasm_bindgen]
+    pub fn physics2d_bulk_apply_impulse(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        rigidbody_type_id: u32,
+        impulse_data: &[u8],
+    ) {
+        crate::bulk_ops_physics2d::physics2d_bulk_apply_impulse(
+            self, slots, gens, rigidbody_type_id, impulse_data,
+        );
+    }
+
+    // === Bulk Physics3D API (Tier 3) ===
+
+    /// Bulk-sync Rapier3D → ECS Transform3D (7×f32 = 28 bytes per entity).
+    ///
+    /// One WASM boundary crossing per frame instead of N per-entity crossings.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_sync_from_rapier`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_sync_from_rapier(
+        &mut self,
+        transform_type_id: u32,
+        out_slots: &mut [u32],
+        out_gens: &mut [u32],
+        out_buf: &mut [u8],
+    ) -> Vec<u32> {
+        let (count, bytes) = crate::bulk_ops_physics3d::physics3d_bulk_sync_from_rapier(
+            self,
+            transform_type_id,
+            out_slots,
+            out_gens,
+            out_buf,
+        );
+        vec![count, bytes]
+    }
+
+    /// Bulk-sync ECS Transform3D → Rapier3D (7×f32 = 28 bytes per entity).
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_sync_to_rapier`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_sync_to_rapier(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        transform_type_id: u32,
+        data: &[u8],
+    ) {
+        crate::bulk_ops_physics3d::physics3d_bulk_sync_to_rapier(
+            self, slots, gens, transform_type_id, data,
+        );
+    }
+
+    /// Bulk-apply 3D impulses `[fx, fy, fz]` (12 bytes/entity) to physics3D entities.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_apply_impulse`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_apply_impulse(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        rigidbody_type_id: u32,
+        impulse_data: &[u8],
+    ) {
+        crate::bulk_ops_physics3d::physics3d_bulk_apply_impulse(
+            self, slots, gens, rigidbody_type_id, impulse_data,
+        );
     }
 }
 

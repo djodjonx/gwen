@@ -58,3 +58,42 @@ describe('DSL Components (schema.ts)', () => {
     expect(v.vx).toBeCloseTo(1.5);
   });
 });
+
+describe('defineComponent metadata', () => {
+  it('assigns a unique _typeId per component', () => {
+    const A = defineComponent({ name: 'A', schema: { x: Types.f32 } });
+    const B = defineComponent({ name: 'B', schema: { x: Types.f32 } });
+    expect(typeof A._typeId).toBe('number');
+    expect(typeof B._typeId).toBe('number');
+    expect(A._typeId).not.toBe(B._typeId);
+  });
+
+  it('computes _byteSize from schema fields', () => {
+    const C = defineComponent({
+      name: 'C',
+      schema: { x: Types.f32, y: Types.f32 },
+    });
+    // 2 × f32 = 2 × 4 = 8
+    expect(C._byteSize).toBe(8);
+  });
+
+  it('computes _f32Stride as _byteSize / 4', () => {
+    const D = defineComponent({
+      name: 'D',
+      schema: { x: Types.f32, y: Types.f32, z: Types.f32 },
+    });
+    // 3 × 4 = 12 bytes → stride 3
+    expect(D._f32Stride).toBe(3);
+  });
+
+  it('exposes _fields with name, type and byteOffset', () => {
+    const E = defineComponent({
+      name: 'E',
+      schema: { hp: Types.f32, mp: Types.i32 },
+    });
+    expect(E._fields).toEqual([
+      { name: 'hp', type: 'f32', byteOffset: 0 },
+      { name: 'mp', type: 'i32', byteOffset: 4 },
+    ]);
+  });
+});
