@@ -373,6 +373,9 @@ export type InferComponent<D extends ComponentDefinition<ComponentSchema>> = {
   [K in keyof D['schema']]: InferSchemaType<D['schema'][K]>;
 };
 
+/** Monotonic counter for assigning unique numeric IDs to components at definition time. */
+let _nextTypeId = 1;
+
 /**
  * Definition of an ECS component with a typed schema and optional default values.
  *
@@ -390,9 +393,6 @@ export type InferComponent<D extends ComponentDefinition<ComponentSchema>> = {
  * });
  * ```
  */
-/** Monotonic counter for assigning unique numeric IDs to components at definition time. */
-let _nextTypeId = 1;
-
 export interface ComponentDefinition<S extends ComponentSchema> {
   readonly name: string;
   readonly schema: S;
@@ -405,6 +405,7 @@ export interface ComponentDefinition<S extends ComponentSchema> {
   readonly defaults?: Partial<{ [K in keyof S]: InferSchemaType<S[K]> }>;
   /**
    * Unique numeric ID assigned at call time, used as the WASM `component_type_id`.
+   * Matches the ID used in `register_component_type` on the Rust side.
    *
    * @internal Used by the gwen:optimizer Vite plugin — do not rely on the specific value.
    */
@@ -417,6 +418,10 @@ export interface ComponentDefinition<S extends ComponentSchema> {
   readonly _byteSize: number;
   /**
    * Number of Float32 slots per entity (`_byteSize / 4`).
+   *
+   * Only valid for schemas composed of f32-aligned fields (f32, i32, u32, f64, etc.).
+   * Sub-word fields (`bool`, 1 byte) produce non-integer strides — the optimizer
+   * skips components with fractional strides.
    *
    * @internal
    */
