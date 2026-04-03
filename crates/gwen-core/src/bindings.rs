@@ -13,6 +13,8 @@ use crate::ecs::entity::{EntityId, EntityManager};
 use crate::ecs::query::{QueryId, QuerySystem};
 use crate::ecs::storage::ArchetypeStorage;
 use crate::gameloop::GameLoop;
+use crate::transform::{Transform, TransformSystem};
+use crate::transform_math::Vec2;
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "physics2d")]
@@ -82,6 +84,8 @@ pub struct Engine {
     next_js_type_id: u32,
     /// Tracks entities with modified transforms.
     dirty_transforms: DirtySet,
+    /// Hierarchical transform system for managing entity transforms
+    transform_system: TransformSystem,
     #[cfg(feature = "physics2d")]
     physics_world: Option<PhysicsWorld>,
     #[cfg(feature = "physics3d")]
@@ -100,6 +104,7 @@ impl Engine {
             gameloop: GameLoop::new(60),
             next_js_type_id: 0,
             dirty_transforms: DirtySet::new(max_entities),
+            transform_system: TransformSystem::new(),
             #[cfg(feature = "physics2d")]
             physics_world: None,
             #[cfg(feature = "physics3d")]
@@ -507,6 +512,7 @@ impl Engine {
     pub fn tick(&mut self, delta_ms: f32) {
         let delta_seconds = delta_ms / 1000.0;
         self.gameloop.tick(delta_seconds);
+        self.transform_system.update();
     }
 
     /// Get current frame number
@@ -537,6 +543,180 @@ impl Engine {
     /// Reset frame timing
     pub fn reset_frame(&mut self) {
         self.gameloop.reset_frame();
+    }
+
+    // === Transform API ===
+
+    /// Register a transform for the given entity. Must be called after `create_entity`.
+    ///
+    /// # Arguments
+    /// * `index` - Entity index returned by `create_entity`.
+    /// * `x`, `y` - Initial local position.
+    /// * `rotation` - Initial local rotation in radians.
+    /// * `scale_x`, `scale_y` - Initial local scale.
+    #[wasm_bindgen]
+    pub fn add_entity_transform(
+        &mut self,
+        index: u32,
+        x: f32,
+        y: f32,
+        rotation: f32,
+        scale_x: f32,
+        scale_y: f32,
+    ) {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system.add_transform(
+            entity,
+            Transform {
+                position: Vec2::new(x, y),
+                rotation,
+                scale: Vec2::new(scale_x, scale_y),
+            },
+        );
+    }
+
+    /// Set the parent of `child_index` to `parent_index`.
+    /// Pass `parent_index = u32::MAX` to detach from any parent.
+    ///
+    /// # Arguments
+    /// * `child_index` - Entity to re-parent.
+    /// * `parent_index` - New parent entity index, or `u32::MAX` to detach.
+    /// * `keep_world_pos` - If true, recalculate local transform so world position is preserved.
+    #[wasm_bindgen]
+    pub fn set_entity_parent(
+        &mut self,
+        child_index: u32,
+        parent_index: u32,
+        keep_world_pos: bool,
+    ) {
+        let child_gen = self.get_entity_generation(child_index);
+        let child = EntityId::from_parts(child_index, child_gen);
+
+        let parent = if parent_index == u32::MAX {
+            None
+        } else {
+            let parent_gen = self.get_entity_generation(parent_index);
+            Some(EntityId::from_parts(parent_index, parent_gen))
+        };
+
+        if keep_world_pos {
+            let world_pos = self
+                .transform_system
+                .get_transform(child)
+                .map(|t| t.world_position())
+                .unwrap_or(Vec2::zero());
+            let world_rot = self
+                .transform_system
+                .get_transform(child)
+                .map(|t| t.world_rotation())
+                .unwrap_or(0.0);
+
+            self.transform_system.set_parent(child, parent);
+
+            if let Some(node) = self.transform_system.get_transform_mut(child) {
+                if parent.is_none() {
+                    node.set_position(world_pos);
+                    node.set_rotation(world_rot);
+                }
+            }
+        } else {
+            self.transform_system.set_parent(child, parent);
+        }
+    }
+
+    /// Translate entity's local position by (dx, dy). Marks transform dirty.
+    #[wasm_bindgen]
+    pub fn translate_entity(&mut self, index: u32, dx: f32, dy: f32) {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        if let Some(node) = self.transform_system.get_transform_mut(entity) {
+            let pos = node.position();
+            node.set_position(Vec2::new(pos.x + dx, pos.y + dy));
+        }
+    }
+
+    /// Set entity local position.
+    #[wasm_bindgen]
+    pub fn set_entity_local_position(&mut self, index: u32, x: f32, y: f32) {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        if let Some(node) = self.transform_system.get_transform_mut(entity) {
+            node.set_position(Vec2::new(x, y));
+        }
+    }
+
+    /// Set entity local rotation in radians.
+    #[wasm_bindgen]
+    pub fn set_entity_local_rotation(&mut self, index: u32, rotation: f32) {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        if let Some(node) = self.transform_system.get_transform_mut(entity) {
+            node.set_rotation(rotation);
+        }
+    }
+
+    /// Set entity local scale.
+    #[wasm_bindgen]
+    pub fn set_entity_local_scale(&mut self, index: u32, scale_x: f32, scale_y: f32) {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        if let Some(node) = self.transform_system.get_transform_mut(entity) {
+            node.set_scale(Vec2::new(scale_x, scale_y));
+        }
+    }
+
+    /// Get entity local position x.
+    #[wasm_bindgen]
+    pub fn get_entity_local_x(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.position().x)
+            .unwrap_or(0.0)
+    }
+
+    /// Get entity local position y.
+    #[wasm_bindgen]
+    pub fn get_entity_local_y(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.position().y)
+            .unwrap_or(0.0)
+    }
+
+    /// Get entity world position x (requires `update_transforms` to have been called this frame).
+    #[wasm_bindgen]
+    pub fn get_entity_world_x(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.world_position().x)
+            .unwrap_or(0.0)
+    }
+
+    /// Get entity world position y.
+    #[wasm_bindgen]
+    pub fn get_entity_world_y(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.world_position().y)
+            .unwrap_or(0.0)
+    }
+
+    /// Get entity world rotation.
+    #[wasm_bindgen]
+    pub fn get_entity_world_rotation(&self, index: u32) -> f32 {
+        let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+        self.transform_system
+            .get_transform(entity)
+            .map(|t| t.world_rotation())
+            .unwrap_or(0.0)
+    }
+
+    /// Propagate dirty transforms from roots to leaves. Call once per frame before rendering.
+    ///
+    /// After this call, `get_entity_world_x/y/rotation` return up-to-date world values.
+    #[wasm_bindgen]
+    pub fn update_transforms(&mut self) {
+        self.transform_system.update();
     }
 
     // === Shared Memory API (WASM Plugin Bridge) ===
