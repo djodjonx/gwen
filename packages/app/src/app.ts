@@ -20,7 +20,7 @@ import type {
 import { createHooks } from 'hookable';
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import type { ResolvedGwenConfig } from './config.js';
+import type { ResolvedGwenConfig } from './config';
 
 // ─── GwenApp ──────────────────────────────────────────────────────────────────
 

@@ -18,6 +18,13 @@ if (!process.env.GWEN_CLI_FORCE_JITI && fs.existsSync(distBin)) {
   await import(distBin);
 } else {
   // Dev monorepo: run src/bin.ts via jiti (like Nuxt)
+  // Register jiti as a Node module loader hook so ALL TypeScript imports
+  // (including recursive imports in workspace packages) are resolved by jiti.
+  // This handles the case where sub-packages use `.js` extension in their
+  // TypeScript imports (ESM convention) but only `.ts` files exist.
+  const { register } = await import('node:module');
+  const jitiHooksUrl = new URL('./jiti-hooks.mjs', await import.meta.resolve('jiti'));
+  register(jitiHooksUrl);
   const { createJiti } = await import('jiti');
   const jiti = createJiti(import.meta.url, { interopDefault: true });
   await jiti.import(path.join(__dirname, 'src', 'bin.ts'));

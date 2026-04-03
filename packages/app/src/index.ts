@@ -17,7 +17,7 @@
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
-export { defineConfig, resolveConfig, resolveGwenConfig } from './config.js';
+export { defineConfig, resolveConfig, resolveGwenConfig } from './config';
 export type {
   GwenUserConfig,
   ResolvedGwenConfig,
@@ -25,11 +25,11 @@ export type {
   GwenModuleEntry,
   /** Re-exported for convenience — build hooks live in kit but are surfaced here. */
   GwenBuildHooks,
-} from './config.js';
+} from './config';
 
 // ─── App orchestrator ─────────────────────────────────────────────────────────
 
-export { GwenApp } from './app.js';
+export { GwenApp } from './app';
 
 // ─── Module authoring API (re-exported from @gwenjs/kit) ──────────────────
 
