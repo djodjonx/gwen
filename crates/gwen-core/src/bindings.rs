@@ -1880,6 +1880,92 @@ impl Engine {
             self, slots, gens, rigidbody_type_id, impulse_data,
         );
     }
+
+    // === Bulk Entity Operations ===
+
+    /// Destroy multiple entities in a single call.
+    ///
+    /// # Arguments
+    /// * `indices` - Flat array of entity indices to destroy (obtained from `create_entity`).
+    ///
+    /// # Description
+    /// This method efficiently removes multiple entities from the engine in a single
+    /// WASM boundary crossing. Entities that are already destroyed are silently skipped.
+    /// This is useful for batch cleanup operations or clearing many entities at once.
+    ///
+    /// # Examples
+    /// ```js
+    /// engine.bulk_destroy(new Uint32Array([3, 7, 12]));
+    /// ```
+    #[wasm_bindgen]
+    pub fn bulk_destroy(&mut self, indices: &[u32]) {
+        for &index in indices {
+            let gen = self.get_entity_generation(index);
+            if self.is_alive(index, gen) {
+                let entity = EntityId::from_parts(index, gen);
+                self.transform_system.remove_transform(entity);
+                self.delete_entity(index, gen);
+            }
+        }
+    }
+
+    /// Create N entities, each with a transform, and return their indices.
+    ///
+    /// # Arguments
+    /// * `positions` - Flat `[x0, y0, x1, y1, ...]` array — length must be `2 * N`.
+    /// * `rotations` - Flat `[r0, r1, ...]` array — length must be `N`. Pass empty slice for all-zero.
+    ///
+    /// # Returns
+    /// `Vec<u32>` (exposed as `Uint32Array` to JavaScript) of N entity indices in the same order as `positions`.
+    ///
+    /// # Description
+    /// This method efficiently spawns multiple entities with transforms in a single operation.
+    /// Each entity is created with a position (x, y) and an optional rotation. If the rotations
+    /// array is shorter than N, remaining entities use rotation 0.0. Scale is always set to (1, 1).
+    ///
+    /// # Examples
+    /// ```js
+    /// const ids = engine.bulk_spawn_with_transforms(
+    ///   new Float32Array([0, 0, 16, 0, 32, 0]),
+    ///   new Float32Array([0, 0, 0]),
+    /// );
+    /// // Creates 3 entities at (0, 0), (16, 0), (32, 0) with rotations 0, 0, 0
+    /// ```
+    #[wasm_bindgen]
+    pub fn bulk_spawn_with_transforms(
+        &mut self,
+        positions: &[f32],
+        rotations: &[f32],
+    ) -> Vec<u32> {
+        let count = positions.len() / 2;
+        let mut indices = Vec::with_capacity(count);
+
+        for i in 0..count {
+            let js_id = self.create_entity();
+            let index = js_id.index();
+            let x = positions[i * 2];
+            let y = positions[i * 2 + 1];
+            let rotation = if i < rotations.len() {
+                rotations[i]
+            } else {
+                0.0
+            };
+
+            let entity = EntityId::from_parts(index, self.get_entity_generation(index));
+            self.transform_system.add_transform(
+                entity,
+                Transform {
+                    position: Vec2::new(x, y),
+                    rotation,
+                    scale: Vec2::one(),
+                },
+            );
+
+            indices.push(index);
+        }
+
+        indices
+    }
 }
 
 #[cfg(test)]
