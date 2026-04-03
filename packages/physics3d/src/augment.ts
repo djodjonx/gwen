@@ -6,7 +6,7 @@
  * `@gwenjs/core` with typed physics service keys and hooks.
  */
 
-import type { Physics3DAPI } from './types.js';
+import type { Physics3DAPI, Physics3DPluginHooks } from './types.js';
 import type { EntityId } from '@gwenjs/core';
 
 declare module '@gwenjs/core' {
@@ -25,8 +25,9 @@ declare module '@gwenjs/core' {
 
   /**
    * Physics 3D runtime hooks augmenting the engine hook bus.
+   * Includes lifecycle hooks and all physics3d plugin hooks.
    */
-  interface GwenRuntimeHooks {
+  interface GwenRuntimeHooks extends Physics3DPluginHooks {
     /** Fired after the physics step completes. */
     'physics3d:step': (stepDt: number) => void;
     /** Fired when a collision begins between two entities. */

@@ -395,36 +395,121 @@ export interface Physics3DPluginHooks {
  * ```
  */
 export interface Physics3DAPI {
-  /** Returns `true` when the plugin has successfully initialized. */
+  /**
+   * Returns `true` when the plugin has successfully initialized.
+   *
+   * @returns `true` after `setup()` completes; `false` before init or after `teardown()`.
+   *
+   * @example
+   * ```ts
+   * if (!physics3d.isReady()) throw new Error('Physics not ready');
+   * ```
+   *
+   * @since 1.0.0
+   */
   isReady(): boolean;
 
-  /** Active WASM core variant. */
+  /**
+   * Returns the active WASM core variant this plugin is running against.
+   *
+   * - `'physics3d'` — Full Rapier3D WASM backend.
+   * - `'light'` / `'physics2d'` — TypeScript fallback simulation.
+   *
+   * @returns The active variant string.
+   *
+   * @since 1.0.0
+   */
   variant(): 'light' | 'physics2d' | 'physics3d';
 
-  /** Manual physics step. Available after `onInit`; throws otherwise. */
+  /**
+   * Manually advance the physics simulation by `deltaSeconds`.
+   *
+   * In **WASM mode** this delegates to Rapier3D's solver.
+   * In **fallback mode** this runs the TypeScript integration step
+   * (gravity, damping, position, quaternion rotation).
+   *
+   * @param deltaSeconds - Time to simulate in seconds. Must be positive.
+   * @throws Error when called before plugin initialization.
+   *
+   * @since 1.0.0
+   */
   step(deltaSeconds: number): void;
 
   /**
    * Create or replace a rigid body for an entity.
    *
    * Any colliders declared in `options.colliders` are attached immediately
-   * after body creation.
+   * after body creation. In **fallback mode** the body participates in
+   * AABB collision detection each frame.
+   *
+   * @param entityId - Target entity identifier.
+   * @param options  - Body creation options.
+   * @returns The opaque body handle for the newly created body.
+   *
+   * @since 1.0.0
    */
   createBody(entityId: Physics3DEntityId, options?: Physics3DBodyOptions): Physics3DBodyHandle;
 
-  /** Remove the rigid body (and all attached colliders) for an entity. */
+  /**
+   * Remove the rigid body (and all attached colliders) for an entity.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns `true` when a body was found and removed; `false` when none existed.
+   *
+   * @since 1.0.0
+   */
   removeBody(entityId: Physics3DEntityId): boolean;
 
-  /** Returns `true` if a body is currently registered for the entity. */
+  /**
+   * Returns `true` if a body is currently registered for the entity.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns `true` when a body handle exists for the entity.
+   *
+   * @since 1.0.0
+   */
   hasBody(entityId: Physics3DEntityId): boolean;
 
-  /** Read the current body kind for an entity. */
+  /**
+   * Read the current body kind for an entity.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns The body kind, or `undefined` if no body is registered.
+   *
+   * @since 1.0.0
+   */
   getBodyKind(entityId: Physics3DEntityId): Physics3DBodyKind | undefined;
 
-  /** Update the body kind at runtime. */
+  /**
+   * Update the body kind at runtime.
+   *
+   * Switching from `'fixed'` to `'dynamic'` re-enables gravity and integration.
+   *
+   * @param entityId - Target entity identifier.
+   * @param kind     - New body kind.
+   * @returns `true` when the update succeeded; `false` when no body exists.
+   *
+   * @since 1.0.0
+   */
   setBodyKind(entityId: Physics3DEntityId, kind: Physics3DBodyKind): boolean;
 
-  /** Read a full snapshot of a body's simulation state. */
+  /**
+   * Read a full snapshot of a body's simulation state.
+   *
+   * In **WASM mode** reads from Rapier3D's internal state.
+   * In **fallback mode** returns a deep clone of the TypeScript state object.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns The body state snapshot, or `undefined` when no body is registered.
+   *
+   * @example
+   * ```ts
+   * const state = physics3d.getBodyState(entityId);
+   * if (state) transform.position.copy(state.position);
+   * ```
+   *
+   * @since 1.0.0
+   */
   getBodyState(entityId: Physics3DEntityId): Physics3DBodyState | undefined;
 
   /** Partially update a body's simulation state. */
@@ -438,22 +523,105 @@ export interface Physics3DAPI {
     }>,
   ): boolean;
 
-  /** Apply a linear impulse to a body in N·s. */
+  /**
+   * Apply a linear impulse to a body in N·s. Velocity change = `impulse / mass`.
+   *
+   * In **fallback mode** directly modifies linear velocity: `v += impulse / mass`.
+   *
+   * @param entityId - Target entity identifier.
+   * @param impulse  - Impulse vector in N·s. Missing components default to `0`.
+   * @returns `true` when applied; `false` when no body is registered.
+   *
+   * @example
+   * ```ts
+   * physics3d.applyImpulse(entityId, { x: 0, y: 500, z: 0 }); // jump
+   * ```
+   *
+   * @since 1.0.0
+   */
   applyImpulse(entityId: Physics3DEntityId, impulse: Partial<Physics3DVec3>): boolean;
 
-  /** Apply an angular impulse to a body in N·m·s. */
+  /**
+   * Apply an angular impulse to a body in N·m·s.
+   *
+   * In **fallback mode** directly modifies angular velocity: `ω += impulse / mass`.
+   *
+   * @param entityId - Target entity identifier.
+   * @param impulse  - Angular impulse in N·m·s. Missing components default to `0`.
+   * @returns `true` when applied; `false` when no body is registered.
+   *
+   * @since 1.0.0
+   */
   applyAngularImpulse(entityId: Physics3DEntityId, impulse: Partial<Physics3DVec3>): boolean;
 
-  /** Read the current linear velocity of a body. */
+  /**
+   * Apply a continuous torque to a body in N·m.
+   *
+   * In **fallback mode** directly increments angular velocity by `torque / mass`.
+   * Has no effect on `'fixed'` bodies.
+   *
+   * In **WASM mode** this method is not forwarded to the Rapier3D bridge and
+   * returns `false` — use `applyAngularImpulse` as an alternative.
+   *
+   * @param entityId - Target entity identifier.
+   * @param torque   - Torque vector in N·m. Missing components default to `0`.
+   * @returns `true` when applied; `false` when no body exists, body is fixed, or WASM mode.
+   *
+   * @example
+   * ```ts
+   * physics3d.applyTorque(entityId, { y: 10 }); // spin around Y axis
+   * ```
+   *
+   * @since 1.0.0
+   */
+  applyTorque(entityId: Physics3DEntityId, torque: Partial<Physics3DVec3>): boolean;
+
+  /**
+   * Read the current linear velocity of a body in m/s.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns The linear velocity vector, or `undefined` when no body exists.
+   *
+   * @since 1.0.0
+   */
   getLinearVelocity(entityId: Physics3DEntityId): Physics3DVec3 | undefined;
 
-  /** Set the linear velocity of a body. */
+  /**
+   * Set the linear velocity of a body in m/s. Missing components preserve the current value.
+   *
+   * @param entityId - Target entity identifier.
+   * @param velocity - New linear velocity. Missing components are unchanged.
+   * @returns `true` when applied; `false` when no body is registered.
+   *
+   * @since 1.0.0
+   */
   setLinearVelocity(entityId: Physics3DEntityId, velocity: Partial<Physics3DVec3>): boolean;
 
-  /** Read the current angular velocity of a body. */
+  /**
+   * Read the current angular velocity of a body in rad/s.
+   *
+   * @param entityId - Target entity identifier.
+   * @returns The angular velocity vector, or `undefined` when no body exists.
+   *
+   * @since 1.0.0
+   */
   getAngularVelocity(entityId: Physics3DEntityId): Physics3DVec3 | undefined;
 
-  /** Set the angular velocity of a body. */
+  /**
+   * Override the angular velocity of a body directly in rad/s.
+   * Missing components preserve the current value.
+   *
+   * @param entityId - Target entity identifier.
+   * @param velocity - New angular velocity. Missing components are unchanged.
+   * @returns `true` when applied; `false` when no body is registered.
+   *
+   * @example
+   * ```ts
+   * physics3d.setAngularVelocity(entityId, { y: Math.PI * 2 });
+   * ```
+   *
+   * @since 1.0.0
+   */
   setAngularVelocity(entityId: Physics3DEntityId, velocity: Partial<Physics3DVec3>): boolean;
 
   /**
@@ -472,8 +640,15 @@ export interface Physics3DAPI {
   /**
    * Attach a collider to an existing body.
    *
-   * In local mode the collider is stored in the metadata registry.
-   * In WASM mode the collider is forwarded to the physics world.
+   * In **fallback mode** the collider is stored in the local collider registry
+   * and participates in AABB collision detection each frame.
+   * In **WASM mode** the collider is forwarded to the Rapier3D physics world.
+   *
+   * @param entityId - Target entity identifier.
+   * @param options  - Collider shape, material, sensor flag, and layer configuration.
+   * @returns `true` when added; `false` when no body is registered for the entity.
+   *
+   * @since 1.0.0
    */
   addCollider(entityId: Physics3DEntityId, options: Physics3DColliderOptions): boolean;
 
@@ -533,9 +708,21 @@ export interface Physics3DAPI {
    */
   getBodySnapshot(entityId: Physics3DEntityId): Physics3DBodySnapshot | undefined;
 
-  /** Return the total number of currently registered body handles. */
+  /**
+   * Return the total number of currently registered body handles.
+   *
+   * @returns Count of registered bodies across all entity slots.
+   *
+   * @since 1.0.0
+   */
   getBodyCount(): number;
 
-  /** Returns `true` when debug logging is enabled. */
+  /**
+   * Returns `true` when debug logging is enabled for this plugin instance.
+   *
+   * @returns The resolved `debug` config value.
+   *
+   * @since 1.0.0
+   */
   isDebugEnabled(): boolean;
 }

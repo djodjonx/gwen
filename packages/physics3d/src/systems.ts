@@ -6,8 +6,9 @@
  */
 
 import { definePlugin } from '@gwenjs/kit';
-import type { GwenEngine } from '@gwenjs/core';
+import type { EntityId, GwenEngine } from '@gwenjs/core';
 import type { Physics3DAPI } from './types.js';
+import './augment.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,34 @@ export interface PhysicsKinematicSyncSystemOptions {
    * @default undefined
    */
   rotationComponent?: string;
+}
+
+// ─── Internal type helpers ─────────────────────────────────────────────────────
+
+/**
+ * Internal interface for string-named component and query access.
+ *
+ * The public `GwenEngine` API accepts typed `ComponentDefinition` descriptors.
+ * However, this kinematic sync system is intentionally generic — it operates on
+ * component names supplied as configuration strings, which the runtime engine
+ * supports but the TypeScript interface does not expose.
+ *
+ * @internal Do not use this type outside of this module.
+ */
+interface GwenEngineStringComponentAccess {
+  /**
+   * Look up all entities that have a component identified by the given string name.
+   * @param names - Component name(s) to query.
+   * @returns An iterable of entity IDs that satisfy the query.
+   */
+  createLiveQuery(names: string[]): Iterable<EntityId>;
+  /**
+   * Retrieve component data by string name.
+   * @param id - Entity to read from.
+   * @param name - Component name.
+   * @returns Component data, or undefined if the entity does not have it.
+   */
+  getComponent<T extends Record<string, unknown>>(id: EntityId, name: string): T | undefined;
 }
 
 // ─── Systems ──────────────────────────────────────────────────────────────────
@@ -66,32 +95,34 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
 
       setup(engine: GwenEngine): void {
         _engine = engine;
-        physics = ((engine as any).tryInject('physics3d') as Physics3DAPI | undefined) ?? null;
+        physics = engine.tryInject('physics3d') ?? null;
       },
 
       onBeforeUpdate(): void {
         if (!physics || !_engine) return;
 
-        const entities = [...(_engine as any).createLiveQuery([positionComponent])] as any[];
+        // Access the runtime string-based query/component API.
+        // The GwenEngine public type accepts ComponentDefinition descriptors;
+        // the underlying runtime also accepts component name strings, which
+        // this generic sync system relies on.
+        const stringEngine = _engine as unknown as GwenEngineStringComponentAccess;
+
+        const entities = [...stringEngine.createLiveQuery([positionComponent])];
         for (const entityId of entities) {
           if (!physics.hasBody(entityId)) continue;
           if (physics.getBodyKind(entityId) !== 'kinematic') continue;
 
-          const pos = (
-            (_engine as any).getComponent as (
-              id: any,
-              name: any,
-            ) => { x: number; y: number; z: number } | null
-          )(entityId, positionComponent);
+          const pos = stringEngine.getComponent<{ x: number; y: number; z: number }>(
+            entityId,
+            positionComponent,
+          );
           if (!pos) continue;
 
           const rot = rotationComponent
-            ? ((
-                (_engine as any).getComponent as (
-                  id: any,
-                  name: any,
-                ) => { x: number; y: number; z: number; w: number } | null
-              )(entityId, rotationComponent) ?? undefined)
+            ? (stringEngine.getComponent<{ x: number; y: number; z: number; w: number }>(
+                entityId,
+                rotationComponent,
+              ) ?? undefined)
             : undefined;
 
           physics.setKinematicPosition(entityId, pos, rot);

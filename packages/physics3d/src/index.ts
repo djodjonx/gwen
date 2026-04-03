@@ -11,6 +11,7 @@
 import { definePlugin } from '@gwenjs/kit';
 import { getWasmBridge, createEntityId, unpackEntityId } from '@gwenjs/core';
 import type { EntityId, GwenEngine } from '@gwenjs/core';
+import './augment.js';
 
 import type {
   Physics3DAPI,
@@ -425,10 +426,176 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         y: state.position.y + state.linearVelocity.y * deltaSeconds,
         z: state.position.z + state.linearVelocity.z * deltaSeconds,
       };
+
+      // Integrate angular velocity into the orientation quaternion.
+      // Uses exact small-angle quaternion integration to preserve unit length.
+      const av = state.angularVelocity;
+      const omega = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+      if (omega > 1e-10) {
+        const halfAngle = omega * deltaSeconds * 0.5;
+        const sinH = Math.sin(halfAngle) / omega;
+        const cosH = Math.cos(halfAngle);
+        // Rotation delta quaternion (axis * sin(θ/2), cos(θ/2))
+        const dqx = av.x * sinH;
+        const dqy = av.y * sinH;
+        const dqz = av.z * sinH;
+        const dqw = cosH;
+        // Multiply current rotation by delta: q' = q * dq
+        const q = state.rotation;
+        const nx = q.w * dqx + q.x * dqw + q.y * dqz - q.z * dqy;
+        const ny = q.w * dqy - q.x * dqz + q.y * dqw + q.z * dqx;
+        const nz = q.w * dqz + q.x * dqy - q.y * dqx + q.z * dqw;
+        const nw = q.w * dqw - q.x * dqx - q.y * dqy - q.z * dqz;
+        // Renormalize to prevent numerical drift
+        const rlen = Math.sqrt(nx * nx + ny * ny + nz * nz + nw * nw);
+        if (rlen > 0) {
+          state.rotation = { x: nx / rlen, y: ny / rlen, z: nz / rlen, w: nw / rlen };
+        }
+      }
     }
   };
 
-  // ─── WASM body management ─────────────────────────────────────────────────────
+  // ─── AABB collision detection (local mode) ────────────────────────────────────
+
+  /** World-space AABB min/max corners for overlap testing. */
+  type LocalAABB = {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    minZ: number;
+    maxZ: number;
+  };
+
+  /**
+   * Compute a world-space AABB for a single collider given its body's position.
+   * Collider offsets are applied before expanding by the shape half-extents.
+   */
+  const computeColliderAABB = (pos: Physics3DVec3, col: Physics3DColliderOptions): LocalAABB => {
+    const cx = pos.x + (col.offsetX ?? 0);
+    const cy = pos.y + (col.offsetY ?? 0);
+    const cz = pos.z + (col.offsetZ ?? 0);
+    const shape = col.shape;
+    let hx: number;
+    let hy: number;
+    let hz: number;
+    if (shape.type === 'box') {
+      hx = shape.halfX;
+      hy = shape.halfY;
+      hz = shape.halfZ;
+    } else if (shape.type === 'sphere') {
+      hx = shape.radius;
+      hy = shape.radius;
+      hz = shape.radius;
+    } else {
+      // capsule: radius in X/Z, radius + halfHeight in Y
+      hx = shape.radius;
+      hy = shape.radius + shape.halfHeight;
+      hz = shape.radius;
+    }
+    return {
+      minX: cx - hx,
+      maxX: cx + hx,
+      minY: cy - hy,
+      maxY: cy + hy,
+      minZ: cz - hz,
+      maxZ: cz + hz,
+    };
+  };
+
+  /** Returns `true` when two AABBs overlap on all three axes (inclusive). */
+  const aabbOverlap = (a: LocalAABB, b: LocalAABB): boolean =>
+    a.minX <= b.maxX &&
+    a.maxX >= b.minX &&
+    a.minY <= b.maxY &&
+    a.maxY >= b.minY &&
+    a.minZ <= b.maxZ &&
+    a.maxZ >= b.minZ;
+
+  /**
+   * Axis-Aligned Bounding Box collision pair detection.
+   * Runs O(N²) — acceptable for fallback mode with fewer than 200 bodies.
+   *
+   * Compares the current overlapping pairs against the previous frame to
+   * produce `started` / ended transition events.
+   */
+  const detectLocalCollisions = (): InternalCollisionEvent3D[] => {
+    const currentKeys = new Set<string>();
+    type PairRecord = {
+      slotA: number;
+      slotB: number;
+      colliderIdA: number | undefined;
+      colliderIdB: number | undefined;
+      key: string;
+    };
+    const currentPairs: PairRecord[] = [];
+    const slots = [...bodyByEntity.keys()];
+
+    for (let i = 0; i < slots.length; i++) {
+      const slotA = slots[i]!;
+      const stateA = stateByEntity.get(slotA);
+      const collidersA = localColliders.get(slotA);
+      if (!stateA || !collidersA || collidersA.length === 0) continue;
+
+      for (let j = i + 1; j < slots.length; j++) {
+        const slotB = slots[j]!;
+        const stateB = stateByEntity.get(slotB);
+        const collidersB = localColliders.get(slotB);
+        if (!stateB || !collidersB || collidersB.length === 0) continue;
+
+        for (const colA of collidersA) {
+          const aabbA = computeColliderAABB(stateA.position, colA);
+          for (const colB of collidersB) {
+            const aabbB = computeColliderAABB(stateB.position, colB);
+            if (!aabbOverlap(aabbA, aabbB)) continue;
+            const cIdA = colA.colliderId;
+            const cIdB = colB.colliderId;
+            const key = `${slotA}:${cIdA ?? -1}:${slotB}:${cIdB ?? -1}`;
+            if (!currentKeys.has(key)) {
+              currentKeys.add(key);
+              currentPairs.push({ slotA, slotB, colliderIdA: cIdA, colliderIdB: cIdB, key });
+            }
+          }
+        }
+      }
+    }
+
+    const events: InternalCollisionEvent3D[] = [];
+
+    // Newly overlapping pairs → contact started
+    for (const pair of currentPairs) {
+      if (!previousLocalContactKeys.has(pair.key)) {
+        events.push({
+          slotA: pair.slotA,
+          slotB: pair.slotB,
+          aColliderId: pair.colliderIdA,
+          bColliderId: pair.colliderIdB,
+          started: true,
+        });
+      }
+    }
+
+    // Previously overlapping pairs that no longer overlap → contact ended
+    for (const prevKey of previousLocalContactKeys) {
+      if (!currentKeys.has(prevKey)) {
+        const parts = prevKey.split(':');
+        const slotA = parseInt(parts[0] ?? '0', 10);
+        const rawCIdA = parseInt(parts[1] ?? '-1', 10);
+        const slotB = parseInt(parts[2] ?? '0', 10);
+        const rawCIdB = parseInt(parts[3] ?? '-1', 10);
+        events.push({
+          slotA,
+          slotB,
+          aColliderId: rawCIdA === -1 ? undefined : rawCIdA,
+          bColliderId: rawCIdB === -1 ? undefined : rawCIdB,
+          started: false,
+        });
+      }
+    }
+
+    previousLocalContactKeys = currentKeys;
+    return events;
+  };
 
   const createBodyWasm = (
     entityId: Physics3DEntityId,
@@ -1114,7 +1281,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       ready = true;
 
       // Register prefab extension handler
-      (engine.hooks as any).hook('prefab:instantiate', (entityId: unknown, extensions: unknown) => {
+      engine.hooks.hook('prefab:instantiate', (entityId, extensions) => {
         const ext = (extensions as Record<string, unknown>)?.physics3d as
           | Physics3DPrefabExtension
           | undefined;
@@ -1154,7 +1321,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         }
       });
 
-      (engine as any).provide('physics3d', service);
+      engine.provide('physics3d', service);
 
       if (cfg.debug) {
         console.log(
@@ -1221,7 +1388,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       if (contacts.length === 0) return;
 
       // Dispatch hook
-      void (_engine.hooks as any).callHook('physics3d:collision', contacts);
+      void _engine.hooks.callHook('physics3d:collision', contacts);
 
       // Update sensor states and dispatch sensor:changed hook
       for (const ev of rawEvents) {
@@ -1255,7 +1422,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           sensorMap.set(colliderId, next);
 
           if (prev.isActive !== newActive) {
-            void (_engine.hooks as any).callHook('physics3d:sensor:changed', eid, colliderId, next);
+            void _engine.hooks.callHook('physics3d:sensor:changed', eid, colliderId, next);
           }
         }
       }
