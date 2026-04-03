@@ -19,7 +19,12 @@ import type {
   CollisionContact,
 } from './types';
 
-import { BODY_TYPE, PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE } from './types';
+import {
+  BODY_TYPE,
+  PHYSICS2D_BRIDGE_SCHEMA_VERSION,
+  PHYSICS_QUALITY_PRESET_CODE,
+  PHYSICS2D_WASM_EVENT_STRIDE,
+} from './types';
 
 // ─── Internal types ──────────────────────────────────────────────────────────
 
@@ -73,11 +78,15 @@ export type {
   TilemapPhysicsChunkMap,
 } from './types';
 
-export { PHYSICS2D_BRIDGE_SCHEMA_VERSION, PHYSICS_QUALITY_PRESET_CODE };
+export {
+  PHYSICS2D_BRIDGE_SCHEMA_VERSION,
+  PHYSICS_QUALITY_PRESET_CODE,
+  PHYSICS2D_WASM_EVENT_STRIDE,
+};
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const EVENT_STRIDE = 16;
+const EVENT_STRIDE = PHYSICS2D_WASM_EVENT_STRIDE;
 const MAX_EVENTS = 512;
 
 // ─── Plugin implementation ───────────────────────────────────────────────────

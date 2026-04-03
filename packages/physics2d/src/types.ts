@@ -490,6 +490,23 @@ export const PHYSICS2D_BRIDGE_SCHEMA_VERSION = 2;
 /** Binary ring format version for the `events` channel. */
 export const PHYSICS2D_EVENTS_RING_FORMAT_VERSION = 2;
 
+/**
+ * Byte stride for one collision event in the **live WASM ring buffer**
+ * read directly by the physics plugin (not the public ring-buffer format).
+ *
+ * Layout (16 bytes, little-endian):
+ * ```
+ * [slotA u32][slotB u32][type u32][aColliderId u16][bColliderId u16]
+ * ```
+ * - `type`: 0 or 2 = contact started; other values = contact ended
+ * - collider id `0xFFFF` means absent
+ *
+ * This differs from the public ring-buffer format parsed by
+ * `readCollisionEventsFromBuffer()`, which uses a 19-byte stride with
+ * an 8-byte header and `u32` collider IDs.
+ */
+export const PHYSICS2D_WASM_EVENT_STRIDE = 16;
+
 // ─── Collision event parsing ─────────────────────────────────────────────────
 
 // ─── Binary event reader ──────────────────────────────────────────────────────
@@ -500,17 +517,27 @@ const LEGACY_EVENT_STRIDE = 11;
 const COLLIDER_ID_ABSENT = 0xffffffff;
 
 /**
- * Read all pending collision events from a ring-buffer channel buffer.
+ * Read all pending collision events from a **ring-buffer channel** buffer.
+ *
+ * @remarks
+ * This function reads a **different binary format** from the one used by the
+ * live WASM event buffer ({@link PHYSICS2D_WASM_EVENT_STRIDE}). It is intended
+ * for offline / testing use cases where events are written to a ring-buffer
+ * with an 8-byte header.
  *
  * Format:
- * - Header 8 bytes: [write_head u32 LE][read_head u32 LE]
- * - Each event (19 bytes):
- *   [type u16][slotA u32][slotB u32][aColliderId u32][bColliderId u32][flags u8]
- *   - flags bit 0: 1 = started, 0 = ended
- *   - collider id = 0xFFFFFFFF means absent
+ * - Header 8 bytes: `[write_head u32 LE][read_head u32 LE]`
+ * - Each event **19 bytes** (current) or **11 bytes** (legacy):
+ *   - 19-byte: `[type u16][slotA u32][slotB u32][aColliderId u32][bColliderId u32][flags u8]`
+ *   - 11-byte: `[type u16][slotA u32][slotB u32][flags u8]`
+ *   - `flags` bit 0: 1 = started, 0 = ended
+ *   - collider id `0xFFFFFFFF` = absent
  *
- * Advances `read_head` to `write_head` (marks the buffer as consumed).
+ * Advances `read_head` to `write_head` after reading (marks the buffer as consumed).
  * Slot indices are consumed internally and not exposed on the returned events.
+ *
+ * **Not for live WASM reads** — the active WASM ring buffer uses a 16-byte stride
+ * without a header and is read directly by the physics plugin internals.
  */
 export function readCollisionEventsFromBuffer(bufOrView: ArrayBuffer | DataView): CollisionEvent[] {
   void PHYSICS2D_EVENTS_RING_FORMAT_VERSION;
