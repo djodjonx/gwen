@@ -243,3 +243,70 @@ export default defineConfig({
 ::: info
 `defineConfig` does not bootstrap the engine itself. The `gwen` CLI (or `@gwenjs/vite` plugin in dev mode) reads `gwen.config.ts` and calls `createEngine()` for you.
 :::
+
+---
+
+## defineActor
+
+**Import:** `@gwenjs/core/scene`
+
+Create a composable actor — a reusable, instance-based entity controller. The setup factory runs once per spawned instance and is the place to register lifecycle hooks.
+
+```ts
+defineActor<Props = void, PublicAPI = void>(): (factory: () => PublicAPI | void) => ActorPlugin<Props, PublicAPI>
+```
+
+**Example:**
+
+```ts
+import { defineActor, onStart, onDestroy, onEvent } from '@gwenjs/core/scene'
+import { Position, Health } from './components'
+
+export const EnemyActor = defineActor<{ x: number; y: number }>()(() => {
+  const entityId = _getActorEntityId()
+
+  onStart((api, { x, y }) => {
+    api.addComponent(entityId, Position, { x, y })
+    api.addComponent(entityId, Health, { current: 100, max: 100 })
+  })
+
+  onDestroy(() => {
+    emit('enemy:died', entityId)
+  })
+})
+```
+
+::: tip
+Use `useActor(EnemyActor)` inside a system to get a spawn/despawn handle. See [Actors guide](../core/actors.md).
+:::
+
+---
+
+## defineEvents
+
+**Import:** `@gwenjs/core`
+
+Declare a typed set of custom game events. Returns the same map at runtime (identity). Pair with `InferEvents` and `declare module` to augment `GwenRuntimeHooks` for full type-safety in `emit` and `onEvent`.
+
+```ts
+defineEvents<T extends EventHandlerMap>(map: T): T
+```
+
+**Example:**
+
+```ts
+import { defineEvents } from '@gwenjs/core'
+import type { InferEvents } from '@gwenjs/core'
+
+export const GameEvents = defineEvents({
+  'enemy:died':     (_id: bigint): void => undefined,
+  'player:damage':  (_amount: number): void => undefined,
+  'level:complete': (): void => undefined,
+})
+
+declare module '@gwenjs/core' {
+  interface GwenRuntimeHooks extends InferEvents<typeof GameEvents> {}
+}
+```
+
+After augmentation, `emit('enemy:died', 42n)` is fully typed — wrong arg types and undeclared keys are compile errors.

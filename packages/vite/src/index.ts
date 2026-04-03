@@ -765,4 +765,4 @@ export default gwen;
 
 // RFC-006: New sub-plugin architecture
 export { gwenVitePlugin } from './plugins/index.js';
-export type { GwenViteOptions, GwenWasmOptions, WasmVariant } from './types.js';
+export type { GwenViteOptions, GwenWasmOptions, WasmVariant, ActorPluginOptions } from './types.js';

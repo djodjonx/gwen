@@ -34,6 +34,22 @@ export interface GwenWasmOptions {
 }
 
 /**
+ * Options for the `gwen:actor` sub-plugin.
+ */
+export interface ActorPluginOptions {
+  /**
+   * Directory (relative to project root) scanned for actor files.
+   * @default 'src/actors'
+   */
+  dir?: string;
+  /**
+   * Enable targeted HMR invalidation for actor files.
+   * @default true
+   */
+  hmr?: boolean;
+}
+
+/**
  * Top-level options for the `gwenVitePlugin` / individual sub-plugins.
  */
 export interface GwenViteOptions {
@@ -64,4 +80,7 @@ export interface GwenViteOptions {
    * @default true
    */
   dts?: boolean;
+
+  /** Options for the actor auto-discovery sub-plugin. */
+  actors?: ActorPluginOptions;
 }

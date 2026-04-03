@@ -2,6 +2,7 @@ import { gwenWasmPlugin } from './wasm.js';
 import { gwenAutoImportsPlugin } from './auto-imports.js';
 import { gwenTypesPlugin } from './types-writer.js';
 import { gwenVirtualPlugin } from './virtual-env.js';
+import { gwenActorPlugin } from './actor.js';
 import type { GwenViteOptions } from '../types.js';
 import type { PluginOption } from 'vite';
 
@@ -9,6 +10,7 @@ export { gwenWasmPlugin } from './wasm.js';
 export { gwenAutoImportsPlugin, generateAutoImportsModule } from './auto-imports.js';
 export { gwenTypesPlugin } from './types-writer.js';
 export { gwenVirtualPlugin } from './virtual-env.js';
+export { gwenActorPlugin, generateActorsModule, transformActorNames } from './actor.js';
 
 /**
  * Composite Vite plugin that wires together all GWEN sub-plugins:
@@ -36,5 +38,6 @@ export function gwenVitePlugin(options: GwenViteOptions = {}): PluginOption {
     gwenAutoImportsPlugin(options),
     gwenTypesPlugin(options),
     gwenVirtualPlugin(options),
+    gwenActorPlugin(options),
   ];
 }

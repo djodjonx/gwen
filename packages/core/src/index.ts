@@ -43,8 +43,21 @@ export {
 export type { LiveQuery, ComponentDef, EntityAccessor } from './system';
 
 // Scene primitives
-export { defineScene } from './scene';
-export type { SceneDefinition, SceneFactory, SceneOptions, SceneRegistry } from './scene';
+export { defineScene } from './scene/define-scene.js';
+export type {
+  SceneDefinition,
+  SceneFactory,
+  SceneOptions,
+  SceneRegistry,
+} from './scene/define-scene.js';
+
+export { definePrefab } from './define-prefab.js';
+export type { PrefabDefinition, PrefabComponentEntry } from './define-prefab.js';
+
+// RFC-011: Typed event declaration + emit helper
+export { defineEvents } from './define-events.js';
+export type { InferEvents, EventHandlerMap } from './define-events.js';
+export { emit } from './scene/emit.js';
 
 // WASM Bridge
 export {
