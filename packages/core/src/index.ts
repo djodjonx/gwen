@@ -54,6 +54,11 @@ export type {
 export { definePrefab } from './define-prefab.js';
 export type { PrefabDefinition, PrefabComponentEntry } from './define-prefab.js';
 
+// RFC-011: Typed event declaration + emit helper
+export { defineEvents } from './define-events.js';
+export type { InferEvents, EventHandlerMap } from './define-events.js';
+export { emit } from './scene/emit.js';
+
 // WASM Bridge
 export {
   initWasm,
