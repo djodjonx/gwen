@@ -4,6 +4,10 @@
  * This is the primary entry point for GWEN project configuration and the
  * module system orchestrator. Import `defineConfig` here in `gwen.config.ts`.
  *
+ * ⚠️  This module is browser-safe. Node.js-only APIs (resolveGwenConfig,
+ * GwenApp) are exported from `@gwenjs/app/resolve` to avoid bundling
+ * server-side dependencies (c12, fs, etc.) into the browser bundle.
+ *
  * @example
  * ```typescript
  * // gwen.config.ts
@@ -15,9 +19,9 @@
  * ```
  */
 
-// ─── Config helpers ───────────────────────────────────────────────────────────
+// ─── Config helpers (browser-safe) ───────────────────────────────────────────
 
-export { defineConfig, resolveConfig, resolveGwenConfig } from './config';
+export { defineConfig } from './config';
 export type {
   GwenUserConfig,
   ResolvedGwenConfig,
@@ -26,10 +30,6 @@ export type {
   /** Re-exported for convenience — build hooks live in kit but are surfaced here. */
   GwenBuildHooks,
 } from './config';
-
-// ─── App orchestrator ─────────────────────────────────────────────────────────
-
-export { GwenApp } from './app';
 
 // ─── Module authoring API (re-exported from @gwenjs/kit) ──────────────────
 

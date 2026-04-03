@@ -5,7 +5,7 @@
  * declared module setup functions, and exposes the resulting runtime plugins.
  */
 
-import { GwenApp, resolveGwenConfig, type ResolvedGwenConfig } from '@gwenjs/app';
+import { GwenApp, resolveGwenConfig, type ResolvedGwenConfig } from '@gwenjs/app/resolve';
 import type { GwenPlugin } from '@gwenjs/kit';
 
 /**

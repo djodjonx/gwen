@@ -13,7 +13,7 @@ import fs from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { logger, setLogLevel } from '../../utils/logger.js';
-import { GwenApp, resolveGwenConfig } from '@gwenjs/app';
+import { GwenApp, resolveGwenConfig } from '@gwenjs/app/resolve';
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
