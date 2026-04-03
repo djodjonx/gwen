@@ -43,12 +43,15 @@ export default defineGwenModule<Physics2DConfig>({
       filename: 'physics2d.d.ts',
       getContents: () =>
         definePluginTypes({
-          imports: ["import type { Physics2DAPI } from '@gwenjs/physics2d'"],
+          imports: [
+            "import type { Physics2DAPI, CollisionContact, CollisionEventsBatch, SensorState } from '@gwenjs/physics2d'",
+          ],
           provides: { physics2d: 'Physics2DAPI' },
           hooks: {
-            'physics2d:step': '(stepDt: number) => void',
-            'physics2d:collisionStart': '(entityA: EntityId, entityB: EntityId) => void',
-            'physics2d:collisionEnd': '(entityA: EntityId, entityB: EntityId) => void',
+            'physics:collision': '(contacts: ReadonlyArray<CollisionContact>) => void',
+            'physics:collision:batch': '(batch: Readonly<CollisionEventsBatch>) => void',
+            'physics:sensor:changed':
+              '(entityId: EntityId, sensorId: number, state: SensorState) => void',
           },
         }),
     });

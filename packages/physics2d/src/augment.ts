@@ -1,13 +1,13 @@
 /**
- * @file RFC-009 — GwenProvides and GwenRuntimeHooks augmentations for @gwenjs/physics2d.
+ * @file RFC-009 — GwenProvides, GwenRuntimeHooks and GwenPrefabExtensions
+ * augmentations for @gwenjs/physics2d.
  *
  * This file contains only TypeScript declaration merging — no runtime code.
  * Importing any symbol from `@gwenjs/physics2d` automatically augments
- * `@gwenjs/core` with typed physics service keys and hooks.
+ * `@gwenjs/core` with typed physics service keys, hooks and prefab extensions.
  */
 
-import type { Physics2DAPI } from './types.js';
-import type { EntityId } from '@gwenjs/core';
+import type { Physics2DAPI, Physics2DPluginHooks, Physics2DPrefabExtension } from './types.js';
 
 declare module '@gwenjs/core' {
   /**
@@ -25,15 +25,23 @@ declare module '@gwenjs/core' {
 
   /**
    * Physics 2D runtime hooks augmenting the engine hook bus.
-   * Subscribe via `engine.hooks.hook('physics2d:step', ...)`.
+   *
+   * @example
+   * ```typescript
+   * engine.hooks.hook('physics:collision', (contacts) => { … })
+   * engine.hooks.hook('physics:sensor:changed', (entityId, sensorId, state) => { … })
+   * ```
    */
-  interface GwenRuntimeHooks {
-    /** Fired after the physics step completes (between Phase 3 and Phase 5). */
-    'physics2d:step': (stepDt: number) => void;
-    /** Fired when a collision begins between two entities. */
-    'physics2d:collisionStart': (entityA: EntityId, entityB: EntityId) => void;
-    /** Fired when a collision ends between two entities. */
-    'physics2d:collisionEnd': (entityA: EntityId, entityB: EntityId) => void;
+  interface GwenRuntimeHooks extends Physics2DPluginHooks {}
+}
+
+declare global {
+  /**
+   * Physics 2D prefab extension — enables typed `extensions.physics` blocks
+   * inside `definePrefab({ extensions: { physics: { … } } })`.
+   */
+  interface GwenPrefabExtensions {
+    physics?: Physics2DPrefabExtension;
   }
 }
 

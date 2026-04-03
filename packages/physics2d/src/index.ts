@@ -363,8 +363,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       physicsService = createAPI();
       engine.provide('physics2d', physicsService!);
 
-      (engine.hooks as any).hook('prefab:instantiate', (entityId: any, extensions: any) => {
-        const ext = extensions?.physics as Physics2DPrefabExtension | undefined;
+      engine.hooks.hook('prefab:instantiate', (entityId, extensions) => {
+        const ext = extensions?.physics;
         if (!ext) return;
 
         const { index: slot } = unpackEntityId(entityId);
@@ -426,7 +426,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       if (batch.count === 0) return;
 
       if (cfg.eventMode === 'hybrid')
-        void (currentEngine?.hooks as any)?.callHook('physics:collision:batch', batch);
+        void currentEngine?.hooks.callHook('physics:collision:batch', batch);
 
       // Cast to internal type to access slot indices, which are not on the public CollisionEvent.
       const internalEvents = batch.events as unknown as InternalCollisionEvent[];
@@ -452,7 +452,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           physicsService.updateSensorState(entityId, item.id, event.started);
           const nextState = physicsService.getSensorState(entityId, item.id);
           if (prevState.isActive !== nextState.isActive)
-            void (currentEngine?.hooks as any)?.callHook(
+            void currentEngine?.hooks.callHook(
               'physics:sensor:changed',
               entityId,
               item.id,
@@ -475,7 +475,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         });
       }
 
-      void (currentEngine?.hooks as any)?.callHook('physics:collision', contacts);
+      void currentEngine?.hooks.callHook('physics:collision', contacts);
       for (const contact of contacts) {
         const slotA = unpackEntityId(contact.entityA).index;
         const slotB = unpackEntityId(contact.entityB).index;

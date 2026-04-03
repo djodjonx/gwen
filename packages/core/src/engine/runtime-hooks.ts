@@ -32,4 +32,14 @@ export interface GwenRuntimeHooks {
   'entity:spawn': (id: EntityId) => void;
   /** Fired when an entity is destroyed. */
   'entity:destroy': (id: EntityId) => void;
+
+  /**
+   * Fired to trigger plugin-specific setup when an entity is created from a
+   * prefab declaration. Pass the entity id and the prefab's `extensions` map.
+   * Plugins (e.g. Physics2D) subscribe to this to create rigid bodies, etc.
+   */
+  'prefab:instantiate': (
+    entityId: EntityId,
+    extensions: Readonly<Partial<GwenPrefabExtensions>>,
+  ) => void;
 }
