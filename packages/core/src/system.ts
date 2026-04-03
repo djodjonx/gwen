@@ -43,11 +43,12 @@ type UpdateFn = (dt: number) => void;
 type RenderFn = () => void;
 
 /**
- * Context used internally by `defineSystem()` to collect lifecycle registrations.
- * Only valid while a `defineSystem()` setup function is executing.
+ * Context used internally by `defineSystem()` and `defineActor()` to collect
+ * lifecycle registrations. Only valid while a setup function is executing.
+ *
  * @internal
  */
-interface SystemContext {
+export interface SystemContext {
   onBeforeUpdate(fn: UpdateFn): void;
   onUpdate(fn: UpdateFn): void;
   onAfterUpdate(fn: UpdateFn): void;
@@ -61,10 +62,11 @@ let _currentSystemContext: SystemContext | null = null;
 
 /**
  * Returns the active system registration context.
+ *
  * @internal
- * @throws {Error} If called outside a `defineSystem()` setup function.
+ * @throws {Error} If called outside a `defineSystem()` (or `defineActor()`) setup function.
  */
-function _getSystemContext(): SystemContext {
+export function _getSystemContext(): SystemContext {
   if (!_currentSystemContext) {
     throw new Error(
       '[GWEN] onUpdate/onRender/onBeforeUpdate/onAfterUpdate must be called ' +
@@ -72,6 +74,33 @@ function _getSystemContext(): SystemContext {
     );
   }
   return _currentSystemContext;
+}
+
+/**
+ * Runs `fn` with `ctx` as the active system registration context, then restores
+ * the previous context (supporting nested / re-entrant calls).
+ *
+ * Used internally by `defineSystem()` and `defineActor()` so that lifecycle
+ * composables (`onUpdate`, `onRender`, etc.) resolve to the correct context.
+ *
+ * @internal
+ * @param ctx - The {@link SystemContext} to activate for the duration of `fn`
+ * @param fn  - The setup function to run inside the context
+ *
+ * @example
+ * ```typescript
+ * // Inside defineActor spawn():
+ * _withSystemContext(ctx, () => factory(props))
+ * ```
+ */
+export function _withSystemContext(ctx: SystemContext, fn: () => void): void {
+  const previous = _currentSystemContext;
+  _currentSystemContext = ctx;
+  try {
+    fn();
+  } finally {
+    _currentSystemContext = previous;
+  }
 }
 
 // ─── Lifecycle composables ───────────────────────────────────────────────────
@@ -218,12 +247,7 @@ export function defineSystem(setup: () => void): GwenPlugin {
         onAfterUpdate: (fn) => _afterUpdate.push(fn),
         onRender: (fn) => _render.push(fn),
       };
-      _currentSystemContext = ctx;
-      try {
-        setup();
-      } finally {
-        _currentSystemContext = null;
-      }
+      _withSystemContext(ctx, setup);
     },
 
     onBeforeUpdate(dt: number): void {
