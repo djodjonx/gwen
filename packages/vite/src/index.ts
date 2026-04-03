@@ -194,7 +194,21 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
   ].join('\n');
 }
 
-function generateEntryModule(hasScenesDir: boolean): string {
+/**
+ * Extracts module package names from the `modules: []` array in gwen.config.ts.
+ * Uses regex — handles both string entries and [name, options] tuple entries.
+ * Only scoped packages (`@scope/pkg`) and slash-containing names are extracted.
+ */
+function extractModuleNamesFromConfig(configPath: string): string[] {
+  if (!fs.existsSync(configPath)) return [];
+  const src = fs.readFileSync(configPath, 'utf-8');
+  const match = src.match(/modules\s*:\s*\[([^\]]*)\]/s);
+  if (!match) return [];
+  // Extract string literals that look like package names (contain / or start with @)
+  return [...match[1].matchAll(/['"](@[^'"]+|[^'"@][^'"]*\/[^'"]+)['"]/g)].map((m) => m[1]);
+}
+
+function generateEntryModule(hasScenesDir: boolean, moduleNames: string[] = []): string {
   const lines = [
     'import { initWasm, createEngine, detectCoreVariant, detectSharedMemoryRequired } from "@gwenjs/core";',
     'import gwenConfig from "/gwen.config.ts";',
@@ -204,8 +218,25 @@ function generateEntryModule(hasScenesDir: boolean): string {
     lines.push('import { registerScenes } from "/@gwenjs/gwen-scenes";');
   }
 
+  // Generate static imports for each module — Vite can pre-bundle these
+  const localVars: string[] = moduleNames.map((name, i) => {
+    const localVar = `_gwenMod${i}`;
+    lines.push(`import ${localVar} from ${JSON.stringify(name + '/module')};`);
+    return localVar;
+  });
+
+  // Build a static registry mapping name → imported module object
+  const registryEntries = moduleNames
+    .map((name, i) => `  ${JSON.stringify(name)}: ${localVars[i]}`)
+    .join(',\n');
+  const registryCode =
+    moduleNames.length > 0
+      ? `const _gwenModRegistry = {\n${registryEntries}\n};\n`
+      : 'const _gwenModRegistry = {};\n';
+
   const bootstrapLines = [
     '',
+    registryCode,
     'async function bootstrap() {',
     '  const variant = detectCoreVariant(gwenConfig);',
     '  const requireSAB = detectSharedMemoryRequired(gwenConfig);',
@@ -226,9 +257,11 @@ function generateEntryModule(hasScenesDir: boolean): string {
     '  };',
     '  for (const entry of (gwenConfig.modules ?? [])) {',
     '    const [name, opts] = Array.isArray(entry) ? entry : [entry, {}];',
-    '    const mod = await import(/* @vite-ignore */ name + "/module");',
-    '    const def = mod.default ?? mod;',
-    '    if (def && typeof def.setup === "function") await def.setup(opts ?? {}, kit);',
+    '    const mod = _gwenModRegistry[name];',
+    '    if (mod) {',
+    '      const def = mod.default ?? mod;',
+    '      if (def && typeof def.setup === "function") await def.setup(opts ?? {}, kit);',
+    '    }',
     '  }',
     '  for (const p of modulePlugins) await engine.use(p);',
     '',
@@ -549,7 +582,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 
       if (id === RESOLVED_ENTRY) {
         const hasScenesDir = fs.existsSync(path.join(projectRoot, 'src', 'scenes'));
-        return generateEntryModule(hasScenesDir);
+        const configPath = path.join(projectRoot, 'gwen.config.ts');
+        const moduleNames = extractModuleNamesFromConfig(configPath);
+        return generateEntryModule(hasScenesDir, moduleNames);
       }
 
       if (id === RESOLVED_SCENES) {
@@ -725,7 +760,7 @@ export { gwenTransform } from './transform';
 export type { GwenTransformOptions } from './transform';
 
 /** @internal Exported for unit tests only */
-export { generateEntryModule, generateScenesModule };
+export { generateEntryModule, generateScenesModule, extractModuleNamesFromConfig };
 
 export default gwen;
 

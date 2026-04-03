@@ -3,11 +3,13 @@
  * Verifies virtual module resolution and plugin options.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import * as path from 'node:path';
 import { gwen, generateEntryModule, generateScenesModule } from '../src/index';
+// @ts-expect-error — internal export for tests
+import { extractModuleNamesFromConfig } from '../src/index';
 
 function makeTmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gwen-vite-test-'));
@@ -169,7 +171,6 @@ describe('generateBundle', () => {
 describe('generateEntryModule — bootstrap correctness', () => {
   it('uses createEngine directly (not destructured)', () => {
     const code = generateEntryModule(false);
-    // Must NOT destructure { engine } — createEngine returns GwenEngine directly
     expect(code).not.toContain('const { engine }');
     expect(code).toContain('const engine = await createEngine(');
   });
@@ -180,16 +181,34 @@ describe('generateEntryModule — bootstrap correctness', () => {
     expect(code).not.toMatch(/createEngine\(gwenConfig[^.]/);
   });
 
-  it('loads plugins from modules via dynamic import of /module sub-path', () => {
-    const code = generateEntryModule(false);
-    expect(code).toContain('gwenConfig.modules');
-    expect(code).toContain('name + "/module"');
-    expect(code).toContain('@vite-ignore');
+  it('no modules: no dynamic import, no @vite-ignore, empty registry', () => {
+    const code = generateEntryModule(false, []);
+    expect(code).not.toContain('@vite-ignore');
+    expect(code).not.toContain('import(');
+    expect(code).toContain('const _gwenModRegistry = {}');
+  });
+
+  it('with modules: generates static top-level imports (no dynamic import)', () => {
+    const code = generateEntryModule(false, ['@gwenjs/input', '@gwenjs/ui']);
+    expect(code).not.toContain('@vite-ignore');
+    expect(code).not.toContain('import(');
+    expect(code).toContain('import _gwenMod0 from "@gwenjs/input/module"');
+    expect(code).toContain('import _gwenMod1 from "@gwenjs/ui/module"');
+  });
+
+  it('with modules: registry maps name to local var', () => {
+    const code = generateEntryModule(false, ['@gwenjs/input']);
+    expect(code).toContain('"@gwenjs/input": _gwenMod0');
+  });
+
+  it('with modules: bootstrap looks up registry by name and calls setup', () => {
+    const code = generateEntryModule(false, ['@gwenjs/input']);
+    expect(code).toContain('_gwenModRegistry[name]');
     expect(code).toContain('def.setup');
   });
 
   it('registers module plugins before direct plugins and before start', () => {
-    const code = generateEntryModule(false);
+    const code = generateEntryModule(false, ['@gwenjs/input']);
     const modulePluginsIdx = code.indexOf('for (const p of modulePlugins)');
     const directPluginsIdx = code.indexOf('gwenConfig.plugins');
     const startIdx = code.indexOf('engine.start()');
@@ -225,7 +244,6 @@ describe('generateEntryModule — bootstrap correctness', () => {
     const startIdx = code.indexOf('engine.start()');
     expect(scenesIdx).toBeGreaterThan(0);
     expect(startIdx).toBeGreaterThan(scenesIdx);
-    // Adapter has register() that calls engine.use() for each system
     expect(code).toContain('register(scene)');
     expect(code).toContain('engine.use(s)');
   });
@@ -234,6 +252,58 @@ describe('generateEntryModule — bootstrap correctness', () => {
     const code = generateEntryModule(false);
     expect(code).not.toContain('registerScenes');
     expect(code).not.toContain('gwen-scenes');
+  });
+});
+
+// ── extractModuleNamesFromConfig ──────────────────────────────────────────────
+
+describe('extractModuleNamesFromConfig', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gwen-mod-test-'));
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  function writeConfig(content: string): string {
+    const p = path.join(tmp, 'gwen.config.ts');
+    fs.writeFileSync(p, content, 'utf-8');
+    return p;
+  }
+
+  it('returns empty array when file does not exist', () => {
+    expect(extractModuleNamesFromConfig(path.join(tmp, 'nonexistent.ts'))).toEqual([]);
+  });
+
+  it('returns empty array when no modules key', () => {
+    const p = writeConfig('export default defineConfig({ engine: { targetFPS: 60 } })');
+    expect(extractModuleNamesFromConfig(p)).toEqual([]);
+  });
+
+  it('extracts scoped package names from string entries', () => {
+    const p = writeConfig(`export default defineConfig({
+      modules: ['@gwenjs/input', '@gwenjs/ui'],
+    })`);
+    expect(extractModuleNamesFromConfig(p)).toEqual(['@gwenjs/input', '@gwenjs/ui']);
+  });
+
+  it('extracts name from tuple [name, options] entries', () => {
+    const p = writeConfig(`export default defineConfig({
+      modules: ['@gwenjs/input', ['@gwenjs/physics2d', { gravity: 9.8 }]],
+    })`);
+    const names = extractModuleNamesFromConfig(p);
+    expect(names).toContain('@gwenjs/input');
+    expect(names).toContain('@gwenjs/physics2d');
+  });
+
+  it('does not extract non-package option strings', () => {
+    const p = writeConfig(`export default defineConfig({
+      modules: [['@gwenjs/input', { mode: 'gamepad' }]],
+    })`);
+    const names = extractModuleNamesFromConfig(p);
+    expect(names).toEqual(['@gwenjs/input']);
+    expect(names).not.toContain('gamepad');
   });
 });
 
