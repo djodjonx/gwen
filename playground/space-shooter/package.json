@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "dev": "gwen dev",
-    "build": "gwen build"
+    "build": "gwen build",
+    "prepare": "gwen prepare"
   },
   "dependencies": {
     "@gwenjs/app": "workspace:*",

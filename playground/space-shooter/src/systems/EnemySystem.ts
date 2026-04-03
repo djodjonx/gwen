@@ -23,13 +23,14 @@ const SPAWN_INTERVAL_BASE = 2.2;
 /** Minimum gap between spawns regardless of score. */
 const SPAWN_INTERVAL_MIN = 0.45;
 
-function spawnEnemy(engine: GwenEngine): void {
+function spawnEnemy(engine: GwenEngine, overrideY?: number): void {
   const x = 36 + Math.random() * (CANVAS_W - 72);
+  const y = overrideY ?? -20;
   const speed = SPEED_MIN + Math.random() * SPEED_RANGE;
   const hp = Math.random() < 0.25 ? 3 : 1;
   const shootCooldown = 1.4 + Math.random() * 2.0;
   const id = engine.createEntity();
-  engine.addComponent(id, Position, { x, y: -20 });
+  engine.addComponent(id, Position, { x, y });
   engine.addComponent(id, Size, { w: 28, h: 28 });
   engine.addComponent(id, Health, { hp });
   engine.addComponent(id, Shooter, {
@@ -51,6 +52,11 @@ function spawnEnemyBullet(engine: GwenEngine, x: number, y: number): void {
 export const EnemySystem = defineSystem(function EnemySystem() {
   const engine = useEngine();
   const enemies = useQuery([Position, Size, Health, Shooter, EnemyTag]);
+
+  // Spawn 5 staggered enemies immediately so the field isn't empty at game start.
+  for (let i = 0; i < 5; i++) {
+    spawnEnemy(engine, -30 - i * 20);
+  }
 
   onUpdate((dt) => {
     if (gameState.gameOver) return;

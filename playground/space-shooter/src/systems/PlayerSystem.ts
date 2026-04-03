@@ -10,6 +10,7 @@ import {
   PlayerTag,
   PlayerBulletTag,
 } from '../components/index';
+
 import { gameState } from '../gameState';
 
 const PLAYER_SPEED = 200;
@@ -34,6 +35,7 @@ export const PlayerSystem = defineSystem(function PlayerSystem() {
   // Spawn the single player entity during setup.
   const playerId = engine.createEntity();
   engine.addComponent(playerId, Position, { x: CANVAS_W / 2, y: CANVAS_H - 60 });
+  engine.addComponent(playerId, Velocity, { x: 0, y: 0 });
   engine.addComponent(playerId, Health, { hp: 3 });
   engine.addComponent(playerId, Shooter, { cooldown: 0.25, timer: 0 });
   engine.addComponent(playerId, Size, { w: HALF_W * 2, h: HALF_H * 2 });
@@ -63,6 +65,7 @@ export const PlayerSystem = defineSystem(function PlayerSystem() {
       const nx = Math.max(HALF_W, Math.min(CANVAS_W - HALF_W, pos.x + vx * dt));
       const ny = Math.max(HALF_H, Math.min(CANVAS_H - HALF_H, pos.y + vy * dt));
       engine.addComponent(e.id, Position, { x: nx, y: ny });
+      engine.addComponent(e.id, Velocity, { x: vx, y: vy });
 
       // Weapon cooldown and fire.
       let newTimer = Math.max(-1, shooter.timer - dt);

@@ -110,6 +110,41 @@ export const CollisionSystem = defineSystem(function CollisionSystem() {
       }
     }
 
+    // ── Enemies (body) vs player ──────────────────────────────────────────────
+    for (const en of enemies) {
+      if (enemiesToDestroy.has(en.id)) continue;
+      const ePos = en.get(Position);
+      const eSize = en.get(Size);
+      if (!ePos || !eSize) continue;
+
+      for (const p of players) {
+        if (gameState.invincibleTimer > 0) break;
+        const pPos = p.get(Position);
+        const pSize = p.get(Size);
+        const pHp = p.get(Health);
+        if (!pPos || !pSize || !pHp) continue;
+
+        if (overlaps(ePos.x, ePos.y, eSize.w, eSize.h, pPos.x, pPos.y, pSize.w, pSize.h)) {
+          enemiesToDestroy.add(en.id);
+          const newHp = pHp.hp - 1;
+          if (newHp <= 0) {
+            gameState.lives--;
+            if (gameState.lives <= 0) {
+              gameState.gameOver = true;
+            } else {
+              engine.addComponent(p.id, Health, { hp: 3 });
+              engine.addComponent(p.id, Position, { x: 240, y: 580 });
+              gameState.invincibleTimer = 3.0;
+            }
+          } else {
+            engine.addComponent(p.id, Health, { hp: newHp });
+            gameState.invincibleTimer = 2.0;
+          }
+          break;
+        }
+      }
+    }
+
     for (const id of bulletsToDestroy) engine.destroyEntity(id);
     for (const id of enemiesToDestroy) engine.destroyEntity(id);
     for (const id of enemyBulletsToDestroy) engine.destroyEntity(id);
