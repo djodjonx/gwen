@@ -24,7 +24,7 @@ export function PlatformerInputSystem(): GwenPlugin {
     onBeforeUpdate(_dt: number): void {
       if (!_engine || !mapper) return;
 
-      const entities = [..._engine.createLiveQuery([PlatformerIntent.name])] as any[];
+      const entities = [..._engine.createLiveQuery([PlatformerIntent])];
       const axis = mapper.readAxis2D('Move');
       const jumpJustPressed = mapper.isActionJustPressed('Jump');
       const jumpPressed = mapper.isActionPressed('Jump');
@@ -35,8 +35,8 @@ export function PlatformerInputSystem(): GwenPlugin {
         );
       }
 
-      for (const eid of entities) {
-        (_engine as any).addComponent(eid, PlatformerIntent, {
+      for (const accessor of entities) {
+        (_engine as any).addComponent(accessor.id, PlatformerIntent, {
           moveX: axis.x,
           jumpJustPressed,
           jumpPressed,

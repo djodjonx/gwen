@@ -7,9 +7,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import * as path from 'node:path';
-import { gwen, generateEntryModule, generateScenesModule } from '../src/index';
-// @ts-expect-error — internal export for tests
-import { extractModuleNamesFromConfig } from '../src/index';
+import {
+  gwen,
+  generateEntryModule,
+  generateScenesModule,
+  extractModuleNamesFromConfig,
+} from '../src/index';
 
 function makeTmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gwen-vite-test-'));

@@ -36,7 +36,15 @@ function createMockEngine(
       callHook: vi.fn(),
     },
     _hookCallbacks: hookCallbacks,
-    createLiveQuery: vi.fn(() => (overrides.entities ?? [])[Symbol.iterator]()),
+    createLiveQuery: vi.fn(() => {
+      const entities = overrides.entities ?? [];
+      const accessors = entities.map((e: unknown) => ({
+        id: e,
+        get: () => undefined,
+        has: () => false,
+      }));
+      return accessors[Symbol.iterator]();
+    }),
     getComponent: vi.fn(overrides.getComponent ?? (() => undefined)),
   };
 }

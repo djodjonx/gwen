@@ -112,9 +112,9 @@ export function PlatformerMovementSystem(): GwenPlugin {
       const dtMs = deltaTime * 1000;
       if (!_engine) return;
 
-      const entities = [
-        ..._engine.createLiveQuery([PlatformerController, PlatformerIntent]),
-      ] as EntityId[];
+      const entities = [..._engine.createLiveQuery([PlatformerController, PlatformerIntent])].map(
+        (a) => a.id,
+      );
 
       for (const eid of entities) {
         const ctrl =
