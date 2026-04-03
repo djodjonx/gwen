@@ -59,6 +59,25 @@ export { defineEvents } from './define-events.js';
 export type { InferEvents, EventHandlerMap } from './define-events.js';
 export { emit } from './scene/emit.js';
 
+// Actor + Layout system (RFC-011, RFC-01)
+export { defineActor, onStart, onDestroy, onEvent } from './scene/define-actor.js';
+export { defineLayout } from './scene/define-layout.js';
+export { useActor, usePrefab, useComponent } from './scene/use-actor.js';
+export { useLayout } from './scene/use-layout.js';
+export { useTransform } from './scene/use-transform.js';
+export { placeActor, placeGroup, placePrefab } from './scene/place.js';
+export type { ActorHandle, PrefabHandle } from './scene/use-actor.js';
+export type {
+  ActorDefinition,
+  ActorInstance,
+  ActorPlugin,
+  PlaceHandle,
+  LayoutDefinition,
+  LayoutHandle,
+  UseLayoutOptions,
+} from './scene/types.js';
+export type { TransformHandle } from './scene/use-transform.js';
+
 // WASM Bridge
 export {
   initWasm,
