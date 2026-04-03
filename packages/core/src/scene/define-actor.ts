@@ -292,6 +292,13 @@ export function defineActor<Props = void, PublicAPI = void>(
 ): ActorDefinition<Props, PublicAPI> {
   const _instances = new Map<bigint, ActorInstance<PublicAPI>>();
 
+  /**
+   * Flat array mirror of `_instances` values, kept in sync with the Map.
+   * Iterating a plain indexed array avoids the `MapIterator` allocation that
+   * `_instances.values()` would create on every frame-phase dispatch.
+   */
+  const _instanceArray: ActorInstance<PublicAPI>[] = [];
+
   /** The scoped-proxy engine captured during `setup()`. */
   let _engine: GwenEngine | null = null;
 
@@ -347,8 +354,10 @@ export function defineActor<Props = void, PublicAPI = void>(
 
     instance.api = api as PublicAPI;
 
-    // 6. Register the instance.
+    // 6. Register the instance in both the Map (for O(1) keyed lookup) and the
+    //    flat array (for zero-allocation frame-phase iteration).
     _instances.set(entityId, instance);
+    _instanceArray.push(instance);
 
     // 7. Fire _start callbacks immediately after setup.
     for (let i = 0; i < instance._start.length; i++) {
@@ -377,8 +386,10 @@ export function defineActor<Props = void, PublicAPI = void>(
     // 3. Destroy the ECS entity.
     _engine?.destroyEntity(entityId as unknown as EntityId);
 
-    // 4. Remove from the instance registry.
+    // 4. Remove from both registries.
     _instances.delete(entityId);
+    const arrIdx = _instanceArray.indexOf(instance);
+    if (arrIdx !== -1) _instanceArray.splice(arrIdx, 1);
   }
 
   // ─── Plugin ───────────────────────────────────────────────────────────────
@@ -393,7 +404,8 @@ export function defineActor<Props = void, PublicAPI = void>(
     // Frame phase dispatchers — iterate all live instances each frame.
 
     onBeforeUpdate(dt: number): void {
-      for (const inst of _instances.values()) {
+      for (let j = 0; j < _instanceArray.length; j++) {
+        const inst = _instanceArray[j]!;
         for (let i = 0; i < inst._beforeUpdate.length; i++) {
           inst._beforeUpdate[i]!(dt);
         }
@@ -401,7 +413,8 @@ export function defineActor<Props = void, PublicAPI = void>(
     },
 
     onUpdate(dt: number): void {
-      for (const inst of _instances.values()) {
+      for (let j = 0; j < _instanceArray.length; j++) {
+        const inst = _instanceArray[j]!;
         for (let i = 0; i < inst._update.length; i++) {
           inst._update[i]!(dt);
         }
@@ -409,7 +422,8 @@ export function defineActor<Props = void, PublicAPI = void>(
     },
 
     onAfterUpdate(dt: number): void {
-      for (const inst of _instances.values()) {
+      for (let j = 0; j < _instanceArray.length; j++) {
+        const inst = _instanceArray[j]!;
         for (let i = 0; i < inst._afterUpdate.length; i++) {
           inst._afterUpdate[i]!(dt);
         }
@@ -417,7 +431,8 @@ export function defineActor<Props = void, PublicAPI = void>(
     },
 
     onRender(): void {
-      for (const inst of _instances.values()) {
+      for (let j = 0; j < _instanceArray.length; j++) {
+        const inst = _instanceArray[j]!;
         for (let i = 0; i < inst._render.length; i++) {
           inst._render[i]!();
         }

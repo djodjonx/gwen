@@ -257,7 +257,29 @@ export function usePrefab(prefabDef: PrefabDefinition): PrefabHandle {
  * **Write** — `proxy.prop = value` calls `engine.addComponent(entityId, def,
  * { ...current, prop: value })`, merging the new value with the existing data.
  *
- * @template T - Shape of the component data object (use `Record<string, any>`
+ * **Performance note** — The Proxy object itself is created **once** at spawn
+ * time and stored in the actor factory's closure; there is no per-frame
+ * overhead from the Proxy wrapper. However, every **property write**
+ * (`proxy.x = value`) allocates a new plain object (`{ ...current, [prop]: value }`)
+ * because the ECS component model is immutable: `addComponent` always replaces
+ * the whole component data record. If your actor writes multiple fields per
+ * frame from a hot path, batch them into a single `engine.addComponent()` call
+ * to reduce allocation pressure:
+ *
+ * ```typescript
+ * // ❌ Two allocations per frame:
+ * pos.x += vx * dt;
+ * pos.y += vy * dt;
+ *
+ * // ✅ One allocation per frame:
+ * const cur = engine.getComponent(entityId, Position);
+ * engine.addComponent(entityId, Position, { x: cur.x + vx * dt, y: cur.y + vy * dt });
+ * ```
+ *
+ * @performance Property writes via this Proxy each create one object allocation
+ *   (the spread merge). Batch writes with direct `engine.addComponent()` calls
+ *   in hot paths to avoid per-property GC pressure.
+ *
  *   when the component definition is not fully typed).
  * @param def - The component definition to target.
  * @returns A mutable proxy typed as `T`.
