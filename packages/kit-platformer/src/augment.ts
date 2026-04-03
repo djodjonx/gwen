@@ -19,6 +19,19 @@ declare module '@gwenjs/core' {
    */
   interface GwenProvides {
     platformer: PlatformerKitService;
+    /**
+     * Generic physics service slot used by kit-platformer systems.
+     * Consumers register their physics implementation (e.g. `physics2d`) under
+     * this key so that kit-platformer remains physics-implementation-agnostic.
+     *
+     * @example
+     * ```typescript
+     * // In your game setup, bridge the physics2d service:
+     * engine.provide('physics', engine.inject('physics2d'));
+     * ```
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    physics: any;
   }
 }
 
