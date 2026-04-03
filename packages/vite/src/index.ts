@@ -211,6 +211,28 @@ function generateEntryModule(hasScenesDir: boolean): string {
     '  const requireSAB = detectSharedMemoryRequired(gwenConfig);',
     '  await initWasm(variant, { requireSAB });',
     '  const engine = await createEngine(gwenConfig.engine ?? {});',
+    '',
+    '  // Load runtime plugins declared via modules: []',
+    '  const modulePlugins = [];',
+    '  const kit = {',
+    '    addPlugin(p) { modulePlugins.push(typeof p === "function" ? p() : p); },',
+    '    addAutoImports() {},',
+    '    addVitePlugin() {},',
+    '    extendViteConfig() {},',
+    '    addTypeTemplate() {},',
+    '    addModuleAugment() {},',
+    '    hook() {},',
+    '    options: gwenConfig,',
+    '  };',
+    '  for (const entry of (gwenConfig.modules ?? [])) {',
+    '    const [name, opts] = Array.isArray(entry) ? entry : [entry, {}];',
+    '    const mod = await import(/* @vite-ignore */ name + "/module");',
+    '    const def = mod.default ?? mod;',
+    '    if (def && typeof def.setup === "function") await def.setup(opts ?? {}, kit);',
+    '  }',
+    '  for (const p of modulePlugins) await engine.use(p);',
+    '',
+    '  // Direct plugins from plugins: []',
     '  for (const plugin of (gwenConfig.plugins ?? [])) {',
     '    await engine.use(plugin);',
     '  }',
@@ -218,6 +240,8 @@ function generateEntryModule(hasScenesDir: boolean): string {
 
   if (hasScenesDir) {
     bootstrapLines.push(
+      '',
+      '  // Wire scenes: collect system plugins via SceneRegistry adapter',
       '  const usages = [];',
       '  registerScenes({ register(scene) { for (const s of scene.systems ?? []) usages.push(engine.use(s)); } });',
       '  await Promise.all(usages);',
@@ -699,6 +723,9 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
 // Default export for CommonJS compatibility
 export { gwenTransform } from './transform';
 export type { GwenTransformOptions } from './transform';
+
+/** @internal Exported for unit tests only */
+export { generateEntryModule, generateScenesModule };
 
 export default gwen;
 

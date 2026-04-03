@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import * as path from 'node:path';
-import { gwen } from '../src/index';
+import { gwen, generateEntryModule, generateScenesModule } from '../src/index';
 
 function makeTmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gwen-vite-test-'));
@@ -161,5 +161,88 @@ describe('generateBundle', () => {
     const manifestAsset = emitted.find((asset) => asset.fileName === 'gwen-manifest.json');
     expect(manifestAsset).toBeDefined();
     expect(() => JSON.parse(manifestAsset.source)).not.toThrow();
+  });
+});
+
+// ── generateEntryModule ───────────────────────────────────────────────────────
+
+describe('generateEntryModule — bootstrap correctness', () => {
+  it('uses createEngine directly (not destructured)', () => {
+    const code = generateEntryModule(false);
+    // Must NOT destructure { engine } — createEngine returns GwenEngine directly
+    expect(code).not.toContain('const { engine }');
+    expect(code).toContain('const engine = await createEngine(');
+  });
+
+  it('passes gwenConfig.engine to createEngine, not gwenConfig', () => {
+    const code = generateEntryModule(false);
+    expect(code).toContain('createEngine(gwenConfig.engine');
+    expect(code).not.toMatch(/createEngine\(gwenConfig[^.]/);
+  });
+
+  it('loads plugins from modules via dynamic import of /module sub-path', () => {
+    const code = generateEntryModule(false);
+    expect(code).toContain('gwenConfig.modules');
+    expect(code).toContain('name + "/module"');
+    expect(code).toContain('@vite-ignore');
+    expect(code).toContain('def.setup');
+  });
+
+  it('registers module plugins before direct plugins and before start', () => {
+    const code = generateEntryModule(false);
+    const modulePluginsIdx = code.indexOf('for (const p of modulePlugins)');
+    const directPluginsIdx = code.indexOf('gwenConfig.plugins');
+    const startIdx = code.indexOf('engine.start()');
+    expect(modulePluginsIdx).toBeGreaterThan(0);
+    expect(directPluginsIdx).toBeGreaterThan(modulePluginsIdx);
+    expect(startIdx).toBeGreaterThan(directPluginsIdx);
+  });
+
+  it('kit stub provides all GwenKit methods as no-ops for build-only methods', () => {
+    const code = generateEntryModule(false);
+    expect(code).toContain('addAutoImports() {}');
+    expect(code).toContain('addVitePlugin() {}');
+    expect(code).toContain('extendViteConfig() {}');
+    expect(code).toContain('addTypeTemplate() {}');
+    expect(code).toContain('addModuleAugment() {}');
+    expect(code).toContain('hook() {}');
+  });
+
+  it('awaits engine.start()', () => {
+    const code = generateEntryModule(false);
+    expect(code).toContain('await engine.start()');
+  });
+
+  it('with scenes: imports registerScenes but not mainScene', () => {
+    const code = generateEntryModule(true);
+    expect(code).toContain('import { registerScenes }');
+    expect(code).not.toContain('mainScene');
+  });
+
+  it('with scenes: wires systems via SceneRegistry adapter before start', () => {
+    const code = generateEntryModule(true);
+    const scenesIdx = code.indexOf('registerScenes(');
+    const startIdx = code.indexOf('engine.start()');
+    expect(scenesIdx).toBeGreaterThan(0);
+    expect(startIdx).toBeGreaterThan(scenesIdx);
+    // Adapter has register() that calls engine.use() for each system
+    expect(code).toContain('register(scene)');
+    expect(code).toContain('engine.use(s)');
+  });
+
+  it('without scenes: no registerScenes import or call', () => {
+    const code = generateEntryModule(false);
+    expect(code).not.toContain('registerScenes');
+    expect(code).not.toContain('gwen-scenes');
+  });
+});
+
+// ── generateScenesModule ──────────────────────────────────────────────────────
+
+describe('generateScenesModule — registerScenes contract', () => {
+  it('empty scenes → registerScenes is a no-op', () => {
+    const code = generateScenesModule([], undefined);
+    expect(code).toContain('export function registerScenes(_scenes)');
+    expect(code).toContain('export const mainScene = undefined');
   });
 });
