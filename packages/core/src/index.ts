@@ -43,8 +43,13 @@ export {
 export type { LiveQuery, ComponentDef, EntityAccessor } from './system';
 
 // Scene primitives
-export { defineScene } from './scene';
-export type { SceneDefinition, SceneFactory, SceneOptions, SceneRegistry } from './scene';
+export { defineScene } from './scene/define-scene.js';
+export type {
+  SceneDefinition,
+  SceneFactory,
+  SceneOptions,
+  SceneRegistry,
+} from './scene/define-scene.js';
 
 // WASM Bridge
 export {
