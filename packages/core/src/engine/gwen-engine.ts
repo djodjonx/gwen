@@ -215,11 +215,14 @@ export class GwenPluginNotFoundError extends Error {
   readonly docsUrl: string;
 
   constructor(opts: GwenPluginNotFoundErrorOptions) {
-    super(`[GwenEngine] Plugin/service "${opts.pluginName}" not found. ${opts.hint}`);
+    const hint =
+      opts.hint || `Add the "${opts.pluginName}" plugin via engine.use() or in gwen.config.ts.`;
+    const docsUrl = opts.docsUrl || 'https://gwenengine.dev/docs/plugins';
+    super(`[GwenEngine] Plugin/service "${opts.pluginName}" not found. ${hint}`);
     this.name = 'GwenPluginNotFoundError';
     this.pluginName = opts.pluginName;
-    this.hint = opts.hint;
-    this.docsUrl = opts.docsUrl;
+    this.hint = hint;
+    this.docsUrl = docsUrl;
   }
 }
 
