@@ -220,3 +220,179 @@ Each frame executes phases in this order:
 3. `onUpdate` — main game logic
 4. `onAfterUpdate` — read-back from WASM
 5. `onRender` — draw
+
+---
+
+## useActor(actorDef)
+
+**Import:** `@gwenjs/core/scene`
+
+Return a spawn/despawn handle for a given actor definition. Must be called inside a `defineSystem` or `defineActor` setup factory.
+
+```ts
+useActor<Props, PublicAPI>(actorDef: ActorPlugin<Props, PublicAPI>): ActorHandle<Props, PublicAPI>
+```
+
+**Example:**
+
+```ts
+import { defineSystem, onUpdate } from '@gwenjs/core'
+import { useActor } from '@gwenjs/core/scene'
+import { EnemyActor } from './actors/enemy'
+
+export const SpawnerSystem = defineSystem(() => {
+  const enemy = useActor(EnemyActor)
+
+  onUpdate(() => {
+    if (shouldSpawn()) {
+      enemy.spawn({ x: Math.random() * 800, y: -20 })
+    }
+  })
+})
+```
+
+| Method | Description |
+|---|---|
+| `spawn(props?)` | Create entity + run actor factory |
+| `despawn(id)` | Destroy entity + run `onDestroy` |
+| `spawnOnce(props?)` | Spawn only if count is 0 |
+| `despawnAll()` | Destroy all living instances |
+| `get(id)` | Public API of one instance |
+| `getAll()` | Array of all public APIs (allocates — avoid in hot loops) |
+| `count()` | Number of living instances |
+
+---
+
+## usePrefab(prefabDef)
+
+**Import:** `@gwenjs/core/scene`
+
+Return a spawn/despawn handle for a prefab. Useful when you need to spawn prefabs dynamically from inside a system without needing per-instance lifecycle hooks.
+
+```ts
+usePrefab(prefabDef: PrefabDefinition): PrefabHandle
+```
+
+**Example:**
+
+```ts
+import { defineSystem, onUpdate } from '@gwenjs/core'
+import { usePrefab } from '@gwenjs/core/scene'
+import { BulletPrefab } from './prefabs'
+
+export const WeaponSystem = defineSystem(() => {
+  const bullet = usePrefab(BulletPrefab)
+
+  onUpdate(() => {
+    if (firing) bullet.spawn({ [Position]: { x: px, y: py } })
+  })
+})
+```
+
+---
+
+## useComponent(componentDef)
+
+**Import:** `@gwenjs/core/scene`
+
+Return an ES6 Proxy bound to the current actor's entity. Read and write component fields directly without manual `getComponent`/`addComponent` calls. Must be called inside a `defineActor` factory — the entity ID is captured at spawn time.
+
+```ts
+useComponent<T>(def: ComponentDef<T>): T
+```
+
+**Example:**
+
+```ts
+import { defineActor, onUpdate } from '@gwenjs/core/scene'
+import { useComponent } from '@gwenjs/core/scene'
+import { Position, Velocity } from './components'
+
+export const PhysicsActor = defineActor()(() => {
+  const pos = useComponent(Position)   // proxy bound to this entity
+  const vel = useComponent(Velocity)
+
+  onUpdate((dt) => {
+    pos.x += vel.x * dt  // reads getComponent, writes addComponent
+    pos.y += vel.y * dt
+  })
+})
+```
+
+::: warning
+Each property **write** allocates one object (ECS component model is immutable). Batch writes using `engine.addComponent(id, def, { x, y })` directly for hot paths with many updates per frame.
+:::
+
+---
+
+## emit(name, ...args)
+
+**Import:** `@gwenjs/core`
+
+Dispatch a named event to all listeners registered via `onEvent`, `engine.hooks.hook`, or `defineEvents`. Must be called within an active engine context.
+
+```ts
+// For known GwenRuntimeHooks keys — fully typed
+emit<K extends keyof GwenRuntimeHooks>(name: K, ...args: Parameters<GwenRuntimeHooks[K]>): void
+// For custom events — accepts any string
+emit(name: string, ...args: unknown[]): void
+```
+
+**Example:**
+
+```ts
+import { emit } from '@gwenjs/core'
+
+emit('enemy:died', entityId)    // custom event — no cast needed
+emit('player:damage', 25)       // custom event
+emit('engine:tick', 0.016)      // built-in hook — args type-checked
+```
+
+::: tip
+Use [`defineEvents`](./helpers.md#defineevents) to declare your game events once and get full type-safety (wrong arg types and undeclared keys become compile errors).
+:::
+
+---
+
+## onStart(fn)
+
+**Import:** `@gwenjs/core/scene` · Only valid inside `defineActor`
+
+Register a callback to run after the entity is created and components are ready.
+
+```ts
+onStart(fn: (api: EcsApi, props: Props) => void): void
+```
+
+---
+
+## onDestroy(fn)
+
+**Import:** `@gwenjs/core/scene` · Only valid inside `defineActor`
+
+Register a callback to run just before the entity is removed.
+
+```ts
+onDestroy(fn: () => void): void
+```
+
+---
+
+## onEvent(name, fn)
+
+**Import:** `@gwenjs/core/scene` · Only valid inside `defineActor`
+
+Register a callback to run when `emit(name, ...)` is called while this actor instance is alive. The listener is automatically removed when the actor is despawned.
+
+```ts
+onEvent<K extends keyof GwenRuntimeHooks>(name: K, fn: GwenRuntimeHooks[K]): void
+onEvent(name: string, fn: (...args: unknown[]) => void): void
+```
+
+**Example:**
+
+```ts
+onEvent('player:attack', (damage: number) => {
+  hp.current -= damage
+  if (hp.current <= 0) emit('enemy:died', entityId)
+})
