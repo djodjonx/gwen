@@ -89,6 +89,17 @@ export {
 const EVENT_STRIDE = PHYSICS2D_WASM_EVENT_STRIDE;
 const MAX_EVENTS = 512;
 
+function processSensorId(
+  activeSensors: Map<number, Set<number>>,
+  slot: number,
+  reportedId?: number,
+): number | undefined {
+  const entitySensors = activeSensors.get(slot);
+  if (!entitySensors) return reportedId;
+  if (reportedId !== undefined) return entitySensors.has(reportedId) ? reportedId : undefined;
+  return entitySensors.size === 1 ? entitySensors.values().next().value : undefined;
+}
+
 // ─── Plugin implementation ───────────────────────────────────────────────────
 
 /**
@@ -441,17 +452,9 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       const internalEvents = batch.events as unknown as InternalCollisionEvent[];
 
       for (const event of internalEvents) {
-        const processSensor = (slot: number, reportedId?: number) => {
-          const entitySensors = activeSensors.get(slot);
-          if (!entitySensors) return reportedId;
-          if (reportedId !== undefined)
-            return entitySensors.has(reportedId) ? reportedId : undefined;
-          return entitySensors.size === 1 ? [...entitySensors][0] : undefined;
-        };
-
         for (const item of [
-          { slot: event.slotA, id: processSensor(event.slotA, event.aColliderId) },
-          { slot: event.slotB, id: processSensor(event.slotB, event.bColliderId) },
+          { slot: event.slotA, id: processSensorId(activeSensors, event.slotA, event.aColliderId) },
+          { slot: event.slotB, id: processSensorId(activeSensors, event.slotB, event.bColliderId) },
         ]) {
           if (item.id === undefined) continue;
           const generation = bridge!.getEntityGeneration(item.slot);
