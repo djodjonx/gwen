@@ -1482,36 +1482,59 @@ impl Engine {
 
     /// Query entities that have ALL given component types and bulk-read one component type.
     ///
-    /// Combines a query step and a bulk component read into a **single** WASM boundary
-    /// crossing, eliminating N per-entity crossings that dominate frame budgets at scale.
+    /// Combines an archetype-cached query and a bulk component read into a **single** WASM
+    /// boundary crossing, eliminating N per-entity crossings that dominate frame budgets at
+    /// scale.  Uses the same archetype-based [`QuerySystem`] as [`query_entities_to_buffer`],
+    /// so repeated queries with the same filter set are served from cache.
     ///
     /// # Arguments
     /// * `component_type_ids` – Entity must possess ALL of these component type IDs.
+    ///   Passing an empty slice returns `[0, 0]` immediately.
     /// * `read_type_id`       – The component type whose bytes are packed into `out_buf`.
     /// * `out_slots`          – Caller-provided `Uint32Array` (len ≥ expected entity count).
-    ///   Filled with matching entity slot indices.
+    ///   Filled with matching entity slot indices on return.
     /// * `out_gens`           – Caller-provided `Uint32Array` (same length as `out_slots`).
-    ///   Filled with matching entity generation counters.
+    ///   Filled with matching entity generation counters on return.
     /// * `out_buf`            – Caller-provided `Uint8Array` for packed component data.
     ///
     /// # Returns
     /// A two-element `Vec<u32>` `[entity_count, bytes_written]`.  After the call,
-    /// `out_slots[0..entity_count]` and `out_gens[0..entity_count]` identify the
-    /// matching entities, and `out_buf[0..bytes_written]` contains their component data.
+    /// `out_slots[0..entity_count]` and `out_gens[0..entity_count]` identify the matched
+    /// entities, and `out_buf[0..bytes_written]` contains their packed component data.
+    ///
+    /// If `entity_count == BULK_MAX_ENTITIES` (10 000), the result was truncated — the scene
+    /// has more matching entities than the buffer can hold.
     ///
     /// # Performance
-    /// Crosses the WASM boundary exactly **once** regardless of entity count.
+    /// One WASM boundary crossing regardless of entity count.
+    /// Query results are archetype-cached; subsequent frames with the same filter are fast.
     pub fn query_read_bulk(
-        &self,
+        &mut self,
         component_type_ids: &[u32],
         read_type_id: u32,
         out_slots: &mut [u32],
         out_gens: &mut [u32],
         out_buf: &mut [u8],
     ) -> Vec<u32> {
-        let (count, bytes) = crate::bulk_ops::query_read_bulk(
+        if component_type_ids.is_empty() {
+            return vec![0, 0];
+        }
+
+        // Step 1: archetype-based query (cached, same path as query_entities_to_buffer)
+        let types: Vec<crate::ecs::component::ComponentTypeId> = component_type_ids
+            .iter()
+            .map(|&id| crate::ecs::component::ComponentTypeId::from_raw(id))
+            .collect();
+        let query_id = QueryId::new(types, self.storage.registry());
+        let results = self.query_system.query(&self.storage, query_id);
+        let entities = results.entities();
+
+        // Step 2: fill out_slots / out_gens and bulk-read component data.
+        // `results` is a cloned QueryResult (owned value, not borrowing self),
+        // so reborrowing self here is safe despite the earlier &mut self.query_system.
+        let (count, bytes) = crate::bulk_ops::fill_and_read_bulk(
             self,
-            component_type_ids,
+            entities,
             read_type_id,
             out_slots,
             out_gens,
@@ -1522,14 +1545,14 @@ impl Engine {
 
     /// Write back component data for a previously-queried entity set in one WASM call.
     ///
-    /// Pass the same `out_slots` and `out_gens` populated by [`query_read_bulk`] together
-    /// with an updated `data` buffer of packed component bytes.
+    /// Pass the `out_slots` and `out_gens` filled by [`query_read_bulk`] together with
+    /// updated packed component bytes.  Dead entities (stale generation) are silently skipped.
     ///
     /// # Arguments
     /// * `slots`          – Entity slot indices (from a prior `query_read_bulk` call).
     /// * `gens`           – Per-slot generation counters (from a prior `query_read_bulk` call).
     /// * `write_type_id`  – Component type ID to write.
-    /// * `data`           – Packed component bytes; length must equal
+    /// * `data`           – Packed component bytes; total length must equal
     ///   `slots.len() × component_size_bytes`.
     ///
     /// # Performance
@@ -1541,7 +1564,7 @@ impl Engine {
         write_type_id: u32,
         data: &[u8],
     ) {
-        crate::bulk_ops::query_write_bulk(self, slots, gens, write_type_id, data);
+        self.set_components_bulk(slots, gens, write_type_id, data);
     }
 }
 
