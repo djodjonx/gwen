@@ -6,7 +6,29 @@ import type { GwenPlugin } from '@gwenjs/core';
 
 // ─── DeepPartial helper ───────────────────────────────────────────────────────
 
-/** Recursively marks all properties of T as optional. */
+/** Recursively marks all properties of T as optional.
+ *
+ * Useful for `defaults` objects in module definitions, where only a subset of
+ * options is provided and the rest is filled in by the user or by `defu`.
+ *
+ * @typeParam T - The type whose properties to make recursively optional.
+ *
+ * @example
+ * ```ts
+ * import type { DeepPartial } from '@gwenjs/kit'
+ *
+ * interface PhysicsOptions {
+ *   gravity: number
+ *   solver: { iterations: number; tolerance: number }
+ * }
+ *
+ * const defaults: DeepPartial<PhysicsOptions> = {
+ *   solver: { iterations: 8 },
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ */
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
@@ -15,7 +37,23 @@ export type DeepPartial<T> = {
 
 /**
  * Declares a composable or utility to be auto-imported into game code.
- * Registered composables become available without an explicit import statement.
+ *
+ * Registered composables become available in game source files without an
+ * explicit `import` statement. The `@gwenjs/vite` plugin reads these
+ * declarations at build time and generates a virtual module.
+ *
+ * @example
+ * ```ts
+ * import type { AutoImport } from '@gwenjs/kit'
+ *
+ * const entry: AutoImport = {
+ *   name: 'usePhysics2D',
+ *   from: '@gwenjs/physics2d',
+ *   as: 'usePhysics',
+ * }
+ * ```
+ *
+ * @since 1.0.0
  */
 export interface AutoImport {
   /** The exported name from the source module */
@@ -30,7 +68,26 @@ export interface AutoImport {
 
 /**
  * A type template that generates a `.d.ts` file inside the `.gwen/` directory.
- * Called during `gwen prepare` to produce declaration files for IDE support.
+ *
+ * Called during `gwen prepare` to produce declaration files that power IDE
+ * auto-complete and type checking for game code that relies on services or hooks
+ * added by a GWEN module.
+ *
+ * @example
+ * ```ts
+ * import type { GwenTypeTemplate } from '@gwenjs/kit'
+ *
+ * const template: GwenTypeTemplate = {
+ *   filename: 'types/physics2d.d.ts',
+ *   getContents() {
+ *     return `declare module '@gwenjs/core' {
+ *       interface GwenProvides { physics2d: Physics2DAPI }
+ *     }`
+ *   },
+ * }
+ * ```
+ *
+ * @since 1.0.0
  */
 export interface GwenTypeTemplate {
   /** Relative path inside `.gwen/`, e.g. `'types/physics2d.d.ts'` */
@@ -44,18 +101,52 @@ export interface GwenTypeTemplate {
 // We don't import from Vite directly — these are intentionally generic
 // so that @gwenjs/kit stays isomorphic (browser + Node.js).
 
-/** Minimal Vite plugin shape (compatible with vite's Plugin type). */
+/**
+ * Minimal Vite plugin shape, compatible with Vite's `Plugin` type.
+ *
+ * Typed as `Record<string, unknown>` so that `@gwenjs/kit` remains
+ * isomorphic (usable in both browser and Node.js contexts) without a
+ * hard dependency on the `vite` package.
+ *
+ * @example
+ * ```ts
+ * import type { VitePlugin } from '@gwenjs/kit'
+ *
+ * function myVitePlugin(): VitePlugin {
+ *   return { name: 'my-gwen-vite-plugin', transform(code) { return code } }
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ */
 export type VitePlugin = Record<string, unknown>;
 
-/** Minimal Vite user config shape (compatible with vite's UserConfig type). */
+/**
+ * Minimal Vite user config shape, compatible with Vite's `UserConfig` type.
+ *
+ * Typed as `Record<string, unknown>` so that `@gwenjs/kit` remains
+ * isomorphic without a direct Vite dependency. Passed to `extendViteConfig`
+ * in {@link GwenKit}.
+ *
+ * @example
+ * ```ts
+ * import type { ViteUserConfig } from '@gwenjs/kit'
+ *
+ * const overrides: ViteUserConfig = {
+ *   resolve: { alias: { '~assets': './src/assets' } },
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ */
 export type ViteUserConfig = Record<string, unknown>;
 
 // ─── GwenBuildHooks ──────────────────────────────────────────────────────────
 
 /**
  * Build-time hook map for the GWEN framework.
- * Only available in Node.js context (CLI, Vite build).
  *
+ * Only available in Node.js context (CLI, Vite build).
  * Declared in `@gwenjs/kit` so that `defineGwenModule()` can reference it
  * without a circular dependency. Re-exported by `@gwenjs/app`.
  *
@@ -68,6 +159,8 @@ export type ViteUserConfig = Record<string, unknown>;
  *   }
  * })
  * ```
+ *
+ * @since 1.0.0
  */
 export interface GwenBuildHooks {
   /** Fired before any module setup runs. */
@@ -86,7 +179,21 @@ export interface GwenBuildHooks {
 
 /**
  * Minimal resolved config shape passed to module `setup()` via `GwenKit.options`.
+ *
  * Extended by `ResolvedGwenConfig` in `@gwenjs/app` with full field types.
+ * When writing a module, access these fields through `gwen.options` rather
+ * than importing this type directly.
+ *
+ * @example
+ * ```ts
+ * import type { GwenBaseConfig } from '@gwenjs/kit'
+ *
+ * function getTargetFPS(config: GwenBaseConfig): number {
+ *   return config.engine?.targetFPS ?? 60
+ * }
+ * ```
+ *
+ * @since 1.0.0
  */
 export interface GwenBaseConfig {
   modules?: Array<string | [string, Record<string, unknown>?]>;
@@ -118,6 +225,8 @@ export interface GwenBaseConfig {
  *   }
  * })
  * ```
+ *
+ * @since 1.0.0
  */
 export interface GwenKit {
   /**
@@ -209,7 +318,25 @@ export interface GwenKit {
 /**
  * The definition object passed to `defineGwenModule()`.
  *
+ * Describes a build-time module: its metadata, default options, and `setup`
+ * function that configures the GWEN build pipeline.
+ *
  * @template Options - The typed options shape this module accepts.
+ *
+ * @example
+ * ```ts
+ * import type { GwenModuleDefinition } from '@gwenjs/kit'
+ *
+ * interface MyOptions { debug?: boolean }
+ *
+ * const definition: GwenModuleDefinition<MyOptions> = {
+ *   meta: { name: '@my-scope/gwen-module', configKey: 'myModule' },
+ *   defaults: { debug: false },
+ *   setup(options, gwen) { /* ... *\/ },
+ * }
+ * ```
+ *
+ * @since 1.0.0
  */
 export interface GwenModuleDefinition<Options extends object = Record<string, unknown>> {
   /** Module metadata. */
@@ -242,7 +369,17 @@ export interface GwenModuleDefinition<Options extends object = Record<string, un
   setup(options: Options, gwen: GwenKit): void | Promise<void>;
 }
 
-/** A resolved module instance returned by `defineGwenModule()`. */
+/**
+ * A resolved GWEN module instance returned by `defineGwenModule()`.
+ *
+ * Structurally identical to `GwenModuleDefinition` — the type alias exists
+ * to distinguish a definition object that has been validated and returned from
+ * the factory from a raw definition literal.
+ *
+ * @template Options - The typed options shape this module accepts.
+ *
+ * @since 1.0.0
+ */
 export type GwenModule<Options extends object = Record<string, unknown>> =
   GwenModuleDefinition<Options>;
 
@@ -256,7 +393,8 @@ export type GwenModule<Options extends object = Record<string, unknown>> =
  * They are the primary way to add capabilities to a GWEN project.
  *
  * @template Options - The typed options shape this module accepts.
- * @param definition - The module definition object.
+ * @param definition - The module definition object containing metadata,
+ *   defaults, and the `setup` function.
  * @returns A resolved `GwenModule` ready for use in `gwen.config.ts`.
  *
  * @example
@@ -274,6 +412,8 @@ export type GwenModule<Options extends object = Record<string, unknown>> =
  *   }
  * })
  * ```
+ *
+ * @since 1.0.0
  */
 export function defineGwenModule<Options extends object = Record<string, unknown>>(
   definition: GwenModuleDefinition<Options>,

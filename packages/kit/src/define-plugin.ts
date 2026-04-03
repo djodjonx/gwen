@@ -31,8 +31,14 @@ export type { GwenEngine };
 /**
  * A typed factory function returned by {@link definePlugin}.
  *
+ * When `Options` is `void` the factory requires no arguments.
+ * Otherwise the options argument is optional (defaults are expected inside
+ * the factory closure).
+ *
  * @typeParam Options - Options the factory accepts (`void` = no options needed).
  * @typeParam P - The plugin type the factory produces.
+ *
+ * @since 1.0.0
  */
 export type GwenPluginFactory<Options, P extends GwenPlugin> = [Options] extends [void]
   ? () => P
@@ -45,22 +51,32 @@ export type GwenPluginFactory<Options, P extends GwenPlugin> = [Options] extends
  * to the {@link GwenPlugin} interface. `definePlugin` wraps this factory and
  * returns a typed factory function.
  *
- * @param factory - Receives options, returns a `GwenPlugin` object.
- * @returns A typed factory function. Call it (with options if required) to get
- *          a plugin instance ready for `engine.use()`.
+ * @param factory - A function that receives options and returns a `GwenPlugin`
+ *   object. The factory is called fresh each time the returned factory function
+ *   is invoked, giving every plugin instance its own closure state.
+ * @returns A typed {@link GwenPluginFactory}. Call it (with options if required)
+ *   to get a plugin instance ready for `engine.use()`.
  *
  * @example
  * ```typescript
+ * import { definePlugin } from '@gwenjs/kit'
+ *
  * export const MyPlugin = definePlugin((opts: { debug?: boolean } = {}) => ({
  *   name: 'MyPlugin',
  *   setup(engine) {
- *     // register services, hook into lifecycle
+ *     if (opts.debug) console.log('[MyPlugin] setup')
  *   },
  *   teardown() {
- *     // cleanup
+ *     if (opts.debug) console.log('[MyPlugin] teardown')
  *   },
  * }))
+ *
+ * // Instantiate and register:
+ * const plugin = MyPlugin({ debug: true })
+ * await engine.use(plugin)
  * ```
+ *
+ * @since 1.0.0
  */
 export function definePlugin<F extends (options?: any) => GwenPlugin>(
   factory: F,

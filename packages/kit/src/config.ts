@@ -8,7 +8,22 @@
 import type { GwenOptions } from '@gwenjs/schema';
 
 /**
- * Re-export GwenOptions as GwenConfig for easier usage in CLI and tools.
+ * Resolved GWEN project configuration shape.
+ *
+ * An alias for `GwenOptions` from `@gwenjs/schema`, re-exported here for
+ * ergonomic access in CLI tooling and plugin packages that need to read
+ * or validate the project config without importing from `@gwenjs/schema` directly.
+ *
+ * @example
+ * ```ts
+ * import type { GwenConfig } from '@gwenjs/kit'
+ *
+ * function printTargetFPS(config: GwenConfig) {
+ *   console.log(config.engine?.targetFPS ?? 60)
+ * }
+ * ```
+ *
+ * @since 1.0.0
  */
 export type { GwenOptions as GwenConfig };
 
@@ -46,19 +61,76 @@ type PluginUIExt<T> = T extends { extensions?: { ui?: infer E } }
   : {};
 
 /**
- * Merges the prefab extension shapes from all plugins.
- * Works with any plugins that declare an `extensions.prefab` property.
+ * Merges the prefab extension shapes declared by all plugins into a single
+ * intersection type.
+ *
+ * Iterates over the provided `Plugins` tuple and collects every
+ * `extensions.prefab` shape. Plugins that do not declare a prefab extension
+ * contribute an empty `{}` and are effectively ignored.
+ *
+ * @typeParam Plugins - A readonly tuple of plugin types (e.g. `typeof plugins`).
+ *
+ * @example
+ * ```ts
+ * import type { MergePluginsPrefabExtensions } from '@gwenjs/kit'
+ *
+ * const plugins = [PhysicsPlugin(), AudioPlugin()] as const
+ * type PrefabExtras = MergePluginsPrefabExtensions<typeof plugins>
+ * // PrefabExtras = { rigidBody?: RigidBodyOptions } & { audioSource?: AudioSourceOptions }
+ * ```
+ *
+ * @since 1.0.0
  */
 export type MergePluginsPrefabExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginPrefabExt<Plugins[number]>>
 >;
 
-/** Merges the scene extension shapes from all plugins. */
+/**
+ * Merges the scene extension shapes declared by all plugins into a single
+ * intersection type.
+ *
+ * Iterates over the provided `Plugins` tuple and collects every
+ * `extensions.scene` shape. Plugins that do not declare a scene extension
+ * contribute an empty `{}` and are effectively ignored.
+ *
+ * @typeParam Plugins - A readonly tuple of plugin types (e.g. `typeof plugins`).
+ *
+ * @example
+ * ```ts
+ * import type { MergePluginsSceneExtensions } from '@gwenjs/kit'
+ *
+ * const plugins = [PhysicsPlugin(), LightingPlugin()] as const
+ * type SceneExtras = MergePluginsSceneExtensions<typeof plugins>
+ * // SceneExtras = { gravity?: number } & { ambientLight?: string }
+ * ```
+ *
+ * @since 1.0.0
+ */
 export type MergePluginsSceneExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginSceneExt<Plugins[number]>>
 >;
 
-/** Merges the UI extension shapes from all plugins. */
+/**
+ * Merges the UI extension shapes declared by all plugins into a single
+ * intersection type.
+ *
+ * Iterates over the provided `Plugins` tuple and collects every
+ * `extensions.ui` shape. Plugins that do not declare a UI extension
+ * contribute an empty `{}` and are effectively ignored.
+ *
+ * @typeParam Plugins - A readonly tuple of plugin types (e.g. `typeof plugins`).
+ *
+ * @example
+ * ```ts
+ * import type { MergePluginsUIExtensions } from '@gwenjs/kit'
+ *
+ * const plugins = [HUDPlugin(), DialogPlugin()] as const
+ * type UIExtras = MergePluginsUIExtensions<typeof plugins>
+ * // UIExtras = { hudSlot?: string } & { dialogTheme?: DialogTheme }
+ * ```
+ *
+ * @since 1.0.0
+ */
 export type MergePluginsUIExtensions<Plugins extends readonly unknown[]> = AsObject<
   UnionToIntersection<PluginUIExt<Plugins[number]>>
 >;

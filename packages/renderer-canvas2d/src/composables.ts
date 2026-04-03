@@ -10,20 +10,35 @@ import type { RendererService } from './renderer.js';
 import './augment.js';
 
 /**
- * Returns the Canvas 2D renderer service registered by `Canvas2DRenderer()`.
+ * Returns the Canvas 2D renderer service registered by {@link Canvas2DRenderer}.
  *
- * @returns The {@link RendererService} instance.
- * @throws {GwenPluginNotFoundError} If `Canvas2DRenderer()` is not registered.
+ * Must be called inside an active engine context — e.g., inside a
+ * `defineSystem()` callback, `engine.run(fn)`, or a plugin lifecycle hook.
+ *
+ * @returns The {@link RendererService} instance bound to the running engine.
+ * @throws {GwenPluginNotFoundError} When `Canvas2DRenderer()` has not been
+ *   registered in the current engine's plugin list.
  *
  * @example
  * ```typescript
- * export const renderSystem = defineSystem(() => {
- *   const renderer = useCanvas2D()
- *   onRender(() => {
- *     renderer.drawRect(x, y, width, height)
- *   })
- * })
+ * import { defineSystem } from '@gwenjs/kit';
+ * import { useCanvas2D } from '@gwenjs/renderer-canvas2d';
+ *
+ * export const hudSystem = defineSystem(() => {
+ *   const renderer = useCanvas2D();
+ *
+ *   return {
+ *     onRender() {
+ *       const { ctx, logicalWidth } = renderer;
+ *       ctx.fillStyle = '#ffffff';
+ *       ctx.font = '16px sans-serif';
+ *       ctx.fillText('Score: 0', logicalWidth / 2, 16);
+ *     },
+ *   };
+ * });
  * ```
+ *
+ * @since 1.0.0
  */
 export function useCanvas2D(): RendererService {
   const engine = useEngine();

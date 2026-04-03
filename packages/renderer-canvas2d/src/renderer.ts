@@ -1,16 +1,9 @@
 /**
- * Canvas2DRenderer — draws entities to an HTML Canvas.
+ * @file Canvas2D renderer plugin for `@gwenjs/renderer-canvas2d`.
  *
- * Registers a `RendererService` in `api.services` as `'renderer'`.
- *
- * @example
- * ```typescript
- * import { Canvas2DRenderer } from '@gwenjs/gwen-renderer-canvas2d';
- *
- * export default defineConfig({
- *   plugins: [new Canvas2DRenderer({ canvas: 'game-canvas' })],
- * });
- * ```
+ * Registers a {@link RendererService} in the engine's provide/inject registry
+ * under the key `'renderer'` so downstream plugins and systems can call
+ * `engine.inject('renderer')` or {@link useCanvas2D} to access the canvas.
  */
 
 import { definePlugin } from '@gwenjs/kit';
@@ -18,35 +11,119 @@ import type { EntityId, GwenEngine } from '@gwenjs/kit';
 
 // ── Component types ───────────────────────────────────────────────────────────
 
+/**
+ * Visual representation component attached to an entity.
+ *
+ * The renderer reads this component each frame to decide how to paint the
+ * entity.  At minimum you must specify `shape` and `width`; all other fields
+ * are optional and fall back to sensible defaults.
+ *
+ * @example
+ * ```typescript
+ * engine.addComponent(playerId, 'sprite', {
+ *   shape: 'rect',
+ *   width: 32, height: 48,
+ *   color: '#4488ff',
+ *   zOrder: 1,
+ * } satisfies SpriteComponent);
+ * ```
+ *
+ * @since 1.0.0
+ */
 export interface SpriteComponent {
+  /** Primitive shape to render. Use `'image'` to draw a bitmap loaded from `src`. */
   shape: 'rect' | 'circle' | 'image';
+  /** Width of the sprite in canvas pixels. Also used as the diameter for `'circle'`. */
   width: number;
+  /** Height of the sprite in canvas pixels. Defaults to `width` when omitted. */
   height?: number;
+  /** Fill color (any CSS color string). Omit to skip fill. */
   color?: string;
+  /** Stroke color (any CSS color string). Omit to skip stroke. */
   strokeColor?: string;
+  /** Stroke line width in pixels. @default 1 */
   strokeWidth?: number;
+  /** URL of the image asset for `shape: 'image'`. */
   src?: string;
+  /** Cached `HTMLImageElement` — populated automatically on first render. */
   _image?: HTMLImageElement;
+  /** Paint order (lower values are drawn first, underneath higher values). @default 0 */
   zOrder?: number;
+  /** When `false` the entity is skipped entirely during rendering. @default true */
   visible?: boolean;
 }
 
+/**
+ * Position and orientation component for an entity in 2D world space.
+ *
+ * The renderer applies `translate → rotate → scale` transforms in that order
+ * before painting the associated {@link SpriteComponent}.
+ *
+ * @example
+ * ```typescript
+ * engine.addComponent(enemyId, 'transform', {
+ *   x: 240, y: 320, rotation: Math.PI / 2, scaleX: 1.5,
+ * } satisfies TransformComponent);
+ * ```
+ *
+ * @since 1.0.0
+ */
 export interface TransformComponent {
+  /** World X coordinate (canvas pixels, positive right). */
   x: number;
+  /** World Y coordinate (canvas pixels, positive down). */
   y: number;
+  /** Rotation in radians, applied around the entity origin. @default 0 */
   rotation?: number;
+  /** Horizontal scale factor. @default 1 */
   scaleX?: number;
+  /** Vertical scale factor. @default 1 */
   scaleY?: number;
 }
 
+/**
+ * Camera state used to transform world coordinates into screen space.
+ *
+ * The renderer applies `translate(-x * zoom, -y * zoom)` then `scale(zoom, zoom)`
+ * before drawing entities, so a camera positioned at `(100, 50)` shifts all
+ * content 100 px left and 50 px up relative to the canvas origin.
+ *
+ * @example
+ * ```typescript
+ * const renderer = engine.inject('renderer');
+ * renderer.setCamera({ x: player.x - 240, y: player.y - 320, zoom: 1.5 });
+ * ```
+ *
+ * @since 1.0.0
+ */
 export interface Camera {
+  /** Camera X position in world pixels. @default 0 */
   x: number;
+  /** Camera Y position in world pixels. @default 0 */
   y: number;
+  /** Uniform zoom factor (1 = no zoom). @default 1 */
   zoom: number;
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+/**
+ * Configuration options for {@link Canvas2DRenderer}.
+ *
+ * All fields are optional.  When `canvas` is omitted the renderer creates a
+ * new `<canvas>` element and appends it to `container` (or `document.body`).
+ *
+ * @example
+ * ```typescript
+ * const renderer = Canvas2DRenderer({
+ *   canvas: 'game-canvas',
+ *   background: '#1a1a2e',
+ *   pixelRatio: 1,
+ * });
+ * ```
+ *
+ * @since 1.0.0
+ */
 export interface Canvas2DRendererConfig {
   /** Canvas element ID or HTMLCanvasElement. Creates one if omitted. */
   canvas?: string | HTMLCanvasElement;
@@ -70,34 +147,146 @@ export interface Canvas2DRendererConfig {
 // ── RendererService ───────────────────────────────────────────────────────────
 
 /**
- * Service exposed by Canvas2DRenderer via `api.services.get('renderer')`.
+ * Public API surface exposed by {@link Canvas2DRenderer} via the engine's
+ * provide/inject registry under the key `'renderer'`.
+ *
+ * Obtain a reference with `engine.inject('renderer')` or the
+ * {@link useCanvas2D} composable.
+ *
+ * @example
+ * ```typescript
+ * const renderer: RendererService = engine.inject('renderer');
+ * renderer.setCamera({ x: 100, y: 50, zoom: 2 });
+ * ```
+ *
+ * @since 1.0.0
  */
 export interface RendererService {
-  /** The underlying HTMLCanvasElement. */
+  /** The underlying `HTMLCanvasElement` managed by the renderer. */
   readonly canvas: HTMLCanvasElement;
-  /** The 2D rendering context. */
+  /** The `CanvasRenderingContext2D` attached to {@link canvas}. */
   readonly ctx: CanvasRenderingContext2D;
-  /** Canvas pixel width (includes pixel ratio). */
+  /** Physical pixel width of the canvas (logical width × pixel ratio). */
   readonly width: number;
-  /** Canvas pixel height (includes pixel ratio). */
+  /** Physical pixel height of the canvas (logical height × pixel ratio). */
   readonly height: number;
-  /** Logical width in CSS pixels. */
+  /** Logical width in CSS pixels, independent of device pixel ratio. */
   readonly logicalWidth: number;
-  /** Logical height in CSS pixels. */
+  /** Logical height in CSS pixels, independent of device pixel ratio. */
   readonly logicalHeight: number;
 
-  /** Set or partially update the camera state. */
+  /**
+   * Set or partially update the camera state.
+   *
+   * Only the supplied fields are overwritten; unspecified fields keep their
+   * current values.
+   *
+   * @param camera - Partial camera state to merge into the current camera.
+   * @returns `void`
+   *
+   * @example
+   * ```typescript
+   * renderer.setCamera({ zoom: 2 }); // only changes zoom, x/y unchanged
+   * ```
+   *
+   * @since 1.0.0
+   */
   setCamera(camera: Partial<Camera>): void;
-  /** Get a copy of the current camera state. */
+
+  /**
+   * Return a shallow copy of the current camera state.
+   *
+   * @returns A new {@link Camera} object — mutations do not affect the
+   *   renderer's internal state.
+   *
+   * @example
+   * ```typescript
+   * const cam = renderer.getCamera();
+   * console.log(cam.zoom); // e.g. 1
+   * ```
+   *
+   * @since 1.0.0
+   */
   getCamera(): Camera;
-  /** Smooth camera follow — `lerp = 1` snaps instantly. */
+
+  /**
+   * Smoothly move the camera towards a target position using linear
+   * interpolation.
+   *
+   * Call this once per frame inside an `onUpdate` hook to achieve a
+   * smooth-follow effect.  Pass `lerp = 1` to snap the camera instantly.
+   *
+   * @param targetX - World X coordinate to follow.
+   * @param targetY - World Y coordinate to follow.
+   * @param lerp - Interpolation factor in the range `(0, 1]`. @default 1
+   * @returns `void`
+   *
+   * @example
+   * ```typescript
+   * // Smooth follow at 10 % per frame
+   * renderer.followTarget(player.x, player.y, 0.1);
+   * ```
+   *
+   * @since 1.0.0
+   */
   followTarget(targetX: number, targetY: number, lerp?: number): void;
-  /** Resize the canvas (logical pixels). */
+
+  /**
+   * Resize the canvas to new logical pixel dimensions.
+   *
+   * The underlying canvas element's physical size is scaled by the configured
+   * pixel ratio, and CSS size properties are updated accordingly.
+   *
+   * @param width - New logical width in CSS pixels.
+   * @param height - New logical height in CSS pixels.
+   * @returns `void`
+   *
+   * @example
+   * ```typescript
+   * window.addEventListener('resize', () => {
+   *   renderer.resize(window.innerWidth, window.innerHeight);
+   * });
+   * ```
+   *
+   * @since 1.0.0
+   */
   resize(width: number, height: number): void;
 }
 
 // ── Canvas2DRenderer ──────────────────────────────────────────────────────────
 
+/**
+ * Canvas2D renderer plugin — draws entities with `transform` and `sprite`
+ * components to an HTML `<canvas>` element each frame.
+ *
+ * On `setup` the plugin:
+ * 1. Resolves or creates the `<canvas>` element.
+ * 2. Obtains a `CanvasRenderingContext2D`.
+ * 3. Registers a {@link RendererService} in the engine under the key
+ *    `'renderer'` so it can be injected by other plugins.
+ *
+ * On `onRender` (when `manualRender` is `false`) the plugin:
+ * 1. Clears the canvas with the configured background color.
+ * 2. Applies camera transform.
+ * 3. Queries all entities with a `transform` component, sorts by `zOrder`, and
+ *    draws each one using its `sprite` component (or a 8×8 white square if no
+ *    sprite is attached).
+ *
+ * @param config - Optional renderer configuration. All fields have defaults.
+ * @returns A GWEN plugin object ready to pass to `defineConfig({ plugins })`.
+ *
+ * @example
+ * ```typescript
+ * import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d';
+ * import { defineConfig } from '@gwenjs/kit';
+ *
+ * export default defineConfig({
+ *   plugins: [Canvas2DRenderer({ canvas: 'game-canvas', background: '#0a0a1a' })],
+ * });
+ * ```
+ *
+ * @since 1.0.0
+ */
 export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {}) => {
   const pixelRatio =
     config.pixelRatio ?? (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1);

@@ -10,14 +10,27 @@ import type { GwenPlugin } from '@gwenjs/core';
  * Runtime no-op that enforces a plugin contract at compile time.
  *
  * Use this when a plugin package promises to satisfy a specific contract shape.
- * The type system will error at compile time if the plugin does not match.
+ * The type system will raise a compile-time error if the plugin does not match
+ * the `Contract` type. At runtime the function is a transparent identity wrapper.
+ *
+ * @typeParam Contract - The contract type the plugin must satisfy.
+ * @param plugin - The plugin instance to check.
+ * @returns The same `plugin` value, typed as `Contract`.
  *
  * @example
  * ```typescript
- * const myPlugin = satisfiesPluginContract<{ name: 'my-plugin' } & GwenPlugin>(
- *   definePlugin(() => ({ name: 'my-plugin', setup() {} }))()
- * )
+ * import { satisfiesPluginContract, definePlugin } from '@gwenjs/kit'
+ * import type { GwenPlugin } from '@gwenjs/kit'
+ *
+ * interface AudioContract extends GwenPlugin { name: 'AudioPlugin' }
+ *
+ * const AudioPlugin = definePlugin(() => ({ name: 'AudioPlugin' as const, setup() {} }))
+ *
+ * // Compile-time check — will error if AudioPlugin() does not match AudioContract:
+ * export const instance = satisfiesPluginContract<AudioContract>(AudioPlugin())
  * ```
+ *
+ * @since 1.0.0
  */
 export function satisfiesPluginContract<Contract extends GwenPlugin>(plugin: Contract): Contract {
   return plugin;
@@ -27,6 +40,11 @@ export function satisfiesPluginContract<Contract extends GwenPlugin>(plugin: Con
 
 /**
  * Options for {@link definePluginTypes}.
+ *
+ * All fields are optional. Omitting both `provides` and `hooks` causes
+ * `definePluginTypes` to return an empty string.
+ *
+ * @since 1.0.0
  */
 export interface PluginTypesOptions {
   /**
@@ -44,15 +62,21 @@ export interface PluginTypesOptions {
 }
 
 /**
- * Generates TypeScript declaration merging syntax for a plugin package.
+ * Generates TypeScript declaration-merging syntax for a plugin package.
  *
  * Call this in a plugin package's build step to produce the `.d.ts` fragment
  * that augments `@gwenjs/core` with the services and hooks your plugin provides.
  *
- * Returns an empty string if no `provides` or `hooks` are specified.
+ * Returns an empty string if neither `provides` nor `hooks` is specified (or
+ * both are empty objects).
+ *
+ * @param options - Service and hook maps to include in the generated declaration.
+ * @returns A TypeScript `declare module` string, or `''` if nothing to emit.
  *
  * @example
  * ```typescript
+ * import { definePluginTypes } from '@gwenjs/kit'
+ *
  * const dts = definePluginTypes({
  *   provides: { physics2d: 'Physics2DAPI' },
  *   hooks: { 'physics2d:step': '(dt: number) => void' },
@@ -63,6 +87,8 @@ export interface PluginTypesOptions {
  * //   interface GwenRuntimeHooks { 'physics2d:step': (dt: number) => void }
  * // }
  * ```
+ *
+ * @since 1.0.0
  */
 export function definePluginTypes(options: PluginTypesOptions): string {
   const blocks: string[] = [];
