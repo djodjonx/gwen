@@ -195,17 +195,11 @@ export interface GwenPluginNotFoundErrorOptions {
  * Provides an actionable error message with a hint for fixing the problem
  * and a link to the plugin documentation.
  *
- * @example Using positional arguments (legacy / internal usage):
- * ```typescript
- * throw new GwenPluginNotFoundError(
- *   'physics2d',
- *   'Call engine.use(physics2dPlugin()) before accessing this service.',
- *   'https://gwenengine.dev/docs/plugins'
- * )
- * ```
- *
- * @example Using options object (RFC-005 composable pattern):
- * ```typescript
+ * throw new GwenPluginNotFoundError({
+ *   pluginName: 'physics2d',
+ *   hint: 'Call engine.use(physics2dPlugin()) before accessing this service.',
+ *   docsUrl: 'https://gwenengine.dev/docs/plugins'
+ * })
  * throw new GwenPluginNotFoundError({
  *   pluginName: '@gwenjs/physics2d',
  *   hint: 'Add @gwenjs/physics2d to the modules array in gwen.config.ts',
@@ -214,33 +208,18 @@ export interface GwenPluginNotFoundErrorOptions {
  * ```
  */
 export class GwenPluginNotFoundError extends Error {
-  /**
-   * The service key (or package name) that was requested.
-   * @deprecated Prefer {@link pluginName} — this field is kept for backward compatibility.
-   */
-  readonly plugin: string;
-  /** The npm package name (or service key) of the missing plugin. */
   readonly pluginName: string;
   /** Human-readable hint explaining how to fix the issue. */
   readonly hint: string;
   /** URL to relevant documentation. */
   readonly docsUrl: string;
 
-  constructor(
-    pluginOrOpts: string | GwenPluginNotFoundErrorOptions,
-    hint?: string,
-    docsUrl?: string,
-  ) {
-    const name = typeof pluginOrOpts === 'string' ? pluginOrOpts : pluginOrOpts.pluginName;
-    const h = typeof pluginOrOpts === 'string' ? (hint ?? '') : pluginOrOpts.hint;
-    const d = typeof pluginOrOpts === 'string' ? (docsUrl ?? '') : pluginOrOpts.docsUrl;
-
-    super(`[GwenEngine] Plugin/service "${name}" not found. ${h}`);
+  constructor(opts: GwenPluginNotFoundErrorOptions) {
+    super(`[GwenEngine] Plugin/service "${opts.pluginName}" not found. ${opts.hint}`);
     this.name = 'GwenPluginNotFoundError';
-    this.plugin = name;
-    this.pluginName = name;
-    this.hint = h;
-    this.docsUrl = d;
+    this.pluginName = opts.pluginName;
+    this.hint = opts.hint;
+    this.docsUrl = opts.docsUrl;
   }
 }
 
@@ -652,11 +631,11 @@ class GwenEngineImpl implements GwenEngine {
 
   inject<K extends keyof GwenProvides>(key: K): GwenProvides[K] {
     if (!this._services.has(key as string)) {
-      throw new GwenPluginNotFoundError(
-        key as string,
-        `Call engine.use(${key as string}Plugin()) before using this service.`,
-        'https://gwenengine.dev/docs/plugins',
-      );
+      throw new GwenPluginNotFoundError({
+        pluginName: key as string,
+        hint: `Call engine.use(${key as string}Plugin()) before using this service.`,
+        docsUrl: 'https://gwenengine.dev/docs/plugins',
+      });
     }
     return this._services.get(key as string) as GwenProvides[K];
   }

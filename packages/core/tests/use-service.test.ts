@@ -26,7 +26,7 @@ import {
 declare module '../src/engine/gwen-engine' {
   interface GwenProvides {
     /** Test service registered in these tests. */
-    testCounter: { increment(): void; count(): number };
+    testCounter: { increment(): number; count(): number };
   }
 }
 
@@ -88,7 +88,7 @@ describe('useService()', () => {
       if (e instanceof GwenPluginNotFoundError) caught = e;
     }
     expect(caught).not.toBeNull();
-    expect(caught!.plugin).toBe('testCounter');
+    expect(caught!.pluginName).toBe('testCounter');
   });
 
   it('resolves service inside defineSystem setup (composable pattern)', async () => {
@@ -135,15 +135,21 @@ describe('useService()', () => {
 
   it('useService() spy is called each time inside run()', async () => {
     const engine = await createEngine({ maxEntities: 10 });
-    const counter = makeCounter();
-    engine.provide('testCounter', counter);
+    let val = 0;
+    engine.provide('testCounter', {
+      increment() {
+        return ++val;
+      },
+      count() {
+        return val;
+      },
+    });
 
     const calls: number[] = [];
     const system = defineSystem(() => {
       const svc = useService('testCounter');
       onUpdate(() => {
-        svc.increment();
-        calls.push(svc.count());
+        calls.push(svc.increment());
       });
     });
 

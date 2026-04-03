@@ -103,7 +103,7 @@ describe('engine.provide / inject / tryInject', () => {
     } catch (e) {
       expect(e).toBeInstanceOf(GwenPluginNotFoundError);
       const err = e as GwenPluginNotFoundError;
-      expect(err.plugin).toBe('testSvc');
+      expect(err.pluginName).toBe('testSvc');
       expect(err.hint.length).toBeGreaterThan(0);
       expect(err.docsUrl).toMatch(/^https?:\/\//);
     }
@@ -144,6 +144,6 @@ describe('engine.advance()', () => {
     });
     await engine.advance(0.016);
     expect(secondCallError).not.toBeNull();
-    expect((secondCallError as Error).message).toMatch(/re-entrantly/);
+    expect((secondCallError as unknown as Error).message).toMatch(/re-entrantly/);
   });
 });

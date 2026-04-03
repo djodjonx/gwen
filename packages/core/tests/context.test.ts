@@ -248,19 +248,17 @@ describe('GwenPluginNotFoundError', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(GwenPluginNotFoundError);
     expect(err.pluginName).toBe('@gwenjs/physics2d');
-    expect(err.plugin).toBe('@gwenjs/physics2d');
     expect(err.hint).toContain('gwen.config.ts');
     expect(err.docsUrl).toMatch(/^https?:\/\//);
   });
 
   it('supports positional constructor (legacy form)', () => {
-    const err = new GwenPluginNotFoundError(
-      'testSvc',
-      'Call engine.use(testSvcPlugin()) first.',
-      'https://gwenengine.dev/docs/plugins',
-    );
-    expect(err.plugin).toBe('testSvc');
-    expect(err.pluginName).toBe('testSvc');
+    const err = new GwenPluginNotFoundError({
+      pluginName: 'math',
+      hint: '',
+      docsUrl: '',
+    });
+    expect(err.pluginName).toBe('math');
     expect(err.hint.length).toBeGreaterThan(0);
     expect(err.docsUrl).toMatch(/^https?:\/\//);
   });
@@ -297,7 +295,7 @@ describe('GwenPluginNotFoundError', () => {
       if (e instanceof GwenPluginNotFoundError) caughtErr = e;
     }
     expect(caughtErr).not.toBeNull();
-    expect(caughtErr!.plugin).toBe('testSvc');
+    expect(caughtErr!.pluginName).toBe('testSvc');
     expect(caughtErr!.hint.length).toBeGreaterThan(0);
     expect(caughtErr!.docsUrl).toMatch(/^https?:\/\//);
   });
@@ -490,7 +488,7 @@ describe('useQuery()', () => {
       result = useQuery([]);
     });
     expect(result).not.toBeNull();
-    expect(typeof (result as Iterable<unknown>)[Symbol.iterator]).toBe('function');
+    expect(typeof (result as unknown as Iterable<unknown>)[Symbol.iterator]).toBe('function');
   });
 });
 
