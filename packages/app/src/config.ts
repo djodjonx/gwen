@@ -1,94 +1,23 @@
 /**
- * @file RFC-004 — GwenUserConfig, defineConfig, resolveGwenConfig
+ * @file RFC-004 — resolveConfig, resolveGwenConfig (Node.js only)
+ *
+ * Browser-safe types and defineConfig live in ./types.ts.
+ * This file imports c12 and must only be used in Node.js contexts.
  */
 
 import { loadConfig } from 'c12';
 import { defu } from 'defu';
-import type { GwenPlugin, GwenBuildHooks } from '@gwenjs/kit';
 
-/** Re-export for convenience — callers can import both from `@gwenjs/app`. */
-export type { GwenBuildHooks } from '@gwenjs/kit';
+import type { GwenUserConfig, GwenModuleEntry, ResolvedGwenConfig } from './types';
 
-// ─── GwenModuleOptions (augmentable) ─────────────────────────────────────────
-
-/**
- * Augmented by each module package to add typed options.
- *
- * @example Adding physics2d options
- * ```typescript
- * // In @gwenjs/physics2d:
- * declare module '@gwenjs/app' {
- *   interface GwenModuleOptions {
- *     physics2d: { gravity: number }
- *   }
- * }
- * ```
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface GwenModuleOptions {}
-
-/**
- * A module entry in `gwen.config.ts`.
- * Either a string (package name) or a `[name, options]` tuple.
- *
- * @example
- * ```typescript
- * modules: [
- *   '@gwenjs/physics2d',
- *   ['@gwenjs/input', { gamepad: true }],
- * ]
- * ```
- */
-export type GwenModuleEntry = string | [name: string, options?: Record<string, unknown>];
-
-/**
- * The full GWEN framework configuration shape.
- *
- * Module-specific options are typed via {@link GwenModuleOptions} declaration merging.
- *
- * @example
- * ```typescript
- * // gwen.config.ts
- * import { defineConfig } from '@gwenjs/app'
- * export default defineConfig({
- *   modules: ['@gwenjs/physics2d'],
- *   engine: { maxEntities: 5_000 },
- * })
- * ```
- */
-export interface GwenUserConfig {
-  /**
-   * List of modules to activate. Each entry is either a string or a `[name, options]` tuple.
-   */
-  modules?: GwenModuleEntry[];
-
-  /** Core engine configuration */
-  engine?: {
-    maxEntities?: number;
-    targetFPS?: number;
-    variant?: 'light' | 'physics2d' | 'physics3d';
-    loop?: 'internal' | 'external';
-    maxDeltaSeconds?: number;
-  };
-
-  /** Direct Vite config extension (simple case). */
-  vite?: Record<string, unknown>;
-
-  /** Build-time hook subscriptions. */
-  hooks?: Partial<GwenBuildHooks>;
-
-  /** Plugins to register directly (without a module). */
-  plugins?: GwenPlugin[];
-
-  /** Module-specific options (typed via GwenModuleOptions augmentation). */
-  [key: string]: unknown;
-}
-
-/** Fully resolved config (same shape as user config, with defaults filled in). */
-export type ResolvedGwenConfig = GwenUserConfig & {
-  engine: Required<NonNullable<GwenUserConfig['engine']>>;
-  modules: GwenModuleEntry[];
-};
+// Re-export all browser-safe types so CLI code can import from a single place
+export type {
+  GwenModuleOptions,
+  GwenModuleEntry,
+  GwenUserConfig,
+  ResolvedGwenConfig,
+  GwenBuildHooks,
+} from './types';
 
 const DEFAULT_ENGINE = {
   maxEntities: 10_000,
@@ -97,22 +26,6 @@ const DEFAULT_ENGINE = {
   loop: 'internal' as const,
   maxDeltaSeconds: 0.1,
 };
-
-/**
- * Identity helper for `gwen.config.ts`. Provides TypeScript inference for module options.
- *
- * @example
- * ```typescript
- * import { defineConfig } from '@gwenjs/app'
- * export default defineConfig({
- *   modules: ['@gwenjs/physics2d'],
- *   engine: { maxEntities: 5_000 },
- * })
- * ```
- */
-export function defineConfig(config: GwenUserConfig): GwenUserConfig {
-  return config;
-}
 
 /**
  * Merge defaults into user config to produce a {@link ResolvedGwenConfig}.

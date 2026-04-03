@@ -21,7 +21,7 @@
 
 // ─── Config helpers (browser-safe) ───────────────────────────────────────────
 
-export { defineConfig } from './config';
+export { defineConfig } from './types';
 export type {
   GwenUserConfig,
   ResolvedGwenConfig,
@@ -29,7 +29,7 @@ export type {
   GwenModuleEntry,
   /** Re-exported for convenience — build hooks live in kit but are surfaced here. */
   GwenBuildHooks,
-} from './config';
+} from './types';
 
 // ─── Module authoring API (re-exported from @gwenjs/kit) ──────────────────
 

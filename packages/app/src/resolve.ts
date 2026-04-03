@@ -20,5 +20,5 @@ export type {
   GwenModuleOptions,
   GwenModuleEntry,
   GwenBuildHooks,
-} from './config';
+} from './types';
 export { GwenApp } from './app';
