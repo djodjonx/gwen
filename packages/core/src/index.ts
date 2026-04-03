@@ -78,6 +78,20 @@ export type {
 } from './scene/types.js';
 export type { TransformHandle } from './scene/use-transform.js';
 
+// Scene Router (RFC-02)
+export { defineSceneRouter } from './router/define-scene-router.js';
+export { useSceneRouter } from './router/use-scene-router.js';
+export type {
+  RouteConfig,
+  SceneRouterOptions,
+  SceneRouterDefinition,
+  SceneRouterHandle,
+  EventsOf,
+  StatesOf,
+  TransitionEffect,
+  SceneInput,
+} from './router/router-types.js';
+
 // WASM Bridge
 export {
   initWasm,
