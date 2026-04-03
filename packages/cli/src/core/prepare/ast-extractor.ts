@@ -8,9 +8,12 @@ import {
   Project,
   SyntaxKind,
   Node,
+  type Block,
   type SourceFile,
   type PropertyAssignment,
   type CallExpression,
+  type ArrowFunction,
+  type FunctionExpression,
 } from 'ts-morph';
 import { logger } from '../../utils/logger.js';
 
@@ -154,7 +157,7 @@ function extractComponents(
             schema = extractSchemaFromAST(schemaProp);
           }
         } else if (Node.isBlock(body)) {
-          // TODO: handle return { schema: ... } in block
+          schema = extractSchemaFromBlockBody(body);
         }
       }
     }
@@ -171,7 +174,48 @@ function extractComponents(
 }
 
 /**
+ * Extracts the schema object from a block-body factory function by locating
+ * the first `return { schema: ... }` statement.
+ *
+ * Supports both parenthesised and bare object return values:
+ * ```ts
+ * () => { return { schema: { hp: Types.f32 } } }
+ * () => { return ({ schema: { hp: Types.f32 } }) }
+ * ```
+ *
+ * @param block - Block statement AST node (the `{}` body of the factory)
+ * @returns The parsed schema record, or `undefined` if no static schema is found
+ *
+ * @since 1.0.0
+ */
+function extractSchemaFromBlockBody(block: Block): Record<string, string> | undefined {
+  const returnStatements = block.getDescendantsOfKind(SyntaxKind.ReturnStatement);
+
+  for (const returnStatement of returnStatements) {
+    let returnExpr = returnStatement.getExpression();
+    if (!returnExpr) continue;
+
+    // Unwrap optional parentheses: return ({ ... })
+    if (Node.isParenthesizedExpression(returnExpr)) {
+      returnExpr = returnExpr.getExpression();
+    }
+
+    if (Node.isObjectLiteralExpression(returnExpr)) {
+      const schemaProp = returnExpr.getProperty('schema');
+      if (Node.isPropertyAssignment(schemaProp)) {
+        return extractSchemaFromAST(schemaProp);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Extracts schema fields and types from a property assignment.
+ *
+ * @param schemaProp - The `schema` property assignment AST node
+ * @returns Map of field name to type name string, or `undefined` if not an object literal
  */
 function extractSchemaFromAST(schemaProp: PropertyAssignment): Record<string, string> | undefined {
   const initializer = schemaProp.getInitializer();
@@ -290,13 +334,58 @@ function extractScenes(sourceFile: SourceFile, scenes: Map<string, SceneMetadata
     }
 
     if (name) {
-      // TODO: extract systems from defineScene body
+      let systems: string[] = [];
+      const factory = args[1];
+      if (factory && (Node.isArrowFunction(factory) || Node.isFunctionExpression(factory))) {
+        systems = extractSystemsFromSceneFactory(factory);
+      }
       scenes.set(name, {
         name,
-        systems: [],
+        systems,
         filePath: sourceFile.getFilePath(),
         line: call.getStartLineNumber(),
       });
     }
   }
+}
+
+/**
+ * Extracts system names from a `defineScene` factory body by detecting
+ * `engine.use(SystemName)` call patterns.
+ *
+ * @param factoryNode - Arrow function or function expression AST node for the scene factory
+ * @returns Array of system identifier names found in `engine.use()` calls
+ *
+ * @example
+ * ```ts
+ * // PlayerSystem and EnemySystem are now auto-discovered by gwen prepare
+ * defineScene('Game', () => {
+ *   engine.use(PlayerSystem)
+ *   engine.use(EnemySystem)
+ *   return { ... }
+ * })
+ * ```
+ *
+ * @since 1.0.0
+ */
+function extractSystemsFromSceneFactory(factoryNode: ArrowFunction | FunctionExpression): string[] {
+  const systems: string[] = [];
+  const useCalls = factoryNode.getDescendantsOfKind(SyntaxKind.CallExpression);
+
+  for (const useCall of useCalls) {
+    const expr = useCall.getExpression();
+
+    // Match any_identifier.use(SystemName) pattern
+    if (Node.isPropertyAccessExpression(expr) && expr.getName() === 'use') {
+      const useArgs = useCall.getArguments();
+      if (useArgs.length > 0) {
+        const argText = useArgs[0].getText().trim();
+        if (argText.length > 0) {
+          systems.push(argText);
+        }
+      }
+    }
+  }
+
+  return systems;
 }
