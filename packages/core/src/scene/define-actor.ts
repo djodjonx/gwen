@@ -34,6 +34,7 @@
 
 import type { GwenEngine } from '../engine/gwen-engine.js';
 import type { GwenRuntimeHooks } from '../engine/runtime-hooks.js';
+import type { EntityId } from '../engine/engine-api.js';
 import { _withSystemContext } from '../system.js';
 import type { SystemContext } from '../system.js';
 import type {
@@ -124,6 +125,34 @@ export function _getActorEntityId(): bigint {
     );
   }
   return _currentActorEntityId;
+}
+
+/**
+ * Returns the engine that owns the actor currently being spawned.
+ *
+ * Used by `useComponent()` to capture the engine reference at factory call time,
+ * so that component reads/writes can be performed without requiring an active
+ * engine context inside frame callbacks.
+ *
+ * @returns The active actor's owning {@link GwenEngine}.
+ * @throws {Error} If called outside an active actor spawn context.
+ *
+ * @example
+ * ```typescript
+ * // Inside a composable called from an actor factory:
+ * const engine = _getActorEngine()
+ * ```
+ *
+ * @internal
+ */
+export function _getActorEngine(): GwenEngine {
+  if (_currentEngine === null) {
+    throw new Error(
+      '[GWEN] _getActorEngine() must be called inside a defineActor() factory function. ' +
+        'It is only valid during actor spawn.',
+    );
+  }
+  return _currentEngine;
 }
 
 // ─── Actor-level lifecycle composables ────────────────────────────────────────
@@ -346,7 +375,7 @@ export function defineActor<Props = void, PublicAPI = void>(
     }
 
     // 3. Destroy the ECS entity.
-    _engine?.destroyEntity(entityId);
+    _engine?.destroyEntity(entityId as unknown as EntityId);
 
     // 4. Remove from the instance registry.
     _instances.delete(entityId);
