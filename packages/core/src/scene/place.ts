@@ -56,6 +56,28 @@ function _register(entityId: bigint): void {
   _layoutEntities!.push(entityId);
 }
 
+// ─── WASM transform helpers ───────────────────────────────────────────────────
+
+function applyTransform(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bridge: any,
+  entityId: bigint,
+  options: PlaceOptions,
+): void {
+  if (!bridge?.add_entity_transform) return;
+  const [x = 0, y = 0] = options.at ?? [0, 0];
+  const rotation = options.rotation ?? 0;
+  const [sx, sy] = Array.isArray(options.scale)
+    ? (options.scale as [number, number])
+    : [options.scale ?? 1, options.scale ?? 1];
+  const idx = Number(entityId) & 0xffffffff;
+  bridge.add_entity_transform(idx, x, y, rotation, sx, sy);
+  if (options.parent) {
+    const parentIdx = Number(options.parent.entityId) & 0xffffffff;
+    bridge.set_entity_parent(idx, parentIdx, false);
+  }
+}
+
 // ─── PlaceOptions ─────────────────────────────────────────────────────────────
 
 /**
@@ -97,7 +119,10 @@ export function placeGroup(options: Omit<PlaceOptions, 'props'> = {}): PlaceHand
   }
 
   const engine = useEngine();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bridge = (engine as any)._bridge;
   const entityId = engine.createEntity();
+  applyTransform(bridge, entityId as unknown as bigint, options);
   _register(entityId as unknown as bigint);
 
   const handle: PlaceHandle<void> = {
@@ -105,8 +130,7 @@ export function placeGroup(options: Omit<PlaceOptions, 'props'> = {}): PlaceHand
     api: undefined as void,
     moveTo(pos) {
       const [x = 0, y = 0] = pos;
-      // Note: Transform sync to WASM will be implemented in RFC-01 Task 2
-      // For now, we just update the entity
+      bridge?.set_entity_local_position?.(Number(entityId) & 0xffffffff, x, y);
     },
     despawn() {
       engine.destroyEntity(entityId);
@@ -143,6 +167,9 @@ export function placeActor<Props, API>(
   }
 
   const entityId = actorDef._plugin.spawn(options.props) as unknown as bigint;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bridge = (useEngine() as any)._bridge;
+  applyTransform(bridge, entityId, options);
   _register(entityId);
 
   const instance = actorDef._instances?.get(entityId);
@@ -152,7 +179,7 @@ export function placeActor<Props, API>(
     api: instance?.api as API,
     moveTo(pos) {
       const [x = 0, y = 0] = pos;
-      // Note: Transform sync to WASM will be implemented in RFC-01 Task 2
+      bridge?.set_entity_local_position?.(Number(entityId) & 0xffffffff, x, y);
     },
     despawn() {
       actorDef._plugin.despawn(entityId);
@@ -189,6 +216,8 @@ export function placePrefab(
   }
 
   const engine = useEngine();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bridge = (engine as any)._bridge;
   const id = engine.createEntity();
 
   for (const { def, defaults } of prefabDef.components ?? []) {
@@ -197,6 +226,7 @@ export function placePrefab(
   }
 
   const entityId = id as unknown as bigint;
+  applyTransform(bridge, entityId, options);
   _register(entityId);
 
   const handle: PlaceHandle<void> = {
@@ -204,7 +234,7 @@ export function placePrefab(
     api: undefined as void,
     moveTo(pos) {
       const [x = 0, y = 0] = pos;
-      // Note: Transform sync to WASM will be implemented in RFC-01 Task 2
+      bridge?.set_entity_local_position?.(Number(entityId) & 0xffffffff, x, y);
     },
     despawn() {
       engine.destroyEntity(id);
