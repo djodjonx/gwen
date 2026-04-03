@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "5.0",
-    "baseUrl": ".",
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -17,14 +15,14 @@
     "skipLibCheck": false,
     "paths": {
       "@gwenjs/*": [
-        "packages/*/src/index.ts",
-        "packages/*/src"
+        "./packages/*/src/index.ts",
+        "./packages/*/src"
       ],
       "@gwenjs/physics2d/core": [
-        "packages/physics2d/src/index.ts"
+        "./packages/physics2d/src/index.ts"
       ],
       "@gwenjs/physics2d/helpers/static-geometry": [
-        "packages/physics2d/src/helpers/static-geometry.ts"
+        "./packages/physics2d/src/helpers/static-geometry.ts"
       ]
     }
   }

@@ -53,3 +53,4 @@ coverage/
 *.tsbuildinfo
 **/*.tsbuildinfo
 .worktrees/
+.superpowers/
