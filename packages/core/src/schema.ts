@@ -390,6 +390,9 @@ export type InferComponent<D extends ComponentDefinition<ComponentSchema>> = {
  * });
  * ```
  */
+/** Monotonic counter for assigning unique numeric IDs to components at definition time. */
+let _nextTypeId = 1;
+
 export interface ComponentDefinition<S extends ComponentSchema> {
   readonly name: string;
   readonly schema: S;
@@ -400,12 +403,43 @@ export interface ComponentDefinition<S extends ComponentSchema> {
    * Defaults are merged left-to-right: `{ ...defaults, ...patch }`.
    */
   readonly defaults?: Partial<{ [K in keyof S]: InferSchemaType<S[K]> }>;
+  /**
+   * Unique numeric ID assigned at call time, used as the WASM `component_type_id`.
+   *
+   * @internal Used by the gwen:optimizer Vite plugin — do not rely on the specific value.
+   */
+  readonly _typeId: number;
+  /**
+   * Total byte size of one component instance in the WASM linear memory layout.
+   *
+   * @internal
+   */
+  readonly _byteSize: number;
+  /**
+   * Number of Float32 slots per entity (`_byteSize / 4`).
+   *
+   * @internal
+   */
+  readonly _f32Stride: number;
+  /**
+   * Ordered field descriptors matching WASM memory layout (same order as schema keys).
+   *
+   * @internal
+   */
+  readonly _fields: ReadonlyArray<{
+    readonly name: string;
+    readonly type: string;
+    readonly byteOffset: number;
+  }>;
 }
 
 /**
- * Body of a ComponentDefinition without the `name` — used by factory form.
+ * Body of a ComponentDefinition without the `name` or computed metadata fields — used by factory form.
  */
-export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<S>, 'name'>;
+export type ComponentBody<S extends ComponentSchema> = Omit<
+  ComponentDefinition<S>,
+  'name' | '_typeId' | '_byteSize' | '_f32Stride' | '_fields'
+>;
 
 /**
  * Define an ECS component schema — two syntaxes supported.
@@ -439,7 +473,7 @@ export type ComponentBody<S extends ComponentSchema> = Omit<ComponentDefinition<
  * ```
  */
 export function defineComponent<S extends ComponentSchema>(
-  config: ComponentDefinition<S>,
+  config: Omit<ComponentDefinition<S>, '_typeId' | '_byteSize' | '_f32Stride' | '_fields'>,
 ): ComponentDefinition<S>;
 
 export function defineComponent<S extends ComponentSchema>(
@@ -448,11 +482,33 @@ export function defineComponent<S extends ComponentSchema>(
 ): ComponentDefinition<S>;
 
 export function defineComponent<S extends ComponentSchema>(
-  nameOrConfig: string | ComponentDefinition<S>,
+  nameOrConfig:
+    | string
+    | Omit<ComponentDefinition<S>, '_typeId' | '_byteSize' | '_f32Stride' | '_fields'>,
   factory?: () => ComponentBody<S>,
 ): ComponentDefinition<S> {
-  if (typeof nameOrConfig === 'string') {
-    return { name: nameOrConfig, ...factory!() };
-  }
-  return nameOrConfig;
+  const config: Omit<
+    ComponentDefinition<S>,
+    '_typeId' | '_byteSize' | '_f32Stride' | '_fields'
+  > = typeof nameOrConfig === 'string' ? { name: nameOrConfig, ...factory!() } : nameOrConfig;
+
+  const _typeId = _nextTypeId++;
+
+  let byteOffset = 0;
+  const _fields = Object.entries(config.schema).map(([fieldName, schemaType]) => {
+    const field = { name: fieldName, type: (schemaType as SchemaType).type, byteOffset };
+    byteOffset += (schemaType as SchemaType).byteLength;
+    return field;
+  });
+
+  const _byteSize = byteOffset;
+  const _f32Stride = _byteSize / 4;
+
+  return {
+    ...config,
+    _typeId,
+    _byteSize,
+    _f32Stride,
+    _fields,
+  } as ComponentDefinition<S>;
 }
