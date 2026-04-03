@@ -354,7 +354,10 @@ function mergeDefaults(
  *   if the imported value has no `setup` function.
  */
 async function loadModule(name: string): Promise<GwenModule> {
-  const imported = (await import(name)) as { default?: unknown } & Record<string, unknown>;
+  const imported = (await import(/* @vite-ignore */ name)) as { default?: unknown } & Record<
+    string,
+    unknown
+  >;
   const definition: unknown = imported.default ?? imported;
 
   if (!definition || typeof (definition as Record<string, unknown>)['setup'] !== 'function') {
