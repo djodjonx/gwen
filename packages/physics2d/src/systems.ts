@@ -1,5 +1,6 @@
 import type { GwenEngine, EntityId, ComponentDef, LiveQuery, EntityAccessor } from '@gwenjs/core';
-import type { Physics2DAPI, SensorState } from './types';
+import type { Physics2DAPI, SensorState } from './types.js';
+import type {} from './augment.js';
 
 /** Default pixel-to-meter conversion ratio for Rapier2D. */
 const DEFAULT_PIXELS_PER_METER = 50;
@@ -90,9 +91,7 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
      * @param engine - The running GWEN engine instance.
      */
     setup(engine: GwenEngine): void {
-      _physics = engine.inject(
-        'physics2d' as keyof import('@gwenjs/core').GwenProvides,
-      ) as unknown as Physics2DAPI;
+      _physics = engine.inject('physics2d');
 
       // The ECS registry accepts string component names at runtime even though the
       // TypeScript overload expects a ComponentDefinition. The cast avoids `any`.
