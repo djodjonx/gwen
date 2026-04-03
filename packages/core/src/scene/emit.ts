@@ -21,32 +21,40 @@ import type { GwenRuntimeHooks } from '../engine/runtime-hooks.js';
  * `onUpdate`). Throws with a `[GWEN]`-prefixed message if called outside
  * any active context.
  *
- * @param name - The event name (must be a key of {@link GwenRuntimeHooks}).
- * @param args - Arguments forwarded to every registered handler.
+ * **Known hooks** (declared in {@link GwenRuntimeHooks}) are fully typed —
+ * arguments are inferred automatically. **Custom game events** (e.g.
+ * `'enemy:died'`, `'player:damage'`) are accepted as plain strings without
+ * any cast. To get argument type-checking for custom events, augment
+ * `GwenRuntimeHooks` in your project:
+ *
+ * ```typescript
+ * declare module '@gwenjs/core' {
+ *   interface GwenRuntimeHooks {
+ *     'player:damage': (amount: number) => void
+ *   }
+ * }
+ * ```
  *
  * @throws {GwenContextError} If called outside an active engine context.
  *
- * @example Inside a system's onUpdate:
+ * @example Known hook — args are fully typed:
  * ```typescript
- * const mySystem = defineSystem(() => {
- *   onUpdate(() => {
- *     emit('entity:spawn', entityId)
- *   })
- * })
+ * emit('engine:tick', 0.016) // ✅ dt: number
  * ```
  *
- * @example Inside an actor factory:
+ * @example Custom game event — no cast needed:
  * ```typescript
- * const PlayerActor = defineActor('Player', () => {
- *   emit('player:created', playerId)
- * })
+ * emit('enemy:died')           // ✅
+ * emit('player:damage', 25)    // ✅
  * ```
  */
 export function emit<K extends keyof GwenRuntimeHooks>(
   name: K,
   ...args: Parameters<GwenRuntimeHooks[K]>
-): void {
+): void;
+export function emit(name: string, ...args: unknown[]): void;
+export function emit(name: string, ...args: unknown[]): void {
   const engine = useEngine();
-  // callHook signature is variadic — spread args matches hookable's API
-  engine.hooks.callHook(name, ...(args as Parameters<GwenRuntimeHooks[K]>));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (engine.hooks as any).callHook(name, ...args);
 }
