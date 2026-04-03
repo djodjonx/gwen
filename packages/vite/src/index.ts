@@ -766,3 +766,7 @@ export default gwen;
 // RFC-006: New sub-plugin architecture
 export { gwenVitePlugin } from './plugins/index.js';
 export type { GwenViteOptions, GwenWasmOptions, WasmVariant } from './types.js';
+
+// RFC-007: ECS optimizer plugin (opt-in)
+export { gwenOptimizerPlugin } from './plugins/optimizer.js';
+export type { GwenOptimizerOptions } from './plugins/optimizer.js';
