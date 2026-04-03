@@ -1,0 +1,22 @@
+{
+  "name": "@playground/snake-html",
+  "version": "0.1.0",
+  "description": "GWEN Playground \u2014 Snake HTML/CSS demo",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "gwen dev",
+    "build": "gwen build"
+  },
+  "dependencies": {
+    "@gwenjs/app": "workspace:*",
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/input": "workspace:*",
+    "@gwenjs/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@gwenjs/cli": "workspace:*",
+    "@gwenjs/vite": "workspace:*",
+    "vite": "^6.0.0"
+  }
+}

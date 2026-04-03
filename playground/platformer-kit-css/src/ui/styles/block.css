@@ -1,9 +1,0 @@
-.platformer-block {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  box-sizing: border-box;
-  border: 1px solid #415368;
-  border-top: 4px solid #36bb76;
-  background: linear-gradient(180deg, #5c738f 0%, #415368 100%);
-}
-

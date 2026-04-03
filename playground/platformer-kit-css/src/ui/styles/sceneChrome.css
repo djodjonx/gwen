@@ -1,9 +1,0 @@
-.platformer-scene {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(104, 156, 232, 0.35), transparent 45%),
-    radial-gradient(circle at 80% 15%, rgba(90, 128, 188, 0.35), transparent 45%),
-    linear-gradient(180deg, #1a2639 0%, #121b2b 42%, #0f1622 100%);
-}
-

@@ -1,7 +1,0 @@
-node_modules/
-dist/
-*.wasm
-
-
-# GWEN generated
-.gwen/
