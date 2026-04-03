@@ -14,7 +14,6 @@
     "strict": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "rootDir": "../..",
     "moduleResolution": "bundler",
     "declaration": true,
@@ -28,9 +27,12 @@
     "src"
   ],
   "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "../schema" }
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "../schema"
+    }
   ],
   "extends": "../../tsconfig.base.json"
 }
-

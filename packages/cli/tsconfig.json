@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -15,7 +16,33 @@
     "noUncheckedIndexedAccess": false,
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests"],
-  "extends": "../../tsconfig.base.json"
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests"
+  ],
+  "extends": "../../tsconfig.base.json",
+  "references": [
+    {
+      "path": "../schema"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../kit"
+    },
+    {
+      "path": "../app"
+    },
+    {
+      "path": "../input"
+    },
+    {
+      "path": "../renderer-canvas2d"
+    }
+  ]
 }

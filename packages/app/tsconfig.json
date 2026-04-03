@@ -1,15 +1,26 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": false,
-    "declarationMap": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "rootDir": "../..",
     "outDir": "dist",
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.tsbuildinfo",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src", "tests"]
+  "include": [
+    "src",
+    "tests"
+  ],
+  "references": [
+    {
+      "path": "../kit"
+    }
+  ]
 }

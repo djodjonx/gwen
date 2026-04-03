@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "outDir": "./dist",
     "strict": true,
-    "declaration": false,
-    "declarationMap": false,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -27,5 +28,16 @@
     "src/**/*.js",
     "src/**/*.d.ts"
   ],
-  "extends": "../../tsconfig.base.json"
+  "extends": "../../tsconfig.base.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../kit"
+    },
+    {
+      "path": "../physics2d"
+    }
+  ]
 }

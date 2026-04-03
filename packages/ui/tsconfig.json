@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": [
@@ -11,8 +12,8 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "declaration": false,
-    "declarationMap": false,
+    "declaration": true,
+    "declarationMap": true,
     "rootDir": "../..",
     "sourceMap": true,
     "outDir": "./dist",
@@ -22,5 +23,13 @@
   "include": [
     "src"
   ],
-  "extends": "../../tsconfig.base.json"
+  "extends": "../../tsconfig.base.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../kit"
+    }
+  ]
 }

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": [
@@ -13,21 +14,30 @@
     "strict": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "moduleResolution": "bundler",
-    "declaration": false,
-    "declarationMap": false,
+    "declaration": true,
+    "declarationMap": true,
     "rootDir": "../..",
     "sourceMap": true,
     "outDir": "./dist",
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src",
     "src/vite-env.d.ts",
     "bench"
   ],
-  "extends": "../../tsconfig.base.json"
+  "extends": "../../tsconfig.base.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../kit"
+    }
+  ]
 }

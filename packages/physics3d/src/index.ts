@@ -277,6 +277,10 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   // Current frame contacts (rebuilt each frame in onUpdate)
   let currentFrameContacts: Physics3DCollisionContact[] = [];
 
+  // Track overlapping AABB pairs from the previous frame (local mode only).
+  // Key format: `${slotA}:${colliderIdA ?? -1}:${slotB}:${colliderIdB ?? -1}`
+  let previousLocalContactKeys = new Set<string>();
+
   // WASM event buffer state
   let eventsView: DataView | null = null;
   let eventsBufferRef: ArrayBuffer | null = null;
@@ -654,6 +658,30 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     return true;
   };
 
+  /**
+   * Apply a continuous torque in the local fallback simulation.
+   *
+   * Increments angular velocity by `torque / mass`. Has no effect on `'fixed'`
+   * bodies. In WASM mode this method is not forwarded to the Rapier3D bridge
+   * (returns `false`) — use `applyAngularImpulse` as an alternative.
+   */
+  const applyTorque: Physics3DAPI['applyTorque'] = (entityId, torque) => {
+    const slot = toEntityIndex(entityId);
+    // WASM mode: no dedicated torque export in the bridge
+    if (backendMode === 'wasm') return false;
+    const state = stateByEntity.get(slot);
+    const handle = bodyByEntity.get(slot);
+    if (!state || !handle) return false;
+    if (handle.kind === 'fixed') return false;
+    const invMass = 1 / handle.mass;
+    state.angularVelocity = {
+      x: state.angularVelocity.x + (torque.x ?? 0) * invMass,
+      y: state.angularVelocity.y + (torque.y ?? 0) * invMass,
+      z: state.angularVelocity.z + (torque.z ?? 0) * invMass,
+    };
+    return true;
+  };
+
   const getLinearVelocity: Physics3DAPI['getLinearVelocity'] = (entityId) => {
     const slot = toEntityIndex(entityId);
     if (backendMode === 'wasm') {
@@ -1006,6 +1034,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     setBodyState,
     applyImpulse,
     applyAngularImpulse,
+    applyTorque,
     getLinearVelocity,
     setLinearVelocity,
     getAngularVelocity,
@@ -1155,18 +1184,29 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         }
       }
 
-      // Read events from WASM, or use the empty local events array
-      const rawEvents = backendMode === 'wasm' ? readWasmCollisionEvents() : [];
+      // Read events from WASM, or run local AABB collision detection
+      const rawEvents =
+        backendMode === 'wasm' ? readWasmCollisionEvents() : detectLocalCollisions();
 
-      // Build resolved contacts
+      // Build resolved contacts — in local mode entity ids are slot bigints
       const contacts: Physics3DCollisionContact[] = rawEvents.map((ev) => {
-        const genA = bridgeRuntime?.getEntityGeneration?.(ev.slotA);
-        const genB = bridgeRuntime?.getEntityGeneration?.(ev.slotB);
+        let entityA: EntityId;
+        let entityB: EntityId;
+        if (backendMode === 'wasm') {
+          const genA = bridgeRuntime?.getEntityGeneration?.(ev.slotA);
+          const genB = bridgeRuntime?.getEntityGeneration?.(ev.slotB);
+          entityA =
+            genA !== undefined ? createEntityId(ev.slotA, genA) : (BigInt(ev.slotA) as EntityId);
+          entityB =
+            genB !== undefined ? createEntityId(ev.slotB, genB) : (BigInt(ev.slotB) as EntityId);
+        } else {
+          // Fallback: use slot index directly as EntityId bigint
+          entityA = BigInt(ev.slotA) as EntityId;
+          entityB = BigInt(ev.slotB) as EntityId;
+        }
         return {
-          entityA:
-            genA !== undefined ? createEntityId(ev.slotA, genA) : (BigInt(ev.slotA) as EntityId),
-          entityB:
-            genB !== undefined ? createEntityId(ev.slotB, genB) : (BigInt(ev.slotB) as EntityId),
+          entityA,
+          entityB,
           ...(ev.aColliderId !== undefined ? { aColliderId: ev.aColliderId } : {}),
           ...(ev.bColliderId !== undefined ? { bColliderId: ev.bColliderId } : {}),
           started: ev.started,
@@ -1174,6 +1214,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       });
 
       currentFrameContacts = contacts;
+
+      // Track event count for metrics (includes local AABB events in fallback mode)
+      if (backendMode === 'local') lastFrameEventCount = rawEvents.length;
 
       if (contacts.length === 0) return;
 
@@ -1188,12 +1231,18 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         ]) {
           if (colliderId === undefined) continue;
 
-          // Find the entity this slot corresponds to
-          const generation = bridgeRuntime?.getEntityGeneration?.(slot);
-          if (generation === undefined) continue;
-          const eid = createEntityId(slot, generation);
+          // Resolve the EntityId: in WASM mode use generation-aware packing;
+          // in local mode the slot IS the entity id (no generation).
+          let eid: EntityId;
+          if (backendMode === 'wasm') {
+            const generation = bridgeRuntime?.getEntityGeneration?.(slot);
+            if (generation === undefined) continue;
+            eid = createEntityId(slot, generation);
+          } else {
+            eid = BigInt(slot) as EntityId;
+          }
 
-          const entitySlot = toEntityIndex(eid as unknown as Physics3DEntityId);
+          const entitySlot = slot;
           let sensorMap = localSensorStates.get(entitySlot);
           if (!sensorMap) {
             sensorMap = new Map();
@@ -1241,6 +1290,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       currentFrameContacts = [];
       lastFrameEventCount = 0;
       pooledEvents.length = 0;
+      previousLocalContactKeys.clear();
     },
   };
 });
