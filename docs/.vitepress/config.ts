@@ -37,6 +37,7 @@ export default defineConfig({
           { text: 'Prefabs', link: '/core/prefabs' },
           { text: 'Scenes', link: '/core/scenes' },
           { text: 'Layouts', link: '/guide/layouts' },
+          { text: 'Scene Router', link: '/guide/scene-router' },
         ],
       },
       {
@@ -55,6 +56,7 @@ export default defineConfig({
           { text: 'Composables (use*)', link: '/api/composables' },
           { text: 'Engine API', link: '/api/engine' },
           { text: 'Layout API', link: '/api/layout' },
+          { text: 'Scene Router API', link: '/api/scene-router' },
         ],
       },
       {
