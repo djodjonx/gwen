@@ -117,3 +117,78 @@ export interface ActorDefinition<Props = void, PublicAPI = void> {
   /** @internal Type marker for PublicAPI inference. */
   readonly __api__: PublicAPI;
 }
+
+// ─── Layout types ─────────────────────────────────────────────────────────────
+
+/**
+ * A handle to a single entity spawned by `placeActor`, `placeGroup`, or `placePrefab`.
+ *
+ * @template API - The public API object returned by the actor factory. `void` for groups/prefabs.
+ */
+export interface PlaceHandle<API = void> {
+  /** ECS entity ID assigned at spawn time. */
+  readonly entityId: bigint;
+  /**
+   * Public API returned by the actor factory.
+   * `void` for groups and prefabs.
+   */
+  readonly api: API;
+  /**
+   * Update the entity's local position (triggers TransformDirty → Rust propagation).
+   * @param pos - `[x, y]` or `[x, y, z]` local coordinates.
+   */
+  moveTo(pos: [number, number] | [number, number, number]): void;
+  /** Despawn this entity without affecting other entities in the layout. */
+  despawn(): void;
+}
+
+/**
+ * Opaque definition produced by `defineLayout()`. Pass to `useLayout()`.
+ *
+ * @template Refs - The object type returned by the layout factory.
+ */
+export interface LayoutDefinition<Refs extends Record<string, PlaceHandle<unknown>>> {
+  /** @internal */
+  _factory: () => Refs;
+  /** @internal Display name used by devtools and HMR. */
+  __layoutName__: string;
+}
+
+/**
+ * Options for `useLayout()`.
+ */
+export interface UseLayoutOptions {
+  /**
+   * When `true`, entities are not spawned until `load()` is explicitly called.
+   * @default false
+   */
+  lazy?: boolean;
+  // chunkSize (progressive spawn across frames) is intentionally deferred.
+  // Requires a lazy-factory execution model where the factory yields between batches.
+  // Track as a future RFC enhancement.
+}
+
+/**
+ * Live handle returned by `useLayout()`.
+ *
+ * @template Refs - The typed refs returned by the layout factory.
+ */
+export interface LayoutHandle<Refs> {
+  /**
+   * The handles returned by the layout factory, typed automatically.
+   * Only available after `load()` resolves.
+   */
+  readonly refs: Refs;
+  /** `true` if the layout is currently loaded (entities are alive). */
+  readonly active: boolean;
+  /**
+   * Spawn all entities declared in the layout factory.
+   * Resolves when all entities are alive.
+   */
+  load(): Promise<void>;
+  /**
+   * Despawn all entities owned by this layout via a single `bulk_destroy` WASM call.
+   * Idempotent — safe to call on an inactive layout.
+   */
+  dispose(): Promise<void>;
+}
