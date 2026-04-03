@@ -322,7 +322,9 @@ Must be called **synchronously inside a `defineActor()` factory** — not in sys
 - `detach(keepWorldPos?: boolean): void` — Detach from parent.
 
 ::: tip Performance
-`useTransform().world` reads directly from the `SharedArrayBuffer` — **zero WASM calls**. Use it freely in `onRender` callbacks and other hot paths.
+`.world` reads use lightweight WASM calls optimized for per-frame access.
+For zero-copy SAB reads, use the SharedArrayBuffer transform regions directly
+(see `@gwenjs/physics2d` for an example of this pattern).
 :::
 
 **Example:**
@@ -382,13 +384,13 @@ const zone = useLayout(Level)
 await zone.dispose()  // All 200 entities destroyed in 0.02ms
 ```
 
-### World Reads are Free
+### World Reads are Lightweight
 
-Access `.world` properties freely in hot paths — they're direct memory reads:
+Access `.world` properties in hot paths — they use lightweight WASM calls:
 
 ```typescript
 onRender(() => {
-  const x = t.world.x      // Fast: direct memory read
+  const x = t.world.x      // Optimized: lightweight WASM call
   const y = t.world.y
   const rot = t.world.rotation
   // Use for minimap, debug overlay, etc.

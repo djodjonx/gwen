@@ -163,9 +163,14 @@ export interface UseLayoutOptions {
    * @default false
    */
   lazy?: boolean;
-  // chunkSize (progressive spawn across frames) is intentionally deferred.
-  // Requires a lazy-factory execution model where the factory yields between batches.
-  // Track as a future RFC enhancement.
+  /**
+   * Maximum number of entities to spawn per frame when loading.
+   * Prevents frame drops for layouts with >100 entities.
+   *
+   * @todo Progressive chunked spawn is not yet implemented.
+   *       Passing this option emits a console.warn and loads all entities at once.
+   */
+  chunkSize?: number;
 }
 
 /**

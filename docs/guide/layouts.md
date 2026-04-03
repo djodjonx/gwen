@@ -366,7 +366,9 @@ const worldScaleY = t.world.scaleY
 ```
 
 ::: tip Performance
-`t.world` reads directly from the `SharedArrayBuffer` — **zero WASM calls**. Use it freely in `onRender` callbacks.
+`.world` reads use lightweight WASM calls optimized for per-frame access.
+For zero-copy SAB reads, use the SharedArrayBuffer transform regions directly
+(see `@gwenjs/physics2d` for an example of this pattern).
 :::
 
 ### Parent Management

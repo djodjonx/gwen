@@ -3,6 +3,7 @@ import { createEngine } from '../../src/engine/gwen-engine.js';
 import { definePrefab } from '../../src/scene/define-prefab.js';
 import { defineActor } from '../../src/scene/define-actor.js';
 import { useTransform } from '../../src/scene/use-transform.js';
+import { defineLayout, placeActor, useLayout } from '../../src/scene/index.js';
 import {
   getWasmBridge,
   _injectMockWasmEngine,
@@ -149,5 +150,42 @@ describe('useTransform — setParent / detach', () => {
     });
 
     expect(spy).toHaveBeenCalledWith(Number(entityId!) & 0xffffffff, 0xffffffff, false);
+  });
+});
+
+describe('useTransform — world reads', () => {
+  beforeEach(() => {
+    _injectMockWasmEngine(createMockEngine() as any);
+  });
+
+  afterEach(() => {
+    _resetWasmBridge();
+  });
+
+  it('world reads return values from the bridge', async () => {
+    const engine = await createEngine();
+
+    let worldHandle: any;
+    const SimplePrefab = definePrefab([{ def: Pos, defaults: { x: 0, y: 0 } }]);
+    const Actor = defineActor(SimplePrefab, () => {
+      worldHandle = useTransform();
+      return {};
+    });
+    await engine.use(Actor._plugin);
+
+    const TestLayout = defineLayout(() => {
+      placeActor(Actor, { at: [10, 20] });
+      return {};
+    });
+
+    await engine.run(async () => {
+      const layout = useLayout(TestLayout, { lazy: true });
+      await layout.load();
+    });
+
+    // world reads should return numbers (mock bridge returns 0 for undefined calls)
+    expect(typeof worldHandle?.world.x).toBe('number');
+    expect(typeof worldHandle?.world.y).toBe('number');
+    expect(typeof worldHandle?.world.rotation).toBe('number');
   });
 });

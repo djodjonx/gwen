@@ -54,6 +54,12 @@ export function useLayout<Refs extends Record<string, PlaceHandle<unknown>>>(
   async function load(): Promise<void> {
     if (_active) return;
 
+    if (options?.chunkSize !== undefined) {
+      console.warn(
+        '[GWEN] useLayout: chunkSize is not yet implemented — all entities will be spawned at once.',
+      );
+    }
+
     const { result, entities } = engineContext.call(engine, () =>
       _withLayoutContext(() => layoutDef._factory()),
     );
