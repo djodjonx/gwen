@@ -8,6 +8,7 @@
 
 pub mod allocator;
 pub mod bindings;
+pub mod bulk_ops;
 pub mod ecs;
 pub mod events;
 pub mod gameloop;
