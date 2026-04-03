@@ -12,7 +12,7 @@
  * });
  *
  * // In any plugin:
- * const debug = engine.inject('debug' as any) as DebugService;
+ * const debug = engine.inject('debug') as DebugService;
  * console.log(debug.getMetrics());
  * ```
  */
@@ -22,13 +22,15 @@ import type { GwenEngine } from '@gwenjs/core';
 import { FpsTracker } from './fps-tracker';
 import { DebugOverlay } from './overlay';
 import type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig } from './types';
+// Side-effect: augments GwenProvides with 'debug' key, enabling typed provide/inject.
+import './augment.js';
 
 export type { DebugMetrics, DebugPluginConfig, DebugOverlayConfig, FpsDropConfig };
 
 // ── DebugService ──────────────────────────────────────────────────────────────
 
 /**
- * Service exposed by DebugPlugin via `engine.inject('debug' as any)`.
+ * Service exposed by DebugPlugin via `engine.inject('debug')`.
  */
 export interface DebugService {
   /** Get the latest metrics snapshot (updated every frame). */
@@ -112,7 +114,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
         setOverlayVisible: (v: boolean) => overlay?.setVisible(v),
       };
 
-      engine.provide('debug' as any, service);
+      engine.provide('debug', service);
     },
 
     onBeforeUpdate(dt: number): void {

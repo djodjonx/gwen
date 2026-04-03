@@ -8,6 +8,36 @@
 
 import { definePlugin } from '@gwenjs/kit';
 import type { EntityId, GwenEngine } from '@gwenjs/kit';
+// Side-effect: augments GwenProvides with 'renderer' key, enabling typed provide/inject.
+import './augment.js';
+
+// ── Internal type helpers ─────────────────────────────────────────────────────
+
+/**
+ * Internal interface for string-named component and query access.
+ *
+ * The renderer is component-agnostic — it queries `'transform'` and `'sprite'`
+ * components by string name at runtime. The public `GwenEngine` type accepts
+ * typed `ComponentDefinition` descriptors; the runtime engine also supports
+ * string names, which this plugin relies on for flexibility.
+ *
+ * @internal Do not use this type outside of this module.
+ */
+interface GwenEngineStringComponentAccess {
+  /**
+   * Query all entities that have every component in the given name array.
+   * @param names - Component names to match.
+   * @returns Iterable of `{ id: EntityId }` accessor objects.
+   */
+  createLiveQuery(names: string[]): Iterable<{ id: EntityId }>;
+  /**
+   * Retrieve component data by string name.
+   * @param id   - Entity to read from.
+   * @param name - Component name.
+   * @returns Component data or `undefined`.
+   */
+  getComponent(id: EntityId, name: string): unknown;
+}
 
 // ── Component types ───────────────────────────────────────────────────────────
 
@@ -438,7 +468,7 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx = ctx;
       applyPixelRatio();
 
-      (engine as any).provide('renderer', service);
+      engine.provide('renderer', service);
     },
 
     onRender(): void {
@@ -452,13 +482,13 @@ export const Canvas2DRenderer = definePlugin((config: Canvas2DRendererConfig = {
       _ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
       _ctx.scale(camera.zoom, camera.zoom);
 
-      const getComp = (_engine as any).getComponent as (id: EntityId, name: string) => unknown;
+      // Access the runtime string-based query/component API. The renderer is
+      // component-agnostic and works with component names as strings.
+      const stringEngine = _engine as unknown as GwenEngineStringComponentAccess;
+      const getComp = stringEngine.getComponent.bind(stringEngine);
 
       // String-based live query — renderer doesn't own typed ComponentDef objects.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const liveQuery = (_engine as any).createLiveQuery(['transform']) as Iterable<{
-        id: EntityId;
-      }>;
+      const liveQuery = stringEngine.createLiveQuery(['transform']);
       const entities = [...liveQuery];
       const sorted = entities.slice().sort((a, b) => {
         const sa = getComp(a.id, 'sprite') as SpriteComponent | undefined;

@@ -25,7 +25,7 @@ import { bench, describe } from 'vitest';
 // ── TS ECS (for comparison) ───────────────────────────────────────────────
 import { EntityManager, ComponentRegistry, QueryEngine } from '../src/core/ecs';
 import { defineComponent, Types } from '../src/schema';
-import type { EntityId } from '../src/types/entity';
+import type { EntityId as _EntityId } from '../src/types/entity';
 
 // ── WASM bootstrap (synchronous) ──────────────────────────────────────────
 

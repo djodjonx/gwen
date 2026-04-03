@@ -7,6 +7,7 @@ import type {
   SpriteAnimUIExtension,
   SpriteAnimatorService,
 } from './types';
+import './augment.js';
 
 export { createSpriteAnimSystem } from './systems';
 export type {
@@ -116,7 +117,7 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
         {
           events: {
             onFrame(entityId, clip, state, frameCursor, frameIndex) {
-              void (_engine?.hooks as any)?.callHook(
+              void _engine?.hooks.callHook(
                 'spriteAnim:frame',
                 entityId,
                 clip,
@@ -126,15 +127,10 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
               );
             },
             onComplete(entityId, clip, state) {
-              void (_engine?.hooks as any)?.callHook('spriteAnim:complete', entityId, clip, state);
+              void _engine?.hooks.callHook('spriteAnim:complete', entityId, clip, state);
             },
             onTransition(entityId, fromState, toState) {
-              void (_engine?.hooks as any)?.callHook(
-                'spriteAnim:transition',
-                entityId,
-                fromState,
-                toState,
-              );
+              void _engine?.hooks.callHook('spriteAnim:transition', entityId, fromState, toState);
             },
           },
           logger: debug ? undefined : { warn: () => {} },
@@ -142,18 +138,13 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
         { maxFrameAdvancesPerEntity: config.maxFrameAdvancesPerEntity },
       );
 
-      (engine as any).provide('animator', service);
+      engine.provide('animator', service);
 
-      engine.hooks.hook(
-        'ui:extensions' as any,
-        (uiName: unknown, entityId: unknown, extensions: unknown) => {
-          const ext = (extensions as Record<string, unknown>)?.spriteAnim as
-            | SpriteAnimUIExtension
-            | undefined;
-          if (!ext) return;
-          runtime.attach(uiName as string, entityId as EntityId, ext);
-        },
-      );
+      engine.hooks.hook('ui:extensions', (uiName, entityId, extensions) => {
+        const ext = extensions?.spriteAnim;
+        if (!ext) return;
+        runtime.attach(uiName, entityId, ext);
+      });
 
       engine.hooks.hook('entity:destroy', (entityId: EntityId) => {
         runtime.detach(entityId);

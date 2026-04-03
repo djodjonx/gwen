@@ -8,7 +8,7 @@
 
 import { definePlugin } from '@gwenjs/kit';
 import { unpackEntityId, createEntityId, getWasmBridge } from '@gwenjs/core';
-import type { GwenEngine } from '@gwenjs/core';
+import type { GwenEngine, EntityId, WasmBridge, WasmEnginePhysics2D } from '@gwenjs/core';
 
 import type {
   Physics2DConfig,
@@ -97,8 +97,8 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
     NonNullable<Physics2DPrefabExtension['onCollision']>
   >();
 
-  // Kept as `any` to remain compatible with cross-package type lag in monorepo builds.
-  let bridge: any = null;
+  // Physics bridge reference — typed as WasmBridge since getWasmBridge() always returns it.
+  let bridge: WasmBridge | null = null;
   let currentEngine: GwenEngine | null = null;
   let physicsService: Physics2DAPI | null = null;
 
@@ -116,7 +116,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
       return cachedCollisionBatch;
     }
 
-    const pb = bridge!.getPhysicsBridge() as any;
+    const pb = bridge!.getPhysicsBridge() as WasmEnginePhysics2D;
     const memory = bridge!.getLinearMemory();
     if (!memory) {
       return {
@@ -181,7 +181,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
   /** Build the public Physics2DAPI using the currently-active bridge (set in setup). */
   function createAPI(): Physics2DAPI {
-    const pb = bridge!.getPhysicsBridge() as any;
+    const pb = bridge!.getPhysicsBridge() as WasmEnginePhysics2D;
     /** Extract raw slot index from packed EntityId (bigint) or legacy raw slot number. */
     const slot = (id: import('@gwenjs/core').EntityId | number) =>
       typeof id === 'number' ? id : unpackEntityId(id).index;
@@ -354,7 +354,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         throw new Error('[Physics2D] Core WASM variant does not include physics.');
       }
 
-      const pb = bridge.getPhysicsBridge() as any;
+      const pb = bridge.getPhysicsBridge() as WasmEnginePhysics2D;
       pb.physics_init(cfg.gravityX, cfg.gravity, cfg.maxEntities);
       pb.physics_set_quality(PHYSICS_QUALITY_PRESET_CODE[cfg.qualityPreset]);
       pb.physics_set_event_coalescing(cfg.coalesceEvents ? 1 : 0);
@@ -405,7 +405,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
         if (ext.onCollision) entityCollisionCallbacks.set(slot, ext.onCollision);
       });
 
-      engine.hooks.hook('entity:destroy', (entityId: any) => {
+      engine.hooks.hook('entity:destroy', (entityId: EntityId) => {
         const { index: slot } = unpackEntityId(entityId);
         entityCollisionCallbacks.delete(slot);
         activeSensors.delete(slot);
@@ -417,7 +417,7 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
 
     onBeforeUpdate(deltaTime: number): void {
       cachedCollisionBatch = null;
-      (bridge?.getPhysicsBridge() as any)?.physics_step(deltaTime);
+      (bridge?.getPhysicsBridge() as WasmEnginePhysics2D | undefined)?.physics_step(deltaTime);
     },
 
     onUpdate(_dt: number): void {

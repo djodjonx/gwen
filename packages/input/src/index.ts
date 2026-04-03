@@ -12,7 +12,7 @@
  * });
  *
  * // In any plugin setup():
- * const keyboard = engine.inject('keyboard' as any) as KeyboardInput;
+ * const keyboard = engine.inject('keyboard');
  * ```
  */
 
@@ -59,7 +59,7 @@ export interface InputPluginConfig {
   /**
    * Optional input action map. If provided, registers an 'inputMapper'
    * service via engine.provide() — accessible by systems via
-   * `engine.inject('inputMapper' as any) as InputMapper`.
+   * `engine.inject('inputMapper')`.
    */
   actionMap?: InputMapConfig;
 }
@@ -85,14 +85,14 @@ export const InputPlugin = definePlugin((config: InputPluginConfig = {}) => {
       keyboard.attach(target);
       mouse.attach(target, config.canvas);
 
-      engine.provide('keyboard' as any, keyboard);
-      engine.provide('mouse' as any, mouse);
-      engine.provide('gamepad' as any, gamepad);
+      engine.provide('keyboard', keyboard);
+      engine.provide('mouse', mouse);
+      engine.provide('gamepad', gamepad);
 
       if (config.actionMap) {
         const mapper = new InputMapper();
         mapper.init(config.actionMap, keyboard, gamepad);
-        engine.provide('inputMapper' as any, mapper);
+        engine.provide('inputMapper', mapper);
       }
     },
 

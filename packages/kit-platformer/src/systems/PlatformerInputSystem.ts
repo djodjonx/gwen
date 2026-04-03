@@ -16,15 +16,16 @@ export function PlatformerInputSystem(): GwenPlugin {
 
     setup(engine: GwenEngine): void {
       _engine = engine;
-      mapper = engine.inject('inputMapper' as any) as InputMapper;
-      const physics = engine.inject('physics' as any) as Physics2DAPI;
-      debug = physics.isDebugEnabled?.() ?? false;
+      mapper = engine.inject('inputMapper');
+      const physics = engine.inject('physics2d');
+      debug = (physics as Physics2DAPI).isDebugEnabled?.() ?? false;
     },
 
     onBeforeUpdate(_dt: number): void {
       if (!_engine || !mapper) return;
+      const engine = _engine;
 
-      const entities = [..._engine.createLiveQuery([PlatformerIntent])];
+      const entities = [...engine.createLiveQuery([PlatformerIntent])];
       const axis = mapper.readAxis2D('Move');
       const jumpJustPressed = mapper.isActionJustPressed('Jump');
       const jumpPressed = mapper.isActionPressed('Jump');
@@ -36,12 +37,12 @@ export function PlatformerInputSystem(): GwenPlugin {
       }
 
       for (const accessor of entities) {
-        (_engine as any).addComponent(accessor.id, PlatformerIntent, {
+        engine.addComponent(accessor.id, PlatformerIntent, {
           moveX: axis.x,
           jumpJustPressed,
           jumpPressed,
         });
       }
     },
-  } as any;
+  };
 }

@@ -525,8 +525,7 @@ export function gwen(options: GwenPluginOptions = {}): Plugin {
         { stdio: 'pipe' },
       );
 
-      // @ts-ignore - ChildProcess has 'on' method but TypeScript strict mode doesn't always recognize it
-      watchProcess.on('close', (code: number | null) => {
+      watchProcess!.on('close', (code: number | null) => {
         if (code === 0) {
           wasmSourceDir = outDir;
           log('WASM rebuilt — triggering HMR full reload');

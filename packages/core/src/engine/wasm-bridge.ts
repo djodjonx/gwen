@@ -343,6 +343,21 @@ export interface WasmEnginePhysics2D extends WasmEngineBase {
    * Each node is 8 bytes: `[x: f32, y: f32]`.
    */
   path_get_result_ptr(): number;
+
+  // ── NavMesh (optional — present only in navmesh-enabled WASM builds) ────
+
+  /**
+   * Build the navigation mesh from the current collider geometry.
+   * Present in newer WASM builds as `physics_build_navmesh`.
+   * @optional
+   */
+  physics_build_navmesh?(): void;
+  /**
+   * Build the navigation mesh (legacy name, superseded by `physics_build_navmesh`).
+   * @optional
+   * @deprecated Use `physics_build_navmesh` instead.
+   */
+  build_navmesh?(): void;
 }
 
 /**
@@ -923,15 +938,12 @@ export async function initWasm(
 
     const wasmInput = resolvedWasmUrl ? await fetch(resolvedWasmUrl) : undefined;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const glueAny = glue as any;
-
     if (typeof glue.default === 'function') {
       // glue.default() returns the raw WASM instance exports (including memory)
-      _wasmExports = await glueAny.default({ module_or_path: wasmInput });
+      _wasmExports = await glue.default({ module_or_path: wasmInput });
     } else if (typeof glue.initSync === 'function') {
       const buf = await (await fetch(resolvedWasmUrl!)).arrayBuffer();
-      _wasmExports = glueAny.initSync({ module: buf });
+      _wasmExports = glue.initSync({ module: buf });
     } else {
       throw new Error('[GWEN] WASM glue has no init() function — corrupted file?');
     }
@@ -978,8 +990,12 @@ declare const window: GwenWindow;
  * The exact exports depend on the wasm-bindgen version and init mode.
  */
 interface WasmGlueModule {
-  default?: (init: { module_or_path?: Response | undefined }) => Promise<void>;
-  initSync?: (init: { module: ArrayBuffer }) => void;
+  /** Async init — returns raw WASM instance exports including the linear memory. */
+  default?: (init: {
+    module_or_path?: Response | undefined;
+  }) => Promise<{ memory?: WebAssembly.Memory }>;
+  /** Sync init — returns raw WASM instance exports including the linear memory. */
+  initSync?: (init: { module: ArrayBuffer }) => { memory?: WebAssembly.Memory };
   Engine?: new (maxEntities: number) => WasmEngine;
   [key: string]: unknown;
 }
@@ -1681,7 +1697,7 @@ export function _injectMockWasmEngine(mock: WasmEngine): void {
  * ```typescript
  * const buf1 = new ArrayBuffer(100);
  * const buf2 = new ArrayBuffer(200);
- * const mockMemory = { buffer: buf1 } as any;
+ * const mockMemory = { buffer: buf1 } as unknown as { memory?: WebAssembly.Memory };
  * _injectMockWasmExports({ memory: mockMemory });
  *
  * const bridge = getWasmBridge();

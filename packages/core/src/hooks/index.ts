@@ -112,13 +112,14 @@ export type GwenHookable<H extends Record<string, any> = GwenHooks> = Hookable<H
  * ```typescript
  * const hooks = createGwenHooks();
  *
- * // Create a custom hook
- * hooks.hook('physics:collision' as any, (event) => {
+ * // Create a custom hook (extend GwenRuntimeHooks via declaration merging
+ * // in your plugin's augment.ts to get full type safety)
+ * hooks.hook('physics:collision', (event) => {
  *   console.log('Collision:', event);
  * });
  *
  * // Call it
- * await hooks.callHook('physics:collision' as any, { bodyA: 1, bodyB: 2 });
+ * await hooks.callHook('physics:collision', { bodyA: 1, bodyB: 2 });
  * ```
  *
  * @see {@link GwenHooks} for available hooks

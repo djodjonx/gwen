@@ -83,6 +83,6 @@ export function addPrefabCollider(
   }
 
   throw new Error(
-    `[Physics2D] Invalid collider shape \`${String((collider as any).shape)}\` (collider id: ${collider.id ?? '<unnamed>'}).`,
+    `[Physics2D] Invalid collider shape \`${String(collider.shape)}\` (collider id: ${collider.id ?? '<unnamed>'}).`,
   );
 }

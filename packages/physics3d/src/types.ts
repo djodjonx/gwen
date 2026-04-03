@@ -389,7 +389,7 @@ export interface Physics3DPluginHooks {
  *
  * @example
  * ```ts
- * const physics3d = engine.inject('physics3d' as any) as Physics3DAPI;
+ * const physics3d = engine.inject('physics3d');
  * physics3d.createBody(entityId, { kind: 'dynamic' });
  * physics3d.addCollider(entityId, { shape: { type: 'box', halfX: 0.5, halfY: 0.5, halfZ: 0.5 } });
  * ```

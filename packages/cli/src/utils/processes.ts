@@ -51,13 +51,15 @@ export async function execSafe(
       stderr: result.stderr ?? '',
       exitCode: 0,
     };
-  } catch (error: any) {
-    logger.trace('Command failed:', error.message);
+  } catch (error: unknown) {
+    // execa throws objects with stdout/stderr/exitCode on process failure
+    const e = error as { message?: string; stdout?: string; stderr?: string; exitCode?: number };
+    logger.trace('Command failed:', e.message ?? String(error));
     return {
       success: false,
-      stdout: error.stdout ?? '',
-      stderr: error.stderr ?? '',
-      exitCode: error.exitCode ?? 1,
+      stdout: e.stdout ?? '',
+      stderr: e.stderr ?? '',
+      exitCode: e.exitCode ?? 1,
     };
   }
 }

@@ -2,6 +2,46 @@ import type { Plugin } from 'vite';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
+// ─── Minimal oxc-parser AST types ────────────────────────────────────────────
+// oxc-parser has no shipped .d.ts for its AST yet; these minimal shapes cover
+// exactly the AST properties accessed in this file.
+
+/**
+ * A single parse diagnostic emitted by oxc-parser.
+ * Severity is `'Error'` for fatal problems, `'Warning'` for non-fatal ones.
+ */
+interface OxcError {
+  severity: string;
+  message: string;
+}
+
+/**
+ * A minimal oxc-parser AST node.
+ * Only the properties accessed in this transform plugin are declared here.
+ */
+interface OxcNode {
+  type: string;
+  start: number;
+  end: number;
+  // ImportDeclaration
+  source?: { value: string };
+  importKind?: string;
+  specifiers?: OxcNode[];
+  // ImportSpecifier
+  imported?: { name: string };
+  local?: { name: string };
+  // ObjectExpression / Program body / generic children
+  body?: OxcNode[];
+  properties?: OxcNode[];
+  // Property
+  key?: OxcNode;
+  value?: OxcNode;
+  name?: string;
+  // Identifier / StringLiteral
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- oxc literal values are mixed primitives
+  [key: string]: any;
+}
+
 const CORE_IMPORT = '@gwenjs/core';
 
 export interface GwenTransformOptions {
@@ -65,18 +105,20 @@ export function gwenTransform(options: GwenTransformOptions = {}): Plugin {
         return null;
       }
 
-      let program: any;
+      let program: OxcNode;
       try {
         const result = parseSync(id, code);
         if (result.errors && result.errors.length > 0) {
-          const fatal = result.errors.filter((e: any) => e.severity === 'Error');
+          const fatal = (result.errors as OxcError[]).filter((e) => e.severity === 'Error');
           if (fatal.length > 0) return null;
           // Non-fatal diagnostics — proceed but warn the developer
-          for (const e of result.errors) {
+          for (const e of result.errors as OxcError[]) {
             this.warn(`[gwen-transform] Parse diagnostic in ${id}: ${e.message}`);
           }
         }
-        program = result.program;
+        // Cast through unknown: the oxc-parser Program type is structurally
+        // richer than our minimal OxcNode, but we only access the subset we typed.
+        program = result.program as unknown as OxcNode;
       } catch {
         return null;
       }
@@ -113,7 +155,7 @@ export function gwenTransform(options: GwenTransformOptions = {}): Plugin {
  * @param code - Original source string (for regex pre-screening).
  * @param s - MagicString instance to mutate.
  */
-function applyAutoImports(program: any, code: string, s: MagicString): void {
+function applyAutoImports(program: OxcNode, code: string, s: MagicString): void {
   const needed = {
     defineComponent: /\bdefineComponent\s*\(/.test(code),
     defineSystem: /\bdefineSystem\s*\(/.test(code),
@@ -124,7 +166,7 @@ function applyAutoImports(program: any, code: string, s: MagicString): void {
   if (specifiers.length === 0) return;
 
   const coreImport = (program.body ?? []).find(
-    (node: any) =>
+    (node: OxcNode) =>
       node.type === 'ImportDeclaration' &&
       node.source?.value === CORE_IMPORT &&
       node.importKind !== 'type',
@@ -132,15 +174,15 @@ function applyAutoImports(program: any, code: string, s: MagicString): void {
 
   if (coreImport) {
     const existing: string[] = (coreImport.specifiers ?? [])
-      .filter((sp: any) => sp.type === 'ImportSpecifier')
-      .map((sp: any) => sp.imported?.name ?? sp.local?.name)
-      .filter(Boolean);
+      .filter((sp: OxcNode) => sp.type === 'ImportSpecifier')
+      .map((sp: OxcNode) => sp.imported?.name ?? sp.local?.name)
+      .filter((name): name is string => Boolean(name));
 
     const missing = specifiers.filter((name) => !existing.includes(name));
     if (missing.length === 0) return;
 
     const namedSpecs = (coreImport.specifiers ?? []).filter(
-      (sp: any) => sp.type === 'ImportSpecifier',
+      (sp: OxcNode) => sp.type === 'ImportSpecifier',
     );
 
     if (namedSpecs.length > 0) {
@@ -152,7 +194,7 @@ function applyAutoImports(program: any, code: string, s: MagicString): void {
     return;
   }
 
-  const imports = (program.body ?? []).filter((node: any) => node.type === 'ImportDeclaration');
+  const imports = (program.body ?? []).filter((node: OxcNode) => node.type === 'ImportDeclaration');
   const insertLine = `import { ${specifiers.join(', ')} } from '${CORE_IMPORT}';\n`;
 
   if (imports.length > 0) {
@@ -179,10 +221,10 @@ interface AsConstOptions {
  * @param s - MagicString instance to mutate.
  * @param opts - Which property keys to transform.
  */
-function applyAsConstTransforms(program: any, s: MagicString, opts: AsConstOptions): void {
+function applyAsConstTransforms(program: OxcNode, s: MagicString, opts: AsConstOptions): void {
   const insertPositions = new Set<number>();
 
-  walkNode(program, (node: any) => {
+  walkNode(program, (node: OxcNode) => {
     if (node.type !== 'ObjectExpression') return;
 
     for (const prop of node.properties ?? []) {
@@ -194,7 +236,7 @@ function applyAsConstTransforms(program: any, s: MagicString, opts: AsConstOptio
 
       const keyName: string | null =
         key.type === 'Identifier'
-          ? key.name
+          ? (key.name ?? null)
           : key.type === 'StringLiteral' || key.type === 'Literal'
             ? String(key.value)
             : null;
@@ -227,7 +269,7 @@ function applyAsConstTransforms(program: any, s: MagicString, opts: AsConstOptio
  * @param node - The AST node to walk.
  * @param visitor - Called for every encountered AST node.
  */
-function walkNode(node: any, visitor: (node: any) => void): void {
+function walkNode(node: OxcNode, visitor: (node: OxcNode) => void): void {
   if (!node || typeof node !== 'object') return;
   if (typeof node.type !== 'string') return;
 

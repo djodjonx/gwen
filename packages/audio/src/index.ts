@@ -12,7 +12,7 @@
  * });
  *
  * // In any plugin setup():
- * const audio = engine.inject('audio' as any) as AudioService;
+ * const audio = engine.inject('audio') as AudioService;
  * await audio.preload('jump', '/sounds/jump.wav');
  * audio.play('jump');
  * ```
@@ -20,6 +20,8 @@
 
 import { definePlugin } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/core';
+// Side-effect: augments GwenProvides with 'audio' key, enabling typed provide/inject.
+import './augment.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ interface SoundTrack {
 }
 
 /**
- * Service exposed by AudioPlugin via `engine.inject('audio' as any)`.
+ * Service exposed by AudioPlugin via `engine.inject('audio')`.
  */
 export interface AudioService {
   /**
@@ -204,7 +206,7 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
       masterGain = context.createGain();
       masterGain.gain.value = masterVolume;
       masterGain.connect(context.destination);
-      engine.provide('audio' as any, service);
+      engine.provide('audio', service);
     },
 
     teardown(): void {

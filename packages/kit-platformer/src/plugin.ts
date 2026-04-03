@@ -2,6 +2,8 @@ import { definePlugin } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/kit';
 import type { ComponentDefinition } from '@gwenjs/core';
 import { Position } from './components/StandardComponents.js';
+// Side-effect: augments GwenProvides with 'platformer' key, enabling typed provide/inject.
+import './augment.js';
 
 /**
  * Defines the components used by the Platformer Kit.
@@ -56,7 +58,7 @@ export const PlatformerKitPlugin = definePlugin((config: PlatformerKitConfig = {
   return {
     name: '@gwenjs/kit-platformer',
     setup(engine: GwenEngine): void {
-      engine.provide('platformer' as any, service);
+      engine.provide('platformer', service);
     },
     teardown(): void {},
   };
@@ -65,10 +67,15 @@ export const PlatformerKitPlugin = definePlugin((config: PlatformerKitConfig = {
 /**
  * Helper to resolve a component from local options, global config, or defaults.
  *
+ * @param api - Scene callback API providing access to registered services.
+ * @param key - Component slot to resolve.
+ * @param localOverrides - Optional scene-local component overrides.
  * @internal
  */
 export function resolveComponent<K extends keyof PlatformerKitComponents>(
-  api: any,
+  api: import('./scene-utils.js').PrefabCallbackApi & {
+    services?: import('./scene-utils.js').SceneCallbackApi['services'];
+  },
   key: K,
   localOverrides?: Partial<PlatformerKitComponents>,
 ): PlatformerKitComponents[K] {
@@ -78,7 +85,7 @@ export function resolveComponent<K extends keyof PlatformerKitComponents>(
   }
 
   // 2. Global override via PlatformerKitPlugin
-  if (api.services.has('platformer')) {
+  if (api.services?.has('platformer')) {
     const service = api.services.get('platformer') as PlatformerKitService;
     const component = service.config.components[key];
     if (component) {

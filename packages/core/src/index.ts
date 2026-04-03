@@ -57,6 +57,8 @@ export type {
   WasmBridge,
   WasmEntityId,
   WasmEngine,
+  WasmEnginePhysics2D,
+  WasmEnginePhysics3D,
   GwenCoreWasm,
   CoreVariant,
   InitWasmOptions,

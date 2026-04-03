@@ -12,18 +12,14 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    // FIXME(type-safety): exactOptionalPropertyTypes disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "exactOptionalPropertyTypes": false,
+    // FIXME(type-safety): noUncheckedIndexedAccess disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "noUncheckedIndexedAccess": false,
     "ignoreDeprecations": "6.0"
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests"
-  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests"],
   "extends": "../../tsconfig.base.json",
   "references": [
     {
@@ -36,13 +32,13 @@
       "path": "../kit"
     },
     {
-      "path": "../app"
-    },
-    {
       "path": "../input"
     },
     {
       "path": "../renderer-canvas2d"
+    },
+    {
+      "path": "../vite"
     }
   ]
 }

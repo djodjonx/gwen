@@ -41,8 +41,9 @@ export async function copyWasmArtifacts(ctx: BuildContext): Promise<void> {
     }
 
     logger.success(`WASM artifacts (${variant}) copied → ${wasmOutDir}`);
-  } catch (error: any) {
-    ctx.warnings.push(`WASM artifacts copy failed: ${error.message}`);
-    logger.warn(`WASM artifacts copy failed: ${error.message}`);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    ctx.warnings.push(`WASM artifacts copy failed: ${msg}`);
+    logger.warn(`WASM artifacts copy failed: ${msg}`);
   }
 }

@@ -63,7 +63,11 @@ export function createPlatformerScene(options: PlatformerSceneOptions = {}) {
     systems: [PlatformerInputSystem, PlatformerMovementSystem, ...(options.systems ?? [])],
 
     onEnter(api) {
-      const physics = api.services.has('physics') ? (api.services.get('physics') as any) : null;
+      // `physics` is an optional service — may not be registered in all scenes.
+      // We access only the `setGravity` method if it exists.
+      const physics = api.services.has('physics')
+        ? (api.services.get('physics') as { setGravity?: (x: number, y: number) => void } | null)
+        : null;
       const units = options.units ?? DEFAULT_PLATFORMER_UNITS;
       const pixelsPerMeter = options.pixelsPerMeter ?? DEFAULT_PIXELS_PER_METER;
       const gravity = toPhysicsScalar(options.gravity ?? 20, units, pixelsPerMeter);

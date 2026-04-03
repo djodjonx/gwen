@@ -94,7 +94,7 @@ export function PlatformerMovementSystem(): GwenPlugin {
 
     setup(engine: GwenEngine): void {
       _engine = engine;
-      physics = engine.inject('physics' as any) as Physics2DAPI;
+      physics = engine.inject('physics') as Physics2DAPI;
       grounded = createPlatformerGroundedSystem({ physics });
       debug = physics.isDebugEnabled?.() ?? false;
 
@@ -118,9 +118,8 @@ export function PlatformerMovementSystem(): GwenPlugin {
 
       for (const eid of entities) {
         const ctrl =
-          (_engine as any).getComponent(eid, PlatformerController) ??
-          PLATFORMER_CONTROLLER_DEFAULTS;
-        const intent = (_engine as any).getComponent(eid, PlatformerIntent);
+          _engine!.getComponent(eid, PlatformerController) ?? PLATFORMER_CONTROLLER_DEFAULTS;
+        const intent = _engine!.getComponent(eid, PlatformerIntent);
         if (!intent) continue;
 
         const vel = physics.getLinearVelocity(eid);
@@ -222,5 +221,5 @@ export function PlatformerMovementSystem(): GwenPlugin {
         }
       }
     },
-  } as any;
+  };
 }

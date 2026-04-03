@@ -12,6 +12,7 @@
       "node"
     ],
     "skipLibCheck": true,
+    // FIXME(type-safety): exactOptionalPropertyTypes disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "exactOptionalPropertyTypes": false
   },
   "include": [

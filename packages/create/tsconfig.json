@@ -1,24 +1,21 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": [
-      "ES2020"
-    ],
+    "target": "ES2022",
     "module": "ESNext",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
     "moduleResolution": "bundler",
+    "rootDir": ".",
+    "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "types": [
+      "node"
+    ],
     // FIXME(type-safety): exactOptionalPropertyTypes disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "exactOptionalPropertyTypes": false,
     // FIXME(type-safety): noUncheckedIndexedAccess disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
@@ -27,10 +24,13 @@
   "include": [
     "src"
   ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
   "references": [
     {
-      "path": "./tsconfig.node.json"
+      "path": "../cli"
     }
-  ],
-  "extends": "../../tsconfig.base.json"
+  ]
 }

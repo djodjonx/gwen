@@ -28,7 +28,7 @@ const Health = defineComponent({
   name: 'Health',
   schema: { current: Types.f32, max: Types.f32, regenRate: Types.f32 },
 });
-const Tag = defineComponent({ name: 'Tag', schema: { value: Types.u32 } });
+const _Tag = defineComponent({ name: 'Tag', schema: { value: Types.u32 } });
 
 type Pos = InferComponent<typeof Position>;
 type Vel = InferComponent<typeof Velocity>;

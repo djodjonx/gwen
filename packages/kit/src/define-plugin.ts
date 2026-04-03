@@ -76,20 +76,56 @@ export type GwenPluginFactory<Options, P extends GwenPlugin> = [Options] extends
  * await engine.use(plugin)
  * ```
  *
+ /**
+ * Define a GWEN plugin via a factory function.
+ *
+ * The factory receives optional options and returns a plain object conforming
+ * to the {@link GwenPlugin} interface. `definePlugin` wraps this factory and
+ * returns a typed factory function.
+ *
+ * @typeParam TOptions - The type of options the factory accepts. Inferred from
+ *   the factory parameter — leave it unspecified for automatic inference.
+ * @typeParam TPlugin - The concrete plugin type the factory produces. Inferred
+ *   automatically from the factory's return type.
+ * @param factory - A function that receives options and returns a `GwenPlugin`
+ *   object. The factory is called fresh each time the returned factory function
+ *   is invoked, giving every plugin instance its own closure state.
+ * @returns A typed {@link GwenPluginFactory}. Call it (with options if required)
+ *   to get a plugin instance ready for `engine.use()`.
+ *
+ * @example
+ * ```typescript
+ * import { definePlugin } from '@gwenjs/kit'
+ *
+ * export const MyPlugin = definePlugin((opts: { debug?: boolean } = {}) => ({
+ *   name: 'MyPlugin',
+ *   setup(engine) {
+ *     if (opts.debug) console.log('[MyPlugin] setup')
+ *   },
+ *   teardown() {
+ *     if (opts.debug) console.log('[MyPlugin] teardown')
+ *   },
+ * }))
+ *
+ * // Instantiate and register:
+ * const plugin = MyPlugin({ debug: true })
+ * await engine.use(plugin)
+ * ```
+ *
  * @since 1.0.0
  */
-export function definePlugin<F extends (options?: any) => GwenPlugin>(
-  factory: F,
-): GwenPluginFactory<Parameters<F> extends [] ? void : Parameters<F>[0], ReturnType<F>> {
+export function definePlugin<TOptions, TPlugin extends GwenPlugin>(
+  factory: (options?: TOptions) => TPlugin,
+): GwenPluginFactory<TOptions extends undefined ? void : TOptions, TPlugin> {
   /**
-   * Plugin factory function. Calling it (with or without `new`) returns a fresh
-   * plugin instance with its own closure state.
+   * Plugin factory function. Calling it (with or without options) returns a
+   * fresh plugin instance with its own closure state.
    */
-  function PluginFactory(options?: Parameters<F>[0]): ReturnType<F> {
-    return factory(options) as ReturnType<F>;
+  function PluginFactory(options?: TOptions): TPlugin {
+    return factory(options);
   }
   return PluginFactory as unknown as GwenPluginFactory<
-    Parameters<F> extends [] ? void : Parameters<F>[0],
-    ReturnType<F>
+    TOptions extends undefined ? void : TOptions,
+    TPlugin
   >;
 }

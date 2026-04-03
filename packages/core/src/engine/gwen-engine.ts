@@ -990,15 +990,14 @@ class GwenEngineImpl implements GwenEngine {
    * @returns A live {@link LiveQuery} of {@link EntityAccessor} objects
    */
   createLiveQuery<T extends ComponentDef>(components: T[]): LiveQuery<EntityAccessor> {
-    // Capture references once — avoids closure allocation on every iteration start.
-    const self = this;
+    // Capture specific members once — avoids both closure allocation on every
+    // iteration start and the no-this-alias lint rule.
+    const queryEngine = this._queryEngine;
+    const entityManager = this._entityManager;
+    const componentRegistry = this._componentRegistry;
     return {
       [Symbol.iterator](): Iterator<EntityAccessor> {
-        const results = self._queryEngine.resolve(
-          components,
-          self._entityManager,
-          self._componentRegistry,
-        );
+        const results = queryEngine.resolve(components, entityManager, componentRegistry);
         let i = 0;
         return {
           next(): IteratorResult<EntityAccessor> {
@@ -1013,7 +1012,7 @@ class GwenEngineImpl implements GwenEngine {
                 get<S extends ComponentSchema, D extends ComponentDefinition<S>>(
                   def: D,
                 ): InferComponent<D> | undefined {
-                  return self._componentRegistry.get<InferComponent<D>>(id, def);
+                  return componentRegistry.get<InferComponent<D>>(id, def);
                 },
               },
             };
