@@ -166,7 +166,7 @@ export function useActor<Props, PublicAPI>(
     despawnAll(): void {
       _singletonId = undefined;
       // Copy keys first — despawn() mutates _instances during iteration.
-      for (const id of [...actorDef._instances.keys()]) {
+      for (const id of Array.from(actorDef._instances.keys())) {
         actorDef._plugin.despawn(id);
       }
     },

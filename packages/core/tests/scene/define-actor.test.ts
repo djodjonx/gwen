@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { definePrefab } from '../../src/scene/define-prefab.js';
 import { defineActor, onStart, onDestroy, onEvent } from '../../src/scene/define-actor.js';
-import { onUpdate, onBeforeUpdate, onAfterUpdate } from '../../src/system.js';
+import { onUpdate } from '../../src/system.js';
 import { createEngine } from '../../src/engine/gwen-engine.js';
 
 // Minimal component defs

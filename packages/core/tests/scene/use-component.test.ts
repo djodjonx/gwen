@@ -33,7 +33,6 @@ describe('useComponent', () => {
 
   it('writes to the component via proxy set', async () => {
     const engine = await createEngine();
-    let entityId: bigint | undefined;
 
     const Actor = defineActor(PosPrefab, () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,7 +42,7 @@ describe('useComponent', () => {
       });
     });
     await engine.use(Actor._plugin);
-    entityId = Actor._plugin.spawn();
+    const entityId = Actor._plugin.spawn();
 
     // Advance one full frame — proxy setter runs inside onUpdate
     await engine.advance(16);
