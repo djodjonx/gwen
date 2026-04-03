@@ -1633,6 +1633,73 @@ impl Engine {
             self, slots, gens, rigidbody_type_id, impulse_data,
         );
     }
+
+    // === Bulk Physics3D API (Tier 3) ===
+
+    /// Bulk-sync Rapier3D → ECS Transform3D (7×f32 = 28 bytes per entity).
+    ///
+    /// One WASM boundary crossing per frame instead of N per-entity crossings.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_sync_from_rapier`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_sync_from_rapier(
+        &mut self,
+        transform_type_id: u32,
+        out_slots: &mut [u32],
+        out_gens: &mut [u32],
+        out_buf: &mut [u8],
+    ) -> Vec<u32> {
+        let (count, bytes) = crate::bulk_ops_physics3d::physics3d_bulk_sync_from_rapier(
+            self,
+            transform_type_id,
+            out_slots,
+            out_gens,
+            out_buf,
+        );
+        vec![count, bytes]
+    }
+
+    /// Bulk-sync ECS Transform3D → Rapier3D (7×f32 = 28 bytes per entity).
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_sync_to_rapier`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_sync_to_rapier(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        transform_type_id: u32,
+        data: &[u8],
+    ) {
+        crate::bulk_ops_physics3d::physics3d_bulk_sync_to_rapier(
+            self, slots, gens, transform_type_id, data,
+        );
+    }
+
+    /// Bulk-apply 3D impulses `[fx, fy, fz]` (12 bytes/entity) to physics3D entities.
+    ///
+    /// One WASM boundary crossing per frame.
+    /// Only available when compiled with `features = ["physics3d"]`.
+    ///
+    /// See [`crate::bulk_ops_physics3d::physics3d_bulk_apply_impulse`] for details.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_bulk_apply_impulse(
+        &mut self,
+        slots: &[u32],
+        gens: &[u32],
+        rigidbody_type_id: u32,
+        impulse_data: &[u8],
+    ) {
+        crate::bulk_ops_physics3d::physics3d_bulk_apply_impulse(
+            self, slots, gens, rigidbody_type_id, impulse_data,
+        );
+    }
 }
 
 #[cfg(test)]
