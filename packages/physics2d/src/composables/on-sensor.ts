@@ -38,6 +38,7 @@ export function _clearSensorCallbacks(sensorId: number): void {
  *
  * @param sensorId - The collider ID returned by a collider composable with `isSensor: true`.
  * @param callback - Called with the entity ID of the overlapping entity.
+ * @returns {void}
  *
  * @example
  * ```typescript
@@ -61,6 +62,7 @@ export function onSensorEnter(sensorId: number, callback: (entityId: bigint) => 
  *
  * @param sensorId - The collider ID returned by a collider composable with `isSensor: true`.
  * @param callback - Called with the entity ID of the departing entity.
+ * @returns {void}
  *
  * @example
  * ```typescript

@@ -15,3 +15,5 @@ export {
   _dispatchSensorExit,
   _clearSensorCallbacks,
 } from './on-sensor.js';
+export { useShape } from './use-shape.js';
+export type { ShapeOptions } from './use-shape.js';

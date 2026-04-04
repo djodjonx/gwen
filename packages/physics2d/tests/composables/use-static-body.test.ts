@@ -13,6 +13,10 @@ const mockPhysics = {
   getLinearVelocity: vi.fn(() => ({ x: 1.5, y: 2.5 })),
 };
 
+const mockEngine = {
+  getComponent: vi.fn(() => undefined),
+};
+
 vi.mock('../../src/composables.js', () => ({
   usePhysics2D: vi.fn(() => mockPhysics),
 }));
@@ -21,7 +25,13 @@ vi.mock('@gwenjs/core/scene', () => ({
   _getActorEntityId: vi.fn(() => 42n),
 }));
 
-vi.mock('@gwenjs/core', () => ({}));
+vi.mock('@gwenjs/core', () => ({
+  useEngine: vi.fn(() => mockEngine),
+}));
+
+vi.mock('../../src/shape-component.js', () => ({
+  ShapeComponent: { name: 'Shape', schema: {} },
+}));
 
 import { useStaticBody } from '../../src/composables/use-static-body.js';
 
@@ -129,5 +139,43 @@ describe('useStaticBody', () => {
   it('passes default radius (0.5) to ball collider', () => {
     useStaticBody({ shape: 'ball' });
     expect(mockPhysics.addBallCollider).toHaveBeenCalledWith(99, 0.5, expect.anything());
+  });
+
+  it('reads Shape component for box dimensions when present', () => {
+    mockEngine.getComponent.mockReturnValue({ w: 100, h: 40, radius: 0, depth: 0 });
+
+    useStaticBody();
+
+    expect(mockPhysics.addBoxCollider).toHaveBeenCalledWith(
+      expect.any(Number),
+      50, // w/2
+      20, // h/2
+      expect.anything(),
+    );
+  });
+
+  it('reads Shape component radius for ball shape when present', () => {
+    mockEngine.getComponent.mockReturnValue({ w: 0, h: 0, radius: 25, depth: 0 });
+
+    useStaticBody({ shape: 'ball' });
+
+    expect(mockPhysics.addBallCollider).toHaveBeenCalledWith(
+      expect.any(Number),
+      25, // radius from Shape
+      expect.anything(),
+    );
+  });
+
+  it('falls back to 0.5 defaults when Shape component absent', () => {
+    mockEngine.getComponent.mockReturnValue(undefined);
+
+    useStaticBody();
+
+    expect(mockPhysics.addBoxCollider).toHaveBeenCalledWith(
+      expect.any(Number),
+      0.5, // default hw
+      0.5, // default hh
+      expect.anything(),
+    );
   });
 });

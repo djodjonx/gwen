@@ -529,13 +529,17 @@ export {
   onSensorExit,
   _clearContactCallbacks,
   _clearSensorCallbacks,
+  useShape,
 } from './composables/index.js';
+export { ShapeComponent } from './shape-component.js';
+export type { ShapeData } from './shape-component.js';
 export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './ring-buffer.js';
 export { physics2dVitePlugin } from './vite-plugin.js';
 export type {
   BoxColliderOptions,
   SphereColliderOptions,
   CapsuleColliderOptions,
+  ShapeOptions,
 } from './composables/index.js';
 export type {
   StaticBodyOptions,

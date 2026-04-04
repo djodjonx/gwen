@@ -28,6 +28,7 @@ export function _dispatchContactEvent(entityId: bigint, event: ContactEvent): vo
  *
  * @param callback - Called for each contact event involving this entity.
  * @param entityId - Optional explicit entity ID (used in tests; resolved from actor context in production).
+ * @returns {void}
  *
  * @example
  * ```typescript

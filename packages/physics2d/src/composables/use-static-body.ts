@@ -3,8 +3,10 @@
  */
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
+import { useEngine } from '@gwenjs/core';
 import type { StaticBodyHandle, StaticBodyOptions, ColliderOptions } from '../types.js';
 import { usePhysics2D } from '../composables.js';
+import { ShapeComponent } from '../shape-component.js';
 
 /**
  * Registers the current actor's entity as a static (non-moving) physics body.
@@ -28,6 +30,7 @@ import { usePhysics2D } from '../composables.js';
  */
 export function useStaticBody(options: StaticBodyOptions = {}): StaticBodyHandle {
   const physics = usePhysics2D();
+  const engine = useEngine();
   const entityId = _getActorEntityId() as unknown as EntityId;
 
   // Stored creation options so enable() can re-register the body after disable().
@@ -42,11 +45,18 @@ export function useStaticBody(options: StaticBodyOptions = {}): StaticBodyHandle
   /** Register the rigid body and collider with the physics system. */
   function _createBody(): void {
     _bodyHandle = physics.addRigidBody(entityId, 'fixed', 0, 0);
+
+    // Read shared Shape component for dimensions — allows useShape() to set once per actor.
+    const shapeData = engine.getComponent(entityId, ShapeComponent);
+
     if (options.shape === 'ball') {
-      physics.addBallCollider(_bodyHandle, 0.5, colliderOpts);
+      const radius = shapeData?.radius && shapeData.radius > 0 ? shapeData.radius : 0.5;
+      physics.addBallCollider(_bodyHandle, radius, colliderOpts);
     } else {
       // Default to box collider for 'box', 'capsule', or unspecified shape
-      physics.addBoxCollider(_bodyHandle, 0.5, 0.5, colliderOpts);
+      const hw = shapeData?.w && shapeData.w > 0 ? shapeData.w / 2 : 0.5;
+      const hh = shapeData?.h && shapeData.h > 0 ? shapeData.h / 2 : 0.5;
+      physics.addBoxCollider(_bodyHandle, hw, hh, colliderOpts);
     }
   }
 

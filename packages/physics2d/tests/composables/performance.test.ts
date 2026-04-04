@@ -23,7 +23,13 @@ vi.mock('@gwenjs/core/scene', () => ({
   _getActorEntityId: vi.fn(() => 1n),
 }));
 
-vi.mock('@gwenjs/core', () => ({}));
+vi.mock('@gwenjs/core', () => ({
+  useEngine: vi.fn(() => ({ getComponent: vi.fn(() => undefined) })),
+}));
+
+vi.mock('../../src/shape-component.js', () => ({
+  ShapeComponent: { name: 'Shape', schema: {} },
+}));
 
 import { useStaticBody } from '../../src/composables/use-static-body.js';
 import { ContactRingBuffer } from '../../src/ring-buffer.js';

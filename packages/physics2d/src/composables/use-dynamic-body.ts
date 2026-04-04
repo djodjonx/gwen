@@ -30,6 +30,12 @@ export function useDynamicBody(options: DynamicBodyOptions = {}): DynamicBodyHan
   const physics = usePhysics2D();
   const entityId = _getActorEntityId() as unknown as EntityId;
 
+  if (options.fixedRotation) {
+    console.warn(
+      '[gwen:physics2d] fixedRotation is not yet supported by Physics2DAPI. The option is accepted but has no effect.',
+    );
+  }
+
   // Stored creation options so enable() can re-register the body after disable().
   const rigidBodyOpts = {
     mass: options.mass,
