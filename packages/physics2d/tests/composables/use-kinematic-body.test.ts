@@ -113,6 +113,7 @@ describe('useKinematicBody (physics2d)', () => {
     const h = useKinematicBody();
     h.setVelocity(1, 1);
     h.disable();
+    mockPhysics.setKinematicPositionWithAngle.mockClear();
     _beforeUpdateCb!(0.1);
     expect(mockPhysics.setKinematicPositionWithAngle).not.toHaveBeenCalled();
   });
@@ -120,6 +121,7 @@ describe('useKinematicBody (physics2d)', () => {
   it('onBeforeUpdate is a no-op when dt <= 0', () => {
     const h = useKinematicBody();
     h.setVelocity(1, 1);
+    mockPhysics.setKinematicPositionWithAngle.mockClear();
     _beforeUpdateCb!(0);
     expect(mockPhysics.setKinematicPositionWithAngle).not.toHaveBeenCalled();
   });
@@ -139,6 +141,7 @@ describe('useKinematicBody (physics2d)', () => {
   it('moveTo is a no-op when inactive', () => {
     const h = useKinematicBody();
     h.disable();
+    mockPhysics.setKinematicPositionWithAngle.mockClear();
     h.moveTo(9, 9);
     expect(mockPhysics.setKinematicPositionWithAngle).not.toHaveBeenCalled();
   });
@@ -151,12 +154,12 @@ describe('useKinematicBody (physics2d)', () => {
   });
 
   it('enable() after disable recreates the body', () => {
-    const h = useKinematicBody();
+    const h = useKinematicBody({ initialPosition: { x: 3, y: 4 } });
     h.disable();
     vi.clearAllMocks();
     mockPhysics.addRigidBody.mockReturnValue(77);
     h.enable();
-    expect(mockPhysics.addRigidBody).toHaveBeenCalled();
+    expect(mockPhysics.addRigidBody).toHaveBeenCalledWith(10n, 'kinematic', 3, 4);
     expect(h.active).toBe(true);
   });
 
@@ -178,5 +181,25 @@ describe('useKinematicBody (physics2d)', () => {
   it('passes initialPosition to addRigidBody', () => {
     useKinematicBody({ initialPosition: { x: 3, y: 4 } });
     expect(mockPhysics.addRigidBody).toHaveBeenCalledWith(10n, 'kinematic', 3, 4);
+  });
+
+  it('passes initialAngle to setKinematicPositionWithAngle', () => {
+    useKinematicBody({ initialAngle: Math.PI });
+    expect(mockPhysics.setKinematicPositionWithAngle).toHaveBeenCalledWith(10n, 0, 0, Math.PI);
+  });
+
+  it('moveTo ignores angle when fixedRotation: true', () => {
+    const h = useKinematicBody({ fixedRotation: true });
+    vi.clearAllMocks();
+    h.moveTo(5, 6, 1.2);
+    expect(mockPhysics.setKinematicPositionWithAngle).toHaveBeenCalledWith(10n, 5, 6, 0);
+  });
+
+  it('onBeforeUpdate is a no-op when dt is NaN', () => {
+    const h = useKinematicBody();
+    h.setVelocity(1, 1);
+    mockPhysics.setKinematicPositionWithAngle.mockClear();
+    _beforeUpdateCb!(NaN);
+    expect(mockPhysics.setKinematicPositionWithAngle).not.toHaveBeenCalled();
   });
 });

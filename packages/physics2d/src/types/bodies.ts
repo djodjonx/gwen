@@ -125,7 +125,7 @@ export interface DynamicBodyHandle {
  * physics simulation. They participate in collision detection and push dynamic
  * bodies out of the way, but are never displaced by forces or gravity.
  */
-export interface KinematicBodyOptions2D {
+export interface KinematicBodyOptions {
   /** Initial world-space position in metres. */
   initialPosition?: { x: number; y: number };
   /** Initial orientation in radians. @default 0 */
@@ -143,7 +143,7 @@ export interface KinematicBodyOptions2D {
  * Use {@link setVelocity} each frame to move the body. The engine integrates
  * `pos += vel * dt` in `onBeforeUpdate`. Use {@link moveTo} for instant teleports.
  */
-export interface KinematicBodyHandle2D {
+export interface KinematicBodyHandle {
   /** Opaque numeric body id assigned by the physics engine. */
   readonly bodyId: number;
   /** Whether the body is currently active in the simulation. */
