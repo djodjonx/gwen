@@ -1910,6 +1910,76 @@ function quat(v?: Partial<Physics3DQuat>): Physics3DQuat {
 
 // ─── Public exports ─────────────────────────────────────────────────────────────
 
+// ─── preloadMeshCollider — open-world BVH streaming ──────────────────────────
+
+/**
+ * Handle for a preloaded BVH binary asset.
+ *
+ * @see {@link preloadMeshCollider}
+ */
+export interface PreloadedBvhHandle {
+  /** Current fetch state of the BVH binary. */
+  status: 'loading' | 'ready' | 'error';
+  /** The URL being fetched. */
+  url: string;
+  /**
+   * Resolves when the binary is in memory and ready for instant collider creation.
+   * Already resolved when `status === 'ready'`.
+   */
+  ready: Promise<void>;
+  /**
+   * Cached `ArrayBuffer` once loaded — consumed by `useMeshCollider`.
+   * @internal
+   */
+  _buffer?: ArrayBuffer;
+}
+
+/**
+ * Start fetching a pre-baked BVH binary before the actor that needs it is spawned.
+ *
+ * Useful for open-world streaming: preload Zone 2 while the player is still in Zone 1.
+ * The returned handle can be passed directly to `useMeshCollider(handle)` — if the
+ * binary is already in memory, collider creation is effectively synchronous (no extra
+ * network round-trip).
+ *
+ * @param url - Absolute or root-relative URL to the `.bin` BVH asset emitted by
+ *   the `gwen:physics3d` Vite plugin (e.g. `'/assets/bvh-terrain-abc12345.bin'`).
+ * @returns A {@link PreloadedBvhHandle} whose `ready` Promise resolves once the
+ *   binary is in memory.
+ *
+ * @example
+ * ```typescript
+ * // At scene load — kick off the fetch immediately
+ * const zone2Bvh = preloadMeshCollider('/assets/bvh-zone2.bin')
+ *
+ * // Later, when the player approaches Zone 2
+ * const Zone2Terrain = defineActor(Zone2Prefab, () => {
+ *   useStaticBody()
+ *   useMeshCollider(zone2Bvh) // instant if already loaded
+ * })
+ * ```
+ *
+ * @since 2.0.0
+ */
+export function preloadMeshCollider(url: string): PreloadedBvhHandle {
+  const handle: PreloadedBvhHandle = {
+    status: 'loading',
+    url,
+    ready: Promise.resolve(),
+  };
+
+  handle.ready = _fetchBvhBuffer(url)
+    .then((ab) => {
+      handle._buffer = ab;
+      handle.status = 'ready';
+    })
+    .catch(() => {
+      handle.status = 'error';
+    });
+
+  return handle;
+}
+
 export { Physics3DPlugin as default };
 
 export type {

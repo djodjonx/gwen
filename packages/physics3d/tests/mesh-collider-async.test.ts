@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { _clearBvhCache } from '../src/index.js';
+import { _clearBvhCache, preloadMeshCollider } from '../src/index.js';
 
 beforeEach(() => {
   _clearBvhCache();
@@ -101,5 +101,60 @@ describe('useMeshCollider async pipeline', () => {
     status = 'active';
 
     expect(status).toBe('active');
+  });
+});
+
+describe('preloadMeshCollider', () => {
+  it('starts fetch immediately and returns a handle with status loading', () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(64),
+    });
+    const handle = preloadMeshCollider('/assets/bvh-zone2.bin');
+    expect(fetch).toHaveBeenCalledWith('/assets/bvh-zone2.bin');
+    expect(handle.status).toBe('loading');
+  });
+
+  it('handle.ready resolves and status becomes ready when fetch completes', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(64),
+    });
+    const handle = preloadMeshCollider('/assets/bvh-zone3.bin');
+    await handle.ready;
+    expect(handle.status).toBe('ready');
+  });
+
+  it('stores the ArrayBuffer in handle._buffer after load', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(64),
+    });
+    const handle = preloadMeshCollider('/assets/bvh-zone4.bin');
+    await handle.ready;
+    expect(handle._buffer).toBeInstanceOf(ArrayBuffer);
+    expect((handle._buffer as ArrayBuffer).byteLength).toBe(64);
+  });
+
+  it('handle.status is error when fetch fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+    const handle = preloadMeshCollider('/assets/bvh-missing.bin');
+    await handle.ready;
+    expect(handle.status).toBe('error');
+  });
+
+  it('same URL called twice reuses cache (single fetch)', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(64),
+    });
+    global.fetch = fetchSpy;
+    const h1 = preloadMeshCollider('/assets/bvh-shared.bin');
+    const h2 = preloadMeshCollider('/assets/bvh-shared.bin');
+    await Promise.all([h1.ready, h2.ready]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
