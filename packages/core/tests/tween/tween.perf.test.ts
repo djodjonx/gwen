@@ -13,7 +13,6 @@
 import { describe, it, expect } from 'vitest';
 import { TweenPool } from '../../src/tween/tween-pool';
 import { createEngine } from '../../src/index';
-import { useTween } from '../../src/tween/use-tween';
 import { defineSequence } from '../../src/tween/define-sequence';
 
 // ── 1,000 tweens per frame < 0.5ms ───────────────────────────────────────────

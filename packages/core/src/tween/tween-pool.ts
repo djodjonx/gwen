@@ -166,7 +166,7 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
     const cycleComplete = this._elapsed >= this._duration;
 
     // Clamp t to [0, 1] for the easing function
-    let t = Math.min(this._elapsed / this._duration, 1);
+    const t = Math.min(this._elapsed / this._duration, 1);
 
     // Apply easing function
     let easedT = this._easingFn(t);
@@ -379,7 +379,7 @@ export class TweenPool {
     }
 
     // Pre-allocate tick buffer for zero-alloc iteration
-    this._tickBuffer = new Array(size) as TweenSlot[];
+    this._tickBuffer = Array.from({ length: size }) as TweenSlot[];
   }
 
   /**
