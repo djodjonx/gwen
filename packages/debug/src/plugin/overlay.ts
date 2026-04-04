@@ -4,7 +4,7 @@
  * Creates a fixed-position <div> on the viewport, refreshed on each
  * call to `update()`. Text colour turns red when FPS drops.
  */
-import type { DebugMetrics, DebugOverlayConfig } from './types';
+import type { DebugMetrics, DebugOverlayConfig } from '../types';
 
 const POSITION_STYLES: Record<NonNullable<DebugOverlayConfig['position']>, string> = {
   'top-left': 'top:8px; left:8px;',
