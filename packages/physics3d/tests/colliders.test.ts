@@ -108,6 +108,29 @@ describe('Physics3D colliders — local mode', () => {
     expect(result).toBe(true);
   });
 
+  it('adds a mesh collider to a registered entity (local mode)', () => {
+    const { service } = setup();
+    service.createBody(5n);
+    const vertices = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const indices = new Uint32Array([0, 1, 2]);
+    const result = service.addCollider(5n, {
+      shape: { type: 'mesh', vertices, indices },
+      colliderId: 0,
+    });
+    expect(result).toBe(true);
+  });
+
+  it('adds a convex collider to a registered entity (local mode)', () => {
+    const { service } = setup();
+    service.createBody(6n);
+    const vertices = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    const result = service.addCollider(6n, {
+      shape: { type: 'convex', vertices },
+      colliderId: 0,
+    });
+    expect(result).toBe(true);
+  });
+
   it('adds multiple colliders and assigns auto collider ids', () => {
     const { service } = setup();
     service.createBody(4n, {

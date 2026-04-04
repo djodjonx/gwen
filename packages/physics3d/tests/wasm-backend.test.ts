@@ -74,6 +74,9 @@ const physics3dSetBodyKind = vi.fn((idx: number, kind: number) => {
   wasmKind.set(idx, kind);
   return true;
 });
+const physics3dAddBoxCollider = vi.fn().mockReturnValue(true);
+const physics3dAddMeshCollider = vi.fn().mockReturnValue(true);
+const physics3dAddConvexCollider = vi.fn().mockReturnValue(true);
 
 const mockBridge = {
   variant: 'physics3d' as const,
@@ -92,6 +95,9 @@ const mockBridge = {
     physics3d_apply_impulse: physics3dApplyImpulse,
     physics3d_get_body_kind: physics3dGetBodyKind,
     physics3d_set_body_kind: physics3dSetBodyKind,
+    physics3d_add_box_collider: physics3dAddBoxCollider,
+    physics3d_add_mesh_collider: physics3dAddMeshCollider,
+    physics3d_add_convex_collider: physics3dAddConvexCollider,
   })),
 };
 
@@ -272,5 +278,84 @@ describe('Physics3D plugin — WASM backend mode', () => {
     const { service } = setup();
     service.step(1 / 30);
     expect(physics3dStep).toHaveBeenCalledWith(1 / 30);
+  });
+});
+
+describe('Physics3D WASM backend — mesh and convex colliders', () => {
+  beforeEach(() => {
+    physics3dInit.mockReset();
+    physics3dAddBody.mockReset().mockReturnValue(true);
+    physics3dAddMeshCollider.mockReset().mockReturnValue(true);
+    physics3dAddConvexCollider.mockReset().mockReturnValue(true);
+  });
+
+  function setupWithBody(entityId: number = 1) {
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
+    service.createBody(entityId);
+    return { service };
+  }
+
+  it('delegates mesh collider to physics3d_add_mesh_collider in wasm mode', () => {
+    const { service } = setupWithBody(1);
+    const vertices = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const indices = new Uint32Array([0, 1, 2]);
+    const ok = service.addCollider(1, {
+      shape: { type: 'mesh', vertices, indices },
+      colliderId: 1,
+    });
+    expect(ok).toBe(true);
+    expect(physics3dAddMeshCollider).toHaveBeenCalledOnce();
+    const args = physics3dAddMeshCollider.mock.calls[0];
+    // args[0] = entityIndex, args[1] = vertices, args[2] = indices
+    expect(args[0]).toBe(1); // entityIndex
+    expect(args[1]).toBe(vertices);
+    expect(args[2]).toBe(indices);
+  });
+
+  it('delegates convex collider to physics3d_add_convex_collider in wasm mode', () => {
+    const { service } = setupWithBody(2);
+    const vertices = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    const ok = service.addCollider(2, {
+      shape: { type: 'convex', vertices },
+      colliderId: 1,
+      density: 2.5,
+    });
+    expect(ok).toBe(true);
+    expect(physics3dAddConvexCollider).toHaveBeenCalledOnce();
+    const args = physics3dAddConvexCollider.mock.calls[0];
+    // args[0] = entityIndex, args[1] = vertices
+    expect(args[0]).toBe(2);
+    expect(args[1]).toBe(vertices);
+  });
+
+  it('returns false when physics3d_add_mesh_collider is absent from bridge', () => {
+    // Simulate older WASM that lacks the new export
+    physics3dAddMeshCollider.mockReturnValue(undefined);
+    const { service } = setupWithBody(3);
+    const ok = service.addCollider(3, {
+      shape: {
+        type: 'mesh',
+        vertices: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+      },
+      colliderId: 1,
+    });
+    // Optional chaining (?.) returns undefined → false
+    expect(ok).toBe(false);
   });
 });

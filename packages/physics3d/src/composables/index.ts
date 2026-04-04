@@ -48,3 +48,5 @@ export {
   _dispatchSensorExit,
   _clearSensorCallbacks,
 } from './on-sensor.js';
+
+export { useBulkStaticBoxes } from './use-bulk-static-boxes.js';
