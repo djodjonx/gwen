@@ -60,16 +60,16 @@ void _setVelocity;
 // Cross-package structural compatibility — swapping physics2d → physics3d requires 0 actor code changes
 // @ts-ignore — @gwenjs/physics2d does not yet export these DX symbols; works in built monorepo
 import type {
-  useStaticBody as use2DStatic,
-  useBoxCollider as use2DBox,
+  useStaticBody as _use2DStatic,
+  useBoxCollider as _use2DBox,
   StaticBodyOptions,
 } from '@gwenjs/physics2d';
 // @ts-ignore — @gwenjs/physics2d does not yet export BoxColliderOptions; works in built monorepo
 import type { BoxColliderOptions } from '@gwenjs/physics2d';
 import type { StaticBodyOptions3D } from '../src/types.js';
 import type {
-  useStaticBody as use3DStatic,
-  useBoxCollider as use3DBox,
+  useStaticBody as _use3DStatic,
+  useBoxCollider as _use3DBox,
 } from '../src/composables/index.js';
 import type { BoxColliderOptions3D } from '../src/composables/use-box-collider.js';
 
