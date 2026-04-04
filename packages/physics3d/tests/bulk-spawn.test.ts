@@ -126,6 +126,26 @@ describe('bulkSpawnStaticBoxes — local mode (no bulk WASM call)', () => {
       expect(service.hasBody(id as unknown as Parameters<typeof service.hasBody>[0])).toBe(true);
     }
   });
+
+  it('uses per-box halfExtents when length === N×3 (local mode)', () => {
+    const { service } = setup();
+    const positions = new Float32Array([0, 0, 0, 5, 0, 0]);
+    // Per-box: box 0 → [0.5, 0.5, 0.5], box 1 → [1.0, 2.0, 0.3]
+    const halfExtents = new Float32Array([0.5, 0.5, 0.5, 1.0, 2.0, 0.3]);
+    const { count, entityIds } = service.bulkSpawnStaticBoxes({ positions, halfExtents });
+    expect(count).toBe(2);
+    expect(entityIds).toHaveLength(2);
+  });
+
+  it('throws RangeError when positions.length is not a multiple of 3', () => {
+    const { service } = setup();
+    expect(() =>
+      service.bulkSpawnStaticBoxes({
+        positions: new Float32Array([0, 0, 0, 1, 0]), // length 5 — invalid
+        halfExtents: new Float32Array([0.5, 0.5, 0.5]),
+      }),
+    ).toThrow('[GWEN:Physics3D] positions.length must be a multiple of 3');
+  });
 });
 
 describe('bulkSpawnStaticBoxes — WASM mode', () => {
@@ -210,5 +230,33 @@ describe('bulkSpawnStaticBoxes — WASM mode', () => {
     for (const id of entityIds) {
       expect(service.hasBody(id as unknown as Parameters<typeof service.hasBody>[0])).toBe(true);
     }
+  });
+
+  it('passes per-box halfExtents buffer through to WASM unchanged', () => {
+    const { service } = setup();
+    const positions = new Float32Array([0, 0, 0, 5, 0, 0]);
+    // Per-box: box 0 → [0.5, 0.5, 0.5], box 1 → [1.0, 2.0, 0.3]
+    const halfExtents = new Float32Array([0.5, 0.5, 0.5, 1.0, 2.0, 0.3]);
+    service.bulkSpawnStaticBoxes({ positions, halfExtents });
+    const args = physics3dBulkSpawnStaticBoxes.mock.calls[0];
+    // args[2] = halfExtentsFlat — must be the exact buffer passed in
+    expect(args[2]).toBe(halfExtents);
+  });
+
+  it('only registers spawned entities when WASM returns count < N', () => {
+    const { service } = setup();
+    // Mock WASM returning only 1 even though 3 were requested
+    physics3dBulkSpawnStaticBoxes.mockReturnValue(1);
+    const positions = new Float32Array([0, 0, 0, 5, 0, 0, 10, 0, 0]);
+    const { entityIds, count } = service.bulkSpawnStaticBoxes({
+      positions,
+      halfExtents: new Float32Array([0.5, 0.5, 0.5]),
+    });
+    expect(count).toBe(1);
+    expect(entityIds).toHaveLength(1);
+    // Only the first entity should be tracked; the other 2 are unregistered
+    expect(service.hasBody(entityIds[0]! as unknown as Parameters<typeof service.hasBody>[0])).toBe(
+      true,
+    );
   });
 });

@@ -1269,6 +1269,11 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
    * In local mode bodies are created one-by-one via `createBodyLocal`.
    */
   const bulkSpawnStaticBoxes = (options: BulkStaticBoxesOptions): BulkStaticBoxesResult => {
+    if (options.positions.length % 3 !== 0) {
+      throw new RangeError(
+        `[GWEN:Physics3D] positions.length must be a multiple of 3, got ${options.positions.length}`,
+      );
+    }
     const n = options.positions.length / 3;
     const friction = options.friction ?? 0.5;
     const restitution = options.restitution ?? 0.0;
@@ -1294,8 +1299,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         membership,
         filter,
       );
-      // Register all entity handles in bodyByEntity so hasBody() works
-      for (let i = 0; i < n; i++) {
+      // Register only the successfully spawned handles in bodyByEntity.
+      // `spawned` may be less than `n` if Rapier allocation fails for some entries.
+      for (let i = 0; i < spawned; i++) {
         const handle: Physics3DBodyHandle = {
           bodyId: nextBodyId++,
           entityId: entityIds[i] as unknown as Physics3DEntityId,
@@ -1306,7 +1312,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         };
         bodyByEntity.set(entityIndices[i]!, handle);
       }
-      return { entityIds, count: spawned };
+      return { entityIds: entityIds.slice(0, spawned), count: spawned };
     }
 
     // Local fallback — create bodies one by one

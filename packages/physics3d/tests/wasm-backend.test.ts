@@ -343,8 +343,9 @@ describe('Physics3D WASM backend — mesh and convex colliders', () => {
     expect(args[1]).toBe(vertices);
   });
 
-  it('returns false when physics3d_add_mesh_collider is absent from bridge', () => {
-    // Simulate older WASM that lacks the new export
+  it('returns false when physics3d_add_mesh_collider returns undefined (absent bridge export)', () => {
+    // Simulate older WASM where the method exists but returns undefined (or is genuinely absent).
+    // Optional chaining (?.) propagates undefined → ?? false.
     physics3dAddMeshCollider.mockReturnValue(undefined);
     const { service } = setupWithBody(3);
     const ok = service.addCollider(3, {
