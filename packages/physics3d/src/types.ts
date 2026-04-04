@@ -809,6 +809,17 @@ export interface DynamicBodyOptions3D {
   initialLinearVelocity?: Partial<Physics3DVec3>;
   /** Initial angular velocity in rad/s. */
   initialAngularVelocity?: Partial<Physics3DVec3>;
+  /**
+   * If true, body cannot rotate around any axis.
+   * @default false
+   */
+  fixedRotation?: boolean;
+  /**
+   * CCD quality preset for fast-moving bodies.
+   * @default 'medium'
+   * @see {@link Physics3DQualityPreset}
+   */
+  quality?: Physics3DQualityPreset;
 }
 
 /**

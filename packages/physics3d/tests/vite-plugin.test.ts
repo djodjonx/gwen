@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { extractLayerDefinitions, inlineLayerReferences } from '../src/vite-plugin.js';
 
 describe('extractLayerDefinitions', () => {
@@ -104,5 +104,65 @@ describe('physics3dVitePlugin', () => {
     const transform = plugin.transform as (code: string, id: string) => unknown;
     const result = transform('const x = 5', 'file.ts');
     expect(result).toBeUndefined();
+  });
+
+  it('transforms TypeScript file with defineLayers call and inlines layer values', async () => {
+    const { physics3dVitePlugin } = await import('../src/vite-plugin.js');
+    const plugin = physics3dVitePlugin();
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => { code: string; map: null } | undefined;
+    const code = [
+      "import { defineLayers } from '@gwenjs/physics3d';",
+      'const Layers = defineLayers({ player: 0x0001, enemy: 0x0002 });',
+      'useDynamicBody({ membershipLayers: Layers.player });',
+      'useDynamicBody({ membershipLayers: Layers.enemy });',
+    ].join('\n');
+
+    const result = transform(code, 'src/game.ts');
+
+    expect(result).not.toBeUndefined();
+    expect(result?.code).toContain('1'); // 0x0001 inlined as 1
+    expect(result?.code).toContain('2'); // 0x0002 inlined as 2
+    expect(result?.code).not.toContain('Layers.player');
+    expect(result?.code).not.toContain('Layers.enemy');
+    expect(result?.map).toBeNull();
+  });
+
+  it('returns null map alongside transformed code', async () => {
+    const { physics3dVitePlugin } = await import('../src/vite-plugin.js');
+    const plugin = physics3dVitePlugin();
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => { code: string; map: null } | undefined;
+    const code = 'const Layers = defineLayers({ ground: 4 });\nif (layer === Layers.ground) {}';
+
+    const result = transform(code, 'game.ts');
+
+    expect(result).toBeDefined();
+    expect(result?.map).toBeNull();
+  });
+
+  it('does not transform when no defineLayers call present', async () => {
+    const { physics3dVitePlugin } = await import('../src/vite-plugin.js');
+    const plugin = physics3dVitePlugin();
+    const transform = plugin.transform as (code: string, id: string) => unknown;
+    const result = transform('const x = 1;', 'src/game.ts');
+    expect(result).toBeUndefined();
+  });
+
+  it('logs debug output when debug option is enabled and layers are inlined', async () => {
+    const { physics3dVitePlugin } = await import('../src/vite-plugin.js');
+    const plugin = physics3dVitePlugin({ debug: true });
+    const transform = plugin.transform as (code: string, id: string) => unknown;
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const code = 'const Layers = defineLayers({ a: 1 });\nif (Layers.a) {}';
+    transform(code, 'src/test.ts');
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[gwen:physics3d]'));
+    consoleSpy.mockRestore();
   });
 });
