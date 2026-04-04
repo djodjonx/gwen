@@ -700,6 +700,48 @@ export interface Physics3DAPI {
   ): boolean;
 
   /**
+   * Integrate N kinematic body positions in one WASM call.
+   *
+   * Each body `i` is moved by `(vx[i], vy[i], vz[i]) * dt`.
+   * Orientation is preserved. All arrays must be the same length.
+   *
+   * @param slots - Entity slot indices.
+   * @param vx - X velocity components in m/s.
+   * @param vy - Y velocity components in m/s.
+   * @param vz - Z velocity components in m/s.
+   * @param dt - Delta time in seconds.
+   * @returns Number of bodies updated.
+   */
+  bulkStepKinematics(
+    slots: Uint32Array,
+    vx: Float32Array,
+    vy: Float32Array,
+    vz: Float32Array,
+    dt: number,
+  ): number;
+
+  /**
+   * Integrate N kinematic body orientations in one WASM call.
+   *
+   * Applies first-order quaternion integration using the supplied angular
+   * velocities `(wx[i], wy[i], wz[i])`. Position is preserved.
+   *
+   * @param slots - Entity slot indices.
+   * @param wx - Angular velocity X in rad/s.
+   * @param wy - Angular velocity Y in rad/s.
+   * @param wz - Angular velocity Z in rad/s.
+   * @param dt - Delta time in seconds.
+   * @returns Number of bodies updated.
+   */
+  bulkStepKinematicRotations(
+    slots: Uint32Array,
+    wx: Float32Array,
+    wy: Float32Array,
+    wz: Float32Array,
+    dt: number,
+  ): number;
+
+  /**
    * Attach a collider to an existing body.
    *
    * In **fallback mode** the collider is stored in the local collider registry

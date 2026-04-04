@@ -1409,6 +1409,12 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     getAngularVelocity,
     setAngularVelocity,
     setKinematicPosition,
+    bulkStepKinematics: (slots, vx, vy, vz, dt) => {
+      return wasmBridge?.physics3d_bulk_step_kinematics?.(slots, vx, vy, vz, dt) ?? 0;
+    },
+    bulkStepKinematicRotations: (slots, wx, wy, wz, dt) => {
+      return wasmBridge?.physics3d_bulk_step_kinematic_rotations?.(slots, wx, wy, wz, dt) ?? 0;
+    },
     addCollider,
     removeCollider,
     rebuildMeshCollider,

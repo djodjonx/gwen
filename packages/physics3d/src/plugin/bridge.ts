@@ -91,6 +91,20 @@ export interface Physics3DWasmBridge {
     qz: number,
     qw: number,
   ) => boolean;
+  physics3d_bulk_step_kinematics?: (
+    slots: Uint32Array,
+    vx: Float32Array,
+    vy: Float32Array,
+    vz: Float32Array,
+    dt: number,
+  ) => number;
+  physics3d_bulk_step_kinematic_rotations?: (
+    slots: Uint32Array,
+    wx: Float32Array,
+    wy: Float32Array,
+    wz: Float32Array,
+    dt: number,
+  ) => number;
 
   // Collider management
   physics3d_add_box_collider?: (
