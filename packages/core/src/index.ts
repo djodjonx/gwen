@@ -140,3 +140,6 @@ export { GlobalStringPoolManager, StringPoolManager, StringPool } from './utils/
 // Core variant detection
 export { detectCoreVariant } from './utils/variant-detector';
 export { detectSharedMemoryRequired } from './utils/variant-detector';
+
+// RFC-03: Tween & Animation System
+export * from './tween/index.js';
