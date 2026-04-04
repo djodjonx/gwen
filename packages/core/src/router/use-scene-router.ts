@@ -145,7 +145,7 @@ export function useSceneRouter<TRoutes extends Record<string, RouteConfig<TRoute
       currentParams = params;
 
       if (toScene.onEnter) {
-        await Promise.resolve(toScene.onEnter());
+        await Promise.resolve(toScene.onEnter(params));
       }
 
       for (const l of listeners) l(fromState, target, params);

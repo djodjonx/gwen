@@ -32,8 +32,8 @@ export interface SceneDefinition {
   readonly name: string;
   /** Systems that run each frame while this scene is active. */
   readonly systems: GwenPlugin[];
-  /** Optional callback fired when the engine routes to this scene. */
-  readonly onEnter?: () => void | Promise<void>;
+  /** Optional callback fired when the engine routes to this scene. Receives the params passed to `send()`. */
+  readonly onEnter?: (params?: Record<string, unknown>) => void | Promise<void>;
   /** Optional callback fired when the engine routes away from this scene. */
   readonly onExit?: () => void | Promise<void>;
 }
@@ -51,8 +51,8 @@ export interface SceneOptions {
   name: string;
   /** Systems that run each frame while this scene is active. */
   systems?: GwenPlugin[];
-  /** Optional callback fired when the engine routes to this scene. */
-  onEnter?: () => void | Promise<void>;
+  /** Optional callback fired when the engine routes to this scene. Receives the params passed to `send()`. */
+  onEnter?: (params?: Record<string, unknown>) => void | Promise<void>;
   /** Optional callback fired when the engine routes away from this scene. */
   onExit?: () => void | Promise<void>;
 }
