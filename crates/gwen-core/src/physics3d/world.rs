@@ -873,6 +873,71 @@ impl PhysicsWorld3D {
         )
     }
 
+    /// Rebuild an existing mesh collider with new geometry.
+    ///
+    /// Removes the old collider and inserts a fresh trimesh built from `vertices_flat`
+    /// and `indices_flat`. If no collider with the given `(entity_index, collider_id)`
+    /// pair exists, a new one is inserted (same behaviour as [`add_mesh_collider`]).
+    ///
+    /// # Arguments
+    /// * `entity_index`   — ECS entity slot index.
+    /// * `collider_id`    — Stable collider ID (same one originally passed to `add_mesh_collider`).
+    /// * `vertices_flat`  — New vertex positions `[x0,y0,z0, x1,y1,z1, ...]`.
+    /// * `indices_flat`   — New triangle indices `[a0,b0,c0, ...]`.
+    /// * `offset_x/y/z`  — Local-space offset from the body origin.
+    /// * `is_sensor`      — If `true`, no physical response; only events.
+    /// * `friction`       — Surface friction coefficient (≥ 0).
+    /// * `restitution`    — Bounciness in \[0, 1\].
+    /// * `layer_bits`     — Collision layer bitmask.
+    /// * `mask_bits`      — Collision filter bitmask.
+    ///
+    /// # Returns
+    /// `true` on success, `false` if the entity has no registered body.
+    #[allow(clippy::too_many_arguments)]
+    pub fn rebuild_mesh_collider(
+        &mut self,
+        entity_index: u32,
+        collider_id: u32,
+        vertices_flat: &[f32],
+        indices_flat: &[u32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> bool {
+        // Remove the existing collider if present.
+        if let Some(&ch) = self.collider_handles.get(&(entity_index, collider_id)) {
+            self.collider_set.remove(
+                ch,
+                &mut self.island_manager,
+                &mut self.rigid_body_set,
+                // wake_up = true: re-activate the parent body after geometry change.
+                true,
+            );
+            self.collider_handles.remove(&(entity_index, collider_id));
+            self.sensor_states.remove(&(entity_index, collider_id));
+        }
+        // Insert new trimesh with updated geometry.
+        self.add_mesh_collider(
+            entity_index,
+            vertices_flat,
+            indices_flat,
+            offset_x,
+            offset_y,
+            offset_z,
+            is_sensor,
+            friction,
+            restitution,
+            layer_bits,
+            mask_bits,
+            collider_id,
+        )
+    }
+
     /// Attach a convex-hull collider to a 3D body.
     ///
     /// `vertices_flat` must be a multiple of 3 floats (`[x0,y0,z0, x1,y1,z1, ...]`).
@@ -2135,6 +2200,49 @@ mod tests {
             false, 0.5, 0.0, u32::MAX, u32::MAX, 7,
         );
         assert!(world.collider_handles.contains_key(&(0, 7)));
+    }
+
+    // ─── rebuild_mesh_collider ────────────────────────────────────────────────
+
+    #[test]
+    fn test_rebuild_mesh_collider_replaces_existing() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0);
+
+        // Simple triangle mesh (one triangle).
+        let verts_a: Vec<f32> = vec![0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0];
+        let idxs_a: Vec<u32> = vec![0, 1, 2];
+        assert!(world.add_mesh_collider(0, &verts_a, &idxs_a, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, 10));
+        assert_eq!(world.collider_handles.len(), 1);
+
+        // Rebuild with a slightly different triangle.
+        let verts_b: Vec<f32> = vec![0.0,0.0,0.0, 2.0,0.0,0.0, 0.0,2.0,0.0];
+        let idxs_b: Vec<u32> = vec![0, 1, 2];
+        assert!(world.rebuild_mesh_collider(0, 10, &verts_b, &idxs_b, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF));
+
+        // Still exactly one collider handle — old one removed, new one inserted.
+        assert_eq!(world.collider_handles.len(), 1);
+    }
+
+    #[test]
+    fn test_rebuild_mesh_collider_inserts_when_missing() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0);
+
+        // No collider registered yet — rebuild should insert a fresh one.
+        let verts: Vec<f32> = vec![0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0];
+        let idxs: Vec<u32> = vec![0, 1, 2];
+        assert!(world.rebuild_mesh_collider(0, 99, &verts, &idxs, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF));
+        assert_eq!(world.collider_handles.len(), 1);
+    }
+
+    #[test]
+    fn test_rebuild_mesh_collider_returns_false_for_unknown_entity() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // Entity 999 has no body registered.
+        let verts: Vec<f32> = vec![0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0];
+        let idxs: Vec<u32> = vec![0, 1, 2];
+        assert!(!world.rebuild_mesh_collider(999, 1, &verts, &idxs, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF));
     }
 
     // ─── add_convex_collider ──────────────────────────────────────────────────
