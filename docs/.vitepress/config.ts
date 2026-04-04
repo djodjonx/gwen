@@ -59,6 +59,7 @@ export default defineConfig({
           { text: 'Layout API', link: '/api/layout' },
           { text: 'Scene Router API', link: '/api/scene-router' },
           { text: 'Tween API', link: '/api/tween' },
+          { text: 'Physics 3D API', link: '/api/physics3d' },
         ],
       },
       {
@@ -76,7 +77,14 @@ export default defineConfig({
           { text: 'Audio', link: '/plugins/audio' },
           { text: 'Canvas2D Renderer', link: '/plugins/renderer-canvas2d' },
           { text: 'Physics2D', link: '/plugins/physics2d' },
-          { text: 'Physics3D', link: '/plugins/physics3d' },
+          {
+            text: 'Physics 3D',
+            items: [
+              { text: 'Physics3D Plugin', link: '/plugins/physics3d' },
+              { text: 'Physics3D Composables', link: '/guide/physics3d-composables' },
+              { text: 'Physics3D API Reference', link: '/api/physics3d' },
+            ],
+          },
           { text: 'Sprite Animation', link: '/plugins/sprite-anim' },
           { text: 'HTML UI', link: '/plugins/ui' },
           { text: 'React Three Fiber', link: '/plugins/r3f' },
