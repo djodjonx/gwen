@@ -2,6 +2,9 @@
   "name": "@gwenjs/app",
   "version": "0.1.0",
   "license": "MPL-2.0",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -15,9 +18,6 @@
       "import": "./src/resolve.ts"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",

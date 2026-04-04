@@ -32,10 +32,10 @@ const TS_FILE = join(__dirname, '../packages/@djodjonx/engine-core/src/wasm/shar
 
 /** Canonical values derived from the Rust struct layout (single source of truth). */
 const EXPECTED = {
-  TRANSFORM_STRIDE:   32,
+  TRANSFORM_STRIDE: 32,
   TRANSFORM3D_STRIDE: 48,
-  FLAGS_OFFSET:       20,
-  FLAGS3D_OFFSET:     40,
+  FLAGS_OFFSET: 20,
+  FLAGS3D_OFFSET: 40,
 };
 
 let src;
@@ -60,7 +60,7 @@ for (const [name, expected] of Object.entries(EXPECTED)) {
   if (actual !== expected) {
     console.error(
       `❌ ${name}: TypeScript has ${actual}, Rust source of truth is ${expected}. ` +
-      `Update shared-memory.ts to match the Rust struct layout.`,
+        `Update shared-memory.ts to match the Rust struct layout.`,
     );
     allOk = false;
   } else {

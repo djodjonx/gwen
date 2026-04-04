@@ -1,7 +1,7 @@
 {
   "name": "@gwenjs/kit-platformer",
   "version": "1.0.0",
-  "description": "GWEN Kit \u2014 opinionated factories for 2D platformer games",
+  "description": "GWEN Kit — opinionated factories for 2D platformer games",
   "files": [
     "dist"
   ],
@@ -33,8 +33,8 @@
   },
   "peerDependencies": {
     "@gwenjs/core": "workspace:*",
-    "@gwenjs/kit": "workspace:*",
     "@gwenjs/input": "workspace:*",
+    "@gwenjs/kit": "workspace:*",
     "@gwenjs/physics2d": "workspace:*"
   }
 }

@@ -6,7 +6,5 @@
   "lineWidth": 100,
   "trailingComma": "all",
   "singleQuote": true,
-  "ignorePatterns": [
-    "**/SKILL.md"
-  ]
+  "ignorePatterns": ["**/SKILL.md"]
 }

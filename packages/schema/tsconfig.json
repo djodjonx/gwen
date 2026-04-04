@@ -13,21 +13,14 @@
     "sourceMap": true,
     "rootDir": ".",
     "outDir": "dist",
-    "customConditions": [
-      "development"
-    ],
+    "customConditions": ["development"],
     // FIXME(type-safety): exactOptionalPropertyTypes disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "exactOptionalPropertyTypes": false,
     // FIXME(type-safety): noUncheckedIndexedAccess disabled — tracked in specs/v2-fix/05-TYPE-SAFETY.md
     "noUncheckedIndexedAccess": false
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ],
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"],
   "extends": "../../tsconfig.base.json",
   "references": []
 }

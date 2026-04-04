@@ -2,6 +2,12 @@
   "name": "create-gwen-app",
   "version": "1.0.0",
   "description": "Scaffold a new GWEN Engine project — thin shim around `gwen init`",
+  "keywords": [
+    "create",
+    "game-engine",
+    "gwen",
+    "scaffold"
+  ],
   "bin": {
     "create-gwen-app": "./bin.js"
   },
@@ -28,11 +34,5 @@
   "devDependencies": {
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
-  },
-  "keywords": [
-    "gwen",
-    "game-engine",
-    "scaffold",
-    "create"
-  ]
+  }
 }

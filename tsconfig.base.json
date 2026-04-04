@@ -14,17 +14,11 @@
     "isolatedModules": true,
     "skipLibCheck": false,
     "paths": {
-      "@gwenjs/*": [
-        "./packages/*/src/index.ts",
-        "./packages/*/src"
-      ],
-      "@gwenjs/physics2d/core": [
-        "./packages/physics2d/src/index.ts"
-      ],
+      "@gwenjs/*": ["./packages/*/src/index.ts", "./packages/*/src"],
+      "@gwenjs/physics2d/core": ["./packages/physics2d/src/index.ts"],
       "@gwenjs/physics2d/helpers/static-geometry": [
         "./packages/physics2d/src/helpers/static-geometry.ts"
       ]
     }
   }
 }
-

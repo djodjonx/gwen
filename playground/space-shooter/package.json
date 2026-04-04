@@ -1,9 +1,9 @@
 {
   "name": "@playground/space-shooter",
   "version": "0.1.0",
-  "description": "GWEN Playground \u2014 Space Shooter demo",
-  "type": "module",
   "private": true,
+  "description": "GWEN Playground — Space Shooter demo",
+  "type": "module",
   "scripts": {
     "dev": "gwen dev",
     "build": "gwen build",
@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@gwenjs/app": "workspace:*",
-    "@gwenjs/core": "workspace:*",
-    "@gwenjs/physics2d": "workspace:*",
-    "@gwenjs/input": "workspace:*",
     "@gwenjs/audio": "workspace:*",
-    "@gwenjs/renderer-canvas2d": "workspace:*",
-    "@gwenjs/debug": "workspace:*"
+    "@gwenjs/core": "workspace:*",
+    "@gwenjs/debug": "workspace:*",
+    "@gwenjs/input": "workspace:*",
+    "@gwenjs/physics2d": "workspace:*",
+    "@gwenjs/renderer-canvas2d": "workspace:*"
   },
   "devDependencies": {
     "@gwenjs/cli": "workspace:*",

@@ -1,14 +1,14 @@
 {
   "name": "gwen",
   "version": "0.1.0",
-  "description": "GWEN - Composable Web Game Engine",
   "private": true,
-  "type": "module",
+  "description": "GWEN - Composable Web Game Engine",
   "license": "MPL-2.0",
   "author": "Jonathan Moutier <jonathan.moutier.dev@gmail.com>",
   "workspaces": [
     "packages/*"
   ],
+  "type": "module",
   "scripts": {
     "prepare": "husky",
     "install:all": "pnpm install && rustup target add wasm32-unknown-unknown",
@@ -54,11 +54,10 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "oxlint --fix",
-      "oxfmt"
-    ]
+  "dependencies": {
+    "defu": "^6.1.4",
+    "hookable": "^6.0.1",
+    "unctx": "^2.5.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
@@ -70,9 +69,10 @@
     "oxlint": "^1.51.0",
     "vitepress": "^1.6.4"
   },
-  "dependencies": {
-    "defu": "^6.1.4",
-    "hookable": "^6.0.1",
-    "unctx": "^2.5.0"
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint --fix",
+      "oxfmt"
+    ]
   }
 }

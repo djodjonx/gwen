@@ -20,16 +20,8 @@
     "noUncheckedIndexedAccess": false,
     "rootDir": "../.."
   },
-  "include": [
-    "src/**/*",
-    "tests/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/**/*.js",
-    "src/**/*.d.ts"
-  ],
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.js", "src/**/*.d.ts"],
   "extends": "../../tsconfig.base.json",
   "references": [
     {

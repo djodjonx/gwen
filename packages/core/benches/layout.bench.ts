@@ -29,10 +29,10 @@ describe('Layout System — Layout definition creation', () => {
    * This isolates the TypeScript factory creation overhead.
    */
   bench('defineLayout with 50 actor variants', () => {
-    const actors = Array.from({ length: 50 }, (_, i) =>
+    const _actors = Array.from({ length: 50 }, (_, i) =>
       defineActor(SimpleActor, () => ({ id: i })),
     );
-    const Layout = defineLayout(() => {
+    const _Layout = defineLayout(() => {
       const refs: Record<string, unknown> = {};
       for (let i = 0; i < 50; i++) {
         refs[`actor${i}`] = { entityId: BigInt(i + 1) };

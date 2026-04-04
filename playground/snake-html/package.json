@@ -1,9 +1,9 @@
 {
   "name": "@playground/snake-html",
   "version": "0.1.0",
-  "description": "GWEN Playground \u2014 Snake HTML/CSS demo",
-  "type": "module",
   "private": true,
+  "description": "GWEN Playground — Snake HTML/CSS demo",
+  "type": "module",
   "scripts": {
     "dev": "gwen dev",
     "build": "gwen build"
