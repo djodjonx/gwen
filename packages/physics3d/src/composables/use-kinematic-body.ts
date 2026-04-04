@@ -14,8 +14,8 @@ import type {
   KinematicBodyHandle3D,
   Physics3DVec3,
   Physics3DQuat,
-} from '../types.js';
-import { usePhysics3D } from '../composables.js';
+} from '../types';
+import { usePhysics3D } from '../composables';
 
 /**
  * Registers the current actor's entity as a kinematic 3D physics body.
@@ -63,7 +63,7 @@ export function useKinematicBody(options: KinematicBodyOptions3D = {}): Kinemati
     _wz = 0;
 
   onBeforeUpdate((dt: number) => {
-    if (!_active || dt <= 0) return;
+    if (!_active || !Number.isFinite(dt) || dt <= 0) return;
     const state = physics.getBodyState(entityId);
     if (!state) return;
 
@@ -78,7 +78,11 @@ export function useKinematicBody(options: KinematicBodyOptions3D = {}): Kinemati
       const nqz = r.z + hdt * (_wx * r.y - _wy * r.x + _wz * r.w);
       const nqw = r.w + hdt * (-_wx * r.x - _wy * r.y - _wz * r.z);
       const len = Math.sqrt(nqx * nqx + nqy * nqy + nqz * nqz + nqw * nqw);
-      rotation = { x: nqx / len, y: nqy / len, z: nqz / len, w: nqw / len };
+      if (len > 0) {
+        rotation = { x: nqx / len, y: nqy / len, z: nqz / len, w: nqw / len };
+      } else {
+        rotation = r; // degenerate — preserve last valid orientation
+      }
     } else {
       rotation = r;
     }

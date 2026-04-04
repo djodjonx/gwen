@@ -17,6 +17,7 @@ export { useDynamicBody } from './use-dynamic-body';
 // re-export DynamicBodyOptions3D via types.ts
 
 export { useKinematicBody } from './use-kinematic-body';
+// re-export KinematicBodyOptions3D via types.ts
 
 export { useBoxCollider } from './use-box-collider';
 export type { BoxColliderOptions3D } from './use-box-collider';

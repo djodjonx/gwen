@@ -282,6 +282,8 @@ export interface KinematicBodyHandle3D {
    * @param qy - Quaternion Y component. Defaults to 0.
    * @param qz - Quaternion Z component. Defaults to 0.
    * @param qw - Quaternion W component. Defaults to 1 (identity).
+   * @note `fixedRotation` only prevents velocity-driven angular integration.
+   *   Explicit rotation arguments passed to `moveTo` are always applied.
    */
   moveTo(x: number, y: number, z: number, qx?: number, qy?: number, qz?: number, qw?: number): void;
   /**

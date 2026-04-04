@@ -129,6 +129,50 @@ describe('useKinematicBody (physics3d)', () => {
     expect(mockPhysics3D.setKinematicPosition).not.toHaveBeenCalled();
   });
 
+  it('onBeforeUpdate is a no-op when dt is NaN', () => {
+    const h = useKinematicBody();
+    h.setVelocity(1, 1, 1);
+    _beforeUpdateCb!(NaN);
+    expect(mockPhysics3D.setKinematicPosition).not.toHaveBeenCalled();
+  });
+
+  it('onBeforeUpdate integrates quaternion rotation when setAngularVelocity is called', () => {
+    const h = useKinematicBody();
+    h.setAngularVelocity(1, 0, 0); // 1 rad/s around X axis
+    mockPhysics3D.getBodyState.mockReturnValue({
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 }, // identity
+    });
+    vi.clearAllMocks();
+    _beforeUpdateCb!(1.0);
+
+    const call = mockPhysics3D.setKinematicPosition.mock.calls[0];
+    const q = call[2]; // rotation arg
+    // First-order integration: x should be > 0 after rotating around X
+    expect(q.x).toBeGreaterThan(0);
+    expect(q.y).toBeCloseTo(0, 5);
+    expect(q.z).toBeCloseTo(0, 5);
+    // Quaternion must remain unit length
+    const len = Math.sqrt(q.x ** 2 + q.y ** 2 + q.z ** 2 + q.w ** 2);
+    expect(len).toBeCloseTo(1, 5);
+  });
+
+  it('onBeforeUpdate preserves rotation when fixedRotation: true', () => {
+    const h = useKinematicBody({ fixedRotation: true });
+    // setAngularVelocity is a no-op for fixedRotation bodies
+    h.setAngularVelocity(1, 1, 1);
+    const identityRot = { x: 0, y: 0, z: 0, w: 1 };
+    mockPhysics3D.getBodyState.mockReturnValue({
+      position: { x: 0, y: 0, z: 0 },
+      rotation: identityRot,
+    });
+    vi.clearAllMocks();
+    _beforeUpdateCb!(1.0);
+
+    const call = mockPhysics3D.setKinematicPosition.mock.calls[0];
+    expect(call[2]).toEqual(identityRot); // rotation must not change
+  });
+
   it('moveTo calls setKinematicPosition with provided position and quaternion', () => {
     const h = useKinematicBody();
     h.moveTo(3, 4, 5, 0, 0, 0.707, 0.707);
