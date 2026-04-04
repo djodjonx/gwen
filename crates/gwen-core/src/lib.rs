@@ -27,6 +27,9 @@ pub mod physics2d;
 #[cfg(feature = "physics3d")]
 pub mod physics3d;
 
+#[cfg(feature = "build-tools")]
+pub mod build_tools;
+
 #[cfg(all(feature = "physics2d", feature = "physics3d"))]
 compile_error!("Features 'physics2d' and 'physics3d' are mutually exclusive and cannot be enabled at the same time.");
 

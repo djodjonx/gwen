@@ -27,7 +27,7 @@ rapier3d = { version = "0.22", default-features = false, features = [
 # BVH serialisation — used at browser runtime (physics3d) and build time (build-tools)
 bincode = { version = "2", features = ["serde"], optional = true }
 # GLB/GLTF parsing — build-time only
-gltf = { version = "1.4", default-features = false, features = ["utils"], optional = true }
+gltf = { version = "1.4", default-features = false, features = ["utils", "names"], optional = true }
 # Pathfinding
 pathfinding = { version = "4.3", optional = true }
 
