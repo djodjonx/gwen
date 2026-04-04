@@ -1269,6 +1269,94 @@ impl PhysicsWorld3D {
         true
     }
 
+    /// Integrate the positions of N 3D kinematic bodies in one pass.
+    ///
+    /// For each body `i`, computes:
+    /// `new_pos = current_pos + (vx[i], vy[i], vz[i]) * dt`
+    /// The current orientation is preserved unchanged.
+    ///
+    /// # Arguments
+    /// * `slots` — Entity indices. Must have the same length as `vx`, `vy`, `vz`.
+    /// * `vx`, `vy`, `vz` — Desired velocity components in m/s.
+    /// * `dt` — Delta time in seconds.
+    ///
+    /// # Returns
+    /// Number of bodies actually updated.
+    pub fn bulk_step_kinematics(
+        &mut self,
+        slots: &[u32],
+        vx: &[f32],
+        vy: &[f32],
+        vz: &[f32],
+        dt: f32,
+    ) -> u32 {
+        let count = slots.len().min(vx.len()).min(vy.len()).min(vz.len());
+        let mut updated = 0u32;
+        for i in 0..count {
+            let Some(&handle) = self.entity_handles.get(&slots[i]) else {
+                continue;
+            };
+            let Some(body) = self.rigid_body_set.get_mut(handle) else {
+                continue;
+            };
+            let pos = *body.position();
+            let t = Translation3::new(
+                pos.translation.x + vx[i] * dt,
+                pos.translation.y + vy[i] * dt,
+                pos.translation.z + vz[i] * dt,
+            );
+            let iso = Isometry::from_parts(t, pos.rotation);
+            body.set_next_kinematic_position(iso);
+            updated += 1;
+        }
+        updated
+    }
+
+    /// Integrate the orientations of N 3D kinematic bodies in one pass.
+    ///
+    /// Applies first-order quaternion integration:
+    /// `dq = 0.5 * [wx, wy, wz, 0] * q * dt`, then normalises.
+    /// The current position is preserved unchanged.
+    ///
+    /// # Arguments
+    /// * `slots` — Entity indices.
+    /// * `wx`, `wy`, `wz` — Angular velocity components in rad/s (world-space).
+    /// * `dt` — Delta time in seconds.
+    ///
+    /// # Returns
+    /// Number of bodies actually updated.
+    pub fn bulk_step_kinematic_rotations(
+        &mut self,
+        slots: &[u32],
+        wx: &[f32],
+        wy: &[f32],
+        wz: &[f32],
+        dt: f32,
+    ) -> u32 {
+        let count = slots.len().min(wx.len()).min(wy.len()).min(wz.len());
+        let mut updated = 0u32;
+        for i in 0..count {
+            let Some(&handle) = self.entity_handles.get(&slots[i]) else {
+                continue;
+            };
+            let Some(body) = self.rigid_body_set.get_mut(handle) else {
+                continue;
+            };
+            let pos = *body.position();
+            let q = pos.rotation.quaternion();
+            let hdt = 0.5 * dt;
+            let nqx = q.coords.x + hdt * ( wx[i] * q.coords.w + wy[i] * q.coords.z - wz[i] * q.coords.y);
+            let nqy = q.coords.y + hdt * (-wx[i] * q.coords.z + wy[i] * q.coords.w + wz[i] * q.coords.x);
+            let nqz = q.coords.z + hdt * ( wx[i] * q.coords.y - wy[i] * q.coords.x + wz[i] * q.coords.w);
+            let nqw = q.coords.w + hdt * (-wx[i] * q.coords.x - wy[i] * q.coords.y - wz[i] * q.coords.z);
+            let rotation = UnitQuaternion::new_normalize(Quaternion::new(nqw, nqx, nqy, nqz));
+            let iso = Isometry::from_parts(pos.translation, rotation);
+            body.set_next_kinematic_position(iso);
+            updated += 1;
+        }
+        updated
+    }
+
     // ── State read/write ──────────────────────────────────────────────────────
 
     /// Return the full rigid body state as a flat `Vec<f32>` of 13 elements.
@@ -2546,5 +2634,32 @@ mod tests {
         let bytes = make_simple_trimesh_bytes();
         let ok = world.load_bvh_collider(99, &bytes, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF, 0xFFFF, 1);
         assert!(!ok, "should fail when entity has no registered body");
+    }
+
+    // ── T2: bulk kinematic integration ──────────────────────────────────────────
+
+    #[test]
+    fn test_bulk_step_kinematics_3d_integrates_positions() {
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        assert!(world.add_body(0, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        assert!(world.add_body(1, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        let slots = [0u32, 1u32];
+        let vx = [1.0f32, 0.0f32];
+        let vy = [0.0f32, 2.0f32];
+        let vz = [0.0f32, 0.0f32];
+        let n = world.bulk_step_kinematics(&slots, &vx, &vy, &vz, 1.0);
+        assert_eq!(n, 2);
+    }
+
+    #[test]
+    fn test_bulk_step_kinematic_rotations_3d_runs() {
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        assert!(world.add_body(0, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        let slots = [0u32];
+        let wx = [0.0f32];
+        let wy = [1.0f32]; // 1 rad/s around Y
+        let wz = [0.0f32];
+        let n = world.bulk_step_kinematic_rotations(&slots, &wx, &wy, &wz, 1.0);
+        assert_eq!(n, 1);
     }
 }

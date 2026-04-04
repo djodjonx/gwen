@@ -1930,6 +1930,62 @@ impl Engine {
         }
     }
 
+    /// Integrate the positions of N 3D kinematic bodies in one WASM call.
+    ///
+    /// Each body `i` is moved by `(vx[i], vy[i], vz[i]) * dt`.
+    /// Orientation is preserved. All slice lengths must be equal.
+    ///
+    /// # Arguments
+    /// * `slots` — Entity indices.
+    /// * `vx`, `vy`, `vz` — Velocity components in m/s.
+    /// * `dt` — Delta time in seconds.
+    ///
+    /// # Returns
+    /// Number of bodies updated.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_bulk_step_kinematics(
+        &mut self,
+        slots: &[u32],
+        vx: &[f32],
+        vy: &[f32],
+        vz: &[f32],
+        dt: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.bulk_step_kinematics(slots, vx, vy, vz, dt)
+        } else {
+            0
+        }
+    }
+
+    /// Integrate the orientations of N 3D kinematic bodies in one WASM call.
+    ///
+    /// Applies first-order quaternion integration to each body using the supplied
+    /// angular velocity `(wx[i], wy[i], wz[i])` in rad/s. Position is preserved.
+    ///
+    /// # Arguments
+    /// * `slots` — Entity indices.
+    /// * `wx`, `wy`, `wz` — Angular velocity components in rad/s (world-space).
+    /// * `dt` — Delta time in seconds.
+    ///
+    /// # Returns
+    /// Number of bodies updated.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_bulk_step_kinematic_rotations(
+        &mut self,
+        slots: &[u32],
+        wx: &[f32],
+        wy: &[f32],
+        wz: &[f32],
+        dt: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.bulk_step_kinematic_rotations(slots, wx, wy, wz, dt)
+        } else {
+            0
+        }
+    }
+
     /// Apply a world-space angular (torque) impulse to a 3D body.
     ///
     /// Immediately changes the body's angular velocity. Wakes the body if
