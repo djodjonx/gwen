@@ -92,7 +92,7 @@ describe('parseFractureBuffer', () => {
 
   it('handles large index values correctly (u32 range)', () => {
     // Index value close to u32 max — must not be sign-extended.
-    const bigIdxVerts = new Array(3 * 3).fill(0).map((_, i) => i * 0.1);
+    const bigIdxVerts = Array.from({ length: 9 }, (_, i) => i * 0.1);
     const bigIdxs = [65535, 65534, 65533];
     const buf = encodeShard(bigIdxVerts, bigIdxs);
     const { shards } = parseFractureBuffer(buf);
