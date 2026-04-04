@@ -18,7 +18,7 @@ const GameEvents = defineEvents({
   'enemy:died': (_id: bigint): void => undefined,
   'player:damage': (_amount: number): void => undefined,
   'level:complete': (): void => undefined,
-})
+});
 
 // Type augmentation — users put this in their events.ts
 declare module '@gwenjs/core' {
@@ -29,40 +29,40 @@ describe('defineEvents()', () => {
   it('returns the exact same object at runtime (identity)', () => {
     const map = {
       'foo:bar': (_x: number): void => undefined,
-    }
-    const result = defineEvents(map)
-    expect(result).toBe(map)
-  })
+    };
+    const result = defineEvents(map);
+    expect(result).toBe(map);
+  });
 
   it('preserves all keys and values', () => {
-    expect(Object.keys(GameEvents)).toEqual(['enemy:died', 'player:damage', 'level:complete'])
-    expect(typeof GameEvents['enemy:died']).toBe('function')
-  })
-})
+    expect(Object.keys(GameEvents)).toEqual(['enemy:died', 'player:damage', 'level:complete']);
+    expect(typeof GameEvents['enemy:died']).toBe('function');
+  });
+});
 
 describe('InferEvents<T>', () => {
   it('maps event keys to their handler types', () => {
-    type Events = InferEvents<typeof GameEvents>
+    type Events = InferEvents<typeof GameEvents>;
     // Type-level: 'enemy:died' key should map to a function taking bigint
-    expectTypeOf<Events['enemy:died']>().toEqualTypeOf<(id: bigint) => void>()
-    expectTypeOf<Events['player:damage']>().toEqualTypeOf<(amount: number) => void>()
-    expectTypeOf<Events['level:complete']>().toEqualTypeOf<() => void>()
-  })
-})
+    expectTypeOf<Events['enemy:died']>().toEqualTypeOf<(id: bigint) => void>();
+    expectTypeOf<Events['player:damage']>().toEqualTypeOf<(amount: number) => void>();
+    expectTypeOf<Events['level:complete']>().toEqualTypeOf<() => void>();
+  });
+});
 
 describe('emit() with declared events', () => {
   it('accepts declared event keys and args without any cast', async () => {
-    const engine = await createEngine()
-    const spy = vi.fn()
-    engine.hooks.hook('enemy:died' as never, spy)
+    const engine = await createEngine();
+    const spy = vi.fn();
+    engine.hooks.hook('enemy:died' as never, spy);
 
     engine.run(() => {
       // No 'as never', no cast — fully typed via augmentation
-      emit('enemy:died', 42n)
-      emit('player:damage', 10)
-      emit('level:complete')
-    })
+      emit('enemy:died', 42n);
+      emit('player:damage', 10);
+      emit('level:complete');
+    });
 
-    expect(spy).toHaveBeenCalledWith(42n)
-  })
-})
+    expect(spy).toHaveBeenCalledWith(42n);
+  });
+});

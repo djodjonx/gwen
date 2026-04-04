@@ -1,7 +1,7 @@
 /**
  * @file onSensorEnter() / onSensorExit() composable tests.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   _dispatchSensorEnter,
   _dispatchSensorExit,

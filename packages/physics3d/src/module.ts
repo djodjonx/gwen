@@ -9,7 +9,7 @@
  * ```
  */
 
-import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
+import { defineGwenModule, definePluginTypes, type VitePlugin } from '@gwenjs/kit';
 import { Physics3DPlugin } from './index.js';
 import type { Physics3DConfig } from './types.js';
 import { physics3dVitePlugin } from './vite-plugin.js';
@@ -40,7 +40,7 @@ export default defineGwenModule<Physics3DConfig>({
       { name: 'onSensorExit', from: '@gwenjs/physics3d' },
     ]);
 
-    kit.addVitePlugin(physics3dVitePlugin());
+    kit.addVitePlugin(physics3dVitePlugin() as unknown as VitePlugin);
 
     kit.addTypeTemplate({
       filename: 'physics3d.d.ts',

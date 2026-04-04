@@ -220,6 +220,61 @@ export interface WasmEngineBase {
    */
   get_entity_generation(index: number): number;
 
+  // ── Transform (RFC-01) ───────────────────────────────────────────────────
+
+  /**
+   * Attach a transform component to an entity (position, rotation, scale).
+   * Must be called before any other transform operations on this entity.
+   */
+  add_entity_transform(
+    index: number,
+    x: number,
+    y: number,
+    rotation: number,
+    scale_x: number,
+    scale_y: number,
+  ): void;
+  /**
+   * Set the parent of `child_index` to `parent_index`.
+   * Pass `parent_index = 0xFFFFFFFF` (`2^32 - 1`) to detach from any parent.
+   * @param keep_world_pos If true, recalculate local transform so world position is preserved.
+   */
+  set_entity_parent(child_index: number, parent_index: number, keep_world_pos: boolean): void;
+  /** Translate an entity by (dx, dy) in local space. */
+  translate_entity(index: number, dx: number, dy: number): void;
+  /** Set an entity's local position. */
+  set_entity_local_position(index: number, x: number, y: number): void;
+  /** Set an entity's local rotation in radians. */
+  set_entity_local_rotation(index: number, rotation: number): void;
+  /** Set an entity's local scale. */
+  set_entity_local_scale(index: number, scale_x: number, scale_y: number): void;
+  /** Get an entity's local X position. */
+  get_entity_local_x(index: number): number;
+  /** Get an entity's local Y position. */
+  get_entity_local_y(index: number): number;
+  /** Get an entity's world X position (after parent chain propagation). */
+  get_entity_world_x(index: number): number;
+  /** Get an entity's world Y position (after parent chain propagation). */
+  get_entity_world_y(index: number): number;
+  /** Get an entity's world rotation in radians (after parent chain propagation). */
+  get_entity_world_rotation(index: number): number;
+  /** Get an entity's local rotation in radians. */
+  get_entity_local_rotation(index: number): number;
+  /** Return true if the entity has a parent. */
+  has_entity_parent(index: number): boolean;
+  /**
+   * Destroy multiple entities by slot index in a single WASM call.
+   * Also removes their transforms.
+   */
+  bulk_destroy(indices: Uint32Array): void;
+  /**
+   * Create N entities each with a transform in a single WASM call.
+   * @param positions Flat `[x0, y0, x1, y1, …]` array — length must be `2 * N`.
+   * @param rotations Flat `[r0, r1, …]` array — length must be `N` (or empty for all-zero).
+   * @returns `Uint32Array` of N entity slot indices.
+   */
+  bulk_spawn_with_transforms(positions: Float32Array, rotations: Float32Array): Uint32Array;
+
   // ── Game loop ────────────────────────────────────────────────────────────
 
   /**

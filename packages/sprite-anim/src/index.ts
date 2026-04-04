@@ -140,11 +140,16 @@ export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {
 
       engine.provide('animator', service);
 
-      engine.hooks.hook('ui:extensions', (uiName, entityId, extensions) => {
-        const ext = extensions?.spriteAnim;
-        if (!ext) return;
-        runtime.attach(uiName, entityId, ext);
-      });
+      engine.hooks.hook(
+        'ui:extensions',
+        (uiName: string, entityId: EntityId, extensions: Readonly<Partial<unknown>>) => {
+          const ext = (extensions as Record<string, unknown>)?.spriteAnim as
+            | SpriteAnimUIExtension
+            | undefined;
+          if (!ext) return;
+          runtime.attach(uiName, entityId, ext);
+        },
+      );
 
       engine.hooks.hook('entity:destroy', (entityId: EntityId) => {
         runtime.detach(entityId);

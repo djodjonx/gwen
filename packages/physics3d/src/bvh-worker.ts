@@ -45,7 +45,7 @@ interface WorkerJob {
 function processJob({ id, vertices, indices }: WorkerJob): void {
   try {
     const bvhBytes: Uint8Array = build_bvh_buffer(vertices, indices);
-    self.postMessage({ id, bvhBytes, error: null }, [bvhBytes.buffer]);
+    self.postMessage({ id, bvhBytes, error: null }, { transfer: [bvhBytes.buffer as ArrayBuffer] });
   } catch (e) {
     self.postMessage({ id, bvhBytes: null, error: String(e) });
   }

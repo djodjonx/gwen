@@ -60,7 +60,7 @@ export function useSceneRouter<TRoutes extends Record<string, RouteConfig<TRoute
   let engine: unknown;
   try {
     engine = useEngine();
-  } catch (err) {
+  } catch {
     // Rethrow with a useSceneRouter-specific message for test compatibility
     throw new Error(
       '[GWEN] useSceneRouter() must be called inside an active engine context. Call it inside engine.run(), defineActor(), defineSystem(), or scene lifecycle hooks.',
@@ -87,7 +87,7 @@ export function useSceneRouter<TRoutes extends Record<string, RouteConfig<TRoute
   // Activate initial scene
   const initialScene = resolveScene(routes[currentState as keyof TRoutes].scene);
   if (initialScene.onEnter) {
-    Promise.resolve(initialScene.onEnter(currentParams as any)).catch(console.error);
+    Promise.resolve(initialScene.onEnter()).catch(console.error);
   }
 
   const handle: SceneRouterHandle<TRoutes> = {
@@ -108,7 +108,7 @@ export function useSceneRouter<TRoutes extends Record<string, RouteConfig<TRoute
       const target = route?.on?.[event as string] as StatesOf<TRoutes> | undefined;
 
       if (!target) {
-        if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production') {
+        if (!import.meta.env.PROD) {
           // Silently ignore in production, warn in dev
           // eslint-disable-next-line no-console
           console.warn(
@@ -145,7 +145,7 @@ export function useSceneRouter<TRoutes extends Record<string, RouteConfig<TRoute
       currentParams = params;
 
       if (toScene.onEnter) {
-        await Promise.resolve((toScene.onEnter as (p: unknown) => unknown)(params));
+        await Promise.resolve(toScene.onEnter());
       }
 
       for (const l of listeners) l(fromState, target, params);

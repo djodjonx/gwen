@@ -1,6 +1,5 @@
 import { expectTypeOf } from 'vitest';
 import type {
-  SceneRouterDefinition,
   SceneRouterHandle,
   EventsOf,
   StatesOf,

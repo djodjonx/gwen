@@ -4,6 +4,7 @@ import { gwenTypesPlugin } from './types-writer.js';
 import { gwenVirtualPlugin } from './virtual-env.js';
 import { gwenActorPlugin } from './actor.js';
 import { gwenLayoutPlugin } from './layout.js';
+import { gwenSceneRouterPlugin } from './scene-router.js';
 import { gwenTweenPlugin } from './tween.js';
 import type { GwenViteOptions } from '../types.js';
 import type { PluginOption } from 'vite';

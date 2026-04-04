@@ -62,7 +62,8 @@ function applyTransform(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bridge: any,
   entityId: bigint,
-  options: PlaceOptions,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options: PlaceOptions<any>,
 ): void {
   if (!bridge?.add_entity_transform) return;
   const [x = 0, y = 0] = options.at ?? [0, 0];

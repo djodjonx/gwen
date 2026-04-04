@@ -31,7 +31,7 @@ describe('emit()', () => {
     engine.hooks.hook('enemy:died' as never, spy);
 
     engine.run(() => {
-      emit('enemy:died');       // no "as never" needed
+      emit('enemy:died'); // no "as never" needed
       emit('player:damage', 25); // no "as never" needed
     });
 

@@ -26,7 +26,7 @@ export { useCapsuleCollider } from './use-capsule-collider.js';
 export type { CapsuleColliderOptions3D } from './use-capsule-collider.js';
 
 export { useMeshCollider } from './use-mesh-collider.js';
-export type { MeshColliderOptions } from './use-mesh-collider.js';
+export type { MeshColliderOptions } from '../types.js';
 
 export { useConvexCollider } from './use-convex-collider.js';
 export type { ConvexColliderOptions } from './use-convex-collider.js';
