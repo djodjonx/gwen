@@ -4,8 +4,6 @@
 
 This guide covers the RFC-06 composable API for `@gwenjs/physics3d`. These composables provide an ergonomic, actor-centric way to work with 3D physics without manually calling the lower-level `Physics3DAPI` service methods.
 
-> **3D-specific note:** All coordinates include a Z axis. Two collider shapes — `useMeshCollider` and `useConvexCollider` — are only available in `@gwenjs/physics3d` and have no equivalent in `@gwenjs/physics2d`.
-
 ---
 
 ## Overview
@@ -219,9 +217,7 @@ function useCapsuleCollider(options: CapsuleColliderOptions3D): CapsuleColliderH
 useCapsuleCollider({ radius: 0.4, height: 1.8 }); // character shape
 ```
 
-### `useMeshCollider` — 3D only
-
-> ⚠️ **Not available in `@gwenjs/physics2d`.**
+### `useMeshCollider` — trimesh & BVH
 
 A trimesh collider uses exact triangle geometry for concave static objects such as terrain. Supports three construction paths depending on mesh size and whether a Vite build step is available.
 
@@ -333,9 +329,7 @@ const Zone2Terrain = defineActor(Zone2Prefab, () => {
 
 ---
 
-### `useConvexCollider` — 3D only
-
-> ⚠️ **Not available in `@gwenjs/physics2d`.**
+### `useConvexCollider` — convex hull
 
 A convex hull collider automatically computes the smallest convex shape that contains a point cloud. Suitable for dynamic bodies when primitives are not a close enough approximation.
 
@@ -357,8 +351,6 @@ useConvexCollider({ vertices: crateHullPoints });
 ---
 
 ## `useHeightfieldCollider`
-
-> ⚠️ **Not available in `@gwenjs/physics2d`.**
 
 A heightfield collider stores terrain as a regular `rows × cols` grid of height values. Compared to a trimesh (BVH ~4 MB, construction ~200 ms), a heightfield uses only `rows × cols × 4` bytes and builds in ~5 ms — roughly **40× more memory-efficient** for regular terrain grids.
 
@@ -433,8 +425,6 @@ const TerrainActor = defineActor(TerrainPrefab, () => {
 ---
 
 ## `useCompoundCollider`
-
-> ⚠️ **Not available in `@gwenjs/physics2d`.**
 
 A compound collider attaches multiple primitive shapes (box, sphere, capsule) to one rigid body in a **single WASM round-trip** via `physics3d_add_compound_collider`.
 
@@ -681,42 +671,3 @@ const CheckpointActor = defineActor(CheckpointPrefab, () => {
   });
 });
 ```
-
----
-
-## 3D-Only Features
-
-The following features exist only in `@gwenjs/physics3d` and have no counterpart in `@gwenjs/physics2d`:
-
-| Feature                                           | Reason                                                                                      |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `useMeshCollider`                                 | Triangle mesh shapes require 3D geometry (`vertices: Float32Array`, `indices: Uint32Array`); BVH pipeline is 3D-only |
-| `useConvexCollider`                               | Convex hull computation is 3D by definition                                                 |
-| `useHeightfieldCollider`                          | Regular grid heightfield — 3D concept (X, Y height, Z axis)                                |
-| `useCompoundCollider`                             | Compound primitive bodies — most useful for dynamic 3D objects (cars, robots)              |
-| `useBulkStaticBoxes`                              | Batch spawner for static box bodies — common 3D level-building pattern                     |
-| `preloadMeshCollider` + BVH pipeline              | BVH streaming and Vite pre-baking are 3D-only features                                     |
-| `contactZ`, `normalZ` in `ContactEvent3D`         | Third axis only exists in 3D                                                                |
-| `Physics3DVec3.z` on all velocity/position fields | Second axis (`z`) is unused in 2D                                                           |
-| Capsule `axis` option                             | 2D capsules don't have a configurable axis                                                  |
-
----
-
-## Migrating from 2D to 3D
-
-If you are porting a `@gwenjs/physics2d` project to `@gwenjs/physics3d`:
-
-| 2D                           | 3D equivalent                                          | Notes                     |
-| ---------------------------- | ------------------------------------------------------ | ------------------------- |
-| `useStaticBody2D()`          | `useStaticBody()`                                      | Same API                  |
-| `useDynamicBody2D()`         | `useDynamicBody()`                                     | Add `z` where needed      |
-| `useBoxCollider2D({ w, h })` | `useBoxCollider({ w, h, d })`                          | Add `d` (depth)           |
-| `useCircleCollider()`        | `useSphereCollider({ radius })`                        | Renamed                   |
-| `useCapsuleCollider2D()`     | `useCapsuleCollider()`                                 | Add `axis` option         |
-| `usePolygonCollider()`       | `useConvexCollider({ vertices })`                      | Float32Array in 3D        |
-| N/A                          | `useMeshCollider()`                                    | 3D-only, no 2D equivalent |
-| `defineLayers()`             | `defineLayers()`                                       | Identical API             |
-| `onContact({ x, y })`        | `onContact({ contactX, contactY, contactZ, normalZ })` | Z fields added            |
-| `onSensorEnter()`            | `onSensorEnter()`                                      | Identical API             |
-
-All gravity, position, velocity, and force values gain a `z` component in 3D.

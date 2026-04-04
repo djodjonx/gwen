@@ -195,9 +195,7 @@ interface CapsuleColliderOptions3D {
 
 ---
 
-## `useMeshCollider` — 3D only
-
-> ⚠️ Not available in `@gwenjs/physics2d`.
+## `useMeshCollider`
 
 ```typescript
 function useMeshCollider(
@@ -298,9 +296,7 @@ const Zone2Terrain = defineActor(Zone2Prefab, () => {
 
 ---
 
-## `useConvexCollider` — 3D only
-
-> ⚠️ Not available in `@gwenjs/physics2d`.
+## `useConvexCollider`
 
 ```typescript
 function useConvexCollider(options: ConvexColliderOptions): ConvexColliderHandle3D;
@@ -322,9 +318,7 @@ The Rapier3D engine automatically computes the convex hull from the vertex point
 
 ---
 
-## `useHeightfieldCollider` — 3D only
-
-> ⚠️ Not available in `@gwenjs/physics2d`.
+## `useHeightfieldCollider`
 
 ```typescript
 function useHeightfieldCollider(options: HeightfieldColliderOptions): HeightfieldColliderHandle3D;
@@ -376,9 +370,7 @@ interface HeightfieldColliderHandle3D extends ColliderHandle3D {
 
 ---
 
-## `useCompoundCollider` — 3D only
-
-> ⚠️ Not available in `@gwenjs/physics2d`.
+## `useCompoundCollider`
 
 ```typescript
 function useCompoundCollider(options: CompoundColliderOptions3D): CompoundColliderHandle3D;

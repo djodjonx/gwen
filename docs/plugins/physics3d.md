@@ -3,7 +3,7 @@
 **Package:** `@gwenjs/physics3d`
 **Service key:** `physics3d` (`Physics3DAPI`)
 
-3D rigid-body physics powered by [Rapier3D](https://rapier.rs/) compiled to WASM. Follows the same integration pattern as [`@gwenjs/physics2d`](/plugins/physics2d) — if you're familiar with that plugin, you already know most of this one.
+3D rigid-body physics powered by [Rapier3D](https://rapier.rs/) compiled to WASM. Provides a full composable API for static and dynamic rigid bodies, colliders, sensors, and collision events.
 
 ## Install
 
@@ -84,8 +84,6 @@ The 3D API mirrors the 2D one. Key differences:
 
 ### Collision events
 
-Same event names as physics2d:
-
 ```typescript
 useEvent('physics:collision', ({ entityA, entityB, type }) => { ... })
 useEvent('physics:collision:batch', (events) => { ... })
@@ -104,7 +102,7 @@ const physics3d = usePhysics3D(); // shorthand for useService('physics3d')
 | Option           | Type                                      | Default                     | Description                                                                            |
 | ---------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------- |
 | `gravity`        | `{ x, y, z }`                             | `{ x: 0, y: -9.81, z: 0 }`  | Gravity vector (m/s²).                                                                 |
-| `qualityPreset`  | `'low' \| 'medium' \| 'high' \| 'esport'` | `'medium'`                  | Solver iteration budget. See [Physics 2D presets](/plugins/physics2d#quality-presets). |
+| `qualityPreset`  | `'low' \| 'medium' \| 'high' \| 'esport'` | `'medium'`                  | Solver iteration budget (`low` = 1 iter, `medium` = 4, `high` = 8, `esport` = 16). |
 | `eventMode`      | `'pull' \| 'hybrid'`                      | `'hybrid'`                  | Collision event delivery mode.                                                         |
 | `coalesceEvents` | `boolean`                                 | `true`                      | Merge repeated start/end pairs.                                                        |
 | `ccdEnabled`     | `boolean`                                 | `false`                     | Continuous Collision Detection.                                                        |
@@ -141,6 +139,5 @@ export const physics3DSetupSystem = defineSystem(() => {
 
 ## Related
 
-- [Physics 2D](/plugins/physics2d) — 2D variant with full API reference
 - [React Three Fiber](/plugins/r3f) — pair with R3F for 3D rendering
 - [Debug Plugin](/plugins/debug) — visualise collider shapes at runtime
