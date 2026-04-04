@@ -1,6 +1,6 @@
 import type { GwenEngine, EntityId, ComponentDef, LiveQuery, EntityAccessor } from '@gwenjs/core';
-import type { Physics2DAPI, SensorState } from './types.js';
-import type {} from './augment.js';
+import type { Physics2DAPI, SensorState } from './types';
+import type {} from './augment';
 
 /** Default pixel-to-meter conversion ratio for Rapier2D. */
 const DEFAULT_PIXELS_PER_METER = 50;

@@ -5,5 +5,5 @@ export {
   toResolvedContacts,
   selectResolvedContactsForEntityId,
   getEntityCollisionContacts,
-} from './helpers/contact.js';
-export type { ResolvedCollisionContact } from './types.js';
+} from './helpers/contact';
+export type { ResolvedCollisionContact } from './types';

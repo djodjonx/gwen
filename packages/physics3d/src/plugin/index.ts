@@ -19,33 +19,33 @@ import type {
   CompoundShapeSpec,
   BulkStaticBoxesOptions,
   BulkStaticBoxesResult,
-} from '../types.js';
+} from '../types';
 
-import { PHYSICS3D_MATERIAL_PRESETS } from '../types.js';
+import { PHYSICS3D_MATERIAL_PRESETS } from '../types';
 
 import {
   normalizePhysics3DConfig,
   buildLayerRegistry,
   resolveLayerBits,
   QUALITY_PRESETS,
-} from '../config.js';
+} from '../config';
 
-import { _dispatchContactEvent, _clearContactCallbacks } from '../composables/on-contact.js';
+import { _dispatchContactEvent, _clearContactCallbacks } from '../composables/on-contact';
 import {
   _dispatchSensorEnter,
   _dispatchSensorExit,
   _clearSensorCallbacks,
-} from '../composables/on-sensor.js';
-import { encodeCompoundShapes } from '../helpers/compound.js';
-import { nextColliderId } from '../composables/collider-id.js';
+} from '../composables/on-sensor';
+import { encodeCompoundShapes } from '../helpers/compound';
+import { nextColliderId } from '../composables/collider-id';
 
-import { EVENT_STRIDE_3D, MAX_EVENTS_3D, COLLIDER_ID_ABSENT } from './constants.js';
+import { EVENT_STRIDE_3D, MAX_EVENTS_3D, COLLIDER_ID_ABSENT } from './constants';
 import type {
   InternalCollisionEvent3D,
   Physics3DWasmBridge,
   Physics3DBridgeRuntime,
-} from './bridge.js';
-import { _fetchBvhBuffer, _clearBvhCache, getBvhWorker, BVH_WORKER_THRESHOLD } from './bvh.js';
+} from './bridge';
+import { _fetchBvhBuffer, _clearBvhCache, getBvhWorker, BVH_WORKER_THRESHOLD } from './bvh';
 
 // ─── BVH worker state (module-level — lazy singleton) ───────────────────────
 

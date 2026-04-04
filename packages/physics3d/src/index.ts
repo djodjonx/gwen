@@ -8,18 +8,14 @@
  * TypeScript simulation when the WASM physics3d variant is unavailable.
  */
 
-import './augment.js';
+import './augment';
 
-export { Physics3DPlugin } from './plugin/index.js';
-export { Physics3DPlugin as default } from './plugin/index.js';
-export type { PreloadedBvhHandle } from './plugin/bvh.js';
-export { _clearBvhCache, preloadMeshCollider } from './plugin/bvh.js';
-export { EVENT_STRIDE_3D, MAX_EVENTS_3D, COLLIDER_ID_ABSENT } from './plugin/constants.js';
-export {
-  ContactRingBuffer3D,
-  CONTACT_EVENT_FLOATS,
-  RING_CAPACITY_3D,
-} from './plugin/ring-buffer.js';
+export { Physics3DPlugin } from './plugin/index';
+export { Physics3DPlugin as default } from './plugin/index';
+export type { PreloadedBvhHandle } from './plugin/bvh';
+export { _clearBvhCache, preloadMeshCollider } from './plugin/bvh';
+export { EVENT_STRIDE_3D, MAX_EVENTS_3D, COLLIDER_ID_ABSENT } from './plugin/constants';
+export { ContactRingBuffer3D, CONTACT_EVENT_FLOATS, RING_CAPACITY_3D } from './plugin/ring-buffer';
 
 export type {
   Physics3DAPI,
@@ -49,13 +45,13 @@ export * from './helpers/queries';
 export * from './systems';
 
 // ─── Module, composables & type augmentations ─────────────────────────────────
-export * from './augment.js';
-export { usePhysics3D } from './composables.js';
-export { default as physics3dModule } from './module.js';
+export * from './augment';
+export { usePhysics3D } from './composables';
+export { default as physics3dModule } from './module';
 
 // ─── RFC-06 DX composables ────────────────────────────────────────────────────
-export * from './composables/index.js';
-export { physics3dVitePlugin, createGwenPhysics3DPlugin } from './vite-plugin.js';
+export * from './composables/index';
+export { physics3dVitePlugin, createGwenPhysics3DPlugin } from './vite-plugin';
 export type {
   ContactEvent3D,
   StaticBodyOptions3D,
@@ -73,6 +69,6 @@ export type {
   CompoundColliderHandle3D,
   CompoundShapeSpec,
   CompoundColliderOptions3D,
-} from './types.js';
+} from './types';
 
-export type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './types.js';
+export type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './types';

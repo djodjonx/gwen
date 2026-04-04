@@ -6,8 +6,8 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { RendererService } from './plugin/renderer.js';
-import './augment.js';
+import type { RendererService } from './plugin/renderer';
+import './augment';
 
 /**
  * Returns the Canvas 2D renderer service registered by {@link Canvas2DRenderer}.

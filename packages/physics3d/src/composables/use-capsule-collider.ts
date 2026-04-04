@@ -1,11 +1,11 @@
 /**
  * @file useCapsuleCollider() — attaches a capsule-shaped collider to the current entity.
  */
-import type { CapsuleColliderHandle3D, Physics3DMaterialPreset } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { CapsuleColliderHandle3D, Physics3DMaterialPreset } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import { nextColliderId } from './collider-id.js';
+import { nextColliderId } from './collider-id';
 
 /**
  * Options for configuring a capsule-shaped 3D collider.

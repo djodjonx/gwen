@@ -1,7 +1,7 @@
 import type { GwenEngine, GwenPlugin } from '@gwenjs/core';
 import type { InputMapper } from '@gwenjs/input';
 import type { Physics2DAPI } from '@gwenjs/physics2d/core';
-import { PlatformerIntent } from '../components/PlatformerIntent.js';
+import { PlatformerIntent } from '../components/PlatformerIntent';
 
 /**
  * Factory that creates a system translating InputMapper state → PlatformerIntent ECS component.

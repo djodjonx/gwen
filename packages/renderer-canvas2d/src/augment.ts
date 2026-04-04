@@ -5,7 +5,7 @@
  * augments `@gwenjs/core` with a typed renderer service key.
  */
 
-import type { RendererService } from './plugin/renderer.js';
+import type { RendererService } from './plugin/renderer';
 
 declare module '@gwenjs/core' {
   /**

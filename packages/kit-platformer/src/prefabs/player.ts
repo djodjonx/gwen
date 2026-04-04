@@ -1,18 +1,18 @@
-import { definePrefab } from '../plugin/scene-utils.js';
-import type { PrefabCallbackApi } from '../plugin/scene-utils.js';
+import { definePrefab } from '../plugin/scene-utils';
+import type { PrefabCallbackApi } from '../plugin/scene-utils';
 import type { EntityId } from '@gwenjs/core';
 import { SENSOR_ID_FOOT, type PhysicsColliderDef } from '@gwenjs/physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,
-} from '../components/PlatformerController.js';
-import { PlatformerIntent } from '../components/PlatformerIntent.js';
+} from '../components/PlatformerController';
+import { PlatformerIntent } from '../components/PlatformerIntent';
 import {
   DEFAULT_PIXELS_PER_METER,
   DEFAULT_PLATFORMER_UNITS,
   type PlatformerUnits,
-} from '../plugin/units.js';
-import { type PlatformerKitComponents, resolveComponent } from '../plugin/index.js';
+} from '../plugin/units';
+import { type PlatformerKitComponents, resolveComponent } from '../plugin/index';
 
 export interface ColliderPixelDef {
   w: number;

@@ -10,9 +10,9 @@
  */
 
 import { defineGwenModule, definePluginTypes, type VitePlugin } from '@gwenjs/kit';
-import { Physics3DPlugin } from './index.js';
-import type { Physics3DConfig } from './types.js';
-import { physics3dVitePlugin } from './vite-plugin.js';
+import { Physics3DPlugin } from './index';
+import type { Physics3DConfig } from './types';
+import { physics3dVitePlugin } from './vite-plugin';
 
 /**
  * GWEN module for the Physics 3D plugin.

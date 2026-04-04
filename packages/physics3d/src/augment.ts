@@ -6,7 +6,7 @@
  * `@gwenjs/core` with typed physics service keys and hooks.
  */
 
-import type { Physics3DAPI, Physics3DPluginHooks } from './types.js';
+import type { Physics3DAPI, Physics3DPluginHooks } from './types';
 import type { EntityId } from '@gwenjs/core';
 
 declare module '@gwenjs/core' {

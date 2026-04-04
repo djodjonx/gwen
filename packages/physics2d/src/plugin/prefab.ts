@@ -3,9 +3,9 @@ import type {
   Physics2DPrefabExtension,
   ColliderOptions,
   Physics2DAPI,
-} from '../types.js';
-import { PHYSICS_MATERIAL_PRESETS } from '../types.js';
-import { LayerRegistry, PIXELS_PER_METER } from '../config.js';
+} from '../types';
+import { PHYSICS_MATERIAL_PRESETS } from '../types';
+import { LayerRegistry, PIXELS_PER_METER } from '../config';
 
 /**
  * Resolves a material definition from presets or overrides.

@@ -6,11 +6,11 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { KeyboardInput } from './plugin/keyboard.js';
-import type { MouseInput } from './plugin/mouse.js';
-import type { GamepadInput } from './plugin/gamepad.js';
-import type { InputMapper } from './plugin/mapping/InputMapper.js';
-import './augment.js';
+import type { KeyboardInput } from './plugin/keyboard';
+import type { MouseInput } from './plugin/mouse';
+import type { GamepadInput } from './plugin/gamepad';
+import type { InputMapper } from './plugin/mapping/InputMapper';
+import './augment';
 
 /**
  * Returns the keyboard input service registered by `InputPlugin()`.

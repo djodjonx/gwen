@@ -9,9 +9,9 @@
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
 import type { EntityId } from '@gwenjs/core';
-import type { Physics2DAPI } from './types.js';
+import type { Physics2DAPI } from './types';
 // Side-effect import: augments GwenProvides with 'physics2d'
-import './augment.js';
+import './augment';
 
 // ─── usePhysics2D ─────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 // Re-exports: SpriteAnimPlugin definition and plugin factory
-export { SpriteAnimPlugin, spriteAnim } from './plugin/index.js';
+export { SpriteAnimPlugin, spriteAnim } from './plugin/index';
 
 // Systems
-export { createSpriteAnimSystem } from './systems.js';
+export { createSpriteAnimSystem } from './systems';
 
 // Types
 export type {
@@ -24,8 +24,8 @@ export type {
   SpriteAnimTransition,
   SpriteAnimUIExtension,
   SpriteAnimatorService,
-} from './types.js';
+} from './types';
 
 // Module, composables & type augmentations
-export * from './augment.js';
-export { useSpriteAnim } from './composables.js';
+export * from './augment';
+export { useSpriteAnim } from './composables';

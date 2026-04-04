@@ -6,8 +6,8 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { SpriteAnimatorService } from './index.js';
-import './augment.js';
+import type { SpriteAnimatorService } from './index';
+import './augment';
 
 /**
  * Returns the sprite animator service registered by `SpriteAnimPlugin()`.

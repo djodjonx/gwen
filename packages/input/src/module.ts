@@ -10,8 +10,8 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { InputPlugin } from './index.js';
-import type { InputPluginConfig } from './index.js';
+import { InputPlugin } from './index';
+import type { InputPluginConfig } from './index';
 
 /**
  * GWEN module for the Input plugin.

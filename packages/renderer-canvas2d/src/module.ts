@@ -15,8 +15,8 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { Canvas2DRenderer } from './plugin/renderer.js';
-import type { Canvas2DRendererConfig } from './plugin/renderer.js';
+import { Canvas2DRenderer } from './plugin/renderer';
+import type { Canvas2DRendererConfig } from './plugin/renderer';
 
 /**
  * GWEN module factory for the Canvas 2D renderer.

@@ -10,8 +10,8 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { SpriteAnimPlugin } from './index.js';
-import type { SpriteAnimPluginConfig } from './types.js';
+import { SpriteAnimPlugin } from './index';
+import type { SpriteAnimPluginConfig } from './types';
 
 /**
  * GWEN module for the Sprite Animator plugin.

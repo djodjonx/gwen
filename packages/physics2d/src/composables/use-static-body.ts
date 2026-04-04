@@ -4,9 +4,9 @@
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
 import { useEngine } from '@gwenjs/core';
-import type { StaticBodyHandle, StaticBodyOptions, ColliderOptions } from '../types.js';
-import { usePhysics2D } from '../composables.js';
-import { ShapeComponent } from '../shape-component.js';
+import type { StaticBodyHandle, StaticBodyOptions, ColliderOptions } from '../types';
+import { usePhysics2D } from '../composables';
+import { ShapeComponent } from '../shape-component';
 
 /**
  * Registers the current actor's entity as a static (non-moving) physics body.

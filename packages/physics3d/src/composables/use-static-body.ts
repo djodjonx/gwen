@@ -1,8 +1,8 @@
 /**
  * @file useStaticBody() — registers a static 3D physics body for the current actor.
  */
-import type { StaticBodyOptions3D, StaticBodyHandle3D } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { StaticBodyOptions3D, StaticBodyHandle3D } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
 

@@ -7,8 +7,8 @@
 
 import { definePlugin } from '@gwenjs/kit';
 import type { EntityId, GwenEngine } from '@gwenjs/core';
-import type { Physics3DAPI } from './types.js';
-import './augment.js';
+import type { Physics3DAPI } from './types';
+import './augment';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 

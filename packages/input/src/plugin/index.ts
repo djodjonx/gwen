@@ -21,8 +21,8 @@ import type { GwenEngine } from '@gwenjs/core';
 import { KeyboardInput } from './keyboard';
 import { MouseInput } from './mouse';
 import { GamepadInput } from './gamepad';
-import { InputMapper } from './mapping/InputMapper.js';
-import type { InputMapConfig } from './mapping/types.js';
+import { InputMapper } from './mapping/InputMapper';
+import type { InputMapConfig } from './mapping/types';
 
 /** Services provided by InputPlugin via engine.inject(). */
 export interface InputPluginServices {

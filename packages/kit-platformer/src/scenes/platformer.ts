@@ -1,14 +1,14 @@
-import { defineScene } from '../plugin/scene-utils.js';
-import type { SceneCallbackApi, LocalPluginEntry } from '../plugin/scene-utils.js';
-import { PlatformerInputSystem } from '../systems/PlatformerInputSystem.js';
-import { PlatformerMovementSystem } from '../systems/PlatformerMovementSystem.js';
+import { defineScene } from '../plugin/scene-utils';
+import type { SceneCallbackApi, LocalPluginEntry } from '../plugin/scene-utils';
+import { PlatformerInputSystem } from '../systems/PlatformerInputSystem';
+import { PlatformerMovementSystem } from '../systems/PlatformerMovementSystem';
 import {
   DEFAULT_PIXELS_PER_METER,
   DEFAULT_PLATFORMER_UNITS,
   toPhysicsScalar,
   type PlatformerUnits,
-} from '../plugin/units.js';
-import { type PlatformerKitComponents } from '../plugin/index.js';
+} from '../plugin/units';
+import { type PlatformerKitComponents } from '../plugin/index';
 
 /**
  * Options for creating a turnkey platformer scene.

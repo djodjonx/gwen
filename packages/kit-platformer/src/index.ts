@@ -1,49 +1,49 @@
 // packages/@gwenjs/kit-platformer/src/index.ts
 
 // ── Level 1 — Turnkey scene ────────────────────────────────────────────────
-export { createPlatformerScene } from './scenes/platformer.js';
-export type { PlatformerSceneOptions } from './scenes/platformer.js';
+export { createPlatformerScene } from './scenes/platformer';
+export type { PlatformerSceneOptions } from './scenes/platformer';
 
 // ── Level 2 — Prefabs & Components ─────────────────────────────────────────
-export { createPlayerPrefab } from './prefabs/player.js';
-export type { PlayerPrefabOptions, ColliderPixelDef } from './prefabs/player.js';
-export type { PlatformerUnits } from './plugin/units.js';
-export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './plugin/units.js';
+export { createPlayerPrefab } from './prefabs/player';
+export type { PlayerPrefabOptions, ColliderPixelDef } from './prefabs/player';
+export type { PlatformerUnits } from './plugin/units';
+export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './plugin/units';
 
-export { PlatformerController } from './components/PlatformerController.js';
-export type { PlatformerControllerData } from './components/PlatformerController.js';
-export { PlatformerIntent } from './components/PlatformerIntent.js';
-export { Position } from './components/StandardComponents.js';
+export { PlatformerController } from './components/PlatformerController';
+export type { PlatformerControllerData } from './components/PlatformerController';
+export { PlatformerIntent } from './components/PlatformerIntent';
+export { Position } from './components/StandardComponents';
 
 // ── Level 3 — Advanced Configuration ───────────────────────────────────────
-export { PlatformerKitPlugin } from './plugin/index.js';
+export { PlatformerKitPlugin } from './plugin/index';
 export type {
   PlatformerKitConfig,
   PlatformerKitComponents,
   PlatformerKitService,
-} from './plugin/index.js';
+} from './plugin/index';
 
 // ── Level 4 — Logic & Internal Systems ─────────────────────────────────────
-export { PlatformerInputSystem } from './systems/PlatformerInputSystem.js';
-export { PlatformerMovementSystem } from './systems/PlatformerMovementSystem.js';
+export { PlatformerInputSystem } from './systems/PlatformerInputSystem';
+export { PlatformerMovementSystem } from './systems/PlatformerMovementSystem';
 
 // ── Level Geometry Helpers ──────────────────────────────────────────────────
 export {
   buildPlatformerStaticGeometry,
   loadPlatformerStaticGeometry,
   createPlatformerStaticGeometry,
-} from './helpers/staticGeometry.js';
+} from './helpers/staticGeometry';
 export type {
   PlatformerLevelBlock,
   BuildPlatformerStaticGeometryOptions,
   LoadPlatformerStaticGeometryOptions,
   PlatformerStaticGeometryHandle,
-} from './helpers/staticGeometry.js';
+} from './helpers/staticGeometry';
 
 // ── Shared constants & types ───────────────────────────────────────────────
-export { PlatformerDefaultInputMap } from './plugin/input.js';
+export { PlatformerDefaultInputMap } from './plugin/input';
 
 // ─── Module, composables & type augmentations ─────────────────────────────────
-export * from './augment.js';
-export { usePlatformer } from './composables.js';
-export { default } from './module.js';
+export * from './augment';
+export { usePlatformer } from './composables';
+export { default } from './module';

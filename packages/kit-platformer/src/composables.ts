@@ -6,8 +6,8 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { PlatformerKitService } from './plugin/index.js';
-import './augment.js';
+import type { PlatformerKitService } from './plugin/index';
+import './augment';
 
 /**
  * Returns the platformer kit configuration service registered by `PlatformerKitPlugin()`.

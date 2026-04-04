@@ -7,8 +7,8 @@
  */
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import type { CapsuleColliderHandle } from '../types.js';
-import { usePhysics2D } from '../composables.js';
+import type { CapsuleColliderHandle } from '../types';
+import { usePhysics2D } from '../composables';
 
 export interface CapsuleColliderOptions {
   /** Capsule radius (used as box half-width). */

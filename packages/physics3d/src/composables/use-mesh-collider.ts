@@ -12,12 +12,12 @@
  * `preloadMeshCollider`), the load is performed asynchronously. The returned
  * handle exposes `status`, `ready`, and `abort()` to track and control the load.
  */
-import type { MeshColliderHandle3D, MeshColliderOptions } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { MeshColliderHandle3D, MeshColliderOptions } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import { nextColliderId } from './collider-id.js';
-import type { PreloadedBvhHandle } from '../index.js';
+import { nextColliderId } from './collider-id';
+import type { PreloadedBvhHandle } from '../index';
 
 /**
  * Type guard for {@link PreloadedBvhHandle}.

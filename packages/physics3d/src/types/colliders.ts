@@ -1,4 +1,4 @@
-import type { ColliderHandle3D } from './bodies.js';
+import type { ColliderHandle3D } from './bodies';
 
 // ─── Colliders ─────────────────────────────────────────────────────────────────
 

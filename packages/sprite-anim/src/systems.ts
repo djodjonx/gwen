@@ -1,6 +1,6 @@
 import type { GwenEngine, GwenPlugin, GwenProvides } from '@gwenjs/core';
 import type { SpriteAnimatorService } from './types';
-import './augment.js';
+import './augment';
 
 export interface SpriteAnimSystemOptions {
   /**

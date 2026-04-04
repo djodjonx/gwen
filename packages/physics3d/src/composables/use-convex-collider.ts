@@ -7,11 +7,11 @@
  * cheaper than a trimesh collider and suitable for dynamic bodies when primitive
  * shapes (box, sphere, capsule) do not approximate the geometry closely enough.
  */
-import type { ConvexColliderHandle3D, Physics3DMaterialPreset } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { ConvexColliderHandle3D, Physics3DMaterialPreset } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import { nextColliderId } from './collider-id.js';
+import { nextColliderId } from './collider-id';
 
 /**
  * Options for configuring a convex hull 3D collider.

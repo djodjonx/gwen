@@ -1,12 +1,12 @@
 import { definePlugin } from '@gwenjs/kit';
 import type { EntityId, GwenEngine } from '@gwenjs/kit';
-import { SpriteAnimRuntime } from './runtime.js';
+import { SpriteAnimRuntime } from './runtime';
 import type {
   SpriteAnimPluginConfig,
   SpriteAnimUIExtension,
   SpriteAnimatorService,
-} from '../types.js';
-import '../augment.js';
+} from '../types';
+import '../augment';
 
 export const SpriteAnimPlugin = definePlugin((config: SpriteAnimPluginConfig = {}) => {
   const autoUpdate = config.autoUpdate ?? true;

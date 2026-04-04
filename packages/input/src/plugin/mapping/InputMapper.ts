@@ -1,8 +1,8 @@
 // packages/@gwenjs/plugin-input/src/mapping/InputMapper.ts
-import type { KeyboardInput } from '../keyboard.js';
-import type { GamepadInput } from '../gamepad.js';
-import { BindingType, InputType } from './types.js';
-import type { ActionConfig, AnyBinding, InputMapConfig } from './types.js';
+import type { KeyboardInput } from '../keyboard';
+import type { GamepadInput } from '../gamepad';
+import { BindingType, InputType } from './types';
+import type { ActionConfig, AnyBinding, InputMapConfig } from './types';
 
 /**
  * InputMapper — translates an InputMapConfig into semantic action queries.

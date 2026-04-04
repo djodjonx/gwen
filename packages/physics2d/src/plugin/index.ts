@@ -17,14 +17,14 @@ import type {
   Physics2DPrefabExtension,
   Physics2DPluginHooks,
   CollisionContact,
-} from '../types.js';
+} from '../types';
 
 import {
   BODY_TYPE,
   PHYSICS2D_BRIDGE_SCHEMA_VERSION,
   PHYSICS_QUALITY_PRESET_CODE,
   PHYSICS2D_WASM_EVENT_STRIDE,
-} from '../types.js';
+} from '../types';
 
 // ─── Internal types ──────────────────────────────────────────────────────────
 
@@ -46,22 +46,22 @@ import {
   LayerRegistry,
   resolveGlobalCcdEnabled,
   PIXELS_PER_METER,
-} from '../config.js';
+} from '../config';
 
-import { addPrefabCollider } from '../prefab.js';
-import { tilemapChunkIdFromKey, tilemapPseudoEntityFromChunkId } from '../utils.js';
+import { addPrefabCollider } from '../prefab';
+import { tilemapChunkIdFromKey, tilemapPseudoEntityFromChunkId } from '../utils';
 
 // Public exports
 export {
   createPhysicsKinematicSyncSystem,
   createPlatformerGroundedSystem,
   SENSOR_ID_FOOT,
-} from '../systems.js';
-export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from '../helpers/tilemap.js';
+} from '../systems';
+export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from '../helpers/tilemap';
 export type {
   PhysicsKinematicSyncSystemOptions,
   PlatformerGroundedSystemOptions,
-} from '../systems.js';
+} from '../systems';
 
 // Re-export public types
 export type {
@@ -79,7 +79,7 @@ export type {
   PhysicsColliderShape,
   SensorState,
   TilemapPhysicsChunkMap,
-} from '../types.js';
+} from '../types';
 
 export {
   PHYSICS2D_BRIDGE_SCHEMA_VERSION,

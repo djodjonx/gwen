@@ -3,8 +3,8 @@
  */
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import type { DynamicBodyHandle, DynamicBodyOptions, ColliderOptions } from '../types.js';
-import { usePhysics2D } from '../composables.js';
+import type { DynamicBodyHandle, DynamicBodyOptions, ColliderOptions } from '../types';
+import { usePhysics2D } from '../composables';
 
 /**
  * Registers the current actor's entity as a dynamic (physics-simulated) body.

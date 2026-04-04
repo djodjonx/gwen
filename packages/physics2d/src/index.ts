@@ -6,14 +6,14 @@
  */
 
 // ─── Plugin exports ─────────────────────────────────────────────────────────
-export { Physics2DPlugin, Physics2D, physics2D } from './plugin/index.js';
-export { ShapeComponent } from './plugin/shape-component.js';
-export type { ShapeData } from './plugin/shape-component.js';
-export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './plugin/ring-buffer.js';
+export { Physics2DPlugin, Physics2D, physics2D } from './plugin/index';
+export { ShapeComponent } from './plugin/shape-component';
+export type { ShapeData } from './plugin/shape-component';
+export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './plugin/ring-buffer';
 
 // ─── Module, composables & type augmentations ───────────────────────────────
-export * from './augment.js';
-export { usePhysics2D, useRigidBody, useCollider } from './composables.js';
+export * from './augment';
+export { usePhysics2D, useRigidBody, useCollider } from './composables';
 export {
   useStaticBody,
   useDynamicBody,
@@ -27,14 +27,14 @@ export {
   _clearContactCallbacks,
   _clearSensorCallbacks,
   useShape,
-} from './composables/index.js';
-export { physics2dVitePlugin } from './vite-plugin.js';
+} from './composables/index';
+export { physics2dVitePlugin } from './vite-plugin';
 export type {
   BoxColliderOptions,
   SphereColliderOptions,
   CapsuleColliderOptions,
   ShapeOptions,
-} from './composables/index.js';
+} from './composables/index';
 export type {
   StaticBodyOptions,
   StaticBodyHandle,
@@ -45,19 +45,16 @@ export type {
   CapsuleColliderHandle,
   ContactEvent,
   Physics2DLayerDefinition,
-} from './types.js';
+} from './types';
 
 // ─── Re-export systems & helper utilities ───────────────────────────────────
 export {
   createPhysicsKinematicSyncSystem,
   createPlatformerGroundedSystem,
   SENSOR_ID_FOOT,
-} from './systems.js';
-export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './helpers/tilemap.js';
-export type {
-  PhysicsKinematicSyncSystemOptions,
-  PlatformerGroundedSystemOptions,
-} from './systems.js';
+} from './systems';
+export { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from './helpers/tilemap';
+export type { PhysicsKinematicSyncSystemOptions, PlatformerGroundedSystemOptions } from './systems';
 
 // ─── Re-export public types ───────────────────────────────────────────────
 export type {
@@ -75,12 +72,12 @@ export type {
   PhysicsColliderShape,
   SensorState,
   TilemapPhysicsChunkMap,
-} from './types.js';
+} from './types';
 
 export {
   PHYSICS2D_BRIDGE_SCHEMA_VERSION,
   PHYSICS_QUALITY_PRESET_CODE,
   PHYSICS2D_WASM_EVENT_STRIDE,
-} from './types.js';
+} from './types';
 
-export { default } from './module.js';
+export { default } from './module';

@@ -3,7 +3,7 @@
  */
 
 import type { EntityId } from '@gwenjs/core';
-import type { CollisionContact, SensorState, CollisionEventsBatch } from './events.js';
+import type { CollisionContact, SensorState, CollisionEventsBatch } from './events';
 
 export interface Physics2DPluginHooks {
   'physics:collision': (contacts: ReadonlyArray<CollisionContact>) => void;

@@ -9,7 +9,7 @@
 import { definePlugin } from '@gwenjs/kit';
 import type { EntityId, GwenEngine } from '@gwenjs/kit';
 // Side-effect: augments GwenProvides with 'renderer' key, enabling typed provide/inject.
-import '../augment.js';
+import '../augment';
 
 // ── Internal type helpers ─────────────────────────────────────────────────────
 

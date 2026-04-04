@@ -3,8 +3,8 @@
  */
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import type { CircleColliderHandle } from '../types.js';
-import { usePhysics2D } from '../composables.js';
+import type { CircleColliderHandle } from '../types';
+import { usePhysics2D } from '../composables';
 
 export interface SphereColliderOptions {
   /** Circle radius in world units. */

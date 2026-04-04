@@ -1,5 +1,5 @@
-import type { Physics3DVec3, Physics3DQuat, Physics3DQualityPreset } from './config.js';
-import type { Physics3DColliderOptions, Physics3DMaterialPreset } from './colliders.js';
+import type { Physics3DVec3, Physics3DQuat, Physics3DQualityPreset } from './config';
+import type { Physics3DColliderOptions, Physics3DMaterialPreset } from './colliders';
 
 /** Accepted forms of entity identity at the Physics3D API boundary. */
 export type Physics3DEntityId = string | number | bigint;

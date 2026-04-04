@@ -6,7 +6,7 @@
  */
 
 import type { EntityId } from '@gwenjs/core';
-import type { Physics3DCollisionContact } from '../types.js';
+import type { Physics3DCollisionContact } from '../types';
 
 /**
  * Filter a contact batch to those involving a specific entity.

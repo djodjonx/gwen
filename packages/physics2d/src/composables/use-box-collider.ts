@@ -3,8 +3,8 @@
  */
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import type { BoxColliderHandle } from '../types.js';
-import { usePhysics2D } from '../composables.js';
+import type { BoxColliderHandle } from '../types';
+import { usePhysics2D } from '../composables';
 
 export interface BoxColliderOptions {
   /** Width of the box collider in world units. */

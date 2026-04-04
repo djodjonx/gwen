@@ -13,9 +13,9 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { Physics2DPlugin } from './index.js';
-import { physics2dVitePlugin } from './vite-plugin.js';
-import type { Physics2DConfig } from './types.js';
+import { Physics2DPlugin } from './index';
+import { physics2dVitePlugin } from './vite-plugin';
+import type { Physics2DConfig } from './types';
 
 /**
  * GWEN module for the Physics 2D plugin.

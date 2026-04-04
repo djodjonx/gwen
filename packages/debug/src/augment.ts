@@ -5,7 +5,7 @@
  * `@gwenjs/core` with a typed debug service key.
  */
 
-import type { DebugService } from './index.js';
+import type { DebugService } from './index';
 
 declare module '@gwenjs/core' {
   /**

@@ -1,9 +1,9 @@
 import { definePlugin } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/kit';
 import type { ComponentDefinition } from '@gwenjs/core';
-import { Position } from '../components/StandardComponents.js';
+import { Position } from '../components/StandardComponents';
 // Side-effect: augments GwenProvides with 'platformer' key, enabling typed provide/inject.
-import '../augment.js';
+import '../augment';
 
 /**
  * Defines the components used by the Platformer Kit.
@@ -73,8 +73,8 @@ export const PlatformerKitPlugin = definePlugin((config: PlatformerKitConfig = {
  * @internal
  */
 export function resolveComponent<K extends keyof PlatformerKitComponents>(
-  api: import('./scene-utils.js').PrefabCallbackApi & {
-    services?: import('./scene-utils.js').SceneCallbackApi['services'];
+  api: import('./scene-utils').PrefabCallbackApi & {
+    services?: import('./scene-utils').SceneCallbackApi['services'];
   },
   key: K,
   localOverrides?: Partial<PlatformerKitComponents>,

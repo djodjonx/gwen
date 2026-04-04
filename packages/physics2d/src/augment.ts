@@ -7,7 +7,7 @@
  * `@gwenjs/core` with typed physics service keys, hooks and prefab extensions.
  */
 
-import type { Physics2DAPI, Physics2DPluginHooks, Physics2DPrefabExtension } from './types.js';
+import type { Physics2DAPI, Physics2DPluginHooks, Physics2DPrefabExtension } from './types';
 
 declare module '@gwenjs/core' {
   /**

@@ -1,6 +1,6 @@
 // packages/@gwenjs/plugin-input/src/mapping/types.ts
-import type { KeyCode } from '../../constants/keys.js';
-import type { GamepadButtonId, GamepadAxisId } from '../../constants/gamepad.js';
+import type { KeyCode } from '../../constants/keys';
+import type { GamepadButtonId, GamepadAxisId } from '../../constants/gamepad';
 
 /** Discriminant for action type — determines which read method to use. */
 export const InputType = {

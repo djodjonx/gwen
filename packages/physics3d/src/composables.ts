@@ -6,8 +6,8 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { Physics3DAPI } from './types.js';
-import './augment.js';
+import type { Physics3DAPI } from './types';
+import './augment';
 
 /**
  * Returns the Physics 3D API service registered by `physics3dPlugin()`.

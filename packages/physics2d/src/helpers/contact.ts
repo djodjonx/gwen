@@ -5,7 +5,7 @@ import type {
   CollisionEventsBatch,
   Physics2DAPI,
   ResolvedCollisionContact,
-} from '../types.js';
+} from '../types';
 
 /** Minimal interface needed to resolve entity generation numbers. */
 interface GenerationSource {

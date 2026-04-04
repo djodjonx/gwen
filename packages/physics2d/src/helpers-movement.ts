@@ -1,2 +1,2 @@
 // Tree-shakable movement helpers entry.
-export { moveKinematicByVelocity, applyDirectionalImpulse } from './helpers/movement.js';
+export { moveKinematicByVelocity, applyDirectionalImpulse } from './helpers/movement';

@@ -4,7 +4,7 @@
  * Converts an array of {@link CompoundShapeSpec} objects into the flat
  * `Float32Array` accepted by `physics3d_add_compound_collider`.
  */
-import type { CompoundShapeSpec } from '../types.js';
+import type { CompoundShapeSpec } from '../types';
 
 /** Shape-type discriminant values — must match Rust `COMPOUND_SHAPE_*` constants. */
 export const COMPOUND_SHAPE_BOX = 0;

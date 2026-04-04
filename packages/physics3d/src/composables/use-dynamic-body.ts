@@ -6,8 +6,8 @@ import type {
   DynamicBodyHandle3D,
   Physics3DVec3,
   Physics3DBodyOptions,
-} from '../types.js';
-import { usePhysics3D } from '../composables.js';
+} from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
 

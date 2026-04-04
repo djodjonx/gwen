@@ -6,8 +6,8 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { DebugService } from './index.js';
-import './augment.js';
+import type { DebugService } from './index';
+import './augment';
 
 /**
  * Returns the debug service registered by `DebugPlugin()`.

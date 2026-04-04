@@ -4,7 +4,7 @@
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
 import { useEngine } from '@gwenjs/core';
-import { ShapeComponent } from '../shape-component.js';
+import { ShapeComponent } from '../shape-component';
 
 /**
  * Configuration options for {@link useShape}.

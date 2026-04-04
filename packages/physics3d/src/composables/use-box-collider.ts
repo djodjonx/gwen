@@ -1,11 +1,11 @@
 /**
  * @file useBoxCollider() — attaches a box-shaped collider to the current entity.
  */
-import type { BoxColliderHandle3D, Physics3DMaterialPreset } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { BoxColliderHandle3D, Physics3DMaterialPreset } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import { nextColliderId } from './collider-id.js';
+import { nextColliderId } from './collider-id';
 
 /**
  * Options for configuring a box-shaped 3D collider.

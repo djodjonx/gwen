@@ -4,20 +4,20 @@ import type { Physics2DAPI } from '@gwenjs/physics2d/core';
 import {
   PlatformerController,
   PLATFORMER_CONTROLLER_DEFAULTS,
-} from '../components/PlatformerController.js';
-import { PlatformerIntent } from '../components/PlatformerIntent.js';
+} from '../components/PlatformerController';
+import { PlatformerIntent } from '../components/PlatformerIntent';
 import {
   canApplyJump,
   createJumpResolverState,
   markJumpApplied,
   stepJumpResolver,
   tryConfirmLanding,
-} from './platformer/jumpResolver.js';
+} from './platformer/jumpResolver';
 import {
   createGroundHysteresisState,
   resolveGroundedWithHysteresis,
-} from './platformer/groundHysteresis.js';
-import { toPhysicsScalar, type PlatformerUnits } from '../plugin/units.js';
+} from './platformer/groundHysteresis';
+import { toPhysicsScalar, type PlatformerUnits } from '../plugin/units';
 
 type ControllerMovementConfig = {
   speed: number;

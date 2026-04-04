@@ -10,9 +10,9 @@ import type {
   Physics3DColliderOptions,
   Physics3DCollisionContact,
   Physics3DSensorState,
-} from './index.js';
-import type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './bulk.js';
-import type { CompoundColliderOptions3D, CompoundColliderHandle3D } from './colliders.js';
+} from './index';
+import type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './bulk';
+import type { CompoundColliderOptions3D, CompoundColliderHandle3D } from './colliders';
 
 // ─── Service API ───────────────────────────────────────────────────────────────
 

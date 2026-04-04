@@ -5,11 +5,7 @@
  * `@gwenjs/core` with a typed sprite animator service key and plugin hooks.
  */
 
-import type {
-  SpriteAnimatorService,
-  SpriteAnimPluginHooks,
-  SpriteAnimUIExtension,
-} from './types.js';
+import type { SpriteAnimatorService, SpriteAnimPluginHooks, SpriteAnimUIExtension } from './types';
 import type { EntityId } from '@gwenjs/core';
 
 declare module '@gwenjs/core' {

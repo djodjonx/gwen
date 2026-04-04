@@ -7,9 +7,9 @@ import type {
   PhysicsColliderShape,
   PhysicsMaterialPreset,
   PhysicsMaterialPresetName,
-} from './materials.js';
-import type { RigidBodyType, PhysicsGroundedRole } from './bodies.js';
-import type { CollisionContact } from './events.js';
+} from './materials';
+import type { RigidBodyType, PhysicsGroundedRole } from './bodies';
+import type { CollisionContact } from './events';
 
 export const TILEMAP_PHYSICS_CHUNK_FORMAT_VERSION = 1;
 

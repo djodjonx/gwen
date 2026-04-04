@@ -2,11 +2,11 @@
  * @file useHeightfieldCollider() — attaches a grid-based heightfield collider
  * to the current entity for efficient terrain collision.
  */
-import type { HeightfieldColliderHandle3D, Physics3DMaterialPreset } from '../types.js';
-import { usePhysics3D } from '../composables.js';
+import type { HeightfieldColliderHandle3D, Physics3DMaterialPreset } from '../types';
+import { usePhysics3D } from '../composables';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
-import { nextColliderId } from './collider-id.js';
+import { nextColliderId } from './collider-id';
 
 /**
  * Options for configuring a grid-based heightfield 3D collider.
