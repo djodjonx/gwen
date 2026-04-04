@@ -1052,6 +1052,50 @@ impl Engine {
         vec![0, 0]
     }
 
+    /// Set the next kinematic position (with angle) of a 2D body.
+    ///
+    /// # Parameters
+    /// * `slot` — Entity index.
+    /// * `x`, `y` — Target world-space position in metres.
+    /// * `angle` — Target orientation in radians. Pass `0.0` to preserve no rotation.
+    ///
+    /// # Returns
+    /// `1` if found and updated; `0` otherwise.
+    #[cfg(feature = "physics2d")]
+    pub fn physics_set_kinematic_position(
+        &mut self,
+        slot: u32,
+        x: f32,
+        y: f32,
+        angle: f32,
+    ) -> u32 {
+        self.physics_world
+            .as_mut()
+            .map(|w| w.set_kinematic_position(slot, x, y, angle) as u32)
+            .unwrap_or(0)
+    }
+
+    /// Integrate N kinematic body positions in one WASM call.
+    ///
+    /// Each body `i` is moved by `(vx[i], vy[i]) * dt`.
+    /// Preserves the current rotation angle of each body.
+    ///
+    /// # Returns
+    /// Number of bodies updated.
+    #[cfg(feature = "physics2d")]
+    pub fn physics_bulk_step_kinematics(
+        &mut self,
+        slots: &[u32],
+        vx: &[f32],
+        vy: &[f32],
+        dt: f32,
+    ) -> u32 {
+        self.physics_world
+            .as_mut()
+            .map(|w| w.bulk_step_kinematics(slots, vx, vy, dt))
+            .unwrap_or(0)
+    }
+
     #[cfg(feature = "physics2d")]
     pub fn physics_update_sensor_state(&mut self, _slot: u32, _collider_id: u32, _active: u32) {
         // Implementation logic

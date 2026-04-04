@@ -326,6 +326,76 @@ impl PhysicsWorld {
         })
     }
 
+    /// Set the next kinematic position and orientation of a 2D body.
+    ///
+    /// Only has an effect on bodies created with [`BodyType::Kinematic`].
+    /// The change takes effect at the next [`PhysicsWorld::step`] call.
+    ///
+    /// # Parameters
+    /// * `entity_index` — Entity slot.
+    /// * `x`, `y` — Target world-space position in metres.
+    /// * `angle` — Target orientation in radians.
+    ///
+    /// # Returns
+    /// `true` if the body was found and updated; `false` otherwise.
+    pub fn set_kinematic_position(
+        &mut self,
+        entity_index: u32,
+        x: f32,
+        y: f32,
+        angle: f32,
+    ) -> bool {
+        let Some(&handle) = self.entity_to_body.get(&entity_index) else {
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            return false;
+        };
+        let iso = Isometry::new(vector![x, y], angle);
+        body.set_next_kinematic_position(iso);
+        true
+    }
+
+    /// Integrate the positions of N kinematic bodies in one pass.
+    ///
+    /// For each body at index `i`, computes:
+    /// `new_pos = current_pos + (vx[i], vy[i]) * dt`
+    /// and calls [`set_next_kinematic_position`] with the preserved current angle.
+    ///
+    /// Lengths of `slots`, `vx`, and `vy` must be equal; any trailing mismatch
+    /// is silently ignored. Bodies not found by their slot are skipped.
+    ///
+    /// # Returns
+    /// Number of bodies actually updated.
+    pub fn bulk_step_kinematics(
+        &mut self,
+        slots: &[u32],
+        vx: &[f32],
+        vy: &[f32],
+        dt: f32,
+    ) -> u32 {
+        let count = slots.len().min(vx.len()).min(vy.len());
+        let mut updated = 0u32;
+        for i in 0..count {
+            let Some(&handle) = self.entity_to_body.get(&slots[i]) else {
+                continue;
+            };
+            let Some(body) = self.rigid_body_set.get_mut(handle) else {
+                continue;
+            };
+            let pos = *body.position();
+            let new_x = pos.translation.x + vx[i] * dt;
+            let new_y = pos.translation.y + vy[i] * dt;
+            let iso = Isometry::new(
+                vector![new_x, new_y],
+                pos.rotation.angle(),
+            );
+            body.set_next_kinematic_position(iso);
+            updated += 1;
+        }
+        updated
+    }
+
     /// Get sensor state (contact count and isActive).
     pub fn get_sensor_state(&self, _entity_index: u32, _collider_id: u32) -> (u32, bool) {
         // This requires tracking contact counts per collider.
@@ -419,5 +489,37 @@ mod tests {
         // Should have moved down
         let body = world.rigid_body_set.get(handle).unwrap();
         assert!(body.translation().y < 10.0);
+    }
+
+    #[test]
+    fn test_set_kinematic_position_returns_true() {
+        let mut world = PhysicsWorld::new(0.0, -9.81);
+        let opts = BodyOptions::default();
+        world.add_rigid_body(0, 0.0, 0.0, BodyType::Kinematic, opts);
+        assert!(world.set_kinematic_position(0, 1.0, 2.0, 0.5));
+    }
+
+    #[test]
+    fn test_set_kinematic_position_unknown_entity_returns_false() {
+        let mut world = PhysicsWorld::new(0.0, -9.81);
+        assert!(!world.set_kinematic_position(99, 0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_bulk_step_kinematics_integrates_positions() {
+        let mut world = PhysicsWorld::new(0.0, 0.0); // no gravity
+        let opts = BodyOptions::default();
+        world.add_rigid_body(0, 0.0, 0.0, BodyType::Kinematic, opts.clone());
+        world.add_rigid_body(1, 0.0, 0.0, BodyType::Kinematic, opts);
+        let slots = [0u32, 1u32];
+        let vx = [1.0f32, 0.0f32];
+        let vy = [0.0f32, 2.0f32];
+        let updated = world.bulk_step_kinematics(&slots, &vx, &vy, 1.0);
+        assert_eq!(updated, 2);
+        world.step(1.0 / 60.0); // advance sim so next_kinematic is applied
+        let pos0 = world.get_position(0).unwrap();
+        let pos1 = world.get_position(1).unwrap();
+        assert!((pos0.0 - 1.0).abs() < 0.01, "slot 0 x should be ~1.0");
+        assert!((pos1.1 - 2.0).abs() < 0.01, "slot 1 y should be ~2.0");
     }
 }
