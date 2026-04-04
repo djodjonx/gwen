@@ -3,10 +3,7 @@
     "composite": true,
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM"
-    ],
+    "lib": ["ES2020", "DOM"],
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -26,9 +23,7 @@
     "noUncheckedIndexedAccess": false,
     "rootDir": "../.."
   },
-  "include": [
-    "src"
-  ],
+  "include": ["src"],
   "extends": "../../tsconfig.base.json",
   "references": [
     {

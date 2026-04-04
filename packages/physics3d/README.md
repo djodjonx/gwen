@@ -3,6 +3,7 @@
 Physics3D plugin foundation for GWEN.
 
 Current scope:
+
 - validates `physics3d` core variant,
 - initializes 3D physics world via `physics3d_init`,
 - auto-steps simulation on engine `onBeforeUpdate` when enabled,
@@ -59,4 +60,3 @@ console.log(body.bodyId, physics3d.getBodyCount(), state?.position.y);
   - `fixed`: no position integration.
 - `mass`, `linearDamping`, and `angularDamping` options are applied in local simulation.
 - Higher-level rigid-body and collider APIs are added incrementally.
-

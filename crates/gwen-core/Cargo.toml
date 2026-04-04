@@ -11,16 +11,19 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 wasm-bindgen = "0.2.87"
 js-sys = "0.3.64"
-web-sys = { version = "0.3.64", features = [
-    "Window",
-    "Document",
-] }
+web-sys = { version = "0.3.64", features = ["Window", "Document"] }
 bytemuck = { version = "1", features = ["derive"] }
 
 # Physics — 2D (Rapier2D)
-rapier2d = { version = "0.22", default-features = false, features = ["f32", "dim2"], optional = true }
+rapier2d = { version = "0.22", default-features = false, features = [
+  "f32",
+  "dim2",
+], optional = true }
 # Physics — 3D (Rapier3D)
-rapier3d = { version = "0.22", default-features = false, features = ["f32", "dim3"], optional = true }
+rapier3d = { version = "0.22", default-features = false, features = [
+  "f32",
+  "dim3",
+], optional = true }
 # Pathfinding
 pathfinding = { version = "4.3", optional = true }
 
