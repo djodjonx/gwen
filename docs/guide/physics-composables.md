@@ -5,32 +5,27 @@ GWEN's `@gwenjs/physics2d` package provides high-level composables that replace 
 ## Quick start
 
 ```typescript
-import { defineActor } from '@gwenjs/core'
-import {
-  useDynamicBody,
-  useBoxCollider,
-  defineLayers,
-  onContact,
-} from '@gwenjs/physics2d'
+import { defineActor } from '@gwenjs/core';
+import { useDynamicBody, useBoxCollider, defineLayers, onContact } from '@gwenjs/physics2d';
 
 export const Layers = defineLayers({
   player: 1 << 0,
-  enemy:  1 << 1,
-  wall:   1 << 2,
-})
+  enemy: 1 << 1,
+  wall: 1 << 2,
+});
 
 const PlayerActor = defineActor(PlayerPrefab, () => {
-  const body = useDynamicBody({ fixedRotation: true, gravityScale: 2.5 })
-  useBoxCollider({ w: 20, h: 32, layer: Layers.player, mask: Layers.wall })
+  const body = useDynamicBody({ fixedRotation: true, gravityScale: 2.5 });
+  useBoxCollider({ w: 20, h: 32, layer: Layers.player, mask: Layers.wall });
 
   onContact((e) => {
-    if (e.relativeVelocity > 200) emit('player:hard-landing')
-  })
+    if (e.relativeVelocity > 200) emit('player:hard-landing');
+  });
 
   onUpdate(() => {
-    if (input.pressed('jump')) body.applyImpulse(0, 400)
-  })
-})
+    if (input.pressed('jump')) body.applyImpulse(0, 400);
+  });
+});
 ```
 
 ## `useStaticBody(options?)`
@@ -39,12 +34,12 @@ Registers the entity as a static (non-moving) physics body. Use this for walls, 
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `shape` | `'box' \| 'ball'` | `'box'` | Collider shape |
-| `layer` | `number` | `undefined` | Collision membership layer bitmask |
-| `mask` | `number` | `undefined` | Collision filter mask bitmask |
-| `isSensor` | `boolean` | `false` | Trigger-only — no physical response |
+| Option     | Type              | Default     | Description                         |
+| ---------- | ----------------- | ----------- | ----------------------------------- |
+| `shape`    | `'box' \| 'ball'` | `'box'`     | Collider shape                      |
+| `layer`    | `number`          | `undefined` | Collision membership layer bitmask  |
+| `mask`     | `number`          | `undefined` | Collision filter mask bitmask       |
+| `isSensor` | `boolean`         | `false`     | Trigger-only — no physical response |
 
 **Returns:** `StaticBodyHandle`
 
@@ -61,8 +56,8 @@ interface StaticBodyHandle {
 
 ```typescript
 const WallActor = defineActor(WallPrefab, () => {
-  useStaticBody({ layer: Layers.wall, mask: Layers.player | Layers.enemy })
-})
+  useStaticBody({ layer: Layers.wall, mask: Layers.player | Layers.enemy });
+});
 ```
 
 ## `useDynamicBody(options?)`
@@ -71,16 +66,16 @@ Registers a fully-simulated physics body affected by gravity and forces. Ideal f
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `shape` | `'box' \| 'ball'` | `'box'` | Collider shape |
-| `mass` | `number` | `1` | Mass in kg |
-| `linearDamping` | `number` | `0` | Air resistance (linear) |
-| `angularDamping` | `number` | `0` | Rotational damping |
-| `fixedRotation` | `boolean` | `false` | Prevent rotation |
-| `gravityScale` | `number` | `1` | Gravity multiplier |
-| `layer` | `number` | `undefined` | Collision membership bitmask |
-| `mask` | `number` | `undefined` | Collision filter bitmask |
+| Option           | Type              | Default     | Description                  |
+| ---------------- | ----------------- | ----------- | ---------------------------- |
+| `shape`          | `'box' \| 'ball'` | `'box'`     | Collider shape               |
+| `mass`           | `number`          | `1`         | Mass in kg                   |
+| `linearDamping`  | `number`          | `0`         | Air resistance (linear)      |
+| `angularDamping` | `number`          | `0`         | Rotational damping           |
+| `fixedRotation`  | `boolean`         | `false`     | Prevent rotation             |
+| `gravityScale`   | `number`          | `1`         | Gravity multiplier           |
+| `layer`          | `number`          | `undefined` | Collision membership bitmask |
+| `mask`           | `number`          | `undefined` | Collision filter bitmask     |
 
 **Returns:** `DynamicBodyHandle`
 
@@ -107,16 +102,16 @@ Attaches an axis-aligned box collider to the current actor entity.
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `w` | `number` | required | Width in world units |
-| `h` | `number` | required | Height in world units |
-| `d` | `number` | `undefined` | Depth (ignored in 2D, for 3D structural compat) |
-| `offsetX` | `number` | `0` | Local X offset from entity origin |
-| `offsetY` | `number` | `0` | Local Y offset from entity origin |
-| `isSensor` | `boolean` | `false` | Trigger-only |
-| `layer` | `number` | `undefined` | Membership bitmask |
-| `mask` | `number` | `undefined` | Filter bitmask |
+| Option     | Type      | Default     | Description                                     |
+| ---------- | --------- | ----------- | ----------------------------------------------- |
+| `w`        | `number`  | required    | Width in world units                            |
+| `h`        | `number`  | required    | Height in world units                           |
+| `d`        | `number`  | `undefined` | Depth (ignored in 2D, for 3D structural compat) |
+| `offsetX`  | `number`  | `0`         | Local X offset from entity origin               |
+| `offsetY`  | `number`  | `0`         | Local Y offset from entity origin               |
+| `isSensor` | `boolean` | `false`     | Trigger-only                                    |
+| `layer`    | `number`  | `undefined` | Membership bitmask                              |
+| `mask`     | `number`  | `undefined` | Filter bitmask                                  |
 
 **Returns:** `BoxColliderHandle`
 
@@ -133,24 +128,24 @@ Attaches a circle collider to the current actor. Named `useSphereCollider` for 2
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `radius` | `number` | required | Circle radius in world units |
-| `offsetX` | `number` | `0` | Local X offset |
-| `offsetY` | `number` | `0` | Local Y offset |
-| `isSensor` | `boolean` | `false` | Trigger-only |
-| `layer` | `number` | `undefined` | Membership bitmask |
-| `mask` | `number` | `undefined` | Filter bitmask |
+| Option     | Type      | Default     | Description                  |
+| ---------- | --------- | ----------- | ---------------------------- |
+| `radius`   | `number`  | required    | Circle radius in world units |
+| `offsetX`  | `number`  | `0`         | Local X offset               |
+| `offsetY`  | `number`  | `0`         | Local Y offset               |
+| `isSensor` | `boolean` | `false`     | Trigger-only                 |
+| `layer`    | `number`  | `undefined` | Membership bitmask           |
+| `mask`     | `number`  | `undefined` | Filter bitmask               |
 
 **Returns:** `CircleColliderHandle`
 
 **Example:**
 
 ```typescript
-const zone = useSphereCollider({ radius: 64, isSensor: true })
+const zone = useSphereCollider({ radius: 64, isSensor: true });
 onSensorEnter(zone.colliderId, (entityId) => {
-  console.log('entered zone:', entityId)
-})
+  console.log('entered zone:', entityId);
+});
 ```
 
 ## `useCapsuleCollider(options)`
@@ -159,15 +154,15 @@ Attaches a capsule collider to the current actor. Since `Physics2DAPI` does not 
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `radius` | `number` | required | Capsule radius (box half-width) |
-| `height` | `number` | required | Capsule total height |
-| `offsetX` | `number` | `0` | Local X offset |
-| `offsetY` | `number` | `0` | Local Y offset |
-| `isSensor` | `boolean` | `false` | Trigger-only |
-| `layer` | `number` | `undefined` | Membership bitmask |
-| `mask` | `number` | `undefined` | Filter bitmask |
+| Option     | Type      | Default     | Description                     |
+| ---------- | --------- | ----------- | ------------------------------- |
+| `radius`   | `number`  | required    | Capsule radius (box half-width) |
+| `height`   | `number`  | required    | Capsule total height            |
+| `offsetX`  | `number`  | `0`         | Local X offset                  |
+| `offsetY`  | `number`  | `0`         | Local Y offset                  |
+| `isSensor` | `boolean` | `false`     | Trigger-only                    |
+| `layer`    | `number`  | `undefined` | Membership bitmask              |
+| `mask`     | `number`  | `undefined` | Filter bitmask                  |
 
 **Returns:** `CapsuleColliderHandle`
 
@@ -179,13 +174,13 @@ The `gwen:physics2d` Vite plugin inlines `Layers.wall` → `4` at build time whe
 
 ```typescript
 export const Layers = defineLayers({
-  player: 1 << 0,  // 1
-  enemy:  1 << 1,  // 2
-  wall:   1 << 2,  // 4
+  player: 1 << 0, // 1
+  enemy: 1 << 1, // 2
+  wall: 1 << 2, // 4
   trigger: 1 << 3, // 8
-})
+});
 
-useStaticBody({ layer: Layers.wall, mask: Layers.player | Layers.enemy })
+useStaticBody({ layer: Layers.wall, mask: Layers.player | Layers.enemy });
 ```
 
 ## `onContact(callback)`
@@ -199,20 +194,20 @@ onContact((event) => {
     entityB: event.entityB,
     velocity: event.relativeVelocity,
     normal: { x: event.normalX, y: event.normalY },
-  })
-})
+  });
+});
 ```
 
 **ContactEvent fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `entityA` | `bigint` | First entity ID |
-| `entityB` | `bigint` | Second entity ID |
-| `contactX` | `number` | Contact point X |
-| `contactY` | `number` | Contact point Y |
-| `normalX` | `number` | Contact normal X |
-| `normalY` | `number` | Contact normal Y |
+| Field              | Type     | Description                  |
+| ------------------ | -------- | ---------------------------- |
+| `entityA`          | `bigint` | First entity ID              |
+| `entityB`          | `bigint` | Second entity ID             |
+| `contactX`         | `number` | Contact point X              |
+| `contactY`         | `number` | Contact point Y              |
+| `normalX`          | `number` | Contact normal X             |
+| `normalY`          | `number` | Contact normal Y             |
 | `relativeVelocity` | `number` | Relative velocity at contact |
 
 ## `onSensorEnter(sensorId, callback)` / `onSensorExit(sensorId, callback)`
@@ -220,13 +215,13 @@ onContact((event) => {
 Subscribe to sensor overlap events using the `colliderId` returned by a collider composable with `isSensor: true`.
 
 ```typescript
-const zone = useSphereCollider({ radius: 64, isSensor: true })
+const zone = useSphereCollider({ radius: 64, isSensor: true });
 
 onSensorEnter(zone.colliderId, (entityId) => {
-  console.log('entity entered zone:', entityId)
-})
+  console.log('entity entered zone:', entityId);
+});
 
 onSensorExit(zone.colliderId, (entityId) => {
-  console.log('entity left zone:', entityId)
-})
+  console.log('entity left zone:', entityId);
+});
 ```

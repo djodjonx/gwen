@@ -23,15 +23,18 @@ gwen add @gwenjs/r3f
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   modules: [
-    ['@gwenjs/r3f', {
-      mountTo: document.getElementById('app')!,
-    }],
+    [
+      '@gwenjs/r3f',
+      {
+        mountTo: document.getElementById('app')!,
+      },
+    ],
   ],
-})
+});
 ```
 
 The plugin mounts an R3F `<Canvas>` into the target element and takes over the render loop, delegating frame timing back to GWEN's scheduler.
@@ -40,22 +43,22 @@ The plugin mounts an R3F `<Canvas>` into the target element and takes over the r
 
 ### `r3f` — `R3FService`
 
-| Property / Method | Description |
-|-------------------|-------------|
-| `r3f.scene` | The Three.js `Scene` root. |
-| `r3f.camera` | The active Three.js `Camera`. |
-| `r3f.renderer` | The `WebGLRenderer` instance. |
-| `r3f.setCamera(camera)` | Swap the active camera. |
+| Property / Method                   | Description                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `r3f.scene`                         | The Three.js `Scene` root.                                                                                                                 |
+| `r3f.camera`                        | The active Three.js `Camera`.                                                                                                              |
+| `r3f.renderer`                      | The `WebGLRenderer` instance.                                                                                                              |
+| `r3f.setCamera(camera)`             | Swap the active camera.                                                                                                                    |
 | `r3f.addObject(entityId, object3D)` | Register a `THREE.Object3D` as the visual for an entity. The plugin syncs its transform from the entity's `TransformComponent` each frame. |
-| `r3f.removeObject(entityId)` | Remove and dispose the entity's `Object3D`. |
-| `r3f.getObject(entityId)` | Returns the `THREE.Object3D` associated with an entity, or `undefined`. |
+| `r3f.removeObject(entityId)`        | Remove and dispose the entity's `Object3D`.                                                                                                |
+| `r3f.getObject(entityId)`           | Returns the `THREE.Object3D` associated with an entity, or `undefined`.                                                                    |
 
 ### `useR3F()` composable
 
 ```typescript
-import { useR3F } from '@gwenjs/r3f'
+import { useR3F } from '@gwenjs/r3f';
 
-const r3f = useR3F() // shorthand for useService('r3f')
+const r3f = useR3F(); // shorthand for useService('r3f')
 ```
 
 ### React component integration
@@ -72,51 +75,51 @@ root.add(<SkyBox />)
 
 ## Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `mountTo` | `HTMLElement` | `document.body` | Parent element for the R3F canvas. |
-| `camera` | `THREE.Camera` | `PerspectiveCamera` | Initial camera. |
-| `shadows` | `boolean` | `false` | Enable shadow maps. |
-| `dpr` | `number \| [min, max]` | `[1, 2]` | Device pixel ratio passed to R3F `<Canvas>`. |
-| `gl` | `WebGLRendererParameters` | `{}` | Extra parameters forwarded to `WebGLRenderer`. |
+| Option    | Type                      | Default             | Description                                    |
+| --------- | ------------------------- | ------------------- | ---------------------------------------------- |
+| `mountTo` | `HTMLElement`             | `document.body`     | Parent element for the R3F canvas.             |
+| `camera`  | `THREE.Camera`            | `PerspectiveCamera` | Initial camera.                                |
+| `shadows` | `boolean`                 | `false`             | Enable shadow maps.                            |
+| `dpr`     | `number \| [min, max]`    | `[1, 2]`            | Device pixel ratio passed to R3F `<Canvas>`.   |
+| `gl`      | `WebGLRendererParameters` | `{}`                | Extra parameters forwarded to `WebGLRenderer`. |
 
 ## Example
 
 ```typescript
-import { defineSystem, onUpdate } from '@gwenjs/core'
-import { useR3F } from '@gwenjs/r3f'
-import { useQuery } from '@gwenjs/core'
-import * as THREE from 'three'
-import { Position3D, Rotation3D } from '../components'
+import { defineSystem, onUpdate } from '@gwenjs/core';
+import { useR3F } from '@gwenjs/r3f';
+import { useQuery } from '@gwenjs/core';
+import * as THREE from 'three';
+import { Position3D, Rotation3D } from '../components';
 
 export const meshSyncSystem = defineSystem(() => {
-  const r3f      = useR3F()
-  const entities = useQuery([Position3D, Rotation3D])
+  const r3f = useR3F();
+  const entities = useQuery([Position3D, Rotation3D]);
 
   // Create Three.js meshes for new entities
   onUpdate(() => {
     for (const entity of entities.added) {
-      const geometry = new THREE.BoxGeometry(1, 1, 1)
-      const material = new THREE.MeshStandardMaterial({ color: 0x4488ff })
-      const mesh     = new THREE.Mesh(geometry, material)
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshStandardMaterial({ color: 0x4488ff });
+      const mesh = new THREE.Mesh(geometry, material);
 
-      r3f.addObject(entity.id, mesh)
+      r3f.addObject(entity.id, mesh);
     }
 
     for (const entity of entities.removed) {
-      r3f.removeObject(entity.id)
+      r3f.removeObject(entity.id);
     }
 
     // Manual sync if you need it (automatic sync also runs each frame)
     for (const entity of entities) {
-      const pos = entity.get(Position3D)
-      const obj = r3f.getObject(entity.id)
+      const pos = entity.get(Position3D);
+      const obj = r3f.getObject(entity.id);
       if (obj) {
-        obj.position.set(pos.x, pos.y, pos.z)
+        obj.position.set(pos.x, pos.y, pos.z);
       }
     }
-  })
-})
+  });
+});
 ```
 
 ::: info Automatic transform sync

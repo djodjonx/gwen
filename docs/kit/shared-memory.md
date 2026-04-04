@@ -19,12 +19,12 @@ await engine.loadWasmModule({
   name: 'sim',
   url: new URL('./sim.wasm', import.meta.url),
   memory: [
-    { name: 'positions',  byteLength: 40_000 },
+    { name: 'positions', byteLength: 40_000 },
     { name: 'velocities', byteLength: 40_000 },
-    { name: 'flags',      byteLength: 10_000 },
+    { name: 'flags', byteLength: 10_000 },
   ],
   // ...
-})
+});
 ```
 
 The engine allocates each region in the `SharedArrayBuffer` with the requested size. Rust receives the base pointer and byte length for each region at initialisation time.
@@ -49,23 +49,23 @@ step(handle, dt) {
 ```ts
 interface WasmRegionView {
   /** The underlying SharedArrayBuffer */
-  readonly buffer: SharedArrayBuffer
+  readonly buffer: SharedArrayBuffer;
 
   /** Byte offset of this region within the buffer */
-  readonly byteOffset: number
+  readonly byteOffset: number;
 
   /** Byte length of this region */
-  readonly byteLength: number
+  readonly byteLength: number;
 
   /** Typed views — no allocation, backed by the same buffer */
-  asFloat32Array(): Float32Array
-  asFloat64Array(): Float64Array
-  asInt32Array():   Int32Array
-  asUint32Array():  Uint32Array
-  asInt16Array():   Int16Array
-  asUint16Array():  Uint16Array
-  asUint8Array():   Uint8Array
-  asInt8Array():    Int8Array
+  asFloat32Array(): Float32Array;
+  asFloat64Array(): Float64Array;
+  asInt32Array(): Int32Array;
+  asUint32Array(): Uint32Array;
+  asInt16Array(): Int16Array;
+  asUint16Array(): Uint16Array;
+  asUint8Array(): Uint8Array;
+  asInt8Array(): Int8Array;
 }
 ```
 
@@ -96,9 +96,9 @@ Channels are declared alongside memory regions:
 
 ```ts
 channels: [
-  { name: 'collisions',     capacity: 256 },
-  { name: 'audio-triggers', capacity: 64  },
-]
+  { name: 'collisions', capacity: 256 },
+  { name: 'audio-triggers', capacity: 64 },
+];
 ```
 
 `capacity` is the maximum number of entries the ring buffer holds at once. If Rust pushes more than `capacity` entries before TypeScript reads, **oldest entries are overwritten**. Size for your worst-case burst.
@@ -110,13 +110,13 @@ channels: [
 ```ts
 interface WasmRingBuffer {
   /** Max entries before overwrite */
-  readonly capacity: number
+  readonly capacity: number;
 
   /** Write an entry (called from Rust via the WASM binding) */
-  push(data: Uint8Array): void
+  push(data: Uint8Array): void;
 
   /** Read and consume all pending entries; returns an iterator */
-  read(): Iterable<Uint8Array>
+  read(): Iterable<Uint8Array>;
 }
 ```
 
@@ -143,13 +143,13 @@ Each `entry` is a `Uint8Array` slice. Use `DataView` when your payload mixes typ
 
 ## Performance Characteristics
 
-| Scenario | Overhead |
-|---|---|
-| 1,000 entities, position reads | < 0.01 ms/frame |
-| Typed view construction (`asFloat32Array()`) | O(1), no allocation |
-| Ring-buffer read, 256 entries | < 0.05 ms/frame |
-| Data copied between TS and WASM | **0 bytes** — shared buffer |
-| Data copied between two WASM modules | **0 bytes** — same buffer |
+| Scenario                                     | Overhead                    |
+| -------------------------------------------- | --------------------------- |
+| 1,000 entities, position reads               | < 0.01 ms/frame             |
+| Typed view construction (`asFloat32Array()`) | O(1), no allocation         |
+| Ring-buffer read, 256 entries                | < 0.05 ms/frame             |
+| Data copied between TS and WASM              | **0 bytes** — shared buffer |
+| Data copied between two WASM modules         | **0 bytes** — same buffer   |
 
 The dominant cost is your own per-entity logic in JavaScript, not the memory access primitives.
 
@@ -159,12 +159,12 @@ The dominant cost is your own per-entity logic in JavaScript, not the memory acc
 
 TypedArray views require their element type to be **naturally aligned** within the buffer. If `byteOffset` is not a multiple of the element size, the view construction will throw a `RangeError`.
 
-| Type | Required alignment |
-|---|---|
-| `Float32Array` / `Int32Array` / `Uint32Array` | 4 bytes |
-| `Float64Array` | 8 bytes |
-| `Int16Array` / `Uint16Array` | 2 bytes |
-| `Uint8Array` / `Int8Array` | 1 byte (always valid) |
+| Type                                          | Required alignment    |
+| --------------------------------------------- | --------------------- |
+| `Float32Array` / `Int32Array` / `Uint32Array` | 4 bytes               |
+| `Float64Array`                                | 8 bytes               |
+| `Int16Array` / `Uint16Array`                  | 2 bytes               |
+| `Uint8Array` / `Int8Array`                    | 1 byte (always valid) |
 
 GWEN's region allocator aligns each region to **8 bytes** by default, so `asFloat32Array()` and `asInt32Array()` are always safe on regions allocated through `engine.loadWasmModule()`.
 

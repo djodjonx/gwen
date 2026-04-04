@@ -29,29 +29,26 @@ The TypeScript layer reads and writes directly into those typed memory views —
 
 Every engine capability is a plugin. GWEN ships a full set of official plugins, and community plugins follow the same interface.
 
-| Package | Role |
-|---|---|
-| `@gwenjs/input` | Keyboard and gamepad input |
-| `@gwenjs/audio` | Web Audio playback |
-| `@gwenjs/physics2d` | 2D physics (wraps the WASM physics module) |
-| `@gwenjs/physics3d` | 3D physics |
-| `@gwenjs/renderer-canvas2d` | Canvas 2D renderer |
-| `@gwenjs/ui` | HTML/CSS overlay UI |
-| `@gwenjs/debug` | Debug overlay |
-| `@gwenjs/sprite-anim` | Sprite animation |
-| `@gwenjs/r3f` | React Three Fiber integration |
+| Package                     | Role                                       |
+| --------------------------- | ------------------------------------------ |
+| `@gwenjs/input`             | Keyboard and gamepad input                 |
+| `@gwenjs/audio`             | Web Audio playback                         |
+| `@gwenjs/physics2d`         | 2D physics (wraps the WASM physics module) |
+| `@gwenjs/physics3d`         | 3D physics                                 |
+| `@gwenjs/renderer-canvas2d` | Canvas 2D renderer                         |
+| `@gwenjs/ui`                | HTML/CSS overlay UI                        |
+| `@gwenjs/debug`             | Debug overlay                              |
+| `@gwenjs/sprite-anim`       | Sprite animation                           |
+| `@gwenjs/r3f`               | React Three Fiber integration              |
 
 Modules register themselves with GWEN by declaring them in `gwen.config.ts`. They expose services, inject frame-phase hooks, and integrate seamlessly with the composable system pattern.
 
 ```typescript
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
-  modules: [
-    '@gwenjs/input',
-    ['@gwenjs/physics2d', { gravity: 9.81 }],
-  ],
-})
+  modules: ['@gwenjs/input', ['@gwenjs/physics2d', { gravity: 9.81 }]],
+});
 ```
 
 ## Zero-config Types
@@ -67,20 +64,20 @@ You never write `as Physics2DAPI`. The types flow from your config automatically
 Game logic lives in **systems**. Systems are defined with `defineSystem()` and use composables — `useQuery()`, `useService()`, `useInput()` — that are resolved once during a synchronous setup phase, then referenced in frame callbacks.
 
 ```typescript
-import { defineSystem } from '@gwenjs/core'
-import { useQuery, onUpdate } from '@gwenjs/core'
-import { Position, Velocity } from '../components'
+import { defineSystem } from '@gwenjs/core';
+import { useQuery, onUpdate } from '@gwenjs/core';
+import { Position, Velocity } from '../components';
 
 export const movementSystem = defineSystem(() => {
-  const entities = useQuery([Position, Velocity])
+  const entities = useQuery([Position, Velocity]);
 
   onUpdate((dt) => {
     for (const entity of entities) {
-      entity.get(Position).x += entity.get(Velocity).x * dt
-      entity.get(Position).y += entity.get(Velocity).y * dt
+      entity.get(Position).x += entity.get(Velocity).x * dt;
+      entity.get(Position).y += entity.get(Velocity).y * dt;
     }
-  })
-})
+  });
+});
 ```
 
 The 8-phase frame loop (`onBeforeUpdate` → `onUpdate` → `onAfterUpdate` → `onRender`, plus WASM step phases) is fully accessible via composable hooks.

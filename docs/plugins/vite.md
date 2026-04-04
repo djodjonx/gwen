@@ -23,16 +23,16 @@ The GWEN CLI runs Vite with `configFile: false` and builds the Vite configuratio
 If you need to extend the Vite configuration (advanced cases only), use the `vite:` key in `gwen.config.ts`:
 
 ```ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   modules: ['@gwenjs/input'],
   vite: {
     // extend Vite config here
-    define: { '__MY_FLAG__': 'true' },
+    define: { __MY_FLAG__: 'true' },
     build: { target: 'esnext' },
   },
-})
+});
 ```
 
 See [Extending Vite](/config/vite-extend) for the full guide.

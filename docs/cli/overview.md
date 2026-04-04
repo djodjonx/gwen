@@ -38,13 +38,13 @@ The `gwen` binary is a thin wrapper around Vite and the GWEN toolchain. It:
 
 ## Commands summary
 
-| Command | Description |
-|---|---|
-| `gwen add` | Install a module package and register it in `gwen.config.ts` |
-| `gwen dev` | Start the development server with WASM hot-reload |
-| `gwen build` | Production build via Vite + Rollup/Rolldown with WASM optimization |
-| `gwen preview` | Locally preview the production build |
-| `gwen prepare` | Generate `.gwen/types/` service type declarations |
+| Command        | Description                                                        |
+| -------------- | ------------------------------------------------------------------ |
+| `gwen add`     | Install a module package and register it in `gwen.config.ts`       |
+| `gwen dev`     | Start the development server with WASM hot-reload                  |
+| `gwen build`   | Production build via Vite + Rollup/Rolldown with WASM optimization |
+| `gwen preview` | Locally preview the production build                               |
+| `gwen prepare` | Generate `.gwen/types/` service type declarations                  |
 
 See [CLI Commands](./commands.md) for the full reference with options.
 

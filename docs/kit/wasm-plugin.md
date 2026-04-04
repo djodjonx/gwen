@@ -42,7 +42,7 @@ The TypeScript layer owns initialization: it allocates the `SharedArrayBuffer`, 
 Use `engine.loadWasmModule()` inside your plugin's `setup()`:
 
 ```ts
-import { definePlugin } from '@gwenjs/kit'
+import { definePlugin } from '@gwenjs/kit';
 
 export const simPlugin = definePlugin({
   name: 'sim',
@@ -56,29 +56,27 @@ export const simPlugin = definePlugin({
         { name: 'velocities', byteLength: 40_000 },
       ],
 
-      channels: [
-        { name: 'collisions', capacity: 256 },
-      ],
+      channels: [{ name: 'collisions', capacity: 256 }],
 
       step(handle, dt) {
         // called every frame by the engine
-        handle.region('positions').asFloat32Array()  // direct view — no copy
+        handle.region('positions').asFloat32Array(); // direct view — no copy
         // Rust has already written updated positions to this region
       },
-    })
+    });
 
-    engine.provide('sim', buildService(handle))
+    engine.provide('sim', buildService(handle));
   },
-})
+});
 ```
 
-| Option | Type | Description |
-|---|---|---|
-| `name` | `string` | Unique module identifier |
-| `url` | `URL` | Path to the `.wasm` binary |
-| `memory` | `MemoryRegionConfig[]` | Named byte regions in the shared buffer |
-| `channels` | `ChannelConfig[]` | Named ring-buffer channels for event streaming |
-| `step` | `(handle, dt) => void` | Per-frame callback; runs after Rust has stepped |
+| Option     | Type                   | Description                                     |
+| ---------- | ---------------------- | ----------------------------------------------- |
+| `name`     | `string`               | Unique module identifier                        |
+| `url`      | `URL`                  | Path to the `.wasm` binary                      |
+| `memory`   | `MemoryRegionConfig[]` | Named byte regions in the shared buffer         |
+| `channels` | `ChannelConfig[]`      | Named ring-buffer channels for event streaming  |
+| `step`     | `(handle, dt) => void` | Per-frame callback; runs after Rust has stepped |
 
 ---
 
@@ -90,10 +88,10 @@ Memory regions are named slices of the shared `SharedArrayBuffer`. Rust writes i
 
 ```ts
 memory: [
-  { name: 'positions', byteLength: 40_000 },   // 10,000 × Vec4 (4 × f32)
+  { name: 'positions', byteLength: 40_000 }, // 10,000 × Vec4 (4 × f32)
   { name: 'velocities', byteLength: 40_000 },
-  { name: 'flags', byteLength: 10_000 },        // u8 per entity
-]
+  { name: 'flags', byteLength: 10_000 }, // u8 per entity
+];
 ```
 
 ### Reading in `step`
@@ -122,7 +120,7 @@ Channels let Rust **push** discrete events — collisions, triggers, audio cues 
 channels: [
   { name: 'collisions', capacity: 256 },
   { name: 'audio-triggers', capacity: 64 },
-]
+];
 ```
 
 ### Reading in `step`
@@ -152,20 +150,20 @@ function buildService(handle: WasmModuleHandle) {
   return {
     setGravity(g: number) {
       // write a config value to a known region offset
-      handle.region('config').asFloat32Array()[0] = g
+      handle.region('config').asFloat32Array()[0] = g;
     },
     getEntityPosition(id: number): [number, number] {
-      const f32 = handle.region('positions').asFloat32Array()
-      return [f32[id * 4], f32[id * 4 + 1]]
+      const f32 = handle.region('positions').asFloat32Array();
+      return [f32[id * 4], f32[id * 4 + 1]];
     },
-  }
+  };
 }
 ```
 
 Provide it in `setup`:
 
 ```ts
-engine.provide('sim', buildService(handle))
+engine.provide('sim', buildService(handle));
 ```
 
 Type it via a module's `kit.addTypeTemplate()` so `useService('sim')` returns the correct type without casting. See [TypeScript Plugin → Wrapping with a Module](./typescript-plugin#wrapping-with-a-module).
@@ -227,11 +225,11 @@ my-plugin/
 
 ```ts
 // src/plugin.ts
-import { definePlugin } from '@gwenjs/kit'
+import { definePlugin } from '@gwenjs/kit';
 
 export interface SimService {
-  getPosition(id: number): [number, number]
-  setGravity(g: number): void
+  getPosition(id: number): [number, number];
+  setGravity(g: number): void;
 }
 
 export const simPlugin = definePlugin({
@@ -240,32 +238,28 @@ export const simPlugin = definePlugin({
     const handle = await engine.loadWasmModule({
       name: 'sim',
       url: new URL('../wasm/my_sim_bg.wasm', import.meta.url),
-      memory: [
-        { name: 'positions', byteLength: 40_000 },
-      ],
-      channels: [
-        { name: 'collisions', capacity: 256 },
-      ],
+      memory: [{ name: 'positions', byteLength: 40_000 }],
+      channels: [{ name: 'collisions', capacity: 256 }],
       step(handle, _dt) {
         for (const ev of handle.channel('collisions').read()) {
           // process collision events
         }
       },
-    })
+    });
 
     const service: SimService = {
       getPosition(id) {
-        const f32 = handle.region('positions').asFloat32Array()
-        return [f32[id * 4], f32[id * 4 + 1]]
+        const f32 = handle.region('positions').asFloat32Array();
+        return [f32[id * 4], f32[id * 4 + 1]];
       },
       setGravity(g) {
-        handle.region('positions').asFloat32Array()[0] = g
+        handle.region('positions').asFloat32Array()[0] = g;
       },
-    }
+    };
 
-    engine.provide('sim', service)
+    engine.provide('sim', service);
   },
-})
+});
 ```
 
 ---

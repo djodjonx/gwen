@@ -6,11 +6,11 @@ GWEN projects are configured through a single `gwen.config.ts` file at the proje
 
 ```ts
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   // ...
-})
+});
 ```
 
 The file must be at the project root and export a default config object. Both `gwen dev` and `gwen build` automatically locate it there. You can override the path with `--config`.
@@ -31,13 +31,13 @@ engine: {
 }
 ```
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `maxEntities` | `number` | `10_000` | ECS entity pool size allocated in WASM |
-| `targetFPS` | `number` | `60` | Target frame rate for the game loop |
-| `variant` | `'light' \| 'physics2d' \| 'physics3d'` | `'light'` | WASM core variant to load |
-| `loop` | `'internal' \| 'external'` | `'internal'` | Frame loop driver |
-| `maxDeltaSeconds` | `number` | `0.1` | Maximum clamped delta time per frame |
+| Option            | Type                                    | Default      | Description                            |
+| ----------------- | --------------------------------------- | ------------ | -------------------------------------- |
+| `maxEntities`     | `number`                                | `10_000`     | ECS entity pool size allocated in WASM |
+| `targetFPS`       | `number`                                | `60`         | Target frame rate for the game loop    |
+| `variant`         | `'light' \| 'physics2d' \| 'physics3d'` | `'light'`    | WASM core variant to load              |
+| `loop`            | `'internal' \| 'external'`              | `'internal'` | Frame loop driver                      |
+| `maxDeltaSeconds` | `number`                                | `0.1`        | Maximum clamped delta time per frame   |
 
 ## Modules
 
@@ -46,12 +46,12 @@ Modules are the primary way to add capabilities to GWEN. Each entry is either a 
 ```ts
 export default defineConfig({
   modules: [
-    '@gwenjs/input',                                               // string = no options
+    '@gwenjs/input', // string = no options
     '@gwenjs/audio',
-    ['@gwenjs/physics2d', { gravity: 9.81 }],                    // tuple = with options
+    ['@gwenjs/physics2d', { gravity: 9.81 }], // tuple = with options
     ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
   ],
-})
+});
 ```
 
 ::: tip
@@ -65,7 +65,7 @@ For cases where you need to directly register a `GwenPlugin` instance (without a
 ```ts
 export default defineConfig({
   plugins: [myCustomPlugin],
-})
+});
 ```
 
 This is an advanced escape hatch. For all official `@gwenjs/*` packages, use `modules: []` instead.
@@ -76,13 +76,13 @@ This is an advanced escape hatch. For all official `@gwenjs/*` packages, use `mo
 export default defineConfig({
   hooks: {
     'build:before': async (ctx) => {
-      console.log('Build starting…', ctx)
+      console.log('Build starting…', ctx);
     },
     'prepare:done': async (ctx) => {
-      console.log('Types generated at', ctx.outDir)
+      console.log('Types generated at', ctx.outDir);
     },
   },
-})
+});
 ```
 
 Hooks let you tap into the GWEN build lifecycle. They are async and receive a context object with build metadata.
@@ -92,7 +92,7 @@ See [Extending Vite](./vite-extend.md) for extending Vite build behavior via hoo
 ## Full example
 
 ```ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   engine: {
@@ -110,8 +110,8 @@ export default defineConfig({
 
   hooks: {
     'build:before': async (ctx) => {
-      console.log('Building GWEN project…')
+      console.log('Building GWEN project…');
     },
   },
-})
+});
 ```

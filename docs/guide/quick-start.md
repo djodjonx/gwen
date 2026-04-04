@@ -56,26 +56,26 @@ See [Project Structure](/guide/project-structure) for a full explanation of each
 Systems are the building blocks of game logic. Open `src/systems/movement.ts`:
 
 ```typescript
-import { defineSystem, onUpdate, useQuery } from '@gwenjs/core'
-import { Position, Velocity } from '../components'
+import { defineSystem, onUpdate, useQuery } from '@gwenjs/core';
+import { Position, Velocity } from '../components';
 
 export const movementSystem = defineSystem(() => {
   // Composables are resolved once at setup, not every frame
-  const entities = useQuery([Position, Velocity])
+  const entities = useQuery([Position, Velocity]);
 
   onUpdate((dt) => {
     for (const entity of entities) {
-      entity.get(Position).x += entity.get(Velocity).x * dt
-      entity.get(Position).y += entity.get(Velocity).y * dt
+      entity.get(Position).x += entity.get(Velocity).x * dt;
+      entity.get(Position).y += entity.get(Velocity).y * dt;
     }
-  })
-})
+  });
+});
 ```
 
 Then register it in your scene or `main.ts`:
 
 ```typescript
-engine.use(movementSystem)
+engine.use(movementSystem);
 ```
 
 ## Add a Module

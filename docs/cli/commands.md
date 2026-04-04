@@ -10,10 +10,10 @@ Installs a GWEN module package and automatically registers it in `gwen.config.ts
 gwen add <module-name> [--dev]
 ```
 
-| Option | Description |
-|---|---|
-| `--dev` | Install the package as a devDependency |
-| `--config <path>` | Path to a custom `gwen.config.ts` |
+| Option            | Description                            |
+| ----------------- | -------------------------------------- |
+| `--dev`           | Install the package as a devDependency |
+| `--config <path>` | Path to a custom `gwen.config.ts`      |
 
 ### Examples
 
@@ -35,11 +35,11 @@ Starts the Vite development server with WASM hot-reload enabled.
 gwen dev [options]
 ```
 
-| Option | Description |
-|---|---|
-| `--port <number>` | Port for the dev server (default: `3000`) |
+| Option            | Description                                      |
+| ----------------- | ------------------------------------------------ |
+| `--port <number>` | Port for the dev server (default: `3000`)        |
 | `--host [string]` | Expose to a network host (e.g. `--host 0.0.0.0`) |
-| `--config <path>` | Path to a custom `gwen.config.ts` |
+| `--config <path>` | Path to a custom `gwen.config.ts`                |
 
 When a `.wasm` file changes (e.g. after a Rust recompile), the affected WASM module is hot-reloaded without a full page refresh. See [Extending Vite](../config/vite-extend.md#wasm-hot-reload) for details.
 
@@ -57,11 +57,11 @@ Runs a production build via Vite + Rollup/Rolldown. WASM binaries are hashed, fi
 gwen build [options]
 ```
 
-| Option | Description |
-|---|---|
-| `--mode <string>` | Vite mode (default: `production`) |
+| Option            | Description                        |
+| ----------------- | ---------------------------------- |
+| `--mode <string>` | Vite mode (default: `production`)  |
 | `--outDir <path>` | Output directory (default: `dist`) |
-| `--config <path>` | Path to a custom `gwen.config.ts` |
+| `--config <path>` | Path to a custom `gwen.config.ts`  |
 
 The build runs `hooks['build:before']` and `hooks['build:done']` from your `gwen.config.ts` before and after the Vite build step.
 
@@ -79,10 +79,10 @@ Serves the production build locally so you can verify the output before deployin
 gwen preview [options]
 ```
 
-| Option | Description |
-|---|---|
+| Option            | Description                                   |
+| ----------------- | --------------------------------------------- |
 | `--port <number>` | Port for the preview server (default: `4173`) |
-| `--host [string]` | Expose to a network host |
+| `--host [string]` | Expose to a network host                      |
 
 The preview server sets the same `SharedArrayBuffer` headers as `gwen dev`, so WASM modules work correctly.
 
@@ -96,8 +96,8 @@ Generates `.gwen/types/` — a directory of TypeScript declaration files that au
 gwen prepare [options]
 ```
 
-| Option | Description |
-|---|---|
+| Option            | Description                       |
+| ----------------- | --------------------------------- |
 | `--config <path>` | Path to a custom `gwen.config.ts` |
 
 ### When to run it
@@ -121,8 +121,8 @@ After running, `.gwen/types/services.d.ts` will contain declarations like:
 ```ts
 declare module '@gwenjs/core' {
   interface GwenDefaultServices {
-    physics: import('@gwenjs/physics2d').Physics2DAPI
-    input: import('@gwenjs/input').InputAPI
+    physics: import('@gwenjs/physics2d').Physics2DAPI;
+    input: import('@gwenjs/input').InputAPI;
   }
 }
 ```
@@ -130,7 +130,7 @@ declare module '@gwenjs/core' {
 This enables zero-cast service access throughout your project:
 
 ```ts
-const physics = api.services.get('physics') // typed as Physics2DAPI — no cast needed
+const physics = api.services.get('physics'); // typed as Physics2DAPI — no cast needed
 ```
 
 ::: tip

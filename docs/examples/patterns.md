@@ -9,13 +9,13 @@ A quick-reference guide to the patterns you'll use most often in GWEN. Each entr
 `api.instantiate(prefab, overrides)` creates an entity from a template. Overrides are shallow-merged per component — only the fields you supply are changed.
 
 ```typescript
-import { PlayerPrefab } from '../prefabs'
-import { Position } from '../components'
+import { PlayerPrefab } from '../prefabs';
+import { Position } from '../components';
 
 // Spawn at a specific position; all other component values stay at their prefab defaults
 api.instantiate(PlayerPrefab, {
   [Position]: { x: 100, y: 200 },
-})
+});
 ```
 
 See [Prefabs](/core/prefabs) for the full override signature.
@@ -28,10 +28,10 @@ Use `api.query([...])` for a single snapshot — for example, to find all enemie
 
 ```typescript
 // One-shot — fine for onEnter, event handlers, etc.
-const enemies = api.query([Position, EnemyTag])
+const enemies = api.query([Position, EnemyTag]);
 
 // Live query — use inside defineSystem; reflects current ECS state at each iteration
-const movables = useQuery([Position, Velocity])
+const movables = useQuery([Position, Velocity]);
 ```
 
 ---
@@ -42,14 +42,14 @@ Tag components let you filter entities without touching data. Compose them in a 
 
 ```typescript
 // Only process entities that have both Velocity AND EnemyTag
-const enemies = useQuery([Velocity, EnemyTag])
+const enemies = useQuery([Velocity, EnemyTag]);
 
 onUpdate((dt) => {
   for (const e of enemies) {
     // guaranteed to be an enemy — no instanceof check needed
-    e.get(Velocity).y += 20 * dt   // accelerate downward
+    e.get(Velocity).y += 20 * dt; // accelerate downward
   }
-})
+});
 ```
 
 ---
@@ -59,14 +59,14 @@ onUpdate((dt) => {
 Call `api.loadScene(scene)` from anywhere a GWEN `api` handle is in scope — system callbacks, event handlers, or `onEnter`.
 
 ```typescript
-import { defineSystem, onEvent } from '@gwenjs/core'
-import { GameOverScene } from '../scenes/game-over'
+import { defineSystem, onEvent } from '@gwenjs/core';
+import { GameOverScene } from '../scenes/game-over';
 
 export const deathSystem = defineSystem((api) => {
   onEvent('player:died', () => {
-    api.loadScene(GameOverScene)
-  })
-})
+    api.loadScene(GameOverScene);
+  });
+});
 ```
 
 The current scene is torn down (systems unregistered, entities destroyed) before the new scene's `onEnter` runs. See [Scenes](/core/scenes).
@@ -78,15 +78,17 @@ The current scene is torn down (systems unregistered, entities destroyed) before
 Call `useService(name)` during the synchronous setup phase of `defineSystem`. After `gwen prepare` is run, the return type is inferred automatically from your config — no casting needed.
 
 ```typescript
-import { defineSystem } from '@gwenjs/core'
-import { usePhysics2D } from '@gwenjs/physics2d'
+import { defineSystem } from '@gwenjs/core';
+import { usePhysics2D } from '@gwenjs/physics2d';
 
 export const gravitySystem = defineSystem(() => {
   // Resolved once at setup — not called every frame
-  const physics = usePhysics2D()
+  const physics = usePhysics2D();
 
-  physics.onCollision((a, b) => { /* ... */ })
-})
+  physics.onCollision((a, b) => {
+    /* ... */
+  });
+});
 ```
 
 ::: tip usePhysics2D is a typed shorthand
@@ -100,22 +102,21 @@ export const gravitySystem = defineSystem(() => {
 Resolve `useInput()` once in setup; read `keyboard.isDown()` inside `onUpdate` every frame.
 
 ```typescript
-import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
-import { useInput } from '@gwenjs/input'
-import { Position, Velocity, PlayerTag } from '../components'
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core';
+import { useInput } from '@gwenjs/input';
+import { Position, Velocity, PlayerTag } from '../components';
 
 export const playerMoveSystem = defineSystem(() => {
-  const { keyboard } = useInput()
-  const players = useQuery([Position, Velocity, PlayerTag])
+  const { keyboard } = useInput();
+  const players = useQuery([Position, Velocity, PlayerTag]);
 
   onUpdate((dt) => {
     for (const e of players) {
-      const vel = e.get(Velocity)
-      vel.x  = (keyboard.isDown('ArrowRight') ? 300 : 0)
-              - (keyboard.isDown('ArrowLeft')  ? 300 : 0)
+      const vel = e.get(Velocity);
+      vel.x = (keyboard.isDown('ArrowRight') ? 300 : 0) - (keyboard.isDown('ArrowLeft') ? 300 : 0);
     }
-  })
-})
+  });
+});
 ```
 
 See [Input Plugin](/plugins/input) for the full key and gamepad API.
@@ -128,11 +129,11 @@ Define a zero-schema component as a marker. GWEN's ECS resolves tag queries in W
 
 ```typescript
 // Define once
-export const EnemyTag  = defineComponent({ name: 'EnemyTag',  schema: {} })
-export const PlayerTag = defineComponent({ name: 'PlayerTag', schema: {} })
+export const EnemyTag = defineComponent({ name: 'EnemyTag', schema: {} });
+export const PlayerTag = defineComponent({ name: 'PlayerTag', schema: {} });
 
 // Query only enemies — no runtime type checking
-const enemies = useQuery([Position, EnemyTag])
+const enemies = useQuery([Position, EnemyTag]);
 ```
 
 Tag components are also useful for enabling/disabling behaviour at runtime: add or remove a tag to change which queries an entity matches.
@@ -144,20 +145,20 @@ Tag components are also useful for enabling/disabling behaviour at runtime: add 
 A plugin can register sub-plugins inside its own `setup()`. This is the standard way to bundle related capabilities.
 
 ```typescript
-import { definePlugin } from '@gwenjs/core'
-import { InputPlugin } from '@gwenjs/input'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
+import { definePlugin } from '@gwenjs/core';
+import { InputPlugin } from '@gwenjs/input';
+import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d';
 
 export const gamePlugin = definePlugin({
   name: 'GamePlugin',
   setup(engine) {
     // Register dependencies — order is preserved
-    engine.use(new InputPlugin())
-    engine.use(new Canvas2DRenderer({ width: 800, height: 600 }))
+    engine.use(new InputPlugin());
+    engine.use(new Canvas2DRenderer({ width: 800, height: 600 }));
 
     // Then register this plugin's own systems...
   },
-})
+});
 ```
 
 See [Plugin System](/plugins/index) for lifecycle hooks and dependency ordering.
@@ -170,7 +171,7 @@ Only register `@gwenjs/debug` in development builds. Vite strips the dead branch
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   modules: [
@@ -179,7 +180,7 @@ export default defineConfig({
     // Zero cost in production — tree-shaken away
     ...(import.meta.env.DEV ? ['@gwenjs/debug'] : []),
   ],
-})
+});
 ```
 
 ::: info

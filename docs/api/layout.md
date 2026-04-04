@@ -31,22 +31,22 @@ The factory is **not** called until `load()` is explicitly invoked. This enables
 **Example:**
 
 ```typescript
-import { defineLayout, placeActor } from '@gwenjs/core'
-import { PlayerActor } from './actors/player'
-import { TileActor } from './actors/tile'
+import { defineLayout, placeActor } from '@gwenjs/core';
+import { PlayerActor } from './actors/player';
+import { TileActor } from './actors/tile';
 
 export const Level1 = defineLayout(() => {
-  const player = placeActor(PlayerActor, { at: [100, 200] })
-  
-  const tiles = []
+  const player = placeActor(PlayerActor, { at: [100, 200] });
+
+  const tiles = [];
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 10; x++) {
-      tiles.push(placeActor(TileActor, { at: [x * 32, y * 32] }))
+      tiles.push(placeActor(TileActor, { at: [x * 32, y * 32] }));
     }
   }
-  
-  return { player, tiles }
-})
+
+  return { player, tiles };
+});
 ```
 
 ---
@@ -88,24 +88,24 @@ Must be called inside an active engine context (e.g., `engine.run()`, a `defineS
 **Example:**
 
 ```typescript
-import { defineSystem, useLayout } from '@gwenjs/core'
-import { Level1 } from './layouts/level1'
+import { defineSystem, useLayout } from '@gwenjs/core';
+import { Level1 } from './layouts/level1';
 
 export const levelSystem = defineSystem(() => {
   // Lazy-load the layout
-  const level = useLayout(Level1, { lazy: true })
-  
+  const level = useLayout(Level1, { lazy: true });
+
   onEnter(async () => {
-    await level.load()
-    console.log('Player entity ID:', level.refs.player.entityId)
-    level.refs.player.api.startGame()
-  })
-  
+    await level.load();
+    console.log('Player entity ID:', level.refs.player.entityId);
+    level.refs.player.api.startGame();
+  });
+
   onEvent('reset', async () => {
-    await level.dispose()
-    await level.load()
-  })
-})
+    await level.dispose();
+    await level.load();
+  });
+});
 ```
 
 ---
@@ -146,21 +146,23 @@ For runtime spawning, use `useActor().spawn()` instead.
 
 ```typescript
 const PlayerActor = defineActor(PlayerPrefab, () => {
-  const t = useTransform()
-  
+  const t = useTransform();
+
   return {
-    takeDamage: (amount: number) => { /* ... */ }
-  }
-})
+    takeDamage: (amount: number) => {
+      /* ... */
+    },
+  };
+});
 
 const Level = defineLayout(() => {
   const player = placeActor(PlayerActor, {
     at: [100, 200],
-    props: { hp: 100, level: 1 }
-  })
-  
-  return { player }
-})
+    props: { hp: 100, level: 1 },
+  });
+
+  return { player };
+});
 ```
 
 ---
@@ -198,7 +200,7 @@ const Level = defineLayout(() => {
     const player = placeActor(PlayerActor, { parent: ??? })
     const enemies = placeActor(EnemyActor, { parent: ??? })
   })
-  
+
   return { worldGroup }
 })
 ```
@@ -237,25 +239,25 @@ Prefabs are simpler than actors — they have no system lifecycle, only componen
 const TilePrefab = definePrefab({
   components: [Transform, Sprite],
   props: (props: { variant: string }) => ({
-    sprite: { sheet: 'tiles', frame: props.variant }
-  })
-})
+    sprite: { sheet: 'tiles', frame: props.variant },
+  }),
+});
 
 const Level = defineLayout(() => {
-  const tiles = []
+  const tiles = [];
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 10; x++) {
       tiles.push(
         placePrefab(TilePrefab, {
           at: [x * 32, y * 32],
-          props: { variant: 'grass' }
-        })
-      )
+          props: { variant: 'grass' },
+        }),
+      );
     }
   }
-  
-  return { tiles }
-})
+
+  return { tiles };
+});
 ```
 
 ---
@@ -265,11 +267,11 @@ const Level = defineLayout(() => {
 Both `placeActor()` and `placePrefab()` accept a `parent:` option to establish parent-child relationships.
 
 ```typescript
-const parent = placeActor(ParentActor, { at: [400, 300] })
-const child = placeActor(ChildActor, { 
-  at: [10, 20],           // Position relative to parent
-  parent: parent          // Parent reference
-})
+const parent = placeActor(ParentActor, { at: [400, 300] });
+const child = placeActor(ChildActor, {
+  at: [10, 20], // Position relative to parent
+  parent: parent, // Parent reference
+});
 ```
 
 When the parent's transform changes, children follow automatically. The parent's local transform and children's local transforms combine to produce world transforms.
@@ -330,28 +332,28 @@ For zero-copy SAB reads, use the SharedArrayBuffer transform regions directly
 **Example:**
 
 ```typescript
-import { defineActor, useTransform, onUpdate } from '@gwenjs/core'
+import { defineActor, useTransform, onUpdate } from '@gwenjs/core';
 
 const PlayerActor = defineActor(PlayerPrefab, () => {
-  const t = useTransform()
-  const input = useInput()
-  
+  const t = useTransform();
+  const input = useInput();
+
   onUpdate((dt) => {
     // Movement
-    const moveX = input.axis('horizontal')
-    const moveY = input.axis('vertical')
-    t.translate(moveX * 100 * dt, moveY * 100 * dt)
-    
+    const moveX = input.axis('horizontal');
+    const moveY = input.axis('vertical');
+    t.translate(moveX * 100 * dt, moveY * 100 * dt);
+
     // Rotation towards cursor
-    const worldPos = t.world
-    const dx = input.mouseX() - worldPos.x
-    const dy = input.mouseY() - worldPos.y
-    const angle = Math.atan2(dy, dx)
-    t.rotateTo(angle)
-  })
-  
-  return {}
-})
+    const worldPos = t.world;
+    const dx = input.mouseX() - worldPos.x;
+    const dy = input.mouseY() - worldPos.y;
+    const angle = Math.atan2(dy, dx);
+    t.rotateTo(angle);
+  });
+
+  return {};
+});
 ```
 
 ---
@@ -364,15 +366,15 @@ Layouts implicitly use bulk spawning via the WASM bridge. Loading 200 tiles is *
 
 ```typescript
 const Level = defineLayout(() => {
-  const tiles = []
+  const tiles = [];
   for (let y = 0; y < 20; y++) {
     for (let x = 0; x < 20; x++) {
       // Bulk-spawned under the hood
-      tiles.push(placeActor(TileActor, { at: [x * 32, y * 32] }))
+      tiles.push(placeActor(TileActor, { at: [x * 32, y * 32] }));
     }
   }
-  return { tiles }
-})
+  return { tiles };
+});
 ```
 
 ### Bulk Disposal
@@ -380,8 +382,8 @@ const Level = defineLayout(() => {
 `dispose()` uses `bulk_destroy()` to destroy all entities at once. Disposing 200 entities is **~0.02ms** vs **~0.4ms** with one-by-one deletion.
 
 ```typescript
-const zone = useLayout(Level)
-await zone.dispose()  // All 200 entities destroyed in 0.02ms
+const zone = useLayout(Level);
+await zone.dispose(); // All 200 entities destroyed in 0.02ms
 ```
 
 ### World Reads are Lightweight
@@ -390,11 +392,11 @@ Access `.world` properties in hot paths — they use lightweight WASM calls:
 
 ```typescript
 onRender(() => {
-  const x = t.world.x      // Optimized: lightweight WASM call
-  const y = t.world.y
-  const rot = t.world.rotation
+  const x = t.world.x; // Optimized: lightweight WASM call
+  const y = t.world.y;
+  const rot = t.world.rotation;
   // Use for minimap, debug overlay, etc.
-})
+});
 ```
 
 ### Dirty Flag Optimization
@@ -409,36 +411,36 @@ Child transforms are only recomputed when the parent is dirty (has changed). An 
 
 ```typescript
 const zoneManager = defineSystem(() => {
-  const town = useLayout(TownLayout, { lazy: true })
-  const dungeon = useLayout(DungeonLayout, { lazy: true })
-  
+  const town = useLayout(TownLayout, { lazy: true });
+  const dungeon = useLayout(DungeonLayout, { lazy: true });
+
   onEvent('enter-dungeon', async () => {
-    await town.dispose()
-    await dungeon.load()
-  })
-  
+    await town.dispose();
+    await dungeon.load();
+  });
+
   onEvent('exit-dungeon', async () => {
-    await dungeon.dispose()
-    await town.load()
-  })
-})
+    await dungeon.dispose();
+    await town.load();
+  });
+});
 ```
 
 ### Kart with Wheels
 
 ```typescript
 const KartWithWheels = defineLayout(() => {
-  const body = placeActor(KartActor, { at: [400, 300] })
-  
+  const body = placeActor(KartActor, { at: [400, 300] });
+
   const wheels = {
     fl: placeActor(WheelActor, { at: [-20, -20], parent: body }),
     fr: placeActor(WheelActor, { at: [20, -20], parent: body }),
     bl: placeActor(WheelActor, { at: [-20, 20], parent: body }),
     br: placeActor(WheelActor, { at: [20, 20], parent: body }),
-  }
-  
-  return { body, wheels }
-})
+  };
+
+  return { body, wheels };
+});
 
 // Wheels spin independently but move/rotate with the body
 ```
@@ -447,16 +449,16 @@ const KartWithWheels = defineLayout(() => {
 
 ```typescript
 const gameWithUI = defineSystem(() => {
-  const world = useLayout(GameLevel)
-  const ui = useLayout(HUDLayout)
-  
+  const world = useLayout(GameLevel);
+  const ui = useLayout(HUDLayout);
+
   onEvent('pause', async () => {
     // Dispose only the game world, keep UI
-    await world.dispose()
-  })
-  
+    await world.dispose();
+  });
+
   onEvent('unpause', async () => {
-    await world.load()
-  })
-})
+    await world.load();
+  });
+});
 ```

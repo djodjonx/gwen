@@ -5,13 +5,13 @@ GWEN manages Vite internally — there is no `vite.config.ts` in a GWEN project.
 ## The `vite:` key
 
 ```ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   modules: ['@gwenjs/input'],
   vite: {
     // extend Vite config here (for advanced cases)
-    define: { '__MY_FLAG__': 'true' },
+    define: { __MY_FLAG__: 'true' },
     build: {
       target: 'esnext',
       outDir: 'dist',
@@ -20,7 +20,7 @@ export default defineConfig({
       port: 3000,
     },
   },
-})
+});
 ```
 
 The `vite:` object is deep-merged with the configuration the CLI generates. You can override most Vite options here, but GWEN-managed settings (WASM loading, COOP/COEP headers, HMR) are always applied regardless.
@@ -35,15 +35,15 @@ Modules can register additional Vite plugins via `kit.addVitePlugin()` inside th
 
 ```ts
 // packages/my-module/src/module.ts
-import { defineGwenModule } from '@gwenjs/kit'
-import react from '@vitejs/plugin-react'
+import { defineGwenModule } from '@gwenjs/kit';
+import react from '@vitejs/plugin-react';
 
 export default defineGwenModule({
   meta: { name: 'my-module' },
   setup(_options, kit) {
-    kit.addVitePlugin(react())
+    kit.addVitePlugin(react());
   },
-})
+});
 ```
 
 ## WASM hot-reload
@@ -64,14 +64,14 @@ export default defineConfig({
   hooks: {
     'build:before': async (ctx) => {
       // Runs before Vite starts the production build
-      await generateAssetManifest()
+      await generateAssetManifest();
     },
     'build:done': async (ctx) => {
       // Runs after Vite finishes — ctx.outDir has the output path
-      await uploadToCdn(ctx.outDir)
+      await uploadToCdn(ctx.outDir);
     },
   },
-})
+});
 ```
 
 See the [Configuration overview](./overview.md#hooks) for the full list of available hook keys.

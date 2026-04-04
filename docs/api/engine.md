@@ -22,25 +22,22 @@ engine.start(): Promise<void>
 engine.stop(): void
 ```
 
-| Method | Description |
-|---|---|
-| `engine.use(plugin)` | Register a plugin. Returns `engine` for chaining. Must be called before `engine.start()`. |
-| `engine.start()` | Initialise all plugins and begin the game loop. Returns a `Promise` that resolves once the loop is running. |
-| `engine.stop()` | Halt the game loop and tear down plugins. |
+| Method               | Description                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `engine.use(plugin)` | Register a plugin. Returns `engine` for chaining. Must be called before `engine.start()`.                   |
+| `engine.start()`     | Initialise all plugins and begin the game loop. Returns a `Promise` that resolves once the loop is running. |
+| `engine.stop()`      | Halt the game loop and tear down plugins.                                                                   |
 
 **Example:**
 
 ```ts
-const engine = createEngine()
+const engine = createEngine();
 
 // Advanced: directly register plugins
 // (most projects use modules in gwen.config.ts instead)
-engine
-  .use(inputPlugin)
-  .use(canvas2DRenderer)
-  .use(movementSystem)
+engine.use(inputPlugin).use(canvas2DRenderer).use(movementSystem);
 
-await engine.start()
+await engine.start();
 ```
 
 ::: tip Module-first pattern
@@ -59,11 +56,11 @@ engine.loadWasmModule(options: WasmModuleOptions): Promise<WasmModuleHandle>
 
 ```ts
 interface WasmModuleOptions {
-  name: string               // unique identifier, used with useWasmModule()
-  url: string                // URL to the .wasm binary
-  memory?: WebAssembly.Memory
-  channels?: ChannelDef[]    // ring-buffer channels
-  step?: (handle: WasmModuleHandle, dt: number) => void  // per-frame callback
+  name: string; // unique identifier, used with useWasmModule()
+  url: string; // URL to the .wasm binary
+  memory?: WebAssembly.Memory;
+  channels?: ChannelDef[]; // ring-buffer channels
+  step?: (handle: WasmModuleHandle, dt: number) => void; // per-frame callback
 }
 ```
 
@@ -82,9 +79,9 @@ const handle = await engine.loadWasmModule({
   url: '/wasm/my-physics.wasm',
   channels: [{ name: 'collisions', size: 256 }],
   step(handle, dt) {
-    handle.channel('collisions').flush()
+    handle.channel('collisions').flush();
   },
-})
+});
 ```
 
 ::: tip Zero-copy access
@@ -106,20 +103,20 @@ engine.inject(name: string): unknown
 engine.getService(name: string): unknown  // alias for inject
 ```
 
-| Method | Description |
-|---|---|
+| Method                        | Description                                                        |
+| ----------------------------- | ------------------------------------------------------------------ |
 | `engine.provide(name, value)` | Register a service by name. Call this inside a plugin's `setup()`. |
-| `engine.inject(name)` | Retrieve a registered service. Throws if not found. |
-| `engine.getService(name)` | Alias for `inject`. |
+| `engine.inject(name)`         | Retrieve a registered service. Throws if not found.                |
+| `engine.getService(name)`     | Alias for `inject`.                                                |
 
 **Example:**
 
 ```ts
 // In plugin setup:
-engine.provide('audio', new AudioService())
+engine.provide('audio', new AudioService());
 
 // In another plugin or system (without type generation):
-const audio = engine.getService('audio') as AudioService
+const audio = engine.getService('audio') as AudioService;
 ```
 
 ::: tip Typed services
@@ -128,7 +125,7 @@ After running `gwen prepare`, use the [`useService()`](./composables#useservice)
 
 ---
 
-## ECS Methods (api.*)
+## ECS Methods (api.\*)
 
 The `api` object exposes ECS operations. It is available as a parameter in system callbacks, scene `onEnter` / `onExit`, and plugin `setup()`.
 
@@ -144,17 +141,17 @@ api.instantiate(prefab: PrefabDef, overrides?: Partial<PrefabData>): EntityId
 api.loadScene(sceneDef: SceneDef): void
 ```
 
-| Method | Description |
-|---|---|
-| `createEntity()` | Allocate a new entity. Returns its `EntityId`. |
-| `destroyEntity(id)` | Destroy an entity and remove all its components. |
-| `addComponent(id, def, data)` | Attach a component with initial data. |
-| `getComponent(id, def)` | Read a component. Returns `undefined` if not present. |
-| `removeComponent(id, def)` | Detach a component from an entity. |
-| `hasComponent(id, def)` | Check if an entity has a component. |
-| `query(defs)` | One-shot query — returns a snapshot array of matching `EntityId`s. |
+| Method                            | Description                                                               |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `createEntity()`                  | Allocate a new entity. Returns its `EntityId`.                            |
+| `destroyEntity(id)`               | Destroy an entity and remove all its components.                          |
+| `addComponent(id, def, data)`     | Attach a component with initial data.                                     |
+| `getComponent(id, def)`           | Read a component. Returns `undefined` if not present.                     |
+| `removeComponent(id, def)`        | Detach a component from an entity.                                        |
+| `hasComponent(id, def)`           | Check if an entity has a component.                                       |
+| `query(defs)`                     | One-shot query — returns a snapshot array of matching `EntityId`s.        |
 | `instantiate(prefab, overrides?)` | Spawn an entity from a [`definePrefab`](./helpers#defineprefab) template. |
-| `loadScene(sceneDef)` | Transition to a new scene (tears down current, enters new). |
+| `loadScene(sceneDef)`             | Transition to a new scene (tears down current, enters new).               |
 
 **Example:**
 
@@ -165,15 +162,15 @@ const gameScene = defineScene({
   onEnter(api) {
     const id = api.instantiate(playerPrefab, {
       Position: { x: 100, y: 200 },
-    })
-    api.addComponent(id, CameraTarget, {})
+    });
+    api.addComponent(id, CameraTarget, {});
   },
   onExit(api) {
     for (const e of api.query([PlayerTag])) {
-      api.destroyEntity(e)
+      api.destroyEntity(e);
     }
   },
-})
+});
 ```
 
 ::: tip Live queries in systems

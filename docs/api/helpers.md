@@ -1,4 +1,4 @@
-# Helpers (define*)
+# Helpers (define\*)
 
 `define*` helpers are pure factory functions — they do not execute side effects on their own. Pass the result to `engine.use()`, `defineConfig`, or a scene to activate it.
 
@@ -25,16 +25,16 @@ Available types: `Types.f32`, `Types.i32`, `Types.bool`, `Types.vec2`, `Types.st
 **Example:**
 
 ```ts
-import { defineComponent, Types } from '@gwenjs/core'
+import { defineComponent, Types } from '@gwenjs/core';
 
 export const Position = defineComponent({
   name: 'Position',
   schema: { x: Types.f32, y: Types.f32 },
-})
+});
 
 export const Health = defineComponent('Health', () => ({
   schema: { current: Types.i32, max: Types.i32 },
-}))
+}));
 ```
 
 ---
@@ -52,19 +52,19 @@ defineSystem(setup: () => void): GwenPlugin
 **Example:**
 
 ```ts
-import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
-import { Position, Velocity } from './components'
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core';
+import { Position, Velocity } from './components';
 
 export const movementSystem = defineSystem(() => {
-  const entities = useQuery([Position, Velocity])
+  const entities = useQuery([Position, Velocity]);
 
   onUpdate((dt) => {
     for (const e of entities) {
-      Position.x[e] += Velocity.x[e] * dt
-      Position.y[e] += Velocity.y[e] * dt
+      Position.x[e] += Velocity.x[e] * dt;
+      Position.y[e] += Velocity.y[e] * dt;
     }
-  })
-})
+  });
+});
 ```
 
 ::: tip
@@ -95,17 +95,17 @@ defineScene(name: string, factory: () => SceneConfig): SceneDef
 **Example:**
 
 ```ts
-import { defineScene } from '@gwenjs/core'
-import { movementSystem, renderSystem } from './systems'
-import { spawnPlayer } from './prefabs'
+import { defineScene } from '@gwenjs/core';
+import { movementSystem, renderSystem } from './systems';
+import { spawnPlayer } from './prefabs';
 
 export const gameScene = defineScene({
   name: 'game',
   systems: [movementSystem, renderSystem],
   onEnter(api) {
-    api.instantiate(spawnPlayer)
+    api.instantiate(spawnPlayer);
   },
-})
+});
 ```
 
 ---
@@ -126,8 +126,8 @@ definePrefab(config: {
 **Example:**
 
 ```ts
-import { definePrefab } from '@gwenjs/core'
-import { Position, Health, PlayerTag } from './components'
+import { definePrefab } from '@gwenjs/core';
+import { Position, Health, PlayerTag } from './components';
 
 export const playerPrefab = definePrefab({
   name: 'Player',
@@ -136,7 +136,7 @@ export const playerPrefab = definePrefab({
     { def: Health, data: { current: 100, max: 100 } },
     { def: PlayerTag, data: {} },
   ],
-})
+});
 ```
 
 ::: tip
@@ -162,17 +162,17 @@ definePlugin(config: {
 **Example:**
 
 ```ts
-import { definePlugin } from '@gwenjs/kit'
+import { definePlugin } from '@gwenjs/kit';
 
 export const analyticsPlugin = definePlugin({
   name: 'analytics',
   setup(engine) {
-    engine.provide('analytics', new AnalyticsService())
+    engine.provide('analytics', new AnalyticsService());
   },
   teardown() {
     // flush any pending events
   },
-})
+});
 ```
 
 ---
@@ -193,14 +193,14 @@ defineGwenModule(config: {
 **Example:**
 
 ```ts
-import { defineGwenModule } from '@gwenjs/kit'
+import { defineGwenModule } from '@gwenjs/kit';
 
 export const myModule = defineGwenModule({
   meta: { name: 'my-module' },
   setup(options, kit) {
-    kit.addVitePlugin(myVitePlugin(options))
+    kit.addVitePlugin(myVitePlugin(options));
   },
-})
+});
 ```
 
 ---
@@ -228,7 +228,7 @@ defineConfig(config: GwenUserConfig): GwenConfig
 
 ```ts
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60 },
@@ -237,7 +237,7 @@ export default defineConfig({
     ['@gwenjs/physics2d', { gravity: 9.81 }],
     ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
   ],
-})
+});
 ```
 
 ::: info
@@ -259,21 +259,21 @@ defineActor<Props = void, PublicAPI = void>(): (factory: () => PublicAPI | void)
 **Example:**
 
 ```ts
-import { defineActor, onStart, onDestroy, onEvent } from '@gwenjs/core/scene'
-import { Position, Health } from './components'
+import { defineActor, onStart, onDestroy, onEvent } from '@gwenjs/core/scene';
+import { Position, Health } from './components';
 
 export const EnemyActor = defineActor<{ x: number; y: number }>()(() => {
-  const entityId = _getActorEntityId()
+  const entityId = _getActorEntityId();
 
   onStart((api, { x, y }) => {
-    api.addComponent(entityId, Position, { x, y })
-    api.addComponent(entityId, Health, { current: 100, max: 100 })
-  })
+    api.addComponent(entityId, Position, { x, y });
+    api.addComponent(entityId, Health, { current: 100, max: 100 });
+  });
 
   onDestroy(() => {
-    emit('enemy:died', entityId)
-  })
-})
+    emit('enemy:died', entityId);
+  });
+});
 ```
 
 ::: tip
@@ -295,14 +295,14 @@ defineEvents<T extends EventHandlerMap>(map: T): T
 **Example:**
 
 ```ts
-import { defineEvents } from '@gwenjs/core'
-import type { InferEvents } from '@gwenjs/core'
+import { defineEvents } from '@gwenjs/core';
+import type { InferEvents } from '@gwenjs/core';
 
 export const GameEvents = defineEvents({
-  'enemy:died':     (_id: bigint): void => undefined,
-  'player:damage':  (_amount: number): void => undefined,
+  'enemy:died': (_id: bigint): void => undefined,
+  'player:damage': (_amount: number): void => undefined,
   'level:complete': (): void => undefined,
-})
+});
 
 declare module '@gwenjs/core' {
   interface GwenRuntimeHooks extends InferEvents<typeof GameEvents> {}

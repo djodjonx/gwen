@@ -1,20 +1,22 @@
-# Composables (use*)
+# Composables (use\*)
 
 Composables provide reactive access to engine state from inside systems. They must be called **synchronously** during the `defineSystem()` setup function — not inside callbacks.
 
 ```ts
 // ✅ Correct — called during setup
 const system = defineSystem(() => {
-  const query = useQuery([Position])  // resolved once at setup
-  onUpdate((dt) => { /* use query here */ })
-})
+  const query = useQuery([Position]); // resolved once at setup
+  onUpdate((dt) => {
+    /* use query here */
+  });
+});
 
 // ❌ Wrong — called inside a callback
 const system = defineSystem(() => {
   onUpdate((dt) => {
-    const query = useQuery([Position])  // throws GwenContextError
-  })
-})
+    const query = useQuery([Position]); // throws GwenContextError
+  });
+});
 ```
 
 ::: warning GwenContextError
@@ -39,11 +41,11 @@ Most developers use higher-level composables (`useQuery`, `useService`) instead.
 
 ```ts
 const system = defineSystem(() => {
-  const engine = useEngine()
+  const engine = useEngine();
   onUpdate(() => {
-    if (shouldStop) engine.stop()
-  })
-})
+    if (shouldStop) engine.stop();
+  });
+});
 ```
 
 ---
@@ -63,19 +65,19 @@ Iterate with `for...of`. Indices are stable `EntityId` values.
 **Example:**
 
 ```ts
-import { defineSystem, useQuery, onUpdate } from '@gwenjs/core'
-import { Position, Velocity } from './components'
+import { defineSystem, useQuery, onUpdate } from '@gwenjs/core';
+import { Position, Velocity } from './components';
 
 export const movementSystem = defineSystem(() => {
-  const movers = useQuery([Position, Velocity])
+  const movers = useQuery([Position, Velocity]);
 
   onUpdate((dt) => {
     for (const e of movers) {
-      Position.x[e] += Velocity.x[e] * dt
-      Position.y[e] += Velocity.y[e] * dt
+      Position.x[e] += Velocity.x[e] * dt;
+      Position.y[e] += Velocity.y[e] * dt;
     }
-  })
-})
+  });
+});
 ```
 
 ::: tip
@@ -97,15 +99,15 @@ useService<K extends keyof GwenDefaultServices>(name: K): GwenDefaultServices[K]
 **Example:**
 
 ```ts
-import { defineSystem, useService, onUpdate } from '@gwenjs/core'
+import { defineSystem, useService, onUpdate } from '@gwenjs/core';
 
 export const jumpSystem = defineSystem(() => {
-  const physics = useService('physics')  // typed as Physics2DAPI after gwen prepare
+  const physics = useService('physics'); // typed as Physics2DAPI after gwen prepare
 
   onUpdate(() => {
-    physics.applyImpulse(playerId, { x: 0, y: -500 })
-  })
-})
+    physics.applyImpulse(playerId, { x: 0, y: -500 });
+  });
+});
 ```
 
 ::: info Type generation
@@ -130,13 +132,13 @@ Use `handle.region(name)` and `handle.channel(name)` to access shared memory and
 
 ```ts
 const system = defineSystem(() => {
-  const wasmHandle = useWasmModule('my-physics')
+  const wasmHandle = useWasmModule('my-physics');
 
   onUpdate(() => {
-    const transforms = wasmHandle.region('transforms')
+    const transforms = wasmHandle.region('transforms');
     // read/write zero-copy via TypedArray view
-  })
-})
+  });
+});
 ```
 
 ---
@@ -158,9 +160,9 @@ onUpdate(fn: (dt: number) => void): void
 ```ts
 onUpdate((dt) => {
   for (const e of enemies) {
-    Position.x[e] += Speed.value[e] * dt
+    Position.x[e] += Speed.value[e] * dt;
   }
-})
+});
 ```
 
 ---
@@ -204,9 +206,9 @@ onRender(fn: () => void): void
 ```ts
 onRender(() => {
   for (const e of renderables) {
-    ctx.drawImage(Sprite.image[e], Position.x[e], Position.y[e])
+    ctx.drawImage(Sprite.image[e], Position.x[e], Position.y[e]);
   }
-})
+});
 ```
 
 ---
@@ -236,30 +238,30 @@ useActor<Props, PublicAPI>(actorDef: ActorPlugin<Props, PublicAPI>): ActorHandle
 **Example:**
 
 ```ts
-import { defineSystem, onUpdate } from '@gwenjs/core'
-import { useActor } from '@gwenjs/core/scene'
-import { EnemyActor } from './actors/enemy'
+import { defineSystem, onUpdate } from '@gwenjs/core';
+import { useActor } from '@gwenjs/core/scene';
+import { EnemyActor } from './actors/enemy';
 
 export const SpawnerSystem = defineSystem(() => {
-  const enemy = useActor(EnemyActor)
+  const enemy = useActor(EnemyActor);
 
   onUpdate(() => {
     if (shouldSpawn()) {
-      enemy.spawn({ x: Math.random() * 800, y: -20 })
+      enemy.spawn({ x: Math.random() * 800, y: -20 });
     }
-  })
-})
+  });
+});
 ```
 
-| Method | Description |
-|---|---|
-| `spawn(props?)` | Create entity + run actor factory |
-| `despawn(id)` | Destroy entity + run `onDestroy` |
-| `spawnOnce(props?)` | Spawn only if count is 0 |
-| `despawnAll()` | Destroy all living instances |
-| `get(id)` | Public API of one instance |
-| `getAll()` | Array of all public APIs (allocates — avoid in hot loops) |
-| `count()` | Number of living instances |
+| Method              | Description                                               |
+| ------------------- | --------------------------------------------------------- |
+| `spawn(props?)`     | Create entity + run actor factory                         |
+| `despawn(id)`       | Destroy entity + run `onDestroy`                          |
+| `spawnOnce(props?)` | Spawn only if count is 0                                  |
+| `despawnAll()`      | Destroy all living instances                              |
+| `get(id)`           | Public API of one instance                                |
+| `getAll()`          | Array of all public APIs (allocates — avoid in hot loops) |
+| `count()`           | Number of living instances                                |
 
 ---
 
@@ -276,17 +278,17 @@ usePrefab(prefabDef: PrefabDefinition): PrefabHandle
 **Example:**
 
 ```ts
-import { defineSystem, onUpdate } from '@gwenjs/core'
-import { usePrefab } from '@gwenjs/core/scene'
-import { BulletPrefab } from './prefabs'
+import { defineSystem, onUpdate } from '@gwenjs/core';
+import { usePrefab } from '@gwenjs/core/scene';
+import { BulletPrefab } from './prefabs';
 
 export const WeaponSystem = defineSystem(() => {
-  const bullet = usePrefab(BulletPrefab)
+  const bullet = usePrefab(BulletPrefab);
 
   onUpdate(() => {
-    if (firing) bullet.spawn({ [Position]: { x: px, y: py } })
-  })
-})
+    if (firing) bullet.spawn({ [Position]: { x: px, y: py } });
+  });
+});
 ```
 
 ---
@@ -304,19 +306,19 @@ useComponent<T>(def: ComponentDef<T>): T
 **Example:**
 
 ```ts
-import { defineActor, onUpdate } from '@gwenjs/core/scene'
-import { useComponent } from '@gwenjs/core/scene'
-import { Position, Velocity } from './components'
+import { defineActor, onUpdate } from '@gwenjs/core/scene';
+import { useComponent } from '@gwenjs/core/scene';
+import { Position, Velocity } from './components';
 
 export const PhysicsActor = defineActor()(() => {
-  const pos = useComponent(Position)   // proxy bound to this entity
-  const vel = useComponent(Velocity)
+  const pos = useComponent(Position); // proxy bound to this entity
+  const vel = useComponent(Velocity);
 
   onUpdate((dt) => {
-    pos.x += vel.x * dt  // reads getComponent, writes addComponent
-    pos.y += vel.y * dt
-  })
-})
+    pos.x += vel.x * dt; // reads getComponent, writes addComponent
+    pos.y += vel.y * dt;
+  });
+});
 ```
 
 ::: warning
@@ -341,11 +343,11 @@ emit(name: string, ...args: unknown[]): void
 **Example:**
 
 ```ts
-import { emit } from '@gwenjs/core'
+import { emit } from '@gwenjs/core';
 
-emit('enemy:died', entityId)    // custom event — no cast needed
-emit('player:damage', 25)       // custom event
-emit('engine:tick', 0.016)      // built-in hook — args type-checked
+emit('enemy:died', entityId); // custom event — no cast needed
+emit('player:damage', 25); // custom event
+emit('engine:tick', 0.016); // built-in hook — args type-checked
 ```
 
 ::: tip
@@ -393,6 +395,7 @@ onEvent(name: string, fn: (...args: unknown[]) => void): void
 
 ```ts
 onEvent('player:attack', (damage: number) => {
-  hp.current -= damage
-  if (hp.current <= 0) emit('enemy:died', entityId)
-})
+  hp.current -= damage;
+  if (hp.current <= 0) emit('enemy:died', entityId);
+});
+```

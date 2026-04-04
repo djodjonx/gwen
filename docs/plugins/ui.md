@@ -15,11 +15,11 @@ gwen add @gwenjs/ui
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   modules: ['@gwenjs/ui'],
-})
+});
 ```
 
 The plugin creates an absolutely-positioned `<div>` overlay that sits on top of the game canvas and intercepts no pointer events by default (use `pointer-events: auto` on specific UI elements that need interaction).
@@ -28,19 +28,19 @@ The plugin creates an absolutely-positioned `<div>` overlay that sits on top of 
 
 ### Mounting components
 
-| Method | Description |
-|--------|-------------|
-| `ui.mount(component, options?)` | Mount a UI component and return its instance ID. |
-| `ui.unmount(id)` | Remove a mounted component from the DOM. |
-| `ui.unmountAll()` | Remove every mounted component. Typically called on scene exit. |
-| `ui.update(id, props)` | Push new props into a mounted component, triggering a reactive update. |
+| Method                          | Description                                                            |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `ui.mount(component, options?)` | Mount a UI component and return its instance ID.                       |
+| `ui.unmount(id)`                | Remove a mounted component from the DOM.                               |
+| `ui.unmountAll()`               | Remove every mounted component. Typically called on scene exit.        |
+| `ui.update(id, props)`          | Push new props into a mounted component, triggering a reactive update. |
 
 `options` shape:
 
 ```typescript
 interface MountOptions {
-  id?:       string      // stable ID for later reference (auto-generated if omitted)
-  target?:   HTMLElement // mount inside a specific element instead of the overlay
+  id?: string; // stable ID for later reference (auto-generated if omitted)
+  target?: HTMLElement; // mount inside a specific element instead of the overlay
 }
 ```
 
@@ -49,11 +49,11 @@ interface MountOptions {
 Use `defineUI()` to create a component:
 
 ```typescript
-import { defineUI, signal, computed } from '@gwenjs/ui'
+import { defineUI, signal, computed } from '@gwenjs/ui';
 
 export const HUDComponent = defineUI<{ maxHp: number }>((props) => {
-  const hp    = signal(props.maxHp)
-  const pct   = computed(() => hp.value / props.maxHp)
+  const hp = signal(props.maxHp);
+  const pct = computed(() => hp.value / props.maxHp);
 
   return {
     template: `
@@ -61,18 +61,22 @@ export const HUDComponent = defineUI<{ maxHp: number }>((props) => {
         <div class="hp-bar" style="width: {{ pct * 100 }}%"></div>
       </div>
     `,
-    expose: { setHp: (v: number) => { hp.value = v } },
-  }
-})
+    expose: {
+      setHp: (v: number) => {
+        hp.value = v;
+      },
+    },
+  };
+});
 ```
 
 ### Reactive signals
 
-| Export | Description |
-|--------|-------------|
+| Export            | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
 | `signal(initial)` | Create a reactive value. Read `.value`, write `.value = ...`. |
-| `computed(fn)` | Derive a value from one or more signals. Read-only. |
-| `effect(fn)` | Run a side-effect whenever its signal dependencies change. |
+| `computed(fn)`    | Derive a value from one or more signals. Read-only.           |
+| `effect(fn)`      | Run a side-effect whenever its signal dependencies change.    |
 
 ### Scene integration
 
@@ -96,36 +100,38 @@ export const gameScene = defineScene({
 
 ```typescript
 // ui/ScoreDisplay.ts
-import { defineUI, signal } from '@gwenjs/ui'
+import { defineUI, signal } from '@gwenjs/ui';
 
 export const ScoreDisplay = defineUI(() => {
-  const score = signal(0)
+  const score = signal(0);
 
   return {
     template: `<div class="score">Score: {{ score }}</div>`,
     expose: {
-      setScore: (v: number) => { score.value = v },
+      setScore: (v: number) => {
+        score.value = v;
+      },
     },
-  }
-})
+  };
+});
 
 // systems/scoreSystem.ts
-import { defineSystem, useService, onUpdate } from '@gwenjs/core'
-import { ScoreDisplay } from '../ui/ScoreDisplay'
+import { defineSystem, useService, onUpdate } from '@gwenjs/core';
+import { ScoreDisplay } from '../ui/ScoreDisplay';
 
 export const scoreSystem = defineSystem(() => {
-  const ui      = useService('ui')
-  const scoreId = ui.mount(ScoreDisplay)
+  const ui = useService('ui');
+  const scoreId = ui.mount(ScoreDisplay);
 
-  let score = 0
+  let score = 0;
 
   onUpdate(() => {
     if (playerScoredPoint()) {
-      score += 100
-      ui.update(scoreId, {})       // signal update is internal; no props needed
+      score += 100;
+      ui.update(scoreId, {}); // signal update is internal; no props needed
     }
-  })
-})
+  });
+});
 ```
 
 ::: tip CSS scoping

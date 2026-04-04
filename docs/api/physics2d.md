@@ -10,7 +10,7 @@
 Registers the current actor entity as a static (fixed) physics body.
 
 ```typescript
-function useStaticBody(options?: StaticBodyOptions): StaticBodyHandle
+function useStaticBody(options?: StaticBodyOptions): StaticBodyHandle;
 ```
 
 See [Physics Composables Guide](/guide/physics-composables#usestaticbody-options) for full documentation.
@@ -22,7 +22,7 @@ See [Physics Composables Guide](/guide/physics-composables#usestaticbody-options
 Registers the current actor entity as a dynamic (simulated) physics body.
 
 ```typescript
-function useDynamicBody(options?: DynamicBodyOptions): DynamicBodyHandle
+function useDynamicBody(options?: DynamicBodyOptions): DynamicBodyHandle;
 ```
 
 See [Physics Composables Guide](/guide/physics-composables#usedynamicbody-options) for full documentation.
@@ -34,7 +34,7 @@ See [Physics Composables Guide](/guide/physics-composables#usedynamicbody-option
 Attaches an axis-aligned box collider to the current actor entity.
 
 ```typescript
-function useBoxCollider(options: BoxColliderOptions): BoxColliderHandle
+function useBoxCollider(options: BoxColliderOptions): BoxColliderHandle;
 ```
 
 ---
@@ -44,7 +44,7 @@ function useBoxCollider(options: BoxColliderOptions): BoxColliderHandle
 Attaches a circle (sphere) collider to the current actor entity.
 
 ```typescript
-function useSphereCollider(options: SphereColliderOptions): CircleColliderHandle
+function useSphereCollider(options: SphereColliderOptions): CircleColliderHandle;
 ```
 
 ---
@@ -54,7 +54,7 @@ function useSphereCollider(options: SphereColliderOptions): CircleColliderHandle
 Attaches a capsule collider (approximated as box) to the current actor entity.
 
 ```typescript
-function useCapsuleCollider(options: CapsuleColliderOptions): CapsuleColliderHandle
+function useCapsuleCollider(options: CapsuleColliderOptions): CapsuleColliderHandle;
 ```
 
 ---
@@ -64,9 +64,7 @@ function useCapsuleCollider(options: CapsuleColliderOptions): CapsuleColliderHan
 Declares named physics layers with bitmask values, validated at runtime.
 
 ```typescript
-function defineLayers<T extends Record<string, number>>(
-  definition: T
-): { [K in keyof T]: number }
+function defineLayers<T extends Record<string, number>>(definition: T): { [K in keyof T]: number };
 ```
 
 ---
@@ -76,7 +74,7 @@ function defineLayers<T extends Record<string, number>>(
 Subscribes to collision contact events for the current actor entity.
 
 ```typescript
-function onContact(callback: (contact: ContactEvent) => void): void
+function onContact(callback: (contact: ContactEvent) => void): void;
 ```
 
 ---
@@ -86,7 +84,7 @@ function onContact(callback: (contact: ContactEvent) => void): void
 Subscribes to sensor overlap entry events.
 
 ```typescript
-function onSensorEnter(sensorId: number, callback: (entityId: bigint) => void): void
+function onSensorEnter(sensorId: number, callback: (entityId: bigint) => void): void;
 ```
 
 ---
@@ -96,7 +94,7 @@ function onSensorEnter(sensorId: number, callback: (entityId: bigint) => void): 
 Subscribes to sensor overlap exit events.
 
 ```typescript
-function onSensorExit(sensorId: number, callback: (entityId: bigint) => void): void
+function onSensorExit(sensorId: number, callback: (entityId: bigint) => void): void;
 ```
 
 ---
@@ -265,7 +263,7 @@ interface Physics2DAPI {
       angularDamping?: number;
       initialVelocity?: { vx: number; vy: number };
       ccdEnabled?: boolean;
-    }
+    },
   ): number; // returns bodyHandle
 
   addBoxCollider(bodyHandle: number, hw: number, hh: number, opts?: ColliderOptions): void;
@@ -287,15 +285,15 @@ interface Physics2DAPI {
 The `ContactRingBuffer` class provides a zero-copy SAB-backed event queue for collision events delivered from the WASM simulation.
 
 ```typescript
-import { ContactRingBuffer } from '@gwenjs/physics2d'
+import { ContactRingBuffer } from '@gwenjs/physics2d';
 
-const buf = new ContactRingBuffer()
+const buf = new ContactRingBuffer();
 
 // Write (called by WASM bridge)
-buf.write({ entityAIdx, entityBIdx, contactX, contactY, normalX, normalY, relativeVelocity })
+buf.write({ entityAIdx, entityBIdx, contactX, contactY, normalX, normalY, relativeVelocity });
 
 // Drain once per frame
-const events = buf.drain()
+const events = buf.drain();
 ```
 
 ## Vite Plugin
@@ -303,7 +301,7 @@ const events = buf.drain()
 The `physics2dVitePlugin()` provides build-time layer inlining:
 
 ```typescript
-import { extractLayerDefinitions, inlineLayerReferences } from '@gwenjs/physics2d/vite-plugin'
+import { extractLayerDefinitions, inlineLayerReferences } from '@gwenjs/physics2d/vite-plugin';
 ```
 
 - `extractLayerDefinitions(code)` — parses a `defineLayers({...})` call and returns a `Map<string, number>` of layer values.

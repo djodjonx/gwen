@@ -6,10 +6,10 @@ You never write Rust.
 
 ## WASM + TypeScript Separation
 
-| Layer | Technology | Responsibility |
-|---|---|---|
+| Layer        | Technology  | Responsibility                |
+| ------------ | ----------- | ----------------------------- |
 | Core runtime | Rust → WASM | ECS, physics, math, game loop |
-| Game logic | TypeScript | Systems, plugins, scenes, DX |
+| Game logic   | TypeScript  | Systems, plugins, scenes, DX  |
 
 The WASM modules are pre-built and shipped as npm packages. Importing `@gwenjs/core` gives you a fully functional engine — no Rust toolchain required.
 
@@ -35,7 +35,7 @@ GWEN uses a pure [Entity Component System](./components.md):
 - **Components** are flat, typed data stored in Structure-of-Arrays (SoA) layout inside the WASM linear memory.
 - **Systems** query entities by component composition and mutate component data each frame.
 
-There is no OOP inheritance. An entity *is* defined entirely by which components it carries.
+There is no OOP inheritance. An entity _is_ defined entirely by which components it carries.
 
 ```
 Entity 42
@@ -53,11 +53,8 @@ Plugins extend the engine with new capabilities. Each plugin implements the `Gwe
 ```ts
 // gwen.config.ts
 export default defineConfig({
-  modules: [
-    '@gwenjs/input',
-    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
-  ],
-})
+  modules: ['@gwenjs/input', ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }]],
+});
 ```
 
 The engine context is active during `setup()` and throughout all frame phases, so composables like `useQuery()` and `useService()` work seamlessly inside any plugin or system. See [Engine Context](./context.md) for how this works.
@@ -66,16 +63,16 @@ The engine context is active during `setup()` and throughout all frame phases, s
 
 Each frame runs through eight phases in order:
 
-| Phase | Hook | Description |
-|---|---|---|
-| 1 | `onBeforeUpdate` | Pre-physics, input sampling |
-| 2 | WASM pre-step | WASM modules prepare |
-| 3 | `onUpdate` | Main game logic |
-| 4 | WASM step | Physics/simulation step |
-| 5 | `onAfterUpdate` | Post-physics reconciliation |
-| 6 | WASM post-step | WASM modules finalize |
-| 7 | `onRender` | Rendering |
-| 8 | WASM render | WASM render callbacks |
+| Phase | Hook             | Description                 |
+| ----- | ---------------- | --------------------------- |
+| 1     | `onBeforeUpdate` | Pre-physics, input sampling |
+| 2     | WASM pre-step    | WASM modules prepare        |
+| 3     | `onUpdate`       | Main game logic             |
+| 4     | WASM step        | Physics/simulation step     |
+| 5     | `onAfterUpdate`  | Post-physics reconciliation |
+| 6     | WASM post-step   | WASM modules finalize       |
+| 7     | `onRender`       | Rendering                   |
+| 8     | WASM render      | WASM render callbacks       |
 
 Register callbacks for any phase from inside a [system's](./systems.md) setup function using the corresponding composable hook.
 
@@ -85,7 +82,7 @@ Your project's entry point is `gwen.config.ts` at the repo root, using `defineCo
 
 ```ts
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   engine: { maxEntities: 10_000, targetFPS: 60 },
@@ -94,13 +91,14 @@ export default defineConfig({
     ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
     ['@gwenjs/physics2d', { gravity: 9.81 }],
   ],
-})
+});
 ```
 
 Each entry in `modules: []` is either a package name string (no options) or a `[name, options]` tuple. The `gwen` CLI reads this file to install plugins, generate types, and configure the engine before the game starts.
 
 ::: tip Next steps
+
 - [Components](./components.md) — define typed data
 - [Systems](./systems.md) — write game logic
 - [Scenes](./scenes.md) — structure your game states
-:::
+  :::

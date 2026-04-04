@@ -85,6 +85,7 @@ export default defineConfig({
               { text: 'Physics3D Plugin', link: '/plugins/physics3d' },
               { text: 'Physics3D Composables', link: '/guide/physics3d-composables' },
               { text: 'Physics3D API Reference', link: '/api/physics3d' },
+              { text: 'Physics3D Fracture', link: '/plugins/physics3d-fracture' },
             ],
           },
           { text: 'Sprite Animation', link: '/plugins/sprite-anim' },

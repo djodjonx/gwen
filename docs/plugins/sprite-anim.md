@@ -15,14 +15,11 @@ gwen add @gwenjs/sprite-anim
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
-  modules: [
-    ['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }],
-    '@gwenjs/sprite-anim',
-  ],
-})
+  modules: [['@gwenjs/renderer-canvas2d', { width: 800, height: 600 }], '@gwenjs/sprite-anim'],
+});
 ```
 
 ::: tip Order matters
@@ -37,43 +34,43 @@ Clips are defined when you set up a `SpriteAnimComponent` on an entity, or regis
 
 ```typescript
 spriteAnim.defineClip('run', {
-  sheet:     'player',   // sprite sheet id (matched to SpriteComponent.sheet)
+  sheet: 'player', // sprite sheet id (matched to SpriteComponent.sheet)
   startFrame: 0,
-  endFrame:   7,
-  fps:        12,
-  loop:       true,
-})
+  endFrame: 7,
+  fps: 12,
+  loop: true,
+});
 
 spriteAnim.defineClip('jump', {
-  sheet:     'player',
+  sheet: 'player',
   startFrame: 8,
-  endFrame:   11,
-  fps:        10,
-  loop:       false,
-})
+  endFrame: 11,
+  fps: 10,
+  loop: false,
+});
 ```
 
 ### Playback
 
-| Method | Description |
-|--------|-------------|
-| `spriteAnim.play(entityId, clipName)` | Start playing a clip on the entity. Resets if already on a different clip. |
-| `spriteAnim.stop(entityId)` | Stop animation and reset to frame 0 of the current clip. |
-| `spriteAnim.pause(entityId)` | Freeze on the current frame. |
-| `spriteAnim.resume(entityId)` | Continue a paused animation. |
-| `spriteAnim.setSpeed(entityId, multiplier)` | Scale playback speed (default `1.0`). |
+| Method                                      | Description                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `spriteAnim.play(entityId, clipName)`       | Start playing a clip on the entity. Resets if already on a different clip.             |
+| `spriteAnim.stop(entityId)`                 | Stop animation and reset to frame 0 of the current clip.                               |
+| `spriteAnim.pause(entityId)`                | Freeze on the current frame.                                                           |
+| `spriteAnim.resume(entityId)`               | Continue a paused animation.                                                           |
+| `spriteAnim.setSpeed(entityId, multiplier)` | Scale playback speed (default `1.0`).                                                  |
 | `spriteAnim.isPlaying(entityId, clipName?)` | Returns `true` if the entity has an active animation (optionally for a specific clip). |
-| `spriteAnim.onFinish(entityId, cb)` | Register a one-shot callback for when a non-looping clip ends. |
+| `spriteAnim.onFinish(entityId, cb)`         | Register a one-shot callback for when a non-looping clip ends.                         |
 
 ### `SpriteAnimClip` shape
 
 ```typescript
 interface SpriteAnimClip {
-  sheet:      string   // sprite sheet identifier
-  startFrame: number
-  endFrame:   number
-  fps:        number
-  loop?:      boolean  // default true
+  sheet: string; // sprite sheet identifier
+  startFrame: number;
+  endFrame: number;
+  fps: number;
+  loop?: boolean; // default true
 }
 ```
 
@@ -84,36 +81,48 @@ interface SpriteAnimClip {
 ## Example
 
 ```typescript
-import { defineSystem, useService, onUpdate } from '@gwenjs/core'
-import { useQuery } from '@gwenjs/core'
-import { Position, PlayerState } from '../components'
+import { defineSystem, useService, onUpdate } from '@gwenjs/core';
+import { useQuery } from '@gwenjs/core';
+import { Position, PlayerState } from '../components';
 
 export const playerAnimSystem = defineSystem(() => {
-  const spriteAnim   = useService('spriteAnim')
-  const inputMapper  = useService('inputMapper')
-  const entities     = useQuery([Position, PlayerState])
+  const spriteAnim = useService('spriteAnim');
+  const inputMapper = useService('inputMapper');
+  const entities = useQuery([Position, PlayerState]);
 
   // Register clips once at setup time
-  spriteAnim.defineClip('idle', { sheet: 'hero', startFrame: 0, endFrame: 3, fps: 6,  loop: true })
-  spriteAnim.defineClip('run',  { sheet: 'hero', startFrame: 4, endFrame: 11, fps: 12, loop: true })
-  spriteAnim.defineClip('jump', { sheet: 'hero', startFrame: 12, endFrame: 15, fps: 10, loop: false })
-  spriteAnim.defineClip('land', { sheet: 'hero', startFrame: 16, endFrame: 18, fps: 8,  loop: false })
+  spriteAnim.defineClip('idle', { sheet: 'hero', startFrame: 0, endFrame: 3, fps: 6, loop: true });
+  spriteAnim.defineClip('run', { sheet: 'hero', startFrame: 4, endFrame: 11, fps: 12, loop: true });
+  spriteAnim.defineClip('jump', {
+    sheet: 'hero',
+    startFrame: 12,
+    endFrame: 15,
+    fps: 10,
+    loop: false,
+  });
+  spriteAnim.defineClip('land', {
+    sheet: 'hero',
+    startFrame: 16,
+    endFrame: 18,
+    fps: 8,
+    loop: false,
+  });
 
   onUpdate(() => {
     for (const entity of entities) {
-      const state = entity.get(PlayerState)
+      const state = entity.get(PlayerState);
 
       if (state.isJumping && !spriteAnim.isPlaying(entity.id, 'jump')) {
-        spriteAnim.play(entity.id, 'jump')
-        spriteAnim.onFinish(entity.id, () => spriteAnim.play(entity.id, 'idle'))
+        spriteAnim.play(entity.id, 'jump');
+        spriteAnim.onFinish(entity.id, () => spriteAnim.play(entity.id, 'idle'));
       } else if (inputMapper.isDown('left') || inputMapper.isDown('right')) {
-        spriteAnim.play(entity.id, 'run')
+        spriteAnim.play(entity.id, 'run');
       } else if (!state.isJumping) {
-        spriteAnim.play(entity.id, 'idle')
+        spriteAnim.play(entity.id, 'idle');
       }
     }
-  })
-})
+  });
+});
 ```
 
 ## Related

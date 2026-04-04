@@ -15,18 +15,18 @@ Plugin code never runs at module-import time — only when the engine starts. Th
 
 ## Official Plugins
 
-| Package | Purpose | Service key(s) |
-|---------|---------|----------------|
-| [`@gwenjs/input`](/plugins/input) | Keyboard, mouse, gamepad | `keyboard`, `mouse`, `gamepad`, `inputMapper` |
-| [`@gwenjs/audio`](/plugins/audio) | Web Audio API wrapper | `audio` |
-| [`@gwenjs/renderer-canvas2d`](/plugins/renderer-canvas2d) | Canvas2D renderer | `renderer` |
-| [`@gwenjs/physics2d`](/plugins/physics2d) | 2D rigid-body physics (WASM) | `physics` |
-| [`@gwenjs/physics3d`](/plugins/physics3d) | 3D physics (WASM) | `physics3d` |
-| [`@gwenjs/sprite-anim`](/plugins/sprite-anim) | Sprite sheet animation | `spriteAnim` |
-| [`@gwenjs/ui`](/plugins/ui) | HTML/CSS overlay UI | `ui` |
-| [`@gwenjs/r3f`](/plugins/r3f) | React Three Fiber adapter | `r3f` |
-| [`@gwenjs/debug`](/plugins/debug) | Debug overlay | `debug` |
-| [`@gwenjs/vite`](/plugins/vite) | Vite build plugin (CLI internal — not installed by users) | — (build-time) |
+| Package                                                   | Purpose                                                   | Service key(s)                                |
+| --------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------- |
+| [`@gwenjs/input`](/plugins/input)                         | Keyboard, mouse, gamepad                                  | `keyboard`, `mouse`, `gamepad`, `inputMapper` |
+| [`@gwenjs/audio`](/plugins/audio)                         | Web Audio API wrapper                                     | `audio`                                       |
+| [`@gwenjs/renderer-canvas2d`](/plugins/renderer-canvas2d) | Canvas2D renderer                                         | `renderer`                                    |
+| [`@gwenjs/physics2d`](/plugins/physics2d)                 | 2D rigid-body physics (WASM)                              | `physics`                                     |
+| [`@gwenjs/physics3d`](/plugins/physics3d)                 | 3D physics (WASM)                                         | `physics3d`                                   |
+| [`@gwenjs/sprite-anim`](/plugins/sprite-anim)             | Sprite sheet animation                                    | `spriteAnim`                                  |
+| [`@gwenjs/ui`](/plugins/ui)                               | HTML/CSS overlay UI                                       | `ui`                                          |
+| [`@gwenjs/r3f`](/plugins/r3f)                             | React Three Fiber adapter                                 | `r3f`                                         |
+| [`@gwenjs/debug`](/plugins/debug)                         | Debug overlay                                             | `debug`                                       |
+| [`@gwenjs/vite`](/plugins/vite)                           | Vite build plugin (CLI internal — not installed by users) | — (build-time)                                |
 
 ## Registering Modules
 
@@ -34,7 +34,7 @@ All official GWEN capabilities are registered in `gwen.config.ts` using the `mod
 
 ```typescript
 // gwen.config.ts
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   engine: {
@@ -48,7 +48,7 @@ export default defineConfig({
     ['@gwenjs/physics2d', { gravity: 9.81 }],
     ...(import.meta.env.DEV ? ['@gwenjs/debug'] : []),
   ],
-})
+});
 ```
 
 ## Using Services
@@ -56,15 +56,15 @@ export default defineConfig({
 Once a plugin is registered, its service is available via `useService()` inside any `defineSystem` or `defineScene`:
 
 ```typescript
-import { defineSystem, useService, onUpdate } from '@gwenjs/core'
+import { defineSystem, useService, onUpdate } from '@gwenjs/core';
 
 export const audioSystem = defineSystem(() => {
-  const audio = useService('audio')
+  const audio = useService('audio');
 
   onUpdate(() => {
-    if (someCondition) audio.play('coin-collect')
-  })
-})
+    if (someCondition) audio.play('coin-collect');
+  });
+});
 ```
 
 Run `gwen prepare` (or keep `pnpm dev` running) to regenerate `.gwen/` type declarations. After that, every `useService('audio')` call returns the precise `AudioService` type — no casts needed.

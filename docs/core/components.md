@@ -1,6 +1,6 @@
 # Components
 
-Components are the data layer of GWEN's ECS. They describe what an entity *is* — not what it does. All logic lives in [systems](./systems.md).
+Components are the data layer of GWEN's ECS. They describe what an entity _is_ — not what it does. All logic lives in [systems](./systems.md).
 
 ## What Are Components?
 
@@ -11,7 +11,7 @@ A component is a typed, flat data container attached to an entity. It has no met
 Use `defineComponent()` to declare a component with a typed schema:
 
 ```ts
-import { defineComponent, Types } from '@gwenjs/core'
+import { defineComponent, Types } from '@gwenjs/core';
 
 export const Position = defineComponent({
   name: 'Position',
@@ -19,12 +19,12 @@ export const Position = defineComponent({
     x: Types.f32,
     y: Types.f32,
   },
-})
+});
 
 export const PlayerTag = defineComponent({
   name: 'PlayerTag',
-  schema: {},  // tag component — no fields
-})
+  schema: {}, // tag component — no fields
+});
 ```
 
 Components can also be defined as factories when you need a more dynamic schema:
@@ -37,18 +37,18 @@ export const Health = defineComponent(() => ({
     max: Types.f32,
     invincible: Types.bool,
   },
-}))
+}));
 ```
 
 ## Schema Types
 
-| Type | JS equivalent | Use for |
-|---|---|---|
-| `Types.f32` | `number` | Positions, velocities, angles |
-| `Types.i32` | `number` | Counts, indices, flags |
-| `Types.bool` | `boolean` | On/off state |
-| `Types.vec2` | `{ x, y }` | 2D vectors |
-| `Types.string` | `string` | Names, keys (avoid in hot path) |
+| Type           | JS equivalent | Use for                         |
+| -------------- | ------------- | ------------------------------- |
+| `Types.f32`    | `number`      | Positions, velocities, angles   |
+| `Types.i32`    | `number`      | Counts, indices, flags          |
+| `Types.bool`   | `boolean`     | On/off state                    |
+| `Types.vec2`   | `{ x, y }`    | 2D vectors                      |
+| `Types.string` | `string`      | Names, keys (avoid in hot path) |
 
 ::: tip
 Prefer `Types.f32` for most numeric values. Use `Types.i32` for integer counters or entity IDs stored as component data. Avoid `Types.string` in components that are read every frame.
@@ -90,13 +90,13 @@ api.removeComponent(entityId, Velocity)
 ```ts
 // Full example: define, create, attach
 
-const Position = defineComponent({ name: 'Position', schema: { x: Types.f32, y: Types.f32 } })
-const Velocity = defineComponent({ name: 'Velocity', schema: { x: Types.f32, y: Types.f32 } })
+const Position = defineComponent({ name: 'Position', schema: { x: Types.f32, y: Types.f32 } });
+const Velocity = defineComponent({ name: 'Velocity', schema: { x: Types.f32, y: Types.f32 } });
 
 // Inside a system or scene onEnter:
-const id = api.createEntity()
-api.addComponent(id, Position, { x: 100, y: 200 })
-api.addComponent(id, Velocity, { x: 0, y: -9.8 })
+const id = api.createEntity();
+api.addComponent(id, Position, { x: 100, y: 200 });
+api.addComponent(id, Velocity, { x: 0, y: -9.8 });
 ```
 
 See [Prefabs](./prefabs.md) for a cleaner way to create entities with multiple components.

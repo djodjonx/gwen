@@ -45,7 +45,7 @@ pnpm add -D @gwenjs/cli vite typescript
 This is the framework entry point. Place it at the project root:
 
 ```typescript
-import { defineConfig } from '@gwenjs/app'
+import { defineConfig } from '@gwenjs/app';
 
 export default defineConfig({
   engine: {
@@ -53,17 +53,17 @@ export default defineConfig({
     targetFPS: 60,
   },
   modules: [],
-})
+});
 ```
 
 ### 4. Create `src/main.ts`
 
 ```typescript
-import { createEngine } from '@gwenjs/core'
-import config from '../gwen.config'
+import { createEngine } from '@gwenjs/core';
+import config from '../gwen.config';
 
-const engine = await createEngine(config)
-engine.start()
+const engine = await createEngine(config);
+engine.start();
 ```
 
 ### 5. Create `index.html`

@@ -11,9 +11,9 @@ Scenes are also the right unit for lifecycle logic — loading assets, spawning 
 ## `defineScene()`
 
 ```ts
-import { defineScene } from '@gwenjs/core'
-import { MovementSystem, EnemySystem, RenderSystem } from './systems'
-import { HUD } from './ui'
+import { defineScene } from '@gwenjs/core';
+import { MovementSystem, EnemySystem, RenderSystem } from './systems';
+import { HUD } from './ui';
 
 export const GameScene = defineScene({
   name: 'Game',
@@ -23,23 +23,23 @@ export const GameScene = defineScene({
   onEnter(api) {
     // Runs when this scene becomes active
     // Good place to spawn entities, load level data
-    api.instantiate(PlayerPrefab, { [Position]: { x: 400, y: 300 } })
+    api.instantiate(PlayerPrefab, { [Position]: { x: 400, y: 300 } });
   },
 
   onExit(api) {
     // Runs when leaving this scene
     // Good place to clean up entities or save state
   },
-})
+});
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `name` | `string` | Unique scene identifier |
-| `systems` | `SystemDef[]` | Systems active while this scene runs |
-| `ui` | Component (optional) | UI component mounted while scene is active |
-| `onEnter(api)` | function (optional) | Called when scene becomes active |
-| `onExit(api)` | function (optional) | Called when scene is deactivated |
+| Field          | Type                 | Description                                |
+| -------------- | -------------------- | ------------------------------------------ |
+| `name`         | `string`             | Unique scene identifier                    |
+| `systems`      | `SystemDef[]`        | Systems active while this scene runs       |
+| `ui`           | Component (optional) | UI component mounted while scene is active |
+| `onEnter(api)` | function (optional)  | Called when scene becomes active           |
+| `onExit(api)`  | function (optional)  | Called when scene is deactivated           |
 
 ## Scene Lifecycle
 
@@ -65,18 +65,18 @@ Do not call composables (`useQuery`, `useService`) inside `onEnter` or `onExit`.
 Call `api.loadScene(SceneDef)` from anywhere you have access to the API — a system callback, an event handler, or `onEnter`/`onExit`:
 
 ```ts
-import { defineSystem, onUpdate } from '@gwenjs/core'
-import { GameScene } from './scenes'
+import { defineSystem, onUpdate } from '@gwenjs/core';
+import { GameScene } from './scenes';
 
 export const MainMenuSystem = defineSystem(() => {
-  const input = useInput()
+  const input = useInput();
 
   onUpdate(() => {
     if (input.isJustDown('Enter')) {
-      api.loadScene(GameScene)
+      api.loadScene(GameScene);
     }
-  })
-})
+  });
+});
 ```
 
 The transition is deferred to the end of the current frame, so any in-progress callbacks complete cleanly.
@@ -87,10 +87,10 @@ GWEN supports running more than one scene simultaneously. This is useful for ove
 
 ```ts
 // Pause the world but keep game scene running underneath
-api.loadScene(PauseScene, { additive: true })
+api.loadScene(PauseScene, { additive: true });
 
 // Resume — remove the pause overlay
-api.unloadScene(PauseScene)
+api.unloadScene(PauseScene);
 ```
 
 ::: tip
@@ -105,31 +105,32 @@ export const GameScene = defineScene({
   name: 'Game',
   systems: [MovementSystem, EnemySystem],
   onEnter(api) {
-    api.instantiate(PlayerPrefab)
+    api.instantiate(PlayerPrefab);
   },
-})
+});
 
 // scenes/pause.ts
 export const PauseScene = defineScene({
   name: 'Pause',
   systems: [PauseMenuSystem],
   ui: PauseOverlay,
-})
+});
 
 // Inside a system — toggle pause
 onUpdate(() => {
   if (input.isJustDown('Escape')) {
     if (api.isSceneActive(PauseScene)) {
-      api.unloadScene(PauseScene)
+      api.unloadScene(PauseScene);
     } else {
-      api.loadScene(PauseScene, { additive: true })
+      api.loadScene(PauseScene, { additive: true });
     }
   }
-})
+});
 ```
 
 ::: info Related
+
 - [Systems](./systems.md) — define logic that runs inside a scene
 - [Prefabs](./prefabs.md) — spawn entities in `onEnter`
 - [Components](./components.md) — data attached to entities
-:::
+  :::

@@ -31,14 +31,16 @@ Runtime plugins run **in the browser** as part of the game loop. They can:
 Use [`definePlugin()`](./typescript-plugin) to create a runtime plugin.
 
 ```ts
-import { definePlugin } from '@gwenjs/kit'
+import { definePlugin } from '@gwenjs/kit';
 
 export const myPlugin = definePlugin({
   name: 'my-plugin',
   setup(engine) {
-    engine.provide('myService', { /* ... */ })
+    engine.provide('myService', {
+      /* ... */
+    });
   },
-})
+});
 ```
 
 ### Build-Time Modules
@@ -52,15 +54,15 @@ Build-time modules run **in Node.js** during `gwen prepare` and `gwen build`. Th
 Use [`defineGwenModule()`](./typescript-plugin#wrapping-with-a-module) to create a build-time module.
 
 ```ts
-import { defineGwenModule } from '@gwenjs/kit'
+import { defineGwenModule } from '@gwenjs/kit';
 
 export default defineGwenModule({
   meta: { name: 'my-module' },
   setup(options, kit) {
-    kit.addPlugin(myPlugin)
-    kit.addAutoImport({ from: 'my-package', imports: ['useMyService'] })
+    kit.addPlugin(myPlugin);
+    kit.addAutoImport({ from: 'my-package', imports: ['useMyService'] });
   },
-})
+});
 ```
 
 ---
@@ -74,18 +76,18 @@ Reach for `@gwenjs/kit` when you are:
 - **Wrapping a WASM binary** — compiling Rust logic and exposing it to game code via a typed TypeScript API
 - **Integrating a third-party library** — wrapping it in a plugin so it participates in the engine lifecycle
 
-You do *not* need the kit to write a game. Game code uses `@gwenjs/core` directly.
+You do _not_ need the kit to write a game. Game code uses `@gwenjs/core` directly.
 
 ---
 
 ## Kit vs Core
 
-| | `@gwenjs/kit` | `@gwenjs/core` |
-|---|---|---|
-| **Audience** | Plugin / module authors | Game developers |
-| **Primary APIs** | `definePlugin`, `defineGwenModule` | `defineSystem`, `defineScene`, `createEngine` |
-| **Runtime** | Browser + Node.js (modules) | Browser only |
-| **Publishes to npm** | Yes — reusable packages | No — game-specific |
+|                      | `@gwenjs/kit`                      | `@gwenjs/core`                                |
+| -------------------- | ---------------------------------- | --------------------------------------------- |
+| **Audience**         | Plugin / module authors            | Game developers                               |
+| **Primary APIs**     | `definePlugin`, `defineGwenModule` | `defineSystem`, `defineScene`, `createEngine` |
+| **Runtime**          | Browser + Node.js (modules)        | Browser only                                  |
+| **Publishes to npm** | Yes — reusable packages            | No — game-specific                            |
 
 Don't import game primitives like `defineSystem` or `defineScene` from `@gwenjs/kit` — those live in `@gwenjs/core` and are for game code. Your plugin's `setup()` receives the engine instance and should work through it.
 

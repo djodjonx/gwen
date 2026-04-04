@@ -1,15 +1,19 @@
 # Scene Router
 
-The Scene Router is GWEN's declarative state machine for orchestrating scene transitions. It replaces manual boolean flags and ad-hoc state checks with a clean, testable FSM (finite state machine) that coordinates which scene is active, overlays, and transitions. 
+The Scene Router is GWEN's declarative state machine for orchestrating scene transitions. It replaces manual boolean flags and ad-hoc state checks with a clean, testable FSM (finite state machine) that coordinates which scene is active, overlays, and transitions.
 
 **Before:**
+
 ```typescript
 // Manual state flags
-let inBattle = false, inPause = false;
+let inBattle = false,
+  inPause = false;
 if (inBattle) showBattleScene();
 if (inPause) showPauseMenu();
 ```
+
 **After:**
+
 ```typescript
 // Declarative router
 const router = defineSceneRouter({ ... });
