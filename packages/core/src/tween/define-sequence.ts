@@ -9,6 +9,7 @@
 
 import { useEngine } from '../context.js';
 import { getTweenManager } from './tween-manager.js';
+import { TweenSlot } from './tween-pool.js';
 import type { SequenceHandle, SequenceStep, TweenableValue } from './tween-types.js';
 
 // ── defineSequence ────────────────────────────────────────────────────────────
@@ -68,6 +69,9 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
   /** Whether the sequence is actively progressing through steps. */
   let _playing = false;
 
+  /** The active wait slot currently executing (if any), or null. */
+  let _activeWaitSlot: TweenSlot | null = null;
+
   /** Registered completion callbacks — fired once when all steps finish. */
   const _completeCbs: Array<() => void> = [];
 
@@ -103,13 +107,15 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
       // ── Wait step ────────────────────────────────────────────────────────────
       //
       // Claim a temporary number tween for the wait duration (0 → 1).
+      // Store the slot on the instance so pause()/reset() can access it.
       // The slot is released immediately after completion so it returns to
       // the pool without occupying a slot between steps.
       const waitDuration = step.wait;
-      const ws = manager.claim({ duration: waitDuration });
-      ws.play({ from: 0 as TweenableValue, to: 1 as TweenableValue });
-      ws.onComplete(() => {
-        manager.release(ws);
+      _activeWaitSlot = manager.claim({ duration: waitDuration });
+      _activeWaitSlot.play({ from: 0 as TweenableValue, to: 1 as TweenableValue });
+      _activeWaitSlot.onComplete(() => {
+        manager.release(_activeWaitSlot!);
+        _activeWaitSlot = null;
         // Guard: only advance if the sequence is still playing (not paused/reset).
         if (_playing) {
           _runStep(index + 1);
@@ -147,7 +153,7 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
      *
      * Sets `_playing` to `false` so in-flight completion callbacks will not
      * advance to the next step. The active tween step (if any) is also paused
-     * on its handle.
+     * on its handle. If a wait step is active, it is paused as well.
      *
      * @since 1.0.0
      */
@@ -157,12 +163,17 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
       if (step !== undefined && 'tween' in step) {
         step.tween.pause();
       }
+      if (_activeWaitSlot) {
+        _activeWaitSlot.pause();
+      }
     },
 
     /**
      * Reset the sequence to step 0 without starting playback.
      *
      * Also resets the active tween step (if any) back to its initial state.
+     * If a wait step is active, it is paused and its slot is released back to
+     * the pool.
      *
      * @since 1.0.0
      */
@@ -171,6 +182,11 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
       const step = steps[_currentStep];
       if (step !== undefined && 'tween' in step) {
         step.tween.reset();
+      }
+      if (_activeWaitSlot) {
+        _activeWaitSlot.pause();
+        manager.release(_activeWaitSlot);
+        _activeWaitSlot = null;
       }
       _currentStep = 0;
     },
