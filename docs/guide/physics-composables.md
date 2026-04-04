@@ -60,6 +60,7 @@ export const PlayerActor = defineActor(PlayerPrefab, () => {
 | `useShape`           | Set shared shape dimensions (read by physics + renderer)     | `void`                  |
 | `useStaticBody`      | Fixed body — walls, platforms, terrain                       | `StaticBodyHandle`      |
 | `useDynamicBody`     | Fully simulated body — players, enemies, projectiles         | `DynamicBodyHandle`     |
+| `useKinematicBody`   | Kinematic body driven by explicit velocity writes | `KinematicBodyHandle` |
 | `useBoxCollider`     | Standalone box collider (sensor triggers, static overlays)   | `BoxColliderHandle`     |
 | `useSphereCollider`  | Standalone circle collider                                   | `CircleColliderHandle`  |
 | `useCapsuleCollider` | Standalone capsule collider (box approximation — see note)   | `CapsuleColliderHandle` |
@@ -337,6 +338,69 @@ export const BulletActor = defineActor(BulletPrefab, () => {
     despawn();
   });
 });
+```
+
+## `useKinematicBody`
+
+Register the current actor's entity as a **kinematic** physics body. Kinematic bodies
+participate in collision detection and push dynamic bodies out of their path, but are
+**never displaced by forces or gravity**. Move them by calling `setVelocity()` each
+frame — the engine integrates `position += velocity * dt` in `onBeforeUpdate`.
+
+> **When to use kinematic vs dynamic:** Use kinematic for player characters, vehicles,
+> and platform objects you control directly. Use dynamic for projectiles and objects
+> that should react to physics.
+
+### Signature
+
+```typescript
+function useKinematicBody(options?: KinematicBodyOptions): KinematicBodyHandle;
+```
+
+### Options
+
+| Option            | Type                       | Default | Description                              |
+| ----------------- | -------------------------- | ------- | ---------------------------------------- |
+| `initialPosition` | `{ x: number; y: number }` | —       | Spawn position in metres                 |
+| `initialAngle`    | `number`                   | `0`     | Spawn orientation in radians             |
+| `fixedRotation`   | `boolean`                  | `false` | Disable angular velocity and integration |
+
+### Handle
+
+```typescript
+interface KinematicBodyHandle {
+  readonly bodyId:          number;
+  readonly active:          boolean;
+  readonly velocity:        { x: number; y: number };
+  readonly angularVelocity: number;
+  moveTo(x: number, y: number, angle?: number): void;
+  setVelocity(vx: number, vy: number): void;
+  setAngularVelocity(omega: number): void;
+  enable(): void;
+  disable(): void;
+}
+```
+
+### Example — top-down kart
+
+```typescript
+import { defineActor, onUpdate } from '@gwenjs/core'
+import { useKinematicBody, useBoxCollider } from '@gwenjs/physics2d'
+import { useInput } from '@gwenjs/input'
+
+const SPEED = 6  // m/s
+
+export const KartActor = defineActor(KartPrefab, () => {
+  const body = useKinematicBody({ fixedRotation: false })
+  useBoxCollider({ w: 1.2, h: 0.6 })
+
+  const input = useInput()
+
+  onUpdate(() => {
+    const dir = input.readAxis2D('Move')
+    body.setVelocity(dir.x * SPEED, dir.y * SPEED)
+  })
+})
 ```
 
 ---

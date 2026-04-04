@@ -14,6 +14,7 @@ RFC-06 adds a set of composable functions that mirror the developer experience o
 | ---------------------- | ---------------------------------------------- |
 | `useStaticBody()`      | Non-moving body (walls, terrain, obstacles)    |
 | `useDynamicBody()`     | Fully simulated body (characters, projectiles) |
+| `useKinematicBody()`   | Kinematic body driven by explicit velocity writes  |
 | `useBoxCollider()`     | Axis-aligned box collision shape               |
 | `useSphereCollider()`  | Sphere collision shape                         |
 | `useCapsuleCollider()` | Capsule collision shape (great for characters) |
@@ -155,6 +156,70 @@ const PlayerActor = defineActor(PlayerPrefab, () => {
     }
   });
 });
+```
+
+## `useKinematicBody`
+
+Register the current actor's entity as a **kinematic** 3D physics body. Kinematic bodies
+participate in collision detection and push dynamic bodies out of their path, but are
+**never displaced by forces or gravity**.
+
+Move via `setVelocity()` (integrated each frame) or `moveTo()` for instant teleports.
+Optionally drive orientation via `setAngularVelocity()` (first-order quaternion integration).
+
+### Signature
+
+```typescript
+function useKinematicBody(options?: KinematicBodyOptions3D): KinematicBodyHandle3D;
+```
+
+### Options
+
+| Option            | Type                                  | Default  | Description                          |
+| ----------------- | ------------------------------------- | -------- | ------------------------------------ |
+| `initialPosition` | `{ x: number; y: number; z: number }` | —        | Spawn position in metres             |
+| `initialRotation` | `{ x, y, z, w }`                     | identity | Spawn orientation as unit quaternion |
+| `fixedRotation`   | `boolean`                             | `false`  | Disable angular velocity integration |
+
+### Handle
+
+```typescript
+interface KinematicBodyHandle3D {
+  readonly bodyId:          number;
+  readonly active:          boolean;
+  readonly velocity:        { x: number; y: number; z: number };
+  readonly angularVelocity: { x: number; y: number; z: number };
+  moveTo(x: number, y: number, z: number,
+         qx?: number, qy?: number, qz?: number, qw?: number): void;
+  setVelocity(vx: number, vy: number, vz: number): void;
+  setAngularVelocity(wx: number, wy: number, wz: number): void;
+  enable(): void;
+  disable(): void;
+}
+```
+
+### Example — vehicle controller
+
+```typescript
+import { defineActor, onUpdate } from '@gwenjs/core'
+import { useKinematicBody, useBoxCollider } from '@gwenjs/physics3d'
+import { useInput } from '@gwenjs/input'
+
+const SPEED      = 12  // m/s
+const TURN_SPEED = 2   // rad/s
+
+export const VehicleActor = defineActor(VehiclePrefab, () => {
+  const body = useKinematicBody({ fixedRotation: false })
+  useBoxCollider({ w: 2, h: 1, d: 4 })
+
+  const input = useInput()
+
+  onUpdate(() => {
+    const dir = input.readAxis2D('Move')
+    body.setVelocity(dir.x * SPEED, 0, dir.y * SPEED)
+    body.setAngularVelocity(0, -dir.x * TURN_SPEED, 0)
+  })
+})
 ```
 
 ---
