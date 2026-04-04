@@ -219,7 +219,9 @@ export interface Physics3DBodySnapshot {
 export type Physics3DColliderShape =
   | { type: 'box'; halfX: number; halfY: number; halfZ: number }
   | { type: 'sphere'; radius: number }
-  | { type: 'capsule'; radius: number; halfHeight: number };
+  | { type: 'capsule'; radius: number; halfHeight: number }
+  | { type: 'mesh'; vertices: Float32Array; indices: Uint32Array }
+  | { type: 'convex'; vertices: Float32Array };
 
 /**
  * Built-in material presets for common surface types.
@@ -726,3 +728,156 @@ export interface Physics3DAPI {
    */
   isDebugEnabled(): boolean;
 }
+
+// ─── RFC-06 DX Composable types ─────────────────────────────────────────────
+
+/**
+ * Zero-copy 3D contact event delivered via SAB ring buffer.
+ *
+ * entityA/entityB are raw slot indices packed as bigint.
+ * contactX/Y/Z is the world-space contact point.
+ * normalX/Y/Z is the contact normal (unit vector pointing from B to A).
+ * relativeVelocity is the magnitude of the relative impact velocity in m/s.
+ * restitution is the effective restitution coefficient at the contact.
+ */
+export interface ContactEvent3D {
+  /** Packed slot index of the first participant. */
+  entityA: bigint;
+  /** Packed slot index of the second participant. */
+  entityB: bigint;
+  /** World-space contact point X in metres. */
+  contactX: number;
+  /** World-space contact point Y in metres. */
+  contactY: number;
+  /** World-space contact point Z in metres. */
+  contactZ: number;
+  /** Contact normal X (unit vector from B to A). */
+  normalX: number;
+  /** Contact normal Y. */
+  normalY: number;
+  /** Contact normal Z. */
+  normalZ: number;
+  /** Magnitude of relative impact velocity in m/s. */
+  relativeVelocity: number;
+  /** Effective restitution coefficient at the contact point. */
+  restitution: number;
+}
+
+/**
+ * Simplified options for registering a static (non-moving) 3D physics body
+ * via {@link useStaticBody}.
+ */
+export interface StaticBodyOptions3D {
+  /** Mark as sensor — generates events but no physical response. @default false */
+  isSensor?: boolean;
+  /** Numeric collision layer bitmask (membership). */
+  layer?: number;
+  /** Numeric collision filter bitmask (which layers to collide with). */
+  mask?: number;
+  /** Built-in material preset. @default 'default' */
+  materialPreset?: Physics3DMaterialPreset;
+}
+
+/**
+ * Simplified options for registering a dynamic (fully simulated) 3D physics body
+ * via {@link useDynamicBody}.
+ */
+export interface DynamicBodyOptions3D {
+  /** Body mass in kg. Values ≤ 0 are clamped to 0.0001. @default 1 */
+  mass?: number;
+  /** Gravity scale multiplier. 0 = no gravity. @default 1 */
+  gravityScale?: number;
+  /** Linear velocity damping coefficient ≥ 0. @default 0 */
+  linearDamping?: number;
+  /** Angular velocity damping coefficient ≥ 0. @default 0 */
+  angularDamping?: number;
+  /** Enable Continuous Collision Detection (CCD) for fast-moving bodies. @default false */
+  ccdEnabled?: boolean;
+  /** Mark as sensor — generates events but no physical response. @default false */
+  isSensor?: boolean;
+  /** Numeric collision layer bitmask (membership). */
+  layer?: number;
+  /** Numeric collision filter bitmask (which layers to collide with). */
+  mask?: number;
+  /** Built-in material preset. @default 'default' */
+  materialPreset?: Physics3DMaterialPreset;
+  /** Initial world-space position in metres. */
+  initialPosition?: Partial<Physics3DVec3>;
+  /** Initial orientation as a unit quaternion. */
+  initialRotation?: Partial<Physics3DQuat>;
+  /** Initial linear velocity in m/s. */
+  initialLinearVelocity?: Partial<Physics3DVec3>;
+  /** Initial angular velocity in rad/s. */
+  initialAngularVelocity?: Partial<Physics3DVec3>;
+  /**
+   * If true, body cannot rotate around any axis.
+   * @default false
+   */
+  fixedRotation?: boolean;
+  /**
+   * CCD quality preset for fast-moving bodies.
+   * @default 'medium'
+   * @see {@link Physics3DQualityPreset}
+   */
+  quality?: Physics3DQualityPreset;
+}
+
+/**
+ * Runtime handle for a static physics body registered via {@link useStaticBody}.
+ */
+export interface StaticBodyHandle3D {
+  /** Opaque numeric body id assigned by the physics engine. */
+  readonly bodyId: number;
+  /** Whether the body is currently active in the simulation. */
+  readonly active: boolean;
+  /** Re-create the body in the simulation (no-op when already active). */
+  enable(): void;
+  /** Remove the body from the simulation (no-op when already inactive). */
+  disable(): void;
+}
+
+/**
+ * Runtime handle for a dynamic physics body registered via {@link useDynamicBody}.
+ *
+ * Extends {@link StaticBodyHandle3D} with force, impulse, torque, and velocity methods.
+ */
+export interface DynamicBodyHandle3D extends StaticBodyHandle3D {
+  /**
+   * Apply a continuous linear force to the body in N.
+   * Internally mapped to {@link Physics3DAPI.applyImpulse} since
+   * the Rapier3D WASM bridge processes forces as per-step impulses.
+   */
+  applyForce(fx: number, fy: number, fz: number): void;
+  /** Apply an instantaneous linear impulse in N·s. */
+  applyImpulse(ix: number, iy: number, iz: number): void;
+  /** Apply a continuous torque in N·m. */
+  applyTorque(tx: number, ty: number, tz: number): void;
+  /** Set the linear velocity directly in m/s. */
+  setVelocity(vx: number, vy: number, vz: number): void;
+  /** Current linear velocity in m/s. Returns zero vector when body is inactive. */
+  readonly velocity: Physics3DVec3;
+  /** Current angular velocity in rad/s. Returns zero vector when body is inactive. */
+  readonly angularVelocity: Physics3DVec3;
+}
+
+/**
+ * Runtime handle for a physics collider attached via useBoxCollider,
+ * useSphereCollider, useCapsuleCollider, useMeshCollider, or useConvexCollider.
+ */
+export interface ColliderHandle3D {
+  /** Stable numeric collider id used to remove the collider later. */
+  readonly colliderId: number;
+  /** Remove this collider from the entity. */
+  remove(): void;
+}
+
+/** Handle returned by {@link useBoxCollider}. */
+export type BoxColliderHandle3D = ColliderHandle3D;
+/** Handle returned by {@link useSphereCollider}. */
+export type SphereColliderHandle3D = ColliderHandle3D;
+/** Handle returned by {@link useCapsuleCollider}. */
+export type CapsuleColliderHandle3D = ColliderHandle3D;
+/** Handle returned by {@link useMeshCollider}. */
+export type MeshColliderHandle3D = ColliderHandle3D;
+/** Handle returned by {@link useConvexCollider}. */
+export type ConvexColliderHandle3D = ColliderHandle3D;
