@@ -12,6 +12,7 @@
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
 import { Physics3DPlugin } from './index.js';
 import type { Physics3DConfig } from './types.js';
+import { physics3dVitePlugin } from './vite-plugin.js';
 
 /**
  * GWEN module for the Physics 3D plugin.
@@ -24,7 +25,22 @@ export default defineGwenModule<Physics3DConfig>({
   async setup(options, kit) {
     kit.addPlugin(Physics3DPlugin(options));
 
-    kit.addAutoImports([{ name: 'usePhysics3D', from: '@gwenjs/physics3d' }]);
+    kit.addAutoImports([
+      { name: 'usePhysics3D', from: '@gwenjs/physics3d' },
+      { name: 'useStaticBody', from: '@gwenjs/physics3d' },
+      { name: 'useDynamicBody', from: '@gwenjs/physics3d' },
+      { name: 'useBoxCollider', from: '@gwenjs/physics3d' },
+      { name: 'useSphereCollider', from: '@gwenjs/physics3d' },
+      { name: 'useCapsuleCollider', from: '@gwenjs/physics3d' },
+      { name: 'useMeshCollider', from: '@gwenjs/physics3d' },
+      { name: 'useConvexCollider', from: '@gwenjs/physics3d' },
+      { name: 'defineLayers', from: '@gwenjs/physics3d' },
+      { name: 'onContact', from: '@gwenjs/physics3d' },
+      { name: 'onSensorEnter', from: '@gwenjs/physics3d' },
+      { name: 'onSensorExit', from: '@gwenjs/physics3d' },
+    ]);
+
+    kit.addVitePlugin(physics3dVitePlugin());
 
     kit.addTypeTemplate({
       filename: 'physics3d.d.ts',

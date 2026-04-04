@@ -1509,3 +1509,21 @@ export * from './systems';
 export * from './augment.js';
 export { usePhysics3D } from './composables.js';
 export { default as physics3dModule } from './module.js';
+
+// ─── RFC-06 DX composables ────────────────────────────────────────────────────
+export * from './composables/index.js';
+export { ContactRingBuffer3D, CONTACT_EVENT_FLOATS, RING_CAPACITY_3D } from './ring-buffer.js';
+export { physics3dVitePlugin } from './vite-plugin.js';
+export type {
+  ContactEvent3D,
+  StaticBodyOptions3D,
+  DynamicBodyOptions3D,
+  StaticBodyHandle3D,
+  DynamicBodyHandle3D,
+  ColliderHandle3D,
+  BoxColliderHandle3D,
+  SphereColliderHandle3D,
+  CapsuleColliderHandle3D,
+  MeshColliderHandle3D,
+  ConvexColliderHandle3D,
+} from './types.js';
