@@ -15,7 +15,7 @@
  * @since 1.0.0
  */
 // @gwenjs/gwen-renderer-canvas2d — Public API
-export { Canvas2DRenderer } from './renderer';
+export { Canvas2DRenderer } from './plugin/renderer';
 export type {
   RendererService,
   RendererService as Canvas2DRendererService,
@@ -23,10 +23,10 @@ export type {
   TransformComponent,
   Camera,
   Canvas2DRendererConfig,
-} from './renderer';
+} from './plugin/renderer';
 
-export { ShapeRenderer } from './shapes';
-export type { RectOptions, CircleOptions, LineOptions, TextOptions } from './shapes';
+export { ShapeRenderer } from './plugin/shapes';
+export type { RectOptions, CircleOptions, LineOptions, TextOptions } from './plugin/shapes';
 
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';

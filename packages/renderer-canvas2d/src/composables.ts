@@ -6,7 +6,7 @@
  */
 
 import { useEngine, GwenPluginNotFoundError } from '@gwenjs/core';
-import type { RendererService } from './renderer.js';
+import type { RendererService } from './plugin/renderer.js';
 import './augment.js';
 
 /**
