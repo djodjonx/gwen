@@ -25,15 +25,15 @@ import type {
   SpriteAnimTickOptions,
   SpriteAnimTransition,
   SpriteAnimUIExtension,
-} from './types';
-import { defaultImageLoader, defaultLogger } from './runtime/contracts';
+} from '../types.js';
+import { defaultImageLoader, defaultLogger } from './contracts.js';
 import type {
   SpriteAnimEventSink,
   SpriteAnimImageLoader,
   SpriteAnimLogger,
   SpriteAnimRuntimeConfig,
   SpriteAnimRuntimeDeps,
-} from './runtime/contracts';
+} from './contracts.js';
 
 export type {
   SpriteAnimEventSink,
