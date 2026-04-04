@@ -14,6 +14,7 @@
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
 import { Physics2DPlugin } from './index.js';
+import { physics2dVitePlugin } from './vite-plugin.js';
 import type { Physics2DConfig } from './types.js';
 
 /**
@@ -32,11 +33,23 @@ export default defineGwenModule<Physics2DConfig>({
   },
   async setup(options, kit) {
     kit.addPlugin(Physics2DPlugin(options));
+    kit.addVitePlugin(physics2dVitePlugin() as unknown as import('@gwenjs/kit').VitePlugin);
 
     kit.addAutoImports([
       { name: 'usePhysics2D', from: '@gwenjs/physics2d' },
       { name: 'useRigidBody', from: '@gwenjs/physics2d' },
       { name: 'useCollider', from: '@gwenjs/physics2d' },
+      // RFC-04 additions:
+      { name: 'useStaticBody', from: '@gwenjs/physics2d' },
+      { name: 'useDynamicBody', from: '@gwenjs/physics2d' },
+      { name: 'useBoxCollider', from: '@gwenjs/physics2d' },
+      { name: 'useSphereCollider', from: '@gwenjs/physics2d' },
+      { name: 'useCapsuleCollider', from: '@gwenjs/physics2d' },
+      { name: 'defineLayers', from: '@gwenjs/physics2d' },
+      { name: 'onContact', from: '@gwenjs/physics2d' },
+      { name: 'onSensorEnter', from: '@gwenjs/physics2d' },
+      { name: 'onSensorExit', from: '@gwenjs/physics2d' },
+      { name: 'useShape', from: '@gwenjs/physics2d' },
     ]);
 
     kit.addTypeTemplate({

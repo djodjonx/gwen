@@ -517,4 +517,39 @@ export function physics2D(config: Physics2DConfig = {}) {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { usePhysics2D, useRigidBody, useCollider } from './composables.js';
+export {
+  useStaticBody,
+  useDynamicBody,
+  useBoxCollider,
+  useSphereCollider,
+  useCapsuleCollider,
+  defineLayers,
+  onContact,
+  onSensorEnter,
+  onSensorExit,
+  _clearContactCallbacks,
+  _clearSensorCallbacks,
+  useShape,
+} from './composables/index.js';
+export { ShapeComponent } from './shape-component.js';
+export type { ShapeData } from './shape-component.js';
+export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './ring-buffer.js';
+export { physics2dVitePlugin } from './vite-plugin.js';
+export type {
+  BoxColliderOptions,
+  SphereColliderOptions,
+  CapsuleColliderOptions,
+  ShapeOptions,
+} from './composables/index.js';
+export type {
+  StaticBodyOptions,
+  StaticBodyHandle,
+  DynamicBodyOptions,
+  DynamicBodyHandle,
+  BoxColliderHandle,
+  CircleColliderHandle,
+  CapsuleColliderHandle,
+  ContactEvent,
+  Physics2DLayerDefinition,
+} from './types.js';
 export { default } from './module.js';

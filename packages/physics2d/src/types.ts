@@ -308,6 +308,133 @@ export const PHYSICS_MATERIAL_PRESETS: Record<
 
 export type PhysicsColliderShape = 'box' | 'ball';
 
+// ─── RFC-04 composable types ───────────────────────────────────────────────
+
+export type ColliderShape = PhysicsColliderShape; // alias
+
+/** Options for creating a static (non-moving) physics body. */
+export interface StaticBodyOptions {
+  /** Collider shape type. @default 'box' */
+  shape?: ColliderShape;
+  /** Collision layer bitmask. @default undefined */
+  layer?: number;
+  /** Collision mask bitmask. @default undefined */
+  mask?: number;
+  /** Whether this body is a sensor. @default false */
+  isSensor?: boolean;
+}
+
+/** Handle for a static body, allowing enable/disable at runtime. */
+export interface StaticBodyHandle {
+  /** Unique body ID assigned by the physics engine. */
+  readonly bodyId: number;
+  /** Whether the body is currently active. */
+  readonly active: boolean;
+  /** Enable the body in the simulation. */
+  enable(): void;
+  /** Disable the body in the simulation. */
+  disable(): void;
+}
+
+/** Options for creating a dynamic (simulated) physics body. */
+export interface DynamicBodyOptions {
+  /** Collider shape type. @default 'box' */
+  shape?: ColliderShape;
+  /** Collision layer bitmask. @default undefined */
+  layer?: number;
+  /** Collision mask bitmask. @default undefined */
+  mask?: number;
+  /** Mass of the body. @default 1 */
+  mass?: number;
+  /** Linear damping factor. @default 0 */
+  linearDamping?: number;
+  /** Angular damping factor. @default 0 */
+  angularDamping?: number;
+  /**
+   * Prevent the body from rotating.
+   *
+   * NOTE: `fixedRotation` is accepted in options but cannot be passed to
+   * `Physics2DAPI.addRigidBody` at this time — the underlying API does not
+   * expose this parameter.
+   *
+   * TODO: Track at https://github.com/... once the API exposes the parameter.
+   *
+   * @default false
+   */
+  fixedRotation?: boolean;
+  /** Gravity scale. @default 1 */
+  gravityScale?: number;
+}
+
+/** Handle for a dynamic body, allowing force/impulse/velocity control. */
+export interface DynamicBodyHandle {
+  /** Unique body ID assigned by the physics engine. */
+  readonly bodyId: number;
+  /** Whether the body is currently active in the simulation. */
+  readonly active: boolean;
+  /** Apply a force to the body. */
+  applyForce(fx: number, fy: number): void;
+  /** Apply an impulse to the body. */
+  applyImpulse(ix: number, iy: number): void;
+  /** Apply a torque to the body (optional). */
+  applyTorque?(t: number): void;
+  /** Set the linear velocity of the body. */
+  setVelocity(vx: number, vy: number): void;
+  /** Current velocity of the body. */
+  readonly velocity: { x: number; y: number };
+  /** Enable the body in the simulation. */
+  enable(): void;
+  /** Disable the body in the simulation. */
+  disable(): void;
+}
+
+/** Handle for a box collider. */
+export interface BoxColliderHandle {
+  /** Unique collider ID assigned by the physics engine. */
+  readonly colliderId: number;
+  /** Whether this collider is a sensor. */
+  readonly isSensor: boolean;
+}
+
+/** Handle for a circle collider. */
+export interface CircleColliderHandle {
+  /** Unique collider ID assigned by the physics engine. */
+  readonly colliderId: number;
+  /** Whether this collider is a sensor. */
+  readonly isSensor: boolean;
+}
+
+/** Handle for a capsule collider. */
+export interface CapsuleColliderHandle {
+  /** Unique collider ID assigned by the physics engine. */
+  readonly colliderId: number;
+  /** Whether this collider is a sensor. */
+  readonly isSensor: boolean;
+}
+
+/** Collision contact event delivered to onContact(). */
+export interface ContactEvent {
+  /** Entity ID of the first body. */
+  entityA: bigint;
+  /** Entity ID of the second body. */
+  entityB: bigint;
+  /** Contact X position. */
+  contactX: number;
+  /** Contact Y position. */
+  contactY: number;
+  /** Contact normal X. */
+  normalX: number;
+  /** Contact normal Y. */
+  normalY: number;
+  /** Relative velocity at contact. */
+  relativeVelocity: number;
+}
+
+/** Definition of named physics layers for collision filtering. */
+export interface Physics2DLayerDefinition {
+  [key: string]: number;
+}
+
 /**
  * Semantic role for platformer-style grounded derivation.
  * This remains gameplay-facing metadata on the TS side and is not hardcoded in Rust.
