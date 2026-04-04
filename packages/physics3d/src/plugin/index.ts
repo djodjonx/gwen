@@ -7,7 +7,6 @@ import type {
   Physics3DBodyHandle,
   Physics3DBodyOptions,
   Physics3DBodyState,
-  Physics3DBodySnapshot,
   Physics3DConfig,
   Physics3DEntityId,
   Physics3DQuat,
@@ -17,9 +16,6 @@ import type {
   Physics3DCollisionContact,
   Physics3DSensorState,
   Physics3DPrefabExtension,
-  Physics3DPluginHooks,
-  CompoundColliderOptions3D,
-  CompoundColliderHandle3D,
   CompoundShapeSpec,
   BulkStaticBoxesOptions,
   BulkStaticBoxesResult,
@@ -49,14 +45,7 @@ import type {
   Physics3DWasmBridge,
   Physics3DBridgeRuntime,
 } from './bridge.js';
-import {
-  _fetchBvhBuffer,
-  _clearBvhCache,
-  getBvhWorker,
-  queueBvhJob,
-  BVH_WORKER_THRESHOLD,
-} from './bvh.js';
-import { ContactRingBuffer3D, RING_CAPACITY_3D, CONTACT_EVENT_FLOATS } from './ring-buffer.js';
+import { _fetchBvhBuffer, _clearBvhCache, getBvhWorker, BVH_WORKER_THRESHOLD } from './bvh.js';
 
 // ─── BVH worker state (module-level — lazy singleton) ───────────────────────
 

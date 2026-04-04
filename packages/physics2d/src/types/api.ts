@@ -5,11 +5,7 @@
 import type { EntityId } from '@gwenjs/core';
 import type { CollisionEvent, CollisionEventsBatch, SensorState } from './events.js';
 import type { RigidBodyType, ColliderOptions } from './bodies.js';
-import type {
-  TilemapPhysicsChunk,
-  ResolvedCollisionContact,
-  BuildTilemapPhysicsChunksInput,
-} from './tilemap.js';
+import type { TilemapPhysicsChunk, ResolvedCollisionContact } from './tilemap.js';
 import { PHYSICS2D_EVENTS_RING_FORMAT_VERSION } from './tilemap.js';
 
 const EVENT_HEADER_BYTES = 8;

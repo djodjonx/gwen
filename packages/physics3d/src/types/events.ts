@@ -1,5 +1,5 @@
 import type { EntityId } from '@gwenjs/core';
-import type { Physics3DEntityId, Physics3DBodyOptions } from './bodies.js';
+import type { Physics3DBodyOptions } from './bodies.js';
 
 // ─── Sensor ─────────────────────────────────────────────────────────────────────
 

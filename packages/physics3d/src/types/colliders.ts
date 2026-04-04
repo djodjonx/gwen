@@ -1,4 +1,3 @@
-import type { Physics3DVec3 } from './config.js';
 import type { ColliderHandle3D } from './bodies.js';
 
 // ─── Colliders ─────────────────────────────────────────────────────────────────

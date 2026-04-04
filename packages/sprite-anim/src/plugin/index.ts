@@ -3,7 +3,6 @@ import type { EntityId, GwenEngine } from '@gwenjs/kit';
 import { SpriteAnimRuntime } from './runtime.js';
 import type {
   SpriteAnimPluginConfig,
-  SpriteAnimPluginHooks,
   SpriteAnimUIExtension,
   SpriteAnimatorService,
 } from '../types.js';

@@ -1,5 +1,3 @@
-import { COLLIDER_ID_ABSENT } from './constants.js';
-
 // ─── BVH fetch cache (module-level — shared across plugin instances) ────────────
 
 /**
