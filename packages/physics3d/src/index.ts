@@ -487,11 +487,17 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       hx = shape.radius;
       hy = shape.radius;
       hz = shape.radius;
-    } else {
+    } else if (shape.type === 'capsule') {
       // capsule: radius in X/Z, radius + halfHeight in Y
       hx = shape.radius;
       hy = shape.radius + shape.halfHeight;
       hz = shape.radius;
+    } else {
+      // mesh/convex: use a unit AABB as a conservative placeholder
+      // (exact AABB computation requires iterating vertices, deferred to WASM)
+      hx = 1;
+      hy = 1;
+      hz = 1;
     }
     return {
       minX: cx - hx,
