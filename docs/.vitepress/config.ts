@@ -39,7 +39,6 @@ export default defineConfig({
           { text: 'Layouts', link: '/guide/layouts' },
           { text: 'Scene Router', link: '/guide/scene-router' },
           { text: 'Tween & Animation', link: '/guide/tween' },
-          { text: 'Physics 2D Composables', link: '/guide/physics-composables' },
         ],
       },
       {
@@ -78,7 +77,14 @@ export default defineConfig({
           { text: 'Input', link: '/plugins/input' },
           { text: 'Audio', link: '/plugins/audio' },
           { text: 'Canvas2D Renderer', link: '/plugins/renderer-canvas2d' },
-          { text: 'Physics2D', link: '/plugins/physics2d' },
+          {
+            text: 'Physics 2D',
+            items: [
+              { text: 'Physics2D Plugin', link: '/plugins/physics2d' },
+              { text: 'Physics2D Composables', link: '/guide/physics-composables' },
+              { text: 'Physics2D API Reference', link: '/api/physics2d' },
+            ],
+          },
           {
             text: 'Physics 3D',
             items: [
