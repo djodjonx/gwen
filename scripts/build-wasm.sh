@@ -128,6 +128,37 @@ main() {
   log_info "Build-tools WASM built successfully"
   echo ""
 
+  # 4. Build gwen-physics3d-fracture (standalone Voronoi fracture module)
+  build_fracture() {
+    local out_dir="$PROJECT_ROOT/packages/physics3d-fracture/wasm"
+    local crate_dir="$PROJECT_ROOT/crates/gwen-physics3d-fracture"
+
+    log_info "Building fracture variant (gwen-physics3d-fracture)"
+
+    rm -rf "$out_dir"
+    mkdir -p "$out_dir"
+
+    wasm-pack build "$crate_dir" \
+      --target web \
+      --release \
+      --out-dir "$out_dir" \
+      --out-name gwen_physics3d_fracture
+
+    rm -f "$out_dir/.gitignore" "$out_dir/package.json" "$out_dir/README.md"
+
+    if command -v wasm-opt &> /dev/null; then
+      local wasm_file="$out_dir/gwen_physics3d_fracture_bg.wasm"
+      log_info "  Running wasm-opt -Oz on fracture..."
+      wasm-opt -Oz "$wasm_file" -o "$wasm_file.opt"
+      mv "$wasm_file.opt" "$wasm_file"
+    fi
+
+    log_success "Built fracture variant"
+    ls -lh "$out_dir" | awk '{print "    - " $9 " (" $5 ")"}'
+  }
+  build_fracture
+  echo ""
+
   log_success "🎉 All WASM variants built successfully!"
 }
 
