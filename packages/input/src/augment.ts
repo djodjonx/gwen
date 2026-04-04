@@ -5,10 +5,10 @@
  * `@gwenjs/core` with typed input service keys.
  */
 
-import type { KeyboardInput } from './keyboard.js';
-import type { MouseInput } from './mouse.js';
-import type { GamepadInput } from './gamepad.js';
-import type { InputMapper } from './mapping/InputMapper.js';
+import type { KeyboardInput } from './plugin/keyboard.js';
+import type { MouseInput } from './plugin/mouse.js';
+import type { GamepadInput } from './plugin/gamepad.js';
+import type { InputMapper } from './plugin/mapping/InputMapper.js';
 
 declare module '@gwenjs/core' {
   /**
