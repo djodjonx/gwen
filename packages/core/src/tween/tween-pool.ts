@@ -77,12 +77,15 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
    * Immediately updates {@link value} to `from`.
    * Sets {@link playing} to true.
    *
+   * Clears previously registered onComplete listeners before starting.
+   *
    * Can be called while a tween is already playing to restart it.
    *
    * @param targets - Animation targets: `{ from: T; to: T }`
    * @since 1.0.0
    */
   play(targets: { from: TweenableValue; to: TweenableValue }): void {
+    this._completeCbs.length = 0;
     this._from = targets.from;
     this._to = targets.to;
     this._value = targets.from;
