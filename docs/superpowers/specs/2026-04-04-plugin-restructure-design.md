@@ -27,10 +27,10 @@ Several plugin packages have accumulated structural issues:
 | `types/` folder | Created when 1 large types file is split into ≥ 2 type files |
 | `composables/` folder | Already exists where needed — not created for a single composable file |
 | `constants/` folder | Created when ≥ 2 constant files exist |
-| Always flat at `src/` | `index.ts`, `module.ts`, `augment.ts`, `vite.ts` (single vite plugin file) |
+| Always flat at `src/` | `index.ts`, `module.ts`, `augment.ts`, `vite-plugin.ts` (single vite plugin file) |
 | `index.ts` | Stays as public barrel — signature never changes |
 | `package.json` exports | Keys (public sub-paths) unchanged; values (internal paths) updated |
-| `vite-plugin.ts` | Renamed to `vite.ts` everywhere (no folder — single file) |
+| `vite-plugin.ts` | Stays as-is everywhere (no folder — single file) |
 
 ---
 
@@ -40,7 +40,6 @@ Several plugin packages have accumulated structural issues:
 
 **Changes:**
 - Delete 6 stub files: `helpers-contact.ts`, `helpers-movement.ts`, `helpers-orchestration.ts`, `helpers-queries.ts`, `helpers-static-geometry.ts`, `tilemap.ts`
-- Rename `vite-plugin.ts` → `vite.ts`
 - Extract `plugin/` from `index.ts`: plugin impl, ring-buffer, shape-component, prefab
 - Split `types.ts` (926L) into `types/` folder
 - Keep `core.ts` flat (public sub-path `./core`, 37L — not worth moving)
@@ -49,7 +48,7 @@ Several plugin packages have accumulated structural issues:
 src/
   index.ts            ← barrel (unchanged public API)
   module.ts · augment.ts · config.ts · core.ts · vite-env.d.ts
-  vite.ts             ← renamed from vite-plugin.ts
+  vite-plugin.ts      ← unchanged
   composables.ts      ← entry barrel for composables
   composables/        ← unchanged (7 files)
   helpers.ts          ← entry barrel for helpers
@@ -77,14 +76,13 @@ src/
 ### `@gwenjs/physics3d`
 
 **Changes:**
-- Rename `vite-plugin.ts` → `vite.ts`
 - Split `index.ts` (2211L) into `plugin/` folder (4 files)
 - Split `types.ts` (1194L) into `types/` folder
 
 ```
 src/
   index.ts · module.ts · augment.ts · config.ts
-  vite.ts             ← renamed from vite-plugin.ts
+  vite-plugin.ts      ← unchanged
   composables.ts · composables/ ← unchanged (10 files)
   helpers/            ← unchanged (4 files)
   systems.ts          ← flat (single file)
@@ -105,7 +103,7 @@ src/
     bulk.ts           ← BulkStaticBoxes*
 ```
 
-**Exports map changes:** `"./vite-plugin"` → `"./vite"` (value: `./src/vite.ts`).
+**Exports map changes:** none — `"./vite-plugin"` key and path unchanged.
 
 ---
 
