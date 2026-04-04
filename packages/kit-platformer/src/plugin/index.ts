@@ -1,9 +1,9 @@
 import { definePlugin } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/kit';
 import type { ComponentDefinition } from '@gwenjs/core';
-import { Position } from './components/StandardComponents.js';
+import { Position } from '../components/StandardComponents.js';
 // Side-effect: augments GwenProvides with 'platformer' key, enabling typed provide/inject.
-import './augment.js';
+import '../augment.js';
 
 /**
  * Defines the components used by the Platformer Kit.

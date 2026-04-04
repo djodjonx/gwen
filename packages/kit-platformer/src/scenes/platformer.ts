@@ -1,5 +1,5 @@
-import { defineScene } from '../scene-utils.js';
-import type { SceneCallbackApi, LocalPluginEntry } from '../scene-utils.js';
+import { defineScene } from '../plugin/scene-utils.js';
+import type { SceneCallbackApi, LocalPluginEntry } from '../plugin/scene-utils.js';
 import { PlatformerInputSystem } from '../systems/PlatformerInputSystem.js';
 import { PlatformerMovementSystem } from '../systems/PlatformerMovementSystem.js';
 import {
@@ -7,8 +7,8 @@ import {
   DEFAULT_PLATFORMER_UNITS,
   toPhysicsScalar,
   type PlatformerUnits,
-} from '../units.js';
-import { type PlatformerKitComponents } from '../plugin.js';
+} from '../plugin/units.js';
+import { type PlatformerKitComponents } from '../plugin/index.js';
 
 /**
  * Options for creating a turnkey platformer scene.

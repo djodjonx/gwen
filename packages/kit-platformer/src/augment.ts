@@ -5,7 +5,7 @@
  * augments `@gwenjs/core` with a typed platformer kit service key.
  */
 
-import type { PlatformerKitService } from './plugin.js';
+import type { PlatformerKitService } from './plugin/index.js';
 
 declare module '@gwenjs/core' {
   /**

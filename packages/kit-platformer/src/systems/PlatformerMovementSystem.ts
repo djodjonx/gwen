@@ -17,7 +17,7 @@ import {
   createGroundHysteresisState,
   resolveGroundedWithHysteresis,
 } from './platformer/groundHysteresis.js';
-import { toPhysicsScalar, type PlatformerUnits } from '../units.js';
+import { toPhysicsScalar, type PlatformerUnits } from '../plugin/units.js';
 
 type ControllerMovementConfig = {
   speed: number;

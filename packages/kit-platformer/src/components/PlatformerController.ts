@@ -3,7 +3,7 @@ import {
   DEFAULT_PIXELS_PER_METER,
   DEFAULT_PLATFORMER_UNITS,
   type PlatformerUnits,
-} from '../units.js';
+} from '../plugin/units.js';
 
 /**
  * Physics and movement configuration for a platformer entity.

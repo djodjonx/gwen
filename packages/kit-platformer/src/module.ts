@@ -10,8 +10,8 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { PlatformerKitPlugin } from './plugin.js';
-import type { PlatformerKitConfig } from './plugin.js';
+import { PlatformerKitPlugin } from './plugin/index.js';
+import type { PlatformerKitConfig } from './plugin/index.js';
 
 /**
  * GWEN module for the Platformer Kit.

@@ -7,8 +7,8 @@ export type { PlatformerSceneOptions } from './scenes/platformer.js';
 // ── Level 2 — Prefabs & Components ─────────────────────────────────────────
 export { createPlayerPrefab } from './prefabs/player.js';
 export type { PlayerPrefabOptions, ColliderPixelDef } from './prefabs/player.js';
-export type { PlatformerUnits } from './units.js';
-export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './units.js';
+export type { PlatformerUnits } from './plugin/units.js';
+export { DEFAULT_PIXELS_PER_METER, DEFAULT_PLATFORMER_UNITS } from './plugin/units.js';
 
 export { PlatformerController } from './components/PlatformerController.js';
 export type { PlatformerControllerData } from './components/PlatformerController.js';
@@ -16,12 +16,12 @@ export { PlatformerIntent } from './components/PlatformerIntent.js';
 export { Position } from './components/StandardComponents.js';
 
 // ── Level 3 — Advanced Configuration ───────────────────────────────────────
-export { PlatformerKitPlugin } from './plugin.js';
+export { PlatformerKitPlugin } from './plugin/index.js';
 export type {
   PlatformerKitConfig,
   PlatformerKitComponents,
   PlatformerKitService,
-} from './plugin.js';
+} from './plugin/index.js';
 
 // ── Level 4 — Logic & Internal Systems ─────────────────────────────────────
 export { PlatformerInputSystem } from './systems/PlatformerInputSystem.js';
@@ -41,7 +41,7 @@ export type {
 } from './helpers/staticGeometry.js';
 
 // ── Shared constants & types ───────────────────────────────────────────────
-export { PlatformerDefaultInputMap } from './input.js';
+export { PlatformerDefaultInputMap } from './plugin/input.js';
 
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
