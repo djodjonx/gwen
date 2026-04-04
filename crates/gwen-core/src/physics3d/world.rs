@@ -191,6 +191,11 @@ pub struct PhysicsWorld3D {
     quality_preset: PhysicsQualityPreset3D,
 }
 
+// ─── Shape type constants for the compound batch buffer ─────────────────────
+const COMPOUND_SHAPE_BOX: u32 = 0;
+const COMPOUND_SHAPE_SPHERE: u32 = 1;
+const COMPOUND_SHAPE_CAPSULE: u32 = 2;
+
 impl PhysicsWorld3D {
     /// Create a new 3D physics world with the given gravity vector.
     ///
@@ -726,6 +731,342 @@ impl PhysicsWorld3D {
             mask_bits,
             builder,
         )
+    }
+
+    /// Attach a heightfield collider to a static body.
+    ///
+    /// The heightfield is defined on a rows × cols grid. Each cell value is a height in
+    /// *local* Y-axis units — multiply by `scale_y` to get world-space metres.
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `heights_flat`  — Row-major flat array of `rows × cols` height values.
+    /// * `rows`          — Number of rows (Z axis).
+    /// * `cols`          — Number of columns (X axis).
+    /// * `scale_x`       — World-space width of the entire heightfield (metres).
+    /// * `scale_y`       — World-space maximum height multiplier (metres).
+    /// * `scale_z`       — World-space depth of the entire heightfield (metres).
+    /// * `friction`      — Surface friction coefficient.
+    /// * `restitution`   — Bounciness \[0, 1\].
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    /// * `collider_id`   — Stable ID for event lookup.
+    ///
+    /// # Returns
+    /// `true` on success, `false` if the entity has no body or input is invalid.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_heightfield_collider(
+        &mut self,
+        entity_index: u32,
+        heights_flat: &[f32],
+        rows: usize,
+        cols: usize,
+        scale_x: f32,
+        scale_y: f32,
+        scale_z: f32,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if heights_flat.len() != rows * cols {
+            return false;
+        }
+        use rapier3d::na::DMatrix;
+        let matrix = DMatrix::from_row_slice(rows, cols, heights_flat);
+        let builder = ColliderBuilder::heightfield(
+            matrix,
+            vector![scale_x, scale_y, scale_z],
+        );
+        self.insert_collider(
+            entity_index, collider_id, 0.0, 0.0, 0.0,
+            false, friction, restitution, layer_bits, mask_bits, builder,
+        )
+    }
+
+    /// Replace the height data of an existing heightfield collider.
+    ///
+    /// Removes the old collider by `(entity_index, collider_id)` and inserts a
+    /// new one with updated heights while preserving all other parameters.
+    ///
+    /// Returns `true` on success. Returns `false` if the entity has no body or
+    /// the input dimensions are inconsistent.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_heightfield_collider(
+        &mut self,
+        entity_index: u32,
+        collider_id: u32,
+        heights_flat: &[f32],
+        rows: usize,
+        cols: usize,
+        scale_x: f32,
+        scale_y: f32,
+        scale_z: f32,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> bool {
+        if let Some(&ch) = self.collider_handles.get(&(entity_index, collider_id)) {
+            self.collider_set.remove(
+                ch,
+                &mut self.island_manager,
+                &mut self.rigid_body_set,
+                false,
+            );
+            self.collider_handles.remove(&(entity_index, collider_id));
+        }
+        self.add_heightfield_collider(
+            entity_index, heights_flat, rows, cols,
+            scale_x, scale_y, scale_z,
+            friction, restitution, layer_bits, mask_bits, collider_id,
+        )
+    }
+
+    /// Attach a triangle-mesh collider to a 3D body.
+    ///
+    /// `vertices_flat` must be a multiple of 3 floats (`[x0,y0,z0, x1,y1,z1, ...]`).
+    /// `indices_flat` must be a multiple of 3 u32s (`[a0,b0,c0, ...]`).
+    ///
+    /// Returns `false` when the entity has no registered body, or either slice is empty.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_mesh_collider(
+        &mut self,
+        entity_index: u32,
+        vertices_flat: &[f32],
+        indices_flat: &[u32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        let verts: Vec<rapier3d::na::Point3<f32>> = vertices_flat
+            .chunks_exact(3)
+            .map(|c| rapier3d::na::Point3::new(c[0], c[1], c[2]))
+            .collect();
+        let idxs: Vec<[u32; 3]> = indices_flat
+            .chunks_exact(3)
+            .map(|c| [c[0], c[1], c[2]])
+            .collect();
+        if verts.is_empty() || idxs.is_empty() {
+            return false;
+        }
+        let builder = ColliderBuilder::trimesh(verts, idxs);
+        self.insert_collider(
+            entity_index,
+            collider_id,
+            offset_x,
+            offset_y,
+            offset_z,
+            is_sensor,
+            friction,
+            restitution,
+            layer_bits,
+            mask_bits,
+            builder,
+        )
+    }
+
+    /// Attach a convex-hull collider to a 3D body.
+    ///
+    /// `vertices_flat` must be a multiple of 3 floats (`[x0,y0,z0, x1,y1,z1, ...]`).
+    /// When Rapier cannot compute a convex hull (e.g. degenerate point cloud), the
+    /// function falls back to a unit sphere (`ball(0.5)`) rather than failing.
+    ///
+    /// Returns `false` when the entity has no registered body or the vertex slice is empty.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_convex_collider(
+        &mut self,
+        entity_index: u32,
+        vertices_flat: &[f32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        density: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        let verts: Vec<rapier3d::na::Point3<f32>> = vertices_flat
+            .chunks_exact(3)
+            .map(|c| rapier3d::na::Point3::new(c[0], c[1], c[2]))
+            .collect();
+        if verts.is_empty() {
+            return false;
+        }
+        let builder = if verts.len() < 4 {
+            // parry3d panics on IncompleteInput when fewer than 4 points are
+            // provided; use the ball fallback directly rather than letting it panic.
+            ColliderBuilder::ball(0.5)
+        } else {
+            ColliderBuilder::convex_hull(&verts)
+                .unwrap_or_else(|| ColliderBuilder::ball(0.5))
+        }
+        .density(density);
+        self.insert_collider(
+            entity_index,
+            collider_id,
+            offset_x,
+            offset_y,
+            offset_z,
+            is_sensor,
+            friction,
+            restitution,
+            layer_bits,
+            mask_bits,
+            builder,
+        )
+    }
+
+    /// Bulk-create N static rigid bodies with box colliders in a single call.
+    ///
+    /// # Arguments
+    /// * `entity_indices`    — Pre-allocated ECS entity slot indices (one per body).
+    /// * `positions_flat`    — Flat `[x0,y0,z0, x1,y1,z1, ...]` — must have `N × 3` elements.
+    /// * `half_extents_flat` — Either `3` floats (uniform for all N) or `N × 3` floats
+    ///                         (per-entity half-extents).
+    /// * `friction`          — Surface friction coefficient (≥ 0).
+    /// * `restitution`       — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`        — Collision layer membership bitmask.
+    /// * `mask_bits`         — Collision filter bitmask.
+    ///
+    /// Returns the number of bodies created. Each body uses `collider_id = 0`.
+    ///
+    /// # Panics
+    /// Panics in debug builds if `positions_flat.len() < entity_indices.len() * 3`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn bulk_add_static_boxes(
+        &mut self,
+        entity_indices: &[u32],
+        positions_flat: &[f32],
+        half_extents_flat: &[f32],
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> u32 {
+        let n = entity_indices.len();
+        if n == 0 {
+            return 0;
+        }
+        let uniform_extents = half_extents_flat.len() == 3;
+        let groups = Self::make_interaction_groups(layer_bits, mask_bits);
+        let mut count = 0u32;
+
+        for i in 0..n {
+            let px = positions_flat[i * 3];
+            let py = positions_flat[i * 3 + 1];
+            let pz = positions_flat[i * 3 + 2];
+            let (hx, hy, hz) = if uniform_extents {
+                (half_extents_flat[0], half_extents_flat[1], half_extents_flat[2])
+            } else {
+                (
+                    half_extents_flat[i * 3],
+                    half_extents_flat[i * 3 + 1],
+                    half_extents_flat[i * 3 + 2],
+                )
+            };
+            let entity_index = entity_indices[i];
+
+            let rb = RigidBodyBuilder::fixed()
+                .translation(vector![px, py, pz])
+                .build();
+            let handle = self.rigid_body_set.insert(rb);
+            self.entity_handles.insert(entity_index, handle);
+
+            let collider = ColliderBuilder::cuboid(hx, hy, hz)
+                .collision_groups(groups)
+                .friction(friction)
+                .restitution(restitution)
+                .user_data(pack_user_data(entity_index, 0))
+                .active_events(ActiveEvents::COLLISION_EVENTS)
+                .build();
+            let ch = self.collider_set.insert_with_parent(
+                collider,
+                handle,
+                &mut self.rigid_body_set,
+            );
+            self.collider_handles.insert((entity_index, 0), ch);
+            count += 1;
+        }
+        count
+    }
+
+    /// Attach multiple primitive colliders to one rigid body in a single call.
+    ///
+    /// This avoids N WASM round-trips for an N-shape compound body.
+    ///
+    /// # Buffer layout (12 `f32` per shape)
+    /// `[shape_type, p0, p1, p2, p3, offset_x, offset_y, offset_z, is_sensor, friction, restitution, collider_id]`
+    /// - BOX (0):     `p0=half_x, p1=half_y, p2=half_z, p3=0`
+    /// - SPHERE (1):  `p0=radius, p1=p2=p3=0`
+    /// - CAPSULE (2): `p0=radius, p1=half_height, p2=p3=0`
+    ///
+    /// Unknown shape types are silently skipped (not counted).
+    ///
+    /// # Returns
+    /// Number of colliders successfully inserted (0 if `entity_index` has no
+    /// body or `shape_data.len()` is not a multiple of 12).
+    pub fn add_compound_collider(
+        &mut self,
+        entity_index: u32,
+        shape_data: &[f32],
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> u32 {
+        const FLOATS_PER_SHAPE: usize = 12;
+        if shape_data.len() % FLOATS_PER_SHAPE != 0 {
+            return 0;
+        }
+
+        let mut count = 0u32;
+        for chunk in shape_data.chunks_exact(FLOATS_PER_SHAPE) {
+            let shape_type = chunk[0] as u32;
+            let p0 = chunk[1];
+            let p1 = chunk[2];
+            let p2 = chunk[3];
+            // chunk[4] is reserved (p3), ignored
+            let ox = chunk[5];
+            let oy = chunk[6];
+            let oz = chunk[7];
+            let is_sensor = chunk[8] != 0.0;
+            let friction = chunk[9];
+            let restitution = chunk[10];
+            let collider_id = chunk[11] as u32;
+
+            let builder = match shape_type {
+                COMPOUND_SHAPE_BOX => ColliderBuilder::cuboid(p0, p1, p2),
+                COMPOUND_SHAPE_SPHERE => ColliderBuilder::ball(p0),
+                COMPOUND_SHAPE_CAPSULE => ColliderBuilder::capsule_y(p1, p0),
+                _ => continue,
+            };
+
+            if self.insert_collider(
+                entity_index,
+                collider_id,
+                ox,
+                oy,
+                oz,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                builder,
+            ) {
+                count += 1;
+            }
+        }
+        count
     }
 
     /// Remove a specific collider from the simulation.
@@ -1586,5 +1927,287 @@ mod tests {
         assert!(world.apply_angular_impulse(0, 0.0, 5.0, 0.0));
         let av_after = world.get_angular_velocity(0);
         assert!(av_after[1] > 0.0, "angular impulse should increase angular vy");
+    }
+
+    #[test]
+    fn test_physics3d_add_heightfield_collider_happy_path() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // body_kind 1 = Fixed
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        // 3×3 grid — flat terrain at y = 0
+        let heights = [0.0f32; 9];
+        let ok = world.add_heightfield_collider(
+            0, &heights, 3, 3,
+            10.0, 1.0, 10.0,
+            0.5, 0.0, u32::MAX, u32::MAX, 42,
+        );
+        assert!(ok);
+        assert!(world.collider_handles.contains_key(&(0, 42)));
+    }
+
+    #[test]
+    fn test_physics3d_add_heightfield_collider_wrong_size_returns_false() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        // 8 elements but rows=3 cols=3 requires 9 — must fail
+        let heights = [0.0f32; 8];
+        let ok = world.add_heightfield_collider(
+            0, &heights, 3, 3,
+            10.0, 1.0, 10.0,
+            0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_update_heightfield_collider_replaces_old() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        let flat = [0.0f32; 9];
+        world.add_heightfield_collider(
+            0, &flat, 3, 3,
+            10.0, 1.0, 10.0,
+            0.5, 0.0, u32::MAX, u32::MAX, 99,
+        );
+        assert!(world.collider_handles.contains_key(&(0, 99)));
+
+        // Raise the centre cell
+        let mut updated = [0.0f32; 9];
+        updated[4] = 5.0;
+        let ok = world.update_heightfield_collider(
+            0, 99, &updated, 3, 3,
+            10.0, 1.0, 10.0,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        assert!(ok);
+        // collider_id 99 must still be present after the rebuild
+        assert!(world.collider_handles.contains_key(&(0, 99)));
+    }
+
+    #[test]
+    fn test_physics3d_add_heightfield_collider_no_body_returns_false() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // No body registered for entity 7
+        let heights = [0.0f32; 4];
+        let ok = world.add_heightfield_collider(
+            7, &heights, 2, 2,
+            4.0, 1.0, 4.0,
+            0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    // ─── add_mesh_collider ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_physics3d_add_mesh_collider_returns_true_for_valid_entity() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        // A single triangle
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let idxs: &[u32] = &[0, 1, 2];
+        let ok = world.add_mesh_collider(
+            0, verts, idxs, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_mesh_collider_returns_false_for_unknown_entity() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let idxs: &[u32] = &[0, 1, 2];
+        let ok = world.add_mesh_collider(
+            99, verts, idxs, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_mesh_collider_returns_false_for_empty_vertices() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let ok = world.add_mesh_collider(
+            0, &[], &[0, 1, 2], 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_mesh_collider_returns_false_for_empty_indices() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let ok = world.add_mesh_collider(
+            0, verts, &[], 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_mesh_collider_registers_in_collider_handles() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let idxs: &[u32] = &[0, 1, 2];
+        world.add_mesh_collider(
+            0, verts, idxs, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, u32::MAX, u32::MAX, 7,
+        );
+        assert!(world.collider_handles.contains_key(&(0, 7)));
+    }
+
+    // ─── add_convex_collider ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_physics3d_add_convex_collider_returns_true_for_valid_entity() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        // Tetrahedron
+        let verts: &[f32] = &[
+            0.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+        ];
+        let ok = world.add_convex_collider(
+            0, verts, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 1.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_convex_collider_returns_false_for_unknown_entity() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let ok = world.add_convex_collider(
+            42, verts, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 1.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_convex_collider_returns_false_for_empty_vertices() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let ok = world.add_convex_collider(
+            0, &[], 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 1.0, u32::MAX, u32::MAX, 1,
+        );
+        assert!(!ok);
+    }
+
+    #[test]
+    fn test_physics3d_add_convex_collider_registers_in_collider_handles() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let verts: &[f32] = &[
+            0.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+        ];
+        world.add_convex_collider(
+            0, verts, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 1.0, u32::MAX, u32::MAX, 5,
+        );
+        assert!(world.collider_handles.contains_key(&(0, 5)));
+    }
+
+    #[test]
+    fn test_physics3d_add_convex_collider_degenerate_falls_back_to_sphere() {
+        // Only 2 non-unique points — convex_hull returns None → fallback ball(0.5)
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        let verts: &[f32] = &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        // Should still succeed (ball fallback) rather than panic
+        let ok = world.add_convex_collider(
+            0, verts, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 1.0, u32::MAX, u32::MAX, 3,
+        );
+        assert!(ok);
+    }
+
+    // ─── bulk_add_static_boxes ────────────────────────────────────────────────
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_returns_n_on_success() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[10, 11, 12];
+        let positions: &[f32] = &[
+            0.0, 0.0, 0.0,
+            5.0, 0.0, 0.0,
+            10.0, 0.0, 0.0,
+        ];
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5]; // uniform
+        let n = world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        assert_eq!(n, 3);
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_registers_entity_handles() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[20, 21];
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5];
+        world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        assert!(world.entity_handles.contains_key(&20));
+        assert!(world.entity_handles.contains_key(&21));
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_registers_collider_handles() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[30, 31];
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5];
+        world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        // collider_id is always 0 for bulk-spawned boxes
+        assert!(world.collider_handles.contains_key(&(30, 0)));
+        assert!(world.collider_handles.contains_key(&(31, 0)));
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_per_entity_half_extents() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[40, 41];
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 5.0, 0.0, 0.0];
+        // Per-entity half extents: entity 40 → 0.5,0.5,0.5; entity 41 → 1.0,2.0,3.0
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5, 1.0, 2.0, 3.0];
+        let n = world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        assert_eq!(n, 2);
+        assert!(world.entity_handles.contains_key(&40));
+        assert!(world.entity_handles.contains_key(&41));
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_empty_indices_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let n = world.bulk_add_static_boxes(
+            &[], &[], &[0.5, 0.5, 0.5],
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        assert_eq!(n, 0);
     }
 }
