@@ -1639,6 +1639,65 @@ impl Engine {
         }
     }
 
+    /// Rebuild a mesh collider with new geometry at runtime.
+    ///
+    /// Removes the collider identified by `(entity_index, collider_id)` from the Rapier3D
+    /// world and re-inserts a new trimesh built from `vertices_flat` and `indices_flat`.
+    /// If no matching collider exists, a new one is created (same result as calling
+    /// `physics3d_add_mesh_collider`).
+    ///
+    /// # Returns
+    /// `true` on success, `false` if the entity has no registered body or the world is
+    /// not initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `collider_id`   — Stable ID that was passed when the collider was created.
+    /// * `vertices_flat` — New vertex positions `[x0,y0,z0, x1,y1,z1, ...]`.
+    /// * `indices_flat`  — New triangle indices `[a0,b0,c0, ...]`.
+    /// * `offset_x/y/z` — Local-space offset from the body origin.
+    /// * `is_sensor`     — If `true`, collision response is suppressed; only events fire.
+    /// * `friction`      — Surface friction coefficient (≥ 0).
+    /// * `restitution`   — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_rebuild_mesh_collider(
+        &mut self,
+        entity_index: u32,
+        collider_id: u32,
+        vertices_flat: &[f32],
+        indices_flat: &[u32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.rebuild_mesh_collider(
+                entity_index,
+                collider_id,
+                vertices_flat,
+                indices_flat,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+            )
+        } else {
+            false
+        }
+    }
+
     /// Attach a convex-hull collider to a 3D body.
     ///
     /// Falls back to a unit sphere when Rapier cannot construct a valid convex hull
@@ -2393,5 +2452,31 @@ mod tests {
 
         let count = engine.query_entities_to_buffer(&[t0]);
         assert_eq!(count, 10_000); // Capped at 10,000
+    }
+
+    #[cfg(feature = "physics3d")]
+    #[test]
+    fn test_physics3d_rebuild_mesh_collider_binding_happy_path() {
+        let mut engine = Engine::new(64);
+        engine.physics3d_init(0.0, -9.81, 0.0, 64);
+        engine.physics3d_add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0); // Fixed body
+
+        let verts: Vec<f32> = vec![0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0];
+        let idxs: Vec<u32> = vec![0, 1, 2];
+        assert!(engine.physics3d_add_mesh_collider(0, &verts, &idxs, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, 42));
+
+        let new_verts: Vec<f32> = vec![0.0,0.0,0.0, 3.0,0.0,0.0, 0.0,3.0,0.0];
+        let new_idxs: Vec<u32> = vec![0, 1, 2];
+        assert!(engine.physics3d_rebuild_mesh_collider(0, 42, &new_verts, &new_idxs, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF));
+    }
+
+    #[cfg(feature = "physics3d")]
+    #[test]
+    fn test_physics3d_rebuild_mesh_collider_binding_returns_false_when_no_world() {
+        let mut engine = Engine::new(64);
+        // physics3d not initialised.
+        let verts: Vec<f32> = vec![0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0];
+        let idxs: Vec<u32> = vec![0, 1, 2];
+        assert!(!engine.physics3d_rebuild_mesh_collider(0, 1, &verts, &idxs, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF));
     }
 }
