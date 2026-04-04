@@ -32,6 +32,8 @@ import type {
   CompoundColliderOptions3D,
   CompoundColliderHandle3D,
   CompoundShapeSpec,
+  BulkStaticBoxesOptions,
+  BulkStaticBoxesResult,
 } from './types';
 
 import { PHYSICS3D_MATERIAL_PRESETS } from './types';
@@ -247,6 +249,56 @@ interface Physics3DWasmBridge {
     maskBits: number,
   ) => number;
   physics3d_remove_collider?: (entityIndex: number, colliderId: number) => boolean;
+  /**
+   * Attach a triangle-mesh collider to a 3D body.
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_add_mesh_collider?: (
+    entityIndex: number,
+    vertices: Float32Array,
+    indices: Uint32Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: number,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+    colliderId: number,
+  ) => boolean;
+  /**
+   * Attach a convex-hull collider to a 3D body.
+   * Falls back to a unit sphere on degenerate input (Rapier-side).
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_add_convex_collider?: (
+    entityIndex: number,
+    vertices: Float32Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: number,
+    friction: number,
+    restitution: number,
+    density: number,
+    layerBits: number,
+    maskBits: number,
+    colliderId: number,
+  ) => boolean;
+  /**
+   * Bulk-spawn N static box bodies in one WASM call.
+   * `entityIndices` must be pre-allocated by the TypeScript caller.
+   */
+  physics3d_bulk_spawn_static_boxes?: (
+    entityIndices: Uint32Array,
+    positionsFlat: Float32Array,
+    halfExtentsFlat: Float32Array,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+  ) => number;
 
   // Sensor
   physics3d_get_sensor_state?: (entityIndex: number, sensorId: number) => BigInt64Array | number[];
@@ -1148,6 +1200,42 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           ) ?? false
         );
       }
+      if (shape.type === 'mesh') {
+        return (
+          wasmBridge!.physics3d_add_mesh_collider?.(
+            idx,
+            shape.vertices,
+            shape.indices,
+            ox,
+            oy,
+            oz,
+            isSensor,
+            friction,
+            restitution,
+            membership,
+            filter,
+            colliderId,
+          ) ?? false
+        );
+      }
+      if (shape.type === 'convex') {
+        return (
+          wasmBridge!.physics3d_add_convex_collider?.(
+            idx,
+            shape.vertices,
+            ox,
+            oy,
+            oz,
+            isSensor,
+            friction,
+            restitution,
+            density,
+            membership,
+            filter,
+            colliderId,
+          ) ?? false
+        );
+      }
     }
 
     return true;
@@ -1171,6 +1259,81 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     }
 
     return true;
+  };
+
+  /**
+   * Spawn N static box rigid bodies in a single operation.
+   *
+   * In WASM mode a single Rust call is made via `physics3d_bulk_spawn_static_boxes`,
+   * amortising the per-body overhead for large amounts of static geometry.
+   * In local mode bodies are created one-by-one via `createBodyLocal`.
+   */
+  const bulkSpawnStaticBoxes = (options: BulkStaticBoxesOptions): BulkStaticBoxesResult => {
+    const n = options.positions.length / 3;
+    const friction = options.friction ?? 0.5;
+    const restitution = options.restitution ?? 0.0;
+    const membership = resolveLayerBits(options.layers, layerRegistry);
+    const filter = resolveLayerBits(options.mask, layerRegistry);
+
+    // Create N ECS entities
+    const entityIds: EntityId[] = [];
+    const entityIndices = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+      const eid = _engine!.createEntity();
+      entityIds.push(eid);
+      entityIndices[i] = toEntityIndex(eid as unknown as Physics3DEntityId);
+    }
+
+    if (backendMode === 'wasm' && wasmBridge!.physics3d_bulk_spawn_static_boxes) {
+      const spawned = wasmBridge!.physics3d_bulk_spawn_static_boxes(
+        entityIndices,
+        options.positions,
+        options.halfExtents,
+        friction,
+        restitution,
+        membership,
+        filter,
+      );
+      // Register all entity handles in bodyByEntity so hasBody() works
+      for (let i = 0; i < n; i++) {
+        const handle: Physics3DBodyHandle = {
+          bodyId: nextBodyId++,
+          entityId: entityIds[i] as unknown as Physics3DEntityId,
+          kind: 'fixed',
+          mass: 0,
+          linearDamping: 0,
+          angularDamping: 0,
+        };
+        bodyByEntity.set(entityIndices[i]!, handle);
+      }
+      return { entityIds, count: spawned };
+    }
+
+    // Local fallback — create bodies one by one
+    for (let i = 0; i < n; i++) {
+      const px = options.positions[i * 3]!;
+      const py = options.positions[i * 3 + 1]!;
+      const pz = options.positions[i * 3 + 2]!;
+      const uniform = options.halfExtents.length === 3;
+      const hx = uniform ? options.halfExtents[0]! : options.halfExtents[i * 3]!;
+      const hy = uniform ? options.halfExtents[1]! : options.halfExtents[i * 3 + 1]!;
+      const hz = uniform ? options.halfExtents[2]! : options.halfExtents[i * 3 + 2]!;
+
+      createBodyLocal(entityIds[i] as unknown as Physics3DEntityId, {
+        kind: 'fixed',
+        initialPosition: { x: px, y: py, z: pz },
+        colliders: [
+          {
+            shape: { type: 'box', halfX: hx, halfY: hy, halfZ: hz },
+            friction,
+            restitution,
+            layers: options.layers,
+            mask: options.mask,
+          },
+        ],
+      });
+    }
+    return { entityIds, count: n };
   };
 
   const addCompoundCollider: Physics3DAPI['addCompoundCollider'] = (entityId, options) => {
@@ -1350,6 +1513,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     setKinematicPosition,
     addCollider,
     removeCollider,
+    bulkSpawnStaticBoxes,
     addCompoundCollider,
     getSensorState,
     updateSensorState,
@@ -1685,3 +1849,5 @@ export type {
   CompoundShapeSpec,
   CompoundColliderOptions3D,
 } from './types.js';
+
+export type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './types.js';

@@ -319,6 +319,42 @@ export interface Physics3DColliderOptions {
   materialPreset?: Physics3DMaterialPreset;
 }
 
+// ─── Bulk spawn ───────────────────────────────────────────────────────────────
+
+/**
+ * Options accepted by {@link Physics3DAPI.bulkSpawnStaticBoxes}.
+ */
+export interface BulkStaticBoxesOptions {
+  /**
+   * Flat position buffer `[x0,y0,z0, x1,y1,z1, ...]`.
+   * Length must be a multiple of 3. `N = positions.length / 3`.
+   */
+  positions: Float32Array;
+  /**
+   * Flat half-extents buffer.
+   * Either 3 floats (uniform for all N boxes) or `N × 3` floats (per-box).
+   */
+  halfExtents: Float32Array;
+  /** Surface friction coefficient ≥ 0. @default 0.5 */
+  friction?: number;
+  /** Bounciness coefficient in [0, 1]. @default 0.0 */
+  restitution?: number;
+  /** Named collision layers each box belongs to. Resolved to bitmask. */
+  layers?: string[];
+  /** Named layers each box collides with. Resolved to bitmask. */
+  mask?: string[];
+}
+
+/**
+ * Result returned by {@link Physics3DAPI.bulkSpawnStaticBoxes}.
+ */
+export interface BulkStaticBoxesResult {
+  /** Packed EntityIds for all successfully created bodies, in spawn order. */
+  entityIds: EntityId[];
+  /** Number of bodies actually created (may be less than N on failure). */
+  count: number;
+}
+
 // ─── Sensor ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -675,6 +711,30 @@ export interface Physics3DAPI {
    * @returns `false` if no matching collider was found.
    */
   removeCollider(entityId: Physics3DEntityId, colliderId: number): boolean;
+
+  /**
+   * Spawn N static box rigid bodies in a single operation.
+   *
+   * In **WASM mode** this makes a single Rust call via `physics3d_bulk_spawn_static_boxes`,
+   * amortising the per-body overhead for large static geometry (e.g. level platforms).
+   * In **fallback mode** this loops and calls `createBody` N times.
+   *
+   * Entity IDs are allocated internally via `engine.createEntity()`.
+   *
+   * @param options - Position buffer, half-extents, and optional material/layer overrides.
+   * @returns Packed entity IDs and count of created bodies.
+   *
+   * @example
+   * ```ts
+   * const { entityIds } = physics3d.bulkSpawnStaticBoxes({
+   *   positions: new Float32Array([0,0,0, 5,0,0, 10,0,0]),
+   *   halfExtents: new Float32Array([0.5, 0.5, 0.5]),
+   * });
+   * ```
+   *
+   * @since 1.1.0
+   */
+  bulkSpawnStaticBoxes(options: BulkStaticBoxesOptions): BulkStaticBoxesResult;
 
   /**
    * Attach multiple primitive colliders to one body in a single batch call.
