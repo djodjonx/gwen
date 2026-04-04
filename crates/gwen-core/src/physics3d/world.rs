@@ -1987,6 +1987,10 @@ mod tests {
     #[test]
     fn test_physics3d_apply_angular_impulse_changes_angular_velocity() {
         let mut world = world_with_one_dynamic();
+        // A box collider is required so Rapier can derive a non-zero inertia
+        // tensor; without a shape, additional_mass() only sets translational
+        // mass and apply_torque_impulse() has no effect.
+        world.add_box_collider(0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, false, 0.5, 0.0, u32::MAX, u32::MAX, 99);
         // Step once to initialise mass properties (same requirement as linear impulse).
         world.step(1.0 / 60.0);
 

@@ -1693,6 +1693,63 @@ impl Engine {
         }
     }
 
+    /// Load a pre-baked BVH buffer as a trimesh collider.
+    ///
+    /// The `bvh_bytes` must have been produced by `build_bvh_buffer()` or
+    /// `build_bvh_from_glb()` (the `build-tools` feature). Deserialising the
+    /// pre-baked [`rapier3d::geometry::TriMesh`] costs ~2 ms vs ~50 ms for a
+    /// fresh `trimesh()` build on large meshes.
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `bvh_bytes`     — Pre-baked BVH buffer produced by `build_bvh_buffer` or
+    ///                     `build_bvh_from_glb` (GBVH header + bincode `TriMesh`).
+    /// * `offset_x/y/z`  — Local-space offset from the body origin (metres).
+    /// * `is_sensor`     — When `true`, collision response is suppressed; only events fire.
+    /// * `friction`      — Surface friction coefficient (≥ 0).
+    /// * `restitution`   — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    /// * `collider_id`   — Stable application-defined collider ID.
+    ///
+    /// # Returns
+    /// `false` if `bvh_bytes` is malformed, the magic header is missing,
+    /// or the entity has no registered rigid body.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_load_bvh_collider(
+        &mut self,
+        entity_index: u32,
+        bvh_bytes: &[u8],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.load_bvh_collider(
+                entity_index,
+                bvh_bytes,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
     /// Bulk-spawn N static box bodies in one call.
     ///
     /// Entity indices must be pre-allocated by the TypeScript caller via

@@ -212,7 +212,7 @@ describe('bulkSpawnStaticBoxes — WASM mode', () => {
   it('returns count matching WASM return value', () => {
     const { service } = setup();
     physics3dBulkSpawnStaticBoxes.mockReturnValue(5);
-    const positions = new Float32Array(new Array(15).fill(0)); // 5 entities × 3
+    const positions = new Float32Array(Array.from({ length: 15 }, () => 0)); // 5 entities × 3
     const { count } = service.bulkSpawnStaticBoxes({
       positions,
       halfExtents: new Float32Array([0.5, 0.5, 0.5]),
