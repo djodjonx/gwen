@@ -7,6 +7,7 @@ import {
   _dispatchSensorExit,
   onSensorEnter,
   onSensorExit,
+  _clearSensorCallbacks,
 } from '../../src/composables/on-sensor.js';
 
 describe('onSensorEnter / _dispatchSensorEnter', () => {
@@ -82,5 +83,15 @@ describe('onSensorEnter and onSensorExit independence', () => {
     });
     _dispatchSensorExit(2, 1n);
     expect(enterFired).toBe(false);
+  });
+
+  it('_clearSensorCallbacks removes enter/exit callbacks', () => {
+    let enterCalled = false;
+    onSensorEnter(10, () => {
+      enterCalled = true;
+    });
+    _clearSensorCallbacks(10);
+    _dispatchSensorEnter(10, 1n);
+    expect(enterCalled).toBe(false);
   });
 });

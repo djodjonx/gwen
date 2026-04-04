@@ -96,6 +96,25 @@ describe('useStaticBody', () => {
     expect(mockPhysics.addBallCollider).not.toHaveBeenCalled();
   });
 
+  it('enable() after disable() re-creates the body', () => {
+    const h = useStaticBody();
+    h.disable();
+    mockPhysics.addRigidBody.mockClear();
+    mockPhysics.addBoxCollider.mockClear();
+    h.enable();
+    // Should have re-called addRigidBody to recreate the body
+    expect(mockPhysics.addRigidBody).toHaveBeenCalledTimes(1);
+    expect(h.active).toBe(true);
+  });
+
+  it('disable() is idempotent', () => {
+    const h = useStaticBody();
+    h.disable();
+    h.disable();
+    // removeBody called only once
+    expect(mockPhysics.removeBody).toHaveBeenCalledTimes(1);
+  });
+
   it('uses addBoxCollider when no shape specified', () => {
     useStaticBody({});
     expect(mockPhysics.addBoxCollider).toHaveBeenCalled();

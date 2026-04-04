@@ -30,38 +30,48 @@ export function useStaticBody(options: StaticBodyOptions = {}): StaticBodyHandle
   const physics = usePhysics2D();
   const entityId = _getActorEntityId() as unknown as EntityId;
 
-  const bodyHandle = physics.addRigidBody(entityId, 'fixed', 0, 0);
-
+  // Stored creation options so enable() can re-register the body after disable().
   const colliderOpts: ColliderOptions = {
     isSensor: options.isSensor,
     membershipLayers: options.layer,
     filterLayers: options.mask,
   };
 
-  if (options.shape === 'ball') {
-    physics.addBallCollider(bodyHandle, 0.5, colliderOpts);
-  } else {
-    // Default to box collider for 'box', 'capsule', or unspecified shape
-    physics.addBoxCollider(bodyHandle, 0.5, 0.5, colliderOpts);
+  let _bodyHandle: number;
+
+  /** Register the rigid body and collider with the physics system. */
+  function _createBody(): void {
+    _bodyHandle = physics.addRigidBody(entityId, 'fixed', 0, 0);
+    if (options.shape === 'ball') {
+      physics.addBallCollider(_bodyHandle, 0.5, colliderOpts);
+    } else {
+      // Default to box collider for 'box', 'capsule', or unspecified shape
+      physics.addBoxCollider(_bodyHandle, 0.5, 0.5, colliderOpts);
+    }
   }
 
+  _createBody();
   let _active = true;
 
   return {
     get bodyId() {
-      return bodyHandle;
+      return _bodyHandle;
     },
     get active() {
       return _active;
     },
     enable() {
-      // Re-activating after disable requires re-adding the body; we restore the flag here.
-      // Full re-registration is handled by the actor lifecycle (re-spawning the actor).
-      _active = true;
+      if (!_active) {
+        // Re-register the body so physics calls operate on a valid body handle.
+        _createBody();
+        _active = true;
+      }
     },
     disable() {
-      physics.removeBody(entityId);
-      _active = false;
+      if (_active) {
+        physics.removeBody(entityId);
+        _active = false;
+      }
     },
   };
 }

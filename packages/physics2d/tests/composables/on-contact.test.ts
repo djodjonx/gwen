@@ -6,6 +6,7 @@ import {
   _dispatchContactEvent,
   onContact,
   _setCurrentContactEntityId,
+  _clearContactCallbacks,
 } from '../../src/composables/on-contact.js';
 import type { ContactEvent } from '../../src/types.js';
 
@@ -90,5 +91,15 @@ describe('onContact / _dispatchContactEvent', () => {
     }); // registers for 10
     _dispatchContactEvent(10n, sampleEvent);
     expect(receivedFromContext).toEqual(sampleEvent);
+  });
+
+  it('_clearContactCallbacks removes callbacks for entity', () => {
+    let called = false;
+    onContact(() => {
+      called = true;
+    }, 5n);
+    _clearContactCallbacks(5n);
+    _dispatchContactEvent(5n, sampleEvent);
+    expect(called).toBe(false);
   });
 });

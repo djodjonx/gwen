@@ -30,29 +30,37 @@ export function useDynamicBody(options: DynamicBodyOptions = {}): DynamicBodyHan
   const physics = usePhysics2D();
   const entityId = _getActorEntityId() as unknown as EntityId;
 
-  const bodyHandle = physics.addRigidBody(entityId, 'dynamic', 0, 0, {
+  // Stored creation options so enable() can re-register the body after disable().
+  const rigidBodyOpts = {
     mass: options.mass,
     linearDamping: options.linearDamping,
     angularDamping: options.angularDamping,
     gravityScale: options.gravityScale,
-  });
+  };
 
   const colliderOpts: ColliderOptions = {
     membershipLayers: options.layer,
     filterLayers: options.mask,
   };
 
-  if (options.shape === 'ball') {
-    physics.addBallCollider(bodyHandle, 0.5, colliderOpts);
-  } else {
-    physics.addBoxCollider(bodyHandle, 0.5, 0.5, colliderOpts);
+  let _bodyHandle: number;
+
+  /** Register the rigid body and collider with the physics system. */
+  function _createBody(): void {
+    _bodyHandle = physics.addRigidBody(entityId, 'dynamic', 0, 0, rigidBodyOpts);
+    if (options.shape === 'ball') {
+      physics.addBallCollider(_bodyHandle, 0.5, colliderOpts);
+    } else {
+      physics.addBoxCollider(_bodyHandle, 0.5, 0.5, colliderOpts);
+    }
   }
 
+  _createBody();
   let _active = true;
 
   return {
     get bodyId() {
-      return bodyHandle;
+      return _bodyHandle;
     },
     get active() {
       return _active;
@@ -75,11 +83,17 @@ export function useDynamicBody(options: DynamicBodyOptions = {}): DynamicBodyHan
       physics.setLinearVelocity(entityId, vx, vy);
     },
     enable() {
-      _active = true;
+      if (!_active) {
+        // Re-register the body so physics calls operate on a valid body handle.
+        _createBody();
+        _active = true;
+      }
     },
     disable() {
-      physics.removeBody(entityId);
-      _active = false;
+      if (_active) {
+        physics.removeBody(entityId);
+        _active = false;
+      }
     },
   };
 }

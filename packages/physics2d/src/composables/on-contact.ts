@@ -48,6 +48,17 @@ export function onContact(callback: (contact: ContactEvent) => void, entityId?: 
   _contactCallbacks.get(key)!.push(callback);
 }
 
+/**
+ * Remove all contact callbacks registered for the given entity.
+ * Should be called when an actor is despawned to prevent memory leaks.
+ *
+ * @param entityId - The entity whose callbacks should be cleared.
+ * @internal
+ */
+export function _clearContactCallbacks(entityId: bigint): void {
+  _contactCallbacks.delete(String(entityId));
+}
+
 /** @internal Module-level actor entity ID set during actor factory execution. */
 let _currentSetupEntityId: bigint | null = null;
 
