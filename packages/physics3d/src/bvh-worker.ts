@@ -19,6 +19,7 @@ let wasmReady = false;
 const queue: WorkerJob[] = [];
 
 // Initialise WASM asynchronously; flush the queue when done
+// @ts-ignore — initWasm typed from runtime .d.ts; build-tools variant is callable
 initWasm().then(() => {
   wasmReady = true;
   queue.splice(0).forEach(processJob);
