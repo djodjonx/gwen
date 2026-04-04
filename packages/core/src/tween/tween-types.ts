@@ -245,7 +245,7 @@ export interface SequenceHandle {
 
   /**
    * Pause the sequence at its current step.
-   * Can be resumed with {@link resume} to continue.
+   * Can be resumed with {@link play} to continue from the current position.
    *
    * @since 1.0.0
    */

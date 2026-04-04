@@ -193,8 +193,7 @@ export function easeInQuart(t: number): number {
  * ```
  */
 export function easeOutQuart(t: number): number {
-  const f = t - 1;
-  return f * f * f * f - 1;
+  return 1 - Math.pow(1 - t, 4);
 }
 
 /**
