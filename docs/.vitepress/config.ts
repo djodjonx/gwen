@@ -39,6 +39,7 @@ export default defineConfig({
           { text: 'Layouts', link: '/guide/layouts' },
           { text: 'Scene Router', link: '/guide/scene-router' },
           { text: 'Tween & Animation', link: '/guide/tween' },
+          { text: 'Physics 2D Composables', link: '/guide/physics-composables' },
         ],
       },
       {
@@ -59,6 +60,7 @@ export default defineConfig({
           { text: 'Layout API', link: '/api/layout' },
           { text: 'Scene Router API', link: '/api/scene-router' },
           { text: 'Tween API', link: '/api/tween' },
+          { text: 'Physics 2D API', link: '/api/physics2d' },
         ],
       },
       {
