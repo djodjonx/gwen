@@ -184,9 +184,11 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
       }
 
       if (this._loop) {
-        // For looping: always restart from forward
+        // For looping: restart from beginning, toggle direction if yoyo enabled
         this._elapsed -= this._duration;
-        this._onReturnLeg = false;
+        if (this._yoyo) {
+          this._onReturnLeg = !this._onReturnLeg;
+        }
       } else if (this._yoyo) {
         if (this._onReturnLeg) {
           // Return leg done — full yoyo cycle complete, STOP
