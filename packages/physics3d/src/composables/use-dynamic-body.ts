@@ -1,8 +1,15 @@
 /**
  * @file useDynamicBody() — registers a fully simulated 3D physics body for the current actor.
  */
-import type { DynamicBodyOptions3D, DynamicBodyHandle3D, Physics3DVec3, Physics3DBodyOptions } from '../types.js';
+import type {
+  DynamicBodyOptions3D,
+  DynamicBodyHandle3D,
+  Physics3DVec3,
+  Physics3DBodyOptions,
+} from '../types.js';
 import { usePhysics3D } from '../composables.js';
+import { _getActorEntityId } from '@gwenjs/core/scene';
+import type { EntityId } from '@gwenjs/core';
 
 /** Zero vector returned when body is inactive. Reused to avoid allocation. */
 const ZERO_VEC3: Physics3DVec3 = Object.freeze({ x: 0, y: 0, z: 0 });
@@ -32,7 +39,7 @@ const ZERO_VEC3: Physics3DVec3 = Object.freeze({ x: 0, y: 0, z: 0 });
  */
 export function useDynamicBody(options: DynamicBodyOptions3D = {}): DynamicBodyHandle3D {
   const physics = usePhysics3D();
-  const entityId = 0;
+  const entityId = _getActorEntityId() as unknown as EntityId;
 
   const creationOptions: Physics3DBodyOptions = {
     kind: 'dynamic',

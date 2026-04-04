@@ -3,6 +3,8 @@
  */
 import type { StaticBodyOptions3D, StaticBodyHandle3D } from '../types.js';
 import { usePhysics3D } from '../composables.js';
+import { _getActorEntityId } from '@gwenjs/core/scene';
+import type { EntityId } from '@gwenjs/core';
 
 /**
  * Registers the current actor's entity as a static (non-moving) 3D physics body.
@@ -29,7 +31,7 @@ import { usePhysics3D } from '../composables.js';
  */
 export function useStaticBody(options: StaticBodyOptions3D = {}): StaticBodyHandle3D {
   const physics = usePhysics3D();
-  const entityId = 0;
+  const entityId = _getActorEntityId() as unknown as EntityId;
 
   // isSensor is a collider-level option, not a body option, but we accept it here
   // for convenience and forward it to any colliders added separately.

@@ -1,6 +1,14 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
+vi.mock('../../src/composables/collider-id.js', () => ({
+  nextColliderId: vi.fn(() => 1),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 1,
   entityId: 0,
@@ -66,13 +74,13 @@ describe('useMeshCollider', () => {
     const handle = useMeshCollider({ vertices, indices });
     const cid = handle.colliderId;
     handle.remove();
-    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(0, cid);
+    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(1n, cid);
   });
 
   it('passes isSensor to addCollider', () => {
     useMeshCollider({ vertices, indices, isSensor: true });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ isSensor: true }),
     );
   });

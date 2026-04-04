@@ -1,6 +1,10 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 99,
   entityId: 0,
@@ -39,7 +43,7 @@ describe('useStaticBody', () => {
 
   it('calls createBody with kind: fixed', () => {
     useStaticBody();
-    expect(mockPhysics3D.createBody).toHaveBeenCalledWith(0, { kind: 'fixed' });
+    expect(mockPhysics3D.createBody).toHaveBeenCalledWith(1n, { kind: 'fixed' });
   });
 
   it('handle.bodyId equals mockBodyHandle.bodyId (99)', () => {
@@ -55,7 +59,7 @@ describe('useStaticBody', () => {
   it('handle.disable() calls removeBody and sets active to false', () => {
     const handle = useStaticBody();
     handle.disable();
-    expect(mockPhysics3D.removeBody).toHaveBeenCalledWith(0);
+    expect(mockPhysics3D.removeBody).toHaveBeenCalledWith(1n);
     expect(handle.active).toBe(false);
   });
 
@@ -65,7 +69,7 @@ describe('useStaticBody', () => {
     vi.clearAllMocks();
     mockPhysics3D.createBody.mockReturnValue(mockBodyHandle);
     handle.enable();
-    expect(mockPhysics3D.createBody).toHaveBeenCalledWith(0, { kind: 'fixed' });
+    expect(mockPhysics3D.createBody).toHaveBeenCalledWith(1n, { kind: 'fixed' });
     expect(handle.active).toBe(true);
   });
 

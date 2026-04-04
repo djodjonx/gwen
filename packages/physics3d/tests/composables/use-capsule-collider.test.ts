@@ -1,6 +1,14 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
+vi.mock('../../src/composables/collider-id.js', () => ({
+  nextColliderId: vi.fn(() => 1),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 1,
   entityId: 0,
@@ -39,7 +47,7 @@ describe('useCapsuleCollider', () => {
   it('calls addCollider with shape: { type: capsule, radius: 0.5, halfHeight: 1 }', () => {
     useCapsuleCollider({ radius: 0.5, height: 2 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         shape: { type: 'capsule', radius: 0.5, halfHeight: 1 },
       }),
@@ -49,7 +57,7 @@ describe('useCapsuleCollider', () => {
   it('halfHeight = height / 2', () => {
     useCapsuleCollider({ radius: 0.3, height: 1.8 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         shape: { type: 'capsule', radius: 0.3, halfHeight: 0.9 },
       }),
@@ -65,13 +73,13 @@ describe('useCapsuleCollider', () => {
     const handle = useCapsuleCollider({ radius: 0.5, height: 2 });
     const cid = handle.colliderId;
     handle.remove();
-    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(0, cid);
+    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(1n, cid);
   });
 
   it('passes isSensor and material to addCollider', () => {
     useCapsuleCollider({ radius: 0.5, height: 2, isSensor: true, material: 'metal' });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ isSensor: true, materialPreset: 'metal' }),
     );
   });

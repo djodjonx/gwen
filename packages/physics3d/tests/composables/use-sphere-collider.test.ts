@@ -1,6 +1,14 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
+vi.mock('../../src/composables/collider-id.js', () => ({
+  nextColliderId: vi.fn(() => 1),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 1,
   entityId: 0,
@@ -39,7 +47,7 @@ describe('useSphereCollider', () => {
   it('calls addCollider with shape: { type: sphere, radius: 1.5 }', () => {
     useSphereCollider({ radius: 1.5 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         shape: { type: 'sphere', radius: 1.5 },
       }),
@@ -55,13 +63,13 @@ describe('useSphereCollider', () => {
     const handle = useSphereCollider({ radius: 1 });
     const cid = handle.colliderId;
     handle.remove();
-    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(0, cid);
+    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(1n, cid);
   });
 
   it('passes isSensor to addCollider', () => {
     useSphereCollider({ radius: 0.5, isSensor: true });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ isSensor: true }),
     );
   });
@@ -69,7 +77,7 @@ describe('useSphereCollider', () => {
   it('passes material to addCollider as materialPreset', () => {
     useSphereCollider({ radius: 1, material: 'rubber' });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ materialPreset: 'rubber' }),
     );
   });

@@ -4,19 +4,15 @@ import {
   _dispatchContactEvent,
   _clearContactCallbacks,
 } from '../../src/composables/on-contact.js';
-import type { ContactEvent3D } from '../../src/types.js';
+import type { Physics3DCollisionContact } from '../../src/types.js';
+import type { EntityId } from '@gwenjs/core';
 
-const sampleEvent: ContactEvent3D = {
-  entityA: 1n,
-  entityB: 2n,
-  contactX: 1.0,
-  contactY: 2.0,
-  contactZ: -3.5,
-  normalX: 0,
-  normalY: 1,
-  normalZ: 0,
-  relativeVelocity: 5.0,
-  restitution: 0.4,
+const sampleContact: Physics3DCollisionContact = {
+  entityA: 1n as unknown as EntityId,
+  entityB: 2n as unknown as EntityId,
+  aColliderId: 10,
+  bColliderId: 20,
+  started: true,
 };
 
 describe('onContact / _dispatchContactEvent', () => {
@@ -25,11 +21,11 @@ describe('onContact / _dispatchContactEvent', () => {
   });
 
   it('registered callback is invoked on dispatch', () => {
-    const received: ContactEvent3D[] = [];
+    const received: Physics3DCollisionContact[] = [];
     onContact((e) => received.push(e));
-    _dispatchContactEvent(sampleEvent);
+    _dispatchContactEvent(sampleContact);
     expect(received).toHaveLength(1);
-    expect(received[0]).toBe(sampleEvent);
+    expect(received[0]).toBe(sampleContact);
   });
 
   it('multiple callbacks are all invoked', () => {
@@ -37,26 +33,26 @@ describe('onContact / _dispatchContactEvent', () => {
     onContact(() => count++);
     onContact(() => count++);
     onContact(() => count++);
-    _dispatchContactEvent(sampleEvent);
+    _dispatchContactEvent(sampleContact);
     expect(count).toBe(3);
   });
 
-  it('ContactEvent3D has the contactZ field in the callback', () => {
-    let receivedZ: number | undefined;
+  it('callback receives contact with started: true', () => {
+    let receivedStarted: boolean | undefined;
     onContact((e) => {
-      receivedZ = e.contactZ;
+      receivedStarted = e.started;
     });
-    _dispatchContactEvent(sampleEvent);
-    expect(receivedZ).toBeCloseTo(-3.5, 5);
+    _dispatchContactEvent(sampleContact);
+    expect(receivedStarted).toBe(true);
   });
 
-  it('callback receives event with correct restitution value', () => {
-    let receivedRestitution: number | undefined;
+  it('callback receives contact with correct collider IDs', () => {
+    let receivedAColliderId: number | undefined;
     onContact((e) => {
-      receivedRestitution = e.restitution;
+      receivedAColliderId = e.aColliderId;
     });
-    _dispatchContactEvent(sampleEvent);
-    expect(receivedRestitution).toBeCloseTo(0.4, 5);
+    _dispatchContactEvent(sampleContact);
+    expect(receivedAColliderId).toBe(10);
   });
 
   it('no callbacks invoked after _clearContactCallbacks()', () => {
@@ -65,20 +61,36 @@ describe('onContact / _dispatchContactEvent', () => {
       invoked = true;
     });
     _clearContactCallbacks();
-    _dispatchContactEvent(sampleEvent);
+    _dispatchContactEvent(sampleContact);
     expect(invoked).toBe(false);
   });
 
   it('dispatch with no callbacks does not throw', () => {
-    expect(() => _dispatchContactEvent(sampleEvent)).not.toThrow();
+    expect(() => _dispatchContactEvent(sampleContact)).not.toThrow();
   });
 
-  it('contactEvent has normalZ field', () => {
-    let receivedNormalZ: number | undefined;
+  it('callback receives ended contact (started: false)', () => {
+    let receivedStarted: boolean | undefined;
     onContact((e) => {
-      receivedNormalZ = e.normalZ;
+      receivedStarted = e.started;
     });
-    _dispatchContactEvent({ ...sampleEvent, normalZ: -1 });
-    expect(receivedNormalZ).toBe(-1);
+    _dispatchContactEvent({ ...sampleContact, started: false });
+    expect(receivedStarted).toBe(false);
+  });
+
+  it('returned unregister function removes the callback', () => {
+    let count = 0;
+    const unregister = onContact(() => count++);
+    _dispatchContactEvent(sampleContact);
+    expect(count).toBe(1);
+    unregister();
+    _dispatchContactEvent(sampleContact);
+    expect(count).toBe(1); // no additional invocation
+  });
+
+  it('calling unregister twice does not throw', () => {
+    const unregister = onContact(() => {});
+    unregister();
+    expect(() => unregister()).not.toThrow();
   });
 });

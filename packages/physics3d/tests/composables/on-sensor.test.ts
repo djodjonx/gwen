@@ -94,4 +94,36 @@ describe('onSensorEnter / onSensorExit', () => {
     expect(received).toBe(1234n);
     expect(typeof received).toBe('bigint');
   });
+
+  it('onSensorEnter returns an unregister function that removes the callback', () => {
+    let count = 0;
+    const unregister = onSensorEnter(10, () => count++);
+    _dispatchSensorEnter(10, 1n);
+    expect(count).toBe(1);
+    unregister();
+    _dispatchSensorEnter(10, 1n);
+    expect(count).toBe(1); // no additional invocation
+  });
+
+  it('onSensorExit returns an unregister function that removes the callback', () => {
+    let count = 0;
+    const unregister = onSensorExit(20, () => count++);
+    _dispatchSensorExit(20, 1n);
+    expect(count).toBe(1);
+    unregister();
+    _dispatchSensorExit(20, 1n);
+    expect(count).toBe(1); // no additional invocation
+  });
+
+  it('calling enter unregister twice does not throw', () => {
+    const unregister = onSensorEnter(99, () => {});
+    unregister();
+    expect(() => unregister()).not.toThrow();
+  });
+
+  it('calling exit unregister twice does not throw', () => {
+    const unregister = onSensorExit(99, () => {});
+    unregister();
+    expect(() => unregister()).not.toThrow();
+  });
 });

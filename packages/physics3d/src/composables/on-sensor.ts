@@ -29,10 +29,16 @@ const _exitCallbacks = new Map<number, ((entityId: bigint) => void)[]>();
  *
  * @since 1.0.0
  */
-export function onSensorEnter(sensorId: number, callback: (entityId: bigint) => void): void {
+export function onSensorEnter(sensorId: number, callback: (entityId: bigint) => void): () => void {
   const existing = _enterCallbacks.get(sensorId) ?? [];
   existing.push(callback);
   _enterCallbacks.set(sensorId, existing);
+  return () => {
+    const cbs = _enterCallbacks.get(sensorId);
+    if (!cbs) return;
+    const idx = cbs.indexOf(callback);
+    if (idx !== -1) cbs.splice(idx, 1);
+  };
 }
 
 /**
@@ -50,10 +56,16 @@ export function onSensorEnter(sensorId: number, callback: (entityId: bigint) => 
  *
  * @since 1.0.0
  */
-export function onSensorExit(sensorId: number, callback: (entityId: bigint) => void): void {
+export function onSensorExit(sensorId: number, callback: (entityId: bigint) => void): () => void {
   const existing = _exitCallbacks.get(sensorId) ?? [];
   existing.push(callback);
   _exitCallbacks.set(sensorId, existing);
+  return () => {
+    const cbs = _exitCallbacks.get(sensorId);
+    if (!cbs) return;
+    const idx = cbs.indexOf(callback);
+    if (idx !== -1) cbs.splice(idx, 1);
+  };
 }
 
 /**

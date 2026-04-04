@@ -40,6 +40,13 @@ import {
   QUALITY_PRESETS,
 } from './config';
 
+import { _dispatchContactEvent, _clearContactCallbacks } from './composables/on-contact.js';
+import {
+  _dispatchSensorEnter,
+  _dispatchSensorExit,
+  _clearSensorCallbacks,
+} from './composables/on-sensor.js';
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 /**
@@ -1396,6 +1403,11 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       // Dispatch hook
       void _engine.hooks.callHook('physics3d:collision', contacts);
 
+      // Dispatch to composable onContact() callbacks
+      for (const contact of contacts) {
+        _dispatchContactEvent(contact);
+      }
+
       // Update sensor states and dispatch sensor:changed hook
       for (const ev of rawEvents) {
         for (const { slot, colliderId } of [
@@ -1429,6 +1441,11 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
           if (prev.isActive !== newActive) {
             void _engine.hooks.callHook('physics3d:sensor:changed', eid, colliderId, next);
+            if (newActive) {
+              _dispatchSensorEnter(colliderId, eid as unknown as bigint);
+            } else {
+              _dispatchSensorExit(colliderId, eid as unknown as bigint);
+            }
           }
         }
       }
@@ -1448,6 +1465,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         offEntityDestroyed = null;
       }
       ready = false;
+      _clearContactCallbacks();
+      _clearSensorCallbacks();
       stepFn = null;
       backendMode = 'local';
       wasmBridge = null;

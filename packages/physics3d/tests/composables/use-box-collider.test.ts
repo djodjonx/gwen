@@ -1,6 +1,14 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
+vi.mock('../../src/composables/collider-id.js', () => ({
+  nextColliderId: vi.fn(() => 1),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 1,
   entityId: 0,
@@ -39,7 +47,7 @@ describe('useBoxCollider', () => {
   it('calls addCollider with correct box shape for w:2, h:4, d:3', () => {
     useBoxCollider({ w: 2, h: 4, d: 3 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         shape: { type: 'box', halfX: 1, halfY: 2, halfZ: 1.5 },
       }),
@@ -49,7 +57,7 @@ describe('useBoxCollider', () => {
   it('d defaults to w when omitted: w:2, h:4 → halfZ = 1 (w/2)', () => {
     useBoxCollider({ w: 2, h: 4 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         shape: { type: 'box', halfX: 1, halfY: 2, halfZ: 1 },
       }),
@@ -65,13 +73,13 @@ describe('useBoxCollider', () => {
     const handle = useBoxCollider({ w: 1, h: 1 });
     const cid = handle.colliderId;
     handle.remove();
-    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(0, cid);
+    expect(mockPhysics3D.removeCollider).toHaveBeenCalledWith(1n, cid);
   });
 
   it('passes isSensor and material to addCollider', () => {
     useBoxCollider({ w: 2, h: 2, isSensor: true, material: 'ice' });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ isSensor: true, materialPreset: 'ice' }),
     );
   });
@@ -79,7 +87,7 @@ describe('useBoxCollider', () => {
   it('passes offset values to addCollider', () => {
     useBoxCollider({ w: 1, h: 1, offsetX: 0.5, offsetY: 1.0, offsetZ: -0.5 });
     expect(mockPhysics3D.addCollider).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ offsetX: 0.5, offsetY: 1.0, offsetZ: -0.5 }),
     );
   });

@@ -10,9 +10,9 @@
  */
 import type { MeshColliderHandle3D } from '../types.js';
 import { usePhysics3D } from '../composables.js';
-
-/** Auto-incrementing counter for stable collider IDs within this module. */
-let _nextColliderId = 1;
+import { _getActorEntityId } from '@gwenjs/core/scene';
+import type { EntityId } from '@gwenjs/core';
+import { nextColliderId } from './collider-id.js';
 
 /**
  * Options for configuring a trimesh (triangle mesh) 3D collider.
@@ -66,8 +66,8 @@ export interface MeshColliderOptions {
  */
 export function useMeshCollider(options: MeshColliderOptions): MeshColliderHandle3D {
   const physics = usePhysics3D();
-  const entityId = 0;
-  const colliderId = _nextColliderId++;
+  const entityId = _getActorEntityId() as unknown as EntityId;
+  const colliderId = nextColliderId();
 
   physics.addCollider(entityId, {
     shape: {

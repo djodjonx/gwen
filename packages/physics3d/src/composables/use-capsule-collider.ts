@@ -3,9 +3,9 @@
  */
 import type { CapsuleColliderHandle3D, Physics3DMaterialPreset } from '../types.js';
 import { usePhysics3D } from '../composables.js';
-
-/** Auto-incrementing counter for stable collider IDs within this module. */
-let _nextColliderId = 1;
+import { _getActorEntityId } from '@gwenjs/core/scene';
+import type { EntityId } from '@gwenjs/core';
+import { nextColliderId } from './collider-id.js';
 
 /**
  * Options for configuring a capsule-shaped 3D collider.
@@ -64,8 +64,8 @@ export interface CapsuleColliderOptions3D {
  */
 export function useCapsuleCollider(options: CapsuleColliderOptions3D): CapsuleColliderHandle3D {
   const physics = usePhysics3D();
-  const entityId = 0;
-  const colliderId = _nextColliderId++;
+  const entityId = _getActorEntityId() as unknown as EntityId;
+  const colliderId = nextColliderId();
 
   // axis is stored for future WASM bridge use; the current bridge uses Y-up by default
   void options.axis;

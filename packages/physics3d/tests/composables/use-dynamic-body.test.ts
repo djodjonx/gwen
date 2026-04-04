@@ -1,6 +1,10 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Physics3DBodyHandle } from '../../src/types.js';
 
+vi.mock('@gwenjs/core/scene', () => ({
+  _getActorEntityId: vi.fn(() => 1n),
+}));
+
 const mockBodyHandle: Physics3DBodyHandle = {
   bodyId: 42,
   entityId: 0,
@@ -41,7 +45,7 @@ describe('useDynamicBody', () => {
   it('calls createBody with kind: dynamic', () => {
     useDynamicBody();
     expect(mockPhysics3D.createBody).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({ kind: 'dynamic' }),
     );
   });
@@ -59,25 +63,25 @@ describe('useDynamicBody', () => {
   it('applyForce(1,2,3) calls applyImpulse with {x:1, y:2, z:3}', () => {
     const handle = useDynamicBody();
     handle.applyForce(1, 2, 3);
-    expect(mockPhysics3D.applyImpulse).toHaveBeenCalledWith(0, { x: 1, y: 2, z: 3 });
+    expect(mockPhysics3D.applyImpulse).toHaveBeenCalledWith(1n, { x: 1, y: 2, z: 3 });
   });
 
   it('applyImpulse(4,5,6) calls applyImpulse with {x:4, y:5, z:6}', () => {
     const handle = useDynamicBody();
     handle.applyImpulse(4, 5, 6);
-    expect(mockPhysics3D.applyImpulse).toHaveBeenCalledWith(0, { x: 4, y: 5, z: 6 });
+    expect(mockPhysics3D.applyImpulse).toHaveBeenCalledWith(1n, { x: 4, y: 5, z: 6 });
   });
 
   it('applyTorque(7,8,9) calls applyTorque with {x:7, y:8, z:9}', () => {
     const handle = useDynamicBody();
     handle.applyTorque(7, 8, 9);
-    expect(mockPhysics3D.applyTorque).toHaveBeenCalledWith(0, { x: 7, y: 8, z: 9 });
+    expect(mockPhysics3D.applyTorque).toHaveBeenCalledWith(1n, { x: 7, y: 8, z: 9 });
   });
 
   it('setVelocity(1,2,3) calls setLinearVelocity with {x:1, y:2, z:3}', () => {
     const handle = useDynamicBody();
     handle.setVelocity(1, 2, 3);
-    expect(mockPhysics3D.setLinearVelocity).toHaveBeenCalledWith(0, { x: 1, y: 2, z: 3 });
+    expect(mockPhysics3D.setLinearVelocity).toHaveBeenCalledWith(1n, { x: 1, y: 2, z: 3 });
   });
 
   it('velocity getter returns {x:1, y:2, z:3} from mock', () => {
@@ -106,7 +110,7 @@ describe('useDynamicBody', () => {
   it('disable() calls removeBody and sets active to false', () => {
     const handle = useDynamicBody();
     handle.disable();
-    expect(mockPhysics3D.removeBody).toHaveBeenCalledWith(0);
+    expect(mockPhysics3D.removeBody).toHaveBeenCalledWith(1n);
     expect(handle.active).toBe(false);
   });
 
@@ -146,7 +150,7 @@ describe('useDynamicBody', () => {
   it('passes options to createBody (mass, gravityScale, etc.)', () => {
     useDynamicBody({ mass: 5, gravityScale: 0.5, ccdEnabled: true });
     expect(mockPhysics3D.createBody).toHaveBeenCalledWith(
-      0,
+      1n,
       expect.objectContaining({
         kind: 'dynamic',
         mass: 5,
