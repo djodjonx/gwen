@@ -1057,7 +1057,7 @@ impl Engine {
     /// # Parameters
     /// * `slot` — Entity index.
     /// * `x`, `y` — Target world-space position in metres.
-    /// * `angle` — Target orientation in radians. Pass `0.0` to preserve no rotation.
+    /// * `angle` — Target orientation in radians (`0.0` = no rotation, body is upright).
     ///
     /// # Returns
     /// `1` if found and updated; `0` otherwise.
