@@ -426,3 +426,74 @@ const TerrainActor = defineActor(TerrainPrefab, () => {
 - [ ] Mesh collider pre-baking at build time reduces runtime WASM init by ≥ 50% on test mesh
 - [ ] All composables have Vitest tests with ≥ 80% coverage
 - [ ] Swapping `'@gwenjs/physics2d'` → `'@gwenjs/physics3d'` in `gwen.config.ts` requires 0 actor code changes (for shared composables)
+
+---
+
+## Standards
+
+### Language
+All code, JSDoc, comments, test descriptions, and documentation **must be written in English**.
+
+### JSDoc
+Every public export follows the existing codebase JSDoc style (same as RFC-04):
+
+```typescript
+/**
+ * Registers the current actor's entity as a dynamic (physics-simulated) 3D body.
+ *
+ * Wraps `Physics3DAPI.createBody({ kind: 'dynamic', ... })`. Must be called
+ * inside an active engine context.
+ *
+ * @param options - Dynamic body configuration (mass, damping, CCD quality…).
+ * @returns A {@link DynamicBodyHandle3D} for applying forces and reading velocity.
+ * @throws {GwenPluginNotFoundError} If `@gwenjs/physics3d` is not registered.
+ *
+ * @example
+ * ```typescript
+ * const body = useDynamicBody({ mass: 80, fixedRotation: true })
+ * body.applyImpulse(0, 5, 0)  // jump
+ * ```
+ *
+ * @since 1.0.0
+ */
+export function useDynamicBody(options?: DynamicBodyOptions3D): DynamicBodyHandle3D
+```
+
+Required tags: `@param`, `@returns`, `@throws` (if applicable), `@example`, `@since`.
+
+### Unit Tests (Vitest)
+
+Test file location: `packages/physics3d/tests/composables/<unit>.test.ts`
+
+Required test coverage:
+- `use-static-body.ts` — body created as `kind: 'fixed'`; enable/disable
+- `use-dynamic-body.ts` — `applyForce`/`applyImpulse`/`applyTorque`/`setVelocity`
+- `use-box-collider.ts` — `d` dimension passed to 3D API (not ignored)
+- `use-mesh-collider.ts` — vertices/indices forwarded; trimesh created
+- `use-convex-collider.ts` — convex hull created from vertices
+- `define-layers.ts` — bitmask values; overlap warning
+- `on-contact.ts` — `z` contact coordinates populated
+- `on-sensor.ts` — enter/exit from ring buffer
+- `compat.type-test.ts` — structural compat with physics2d (type-level only)
+- `vite-plugin.test.ts` — layer inlining + mesh collider pre-baking
+
+Minimum coverage threshold: **80%** lines per file.
+
+### Performance Tests
+
+File: `packages/physics3d/tests/physics3d.perf.test.ts`
+
+| Test | Threshold |
+|------|-----------|
+| 500 dynamic bodies created | < 20ms total |
+| 500 `onContact` events dispatched per frame | < 1ms dispatch overhead |
+| Ring buffer read — 500 contact events (3D struct) | < 0.5ms |
+| Mesh collider pre-baking — 10k triangle mesh | < 50ms build time |
+| `useMeshCollider` runtime init (pre-baked) | < 2ms |
+
+### VitePress Documentation
+
+- `docs/guide/physics3d-composables.md` — Guide: composables, 3D-specific features (mesh/convex colliders, torque, CCD), swap guide (2D→3D)
+- `docs/api/physics3d.md` — Full API reference for all new composables
+- Sidebar entry under **Plugins → Physics 3D** and **API Reference**
+- All prose in English

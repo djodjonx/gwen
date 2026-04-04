@@ -406,3 +406,75 @@ async setup(options, kit) {
 - [ ] `useTilemap(prebaked)` parse time is < 5ms on a 100×50 test map (mobile CPU sim)
 - [ ] All new composables have Vitest tests with ≥ 80% coverage
 - [ ] VitePress guide includes Tiled Editor setup screenshots/workflow
+
+---
+
+## Standards
+
+### Language
+All code, JSDoc, comments, test descriptions, and documentation **must be written in English**.
+
+### JSDoc
+Every public export follows the existing codebase JSDoc style:
+
+```typescript
+/**
+ * Loads a Tiled Editor JSON map, creates static physics bodies for solid tiles,
+ * and returns a handle for querying objects and tile data.
+ *
+ * Pre-baked binary format (`.gwtm`) is automatically used when imported via
+ * the `gwen:tilemap` Vite plugin — no runtime JSON parsing overhead.
+ *
+ * @param tiledJson - Tiled map data object or pre-baked binary handle.
+ * @param options - Optional configuration (collision layer name, tile size, etc.).
+ * @returns A {@link TilemapHandle} for querying objects, checking solidity, and disposing bodies.
+ * @throws {GwenPluginNotFoundError} If `@gwenjs/physics2d` is not registered.
+ *
+ * @example
+ * ```typescript
+ * import level1 from './levels/level-1.tmj'
+ * const map = useTilemap(level1, { collisionLayer: 'solid' })
+ * const spawns = map.getObjects('spawns')
+ * ```
+ *
+ * @since 1.0.0
+ */
+export function useTilemap(tiledJson: TiledMapData, options?: TilemapOptions): TilemapHandle
+```
+
+Required tags: `@param`, `@returns`, `@throws`, `@example`, `@since`.
+
+### Unit Tests (Vitest)
+
+Test file location: `packages/physics2d/tests/tilemap/<unit>.test.ts`
+
+Required test coverage:
+- `use-tilemap.ts` — physics bodies created for all solid tiles; `isSolid(x, y)` correct
+- `use-tilemap.ts` — `getObjects('layer')` returns all objects with correct properties
+- `use-tilemap.ts` — `dispose()` removes all created bodies
+- `spatial-streaming.ts` — chunks activated within radius; deactivated outside hysteresis radius
+- `spatial-streaming.ts` — no chunk activated/deactivated more than once per frame
+- `tiled-parser.ts` — greedy rectangle merging reduces rect count by ≥ 70% vs raw tiles
+- `gwtm-loader.ts` — binary round-trip: parse → serialize → parse produces identical data
+- `vite-tilemap-plugin.test.ts` — `.tmj` → GWTM binary size ≤ 20% of original JSON
+
+Minimum coverage threshold: **80%** lines per file.
+
+### Performance Tests
+
+File: `packages/physics2d/tests/tilemap.perf.test.ts`
+
+| Test | Threshold |
+|------|-----------|
+| Parse 100×50 Tiled JSON (raw) | < 50ms |
+| Load pre-baked 100×50 GWTM binary | < 5ms |
+| `isSolid(x, y)` — 10 000 queries | < 1ms |
+| Spatial streaming — activate 9 chunks (3×3 grid) | < 2ms |
+| Spatial streaming — deactivate 4 chunks | < 1ms |
+
+### VitePress Documentation
+
+- `docs/guide/tilemap.md` — Guide: Tiled Editor setup, map export workflow, useTilemap, getObjects, spatial streaming, Vite pre-baking
+- `docs/api/tilemap.md` — Full API reference
+- Sidebar entry under **Plugins → Physics 2D → Tilemap** and **API Reference**
+- All prose in English

@@ -432,3 +432,73 @@ const NPCActor = defineActor(NPCPrefab, () => {
 - [ ] `module.ts` exports all new auto-imports — no manual imports needed in actor files
 - [ ] All new composables have Vitest tests with ≥ 80% coverage
 - [ ] `@gwenjs/physics2d` and `@gwenjs/physics3d` export same composable names (structural compat test)
+
+---
+
+## Standards
+
+### Language
+All code, JSDoc, comments, test descriptions, and documentation **must be written in English**.
+
+### JSDoc
+Every public export follows the existing `@gwenjs/physics2d` JSDoc style:
+
+```typescript
+/**
+ * Registers the current actor's entity as a static (non-moving) physics body.
+ *
+ * Reads the `Shape` ECS component for collider dimensions if present.
+ * Must be called inside an active engine context (inside `defineActor()` or `defineSystem()`).
+ *
+ * @param options - Optional body and collider configuration.
+ * @returns A {@link StaticBodyHandle} for enabling/disabling the body at runtime.
+ * @throws {GwenPluginNotFoundError} If `@gwenjs/physics2d` is not registered.
+ *
+ * @example
+ * ```typescript
+ * const GroundActor = defineActor(GroundPrefab, () => {
+ *   useShape({ w: 800, h: 32 })
+ *   useStaticBody()   // reads Shape → 800×32 collider
+ * })
+ * ```
+ *
+ * @since 1.0.0
+ */
+export function useStaticBody(options?: StaticBodyOptions): StaticBodyHandle
+```
+
+Required tags: `@param`, `@returns`, `@throws` (if applicable), `@example`, `@since`.
+
+### Unit Tests (Vitest)
+
+Test file location: `packages/physics2d/tests/composables/<unit>.test.ts`
+
+Required test coverage:
+- `use-static-body.ts` — body created with correct shape; `enable()`/`disable()` toggle active state
+- `use-static-body.ts` — reads `Shape` component when no explicit shape given
+- `use-dynamic-body.ts` — `applyImpulse`/`setVelocity`/`velocity` getter correct
+- `use-box-collider.ts` / `use-sphere-collider.ts` / `use-capsule-collider.ts` — shape dimensions passed to API
+- `define-layers.ts` — correct bitmask values; warns if two layers share bits
+- `on-contact.ts` — callback fires with correct entity IDs and contact data
+- `on-sensor.ts` — `onSensorEnter`/`onSensorExit` fire on ring buffer events
+- `vite-plugin.ts` — layer inlining: `Layers.wall` → literal `4` in output AST
+
+Minimum coverage threshold: **80%** lines per file.
+
+### Performance Tests
+
+File: `packages/physics2d/tests/physics2d.perf.test.ts`
+
+| Test | Threshold |
+|------|-----------|
+| 1 000 static bodies created | < 10ms total |
+| 1 000 `onContact` events dispatched per frame | < 1ms dispatch overhead |
+| `defineLayers` inlining — build time | < 100ms for 100 layer usages |
+| Ring buffer read — 500 contact events | < 0.5ms |
+
+### VitePress Documentation
+
+- `docs/guide/physics-composables.md` — Guide: useStaticBody, useDynamicBody, colliders, sensors, layers
+- `docs/api/physics2d.md` — Full API reference for all new composables
+- Sidebar entry under **Plugins → Physics 2D** and **API Reference**
+- All prose in English

@@ -282,3 +282,87 @@ const HUDSystem = defineSystem(() => {
 - [ ] Unused easing functions are tree-shaken from production build
 - [ ] `gwen:tween` Vite plugin correctly detects used easings via AST
 - [ ] 100% Vitest coverage on `use-tween.ts`, `define-sequence.ts`, `easing.ts`
+
+---
+
+## Standards
+
+### Language
+All code, JSDoc, comments, test descriptions, and documentation (VitePress guides + API reference) **must be written in English**.
+
+### JSDoc
+Every public export must have a JSDoc block following the existing codebase style:
+
+```typescript
+/**
+ * Returns a tween handle for animating a value of type T over time.
+ *
+ * Must be called inside an active engine context (inside `defineSystem()`,
+ * `defineActor()`, or `engine.run()`).
+ *
+ * @typeParam T - The type of value to animate: `number`, `Vec2`, `Vec3`, or `Color`.
+ * @param options - Tween configuration (duration, easing, loop, yoyo).
+ * @returns A {@link TweenHandle} bound to the current entity's lifecycle.
+ * @throws {GwenContextError} If called outside an active engine context.
+ *
+ * @example
+ * ```typescript
+ * const fade = useTween<number>({ duration: 0.4, easing: 'easeOutQuad' })
+ * fade.play({ from: 1, to: 0 })
+ * fade.onComplete(() => actor.destroy())
+ * ```
+ *
+ * @since 1.0.0
+ */
+export function useTween<T>(options: TweenOptions<T>): TweenHandle<T>
+```
+
+Required tags: `@param`, `@returns`, `@throws` (if applicable), `@example`, `@since`.
+
+### Unit Tests (Vitest)
+
+Test file naming: `packages/core/tests/tween/<unit>.test.ts`
+
+Required test coverage:
+- `easing.ts` — all 24 easing functions: input 0→1 produces output 0→1, mid-values correct
+- `use-tween.ts` — play/pause/resume/reset lifecycle; `onComplete` fires exactly once per non-loop tween
+- `use-tween.ts` — loop mode: `onComplete` fires on each cycle
+- `use-tween.ts` — yoyo mode: value reverses correctly on second half
+- `use-tween.ts` — `Vec2`/`Vec3` interpolation: both axes/channels correct
+- `define-sequence.ts` — steps execute in order; `{ wait }` steps delay correctly
+- `define-sequence.ts` — `onComplete` fires once at end of sequence
+- `tween-pool.ts` — no heap allocation after pool warm-up (stable `usedJSHeapSize`)
+
+Minimum coverage threshold: **80%** lines, **100%** on `easing.ts`.
+
+### Performance Tests (Vitest + `performance.now`)
+
+File: `packages/core/tests/tween/tween.perf.test.ts`
+
+Required benchmarks:
+| Test | Threshold |
+|------|-----------|
+| 1 000 tweens ticking per frame | < 0.5ms |
+| 10 000 tweens ticking per frame | < 5ms |
+| 10 000 `play()` calls — GC pressure | `usedJSHeapSize` delta < 1KB |
+| `defineSequence` with 10 steps, 1000 instances | < 2ms |
+
+```typescript
+it('ticks 10_000 tweens in < 5ms', () => {
+  const tweens = Array.from({ length: 10_000 }, () =>
+    useTween<number>({ duration: 1, easing: 'linear' })
+  )
+  tweens.forEach(t => t.play({ from: 0, to: 1 }))
+
+  const start = performance.now()
+  tweens.forEach(t => t.tick(1 / 60))
+  expect(performance.now() - start).toBeLessThan(5)
+})
+```
+
+### VitePress Documentation
+
+- `docs/guide/tween.md` — Guide: motivation, quickstart, easing gallery, sequence tutorial, perf notes
+- `docs/api/tween.md` — API reference: all exports, types, parameters, return values (auto-gen from JSDoc where possible)
+- Sidebar entry in `docs/.vitepress/config.ts` under **Core Concepts** and **API Reference**
+- All prose in English
