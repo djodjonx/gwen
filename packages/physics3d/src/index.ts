@@ -70,6 +70,46 @@ const MAX_EVENTS_3D = 1024;
 /** Sentinel value indicating an absent collider id (u16::MAX). */
 const COLLIDER_ID_ABSENT = 0xffff;
 
+// ─── BVH fetch cache (module-level — shared across plugin instances) ────────────
+
+/**
+ * Cache mapping BVH asset URL to its in-flight or resolved fetch Promise.
+ * Deduplicates concurrent fetches for the same URL across multiple `useMeshCollider`
+ * calls and `preloadMeshCollider` calls.
+ */
+const _bvhCache = new Map<string, Promise<ArrayBuffer>>();
+
+/**
+ * Fetch a pre-baked BVH binary, deduplicating concurrent requests for the same URL.
+ *
+ * @param url - Absolute or relative URL to the `.bin` BVH asset.
+ * @returns A Promise that resolves with the raw `ArrayBuffer`.
+ * @throws When the HTTP response status is not OK.
+ *
+ * @internal
+ */
+function _fetchBvhBuffer(url: string): Promise<ArrayBuffer> {
+  if (!_bvhCache.has(url)) {
+    _bvhCache.set(
+      url,
+      fetch(url).then((r) => {
+        if (!r.ok) throw new Error(`[GWEN:Physics3D] BVH fetch failed: ${r.status} ${url}`);
+        return r.arrayBuffer();
+      }),
+    );
+  }
+  return _bvhCache.get(url)!;
+}
+
+/**
+ * Clear the module-level BVH fetch cache.
+ *
+ * @internal Test helper — clears the SharedShape cache so test cases are isolated.
+ */
+export function _clearBvhCache(): void {
+  _bvhCache.clear();
+}
+
 // ─── Plugin metadata ────────────────────────────────────────────────────────────
 
 // ─── Internal types ─────────────────────────────────────────────────────────────
@@ -268,6 +308,24 @@ interface Physics3DWasmBridge {
     colliderId: number,
   ) => boolean;
   /**
+   * Attach a pre-baked BVH triangle-mesh collider to a 3D body.
+   * The `bvhBytes` parameter is the raw BVH binary emitted by the Vite plugin.
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_load_bvh_collider?: (
+    entityIndex: number,
+    bvhBytes: Uint8Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: boolean,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+    colliderId: number,
+  ) => boolean;
+  /**
    * Attach a convex-hull collider to a 3D body.
    * Falls back to a unit sphere on degenerate input (Rapier-side).
    * Parameter order matches the Rust WASM export exactly.
@@ -363,6 +421,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
   // Collider registry — used in both modes
   const localColliders = new Map<number, Physics3DColliderOptions[]>();
+
+  // Pending async BVH loads: colliderId → { AbortController, ready Promise }
+  const _pendingBvhLoads = new Map<number, { ac: AbortController; ready: Promise<void> }>();
 
   // Sensor state — outer key = entity slot index, inner key = sensorId
   const localSensorStates = new Map<number, Map<number, Physics3DSensorState>>();
@@ -1201,6 +1262,46 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         );
       }
       if (shape.type === 'mesh') {
+        // ── Async path: pre-baked BVH URL ───────────────────────────────────
+        if (finalOptions.__bvhUrl) {
+          const bvhUrl = finalOptions.__bvhUrl;
+          const ac = new AbortController();
+          let resolveReady!: () => void;
+          let rejectReady!: (e: unknown) => void;
+          const ready = new Promise<void>((res, rej) => {
+            resolveReady = res;
+            rejectReady = rej;
+          });
+
+          _fetchBvhBuffer(bvhUrl)
+            .then((ab) => {
+              if (ac.signal.aborted) return;
+              const ok =
+                wasmBridge!.physics3d_load_bvh_collider?.(
+                  idx,
+                  new Uint8Array(ab),
+                  ox,
+                  oy,
+                  oz,
+                  finalOptions.isSensor ?? false,
+                  friction,
+                  restitution,
+                  membership,
+                  filter,
+                  colliderId,
+                ) ?? false;
+              if (ok) resolveReady();
+              else
+                rejectReady(
+                  new Error('[GWEN:Physics3D] physics3d_load_bvh_collider returned false'),
+                );
+            })
+            .catch(rejectReady);
+
+          _pendingBvhLoads.set(colliderId, { ac, ready });
+          return true;
+        }
+        // ── Sync path: inline vertices + indices ─────────────────────────────
         return (
           wasmBridge!.physics3d_add_mesh_collider?.(
             idx,
@@ -1524,6 +1625,15 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     getSensorState,
     updateSensorState,
 
+    _getBvhLoadState: (colliderId: number) => {
+      const pending = _pendingBvhLoads.get(colliderId);
+      if (!pending) return null;
+      return {
+        ready: pending.ready,
+        abort: () => pending.ac.abort(),
+      };
+    },
+
     getCollisionContacts: (opts) =>
       opts?.max !== undefined ? currentFrameContacts.slice(0, opts.max) : currentFrameContacts,
 
@@ -1837,7 +1947,7 @@ export { default as physics3dModule } from './module.js';
 // ─── RFC-06 DX composables ────────────────────────────────────────────────────
 export * from './composables/index.js';
 export { ContactRingBuffer3D, CONTACT_EVENT_FLOATS, RING_CAPACITY_3D } from './ring-buffer.js';
-export { physics3dVitePlugin } from './vite-plugin.js';
+export { physics3dVitePlugin, createGwenPhysics3DPlugin } from './vite-plugin.js';
 export type {
   ContactEvent3D,
   StaticBodyOptions3D,
@@ -1849,6 +1959,7 @@ export type {
   SphereColliderHandle3D,
   CapsuleColliderHandle3D,
   MeshColliderHandle3D,
+  MeshColliderOptions,
   ConvexColliderHandle3D,
   HeightfieldColliderHandle3D,
   CompoundColliderHandle3D,

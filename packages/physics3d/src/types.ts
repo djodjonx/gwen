@@ -317,6 +317,15 @@ export interface Physics3DColliderOptions {
    * not explicitly set on this options object.
    */
   materialPreset?: Physics3DMaterialPreset;
+  /**
+   * URL to a pre-baked BVH binary asset emitted at Vite build time.
+   * When set on a `mesh`-type collider, the plugin uses an async fetch pipeline
+   * instead of the synchronous `physics3d_add_mesh_collider` path.
+   *
+   * Set automatically by the `gwen:physics3d` Vite plugin — do not write manually.
+   * @internal
+   */
+  __bvhUrl?: string;
 }
 
 // ─── Bulk spawn ───────────────────────────────────────────────────────────────
@@ -713,6 +722,17 @@ export interface Physics3DAPI {
   removeCollider(entityId: Physics3DEntityId, colliderId: number): boolean;
 
   /**
+   * Retrieve the pending async BVH load state for a collider that was created
+   * with a `__bvhUrl` option. Returns `null` for synchronously-created colliders.
+   *
+   * @param colliderId - The stable numeric collider id assigned at creation time.
+   * @returns Pending load state object, or `null` when the collider is synchronous.
+   *
+   * @internal Used by {@link useMeshCollider} — not part of the public API.
+   */
+  _getBvhLoadState(colliderId: number): { ready: Promise<void>; abort(): void } | null;
+
+  /**
    * Spawn N static box rigid bodies in a single operation.
    *
    * In **WASM mode** this makes a single Rust call via `physics3d_bulk_spawn_static_boxes`,
@@ -970,8 +990,77 @@ export type BoxColliderHandle3D = ColliderHandle3D;
 export type SphereColliderHandle3D = ColliderHandle3D;
 /** Handle returned by {@link useCapsuleCollider}. */
 export type CapsuleColliderHandle3D = ColliderHandle3D;
-/** Handle returned by {@link useMeshCollider}. */
-export type MeshColliderHandle3D = ColliderHandle3D;
+
+/**
+ * Handle returned by {@link useMeshCollider}.
+ *
+ * Extends {@link ColliderHandle3D} with async lifecycle properties for
+ * pre-baked BVH loading. When mesh data is provided synchronously,
+ * `status` is immediately `'active'` and `ready` is already resolved.
+ */
+export interface MeshColliderHandle3D extends ColliderHandle3D {
+  /** Current load state. `'active'` once the collider is live in Rapier. */
+  status: 'loading' | 'active' | 'error';
+  /**
+   * Resolves when the collider becomes active in Rapier.
+   * Already resolved when created from synchronous `vertices`/`indices` data.
+   */
+  ready: Promise<void>;
+  /**
+   * Cancel a pending async BVH load (e.g., when the actor is destroyed before
+   * the collider becomes active). No-op when load already completed.
+   */
+  abort(): void;
+}
+
+/**
+ * Options for {@link useMeshCollider}.
+ *
+ * Either provide `vertices` + `indices` for synchronous construction, or let
+ * the `gwen:physics3d` Vite plugin populate `__bvhUrl` automatically from a
+ * static GLB path string argument.
+ */
+export interface MeshColliderOptions {
+  /**
+   * Flat vertex position array `[x0,y0,z0, x1,y1,z1, ...]`.
+   * Required unless `__bvhUrl` is set (pre-baked async path).
+   */
+  vertices?: Float32Array;
+  /**
+   * Flat triangle index array `[i0,i1,i2, ...]`.
+   * Required unless `__bvhUrl` is set (pre-baked async path).
+   */
+  indices?: Uint32Array;
+  /**
+   * URL to a pre-baked BVH binary asset emitted at Vite build time.
+   * Set automatically by the `gwen:physics3d` Vite plugin — do not write manually.
+   * @internal
+   */
+  __bvhUrl?: string;
+  /**
+   * Fallback box collider dimensions active while the BVH loads asynchronously.
+   * If omitted, no collision response until load completes.
+   */
+  placeholder?: { halfX: number; halfY: number; halfZ: number };
+  /**
+   * Set to `false` to force synchronous runtime BVH construction.
+   * @default true
+   */
+  prebake?: boolean;
+  /** Mark as sensor — generates events but no physical response. @default false */
+  isSensor?: boolean;
+  /** Numeric collision layer bitmask (membership). */
+  layer?: number;
+  /** Numeric collision filter bitmask (which layers to collide with). */
+  mask?: number;
+  /** Local-space X offset from the body origin. @default 0 */
+  offsetX?: number;
+  /** Local-space Y offset from the body origin. @default 0 */
+  offsetY?: number;
+  /** Local-space Z offset from the body origin. @default 0 */
+  offsetZ?: number;
+}
+
 /** Handle returned by {@link useConvexCollider}. */
 export type ConvexColliderHandle3D = ColliderHandle3D;
 

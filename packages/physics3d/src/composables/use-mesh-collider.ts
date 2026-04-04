@@ -7,37 +7,26 @@
  * It is more expensive than convex or primitive shapes, so prefer convex or
  * primitive shapes for dynamic bodies. Mesh colliders are best suited for
  * static terrain and environment geometry.
+ *
+ * When called with a pre-baked BVH URL (via the `gwen:physics3d` Vite plugin or
+ * `preloadMeshCollider`), the load is performed asynchronously. The returned
+ * handle exposes `status`, `ready`, and `abort()` to track and control the load.
  */
-import type { MeshColliderHandle3D } from '../types.js';
+import type { MeshColliderHandle3D, MeshColliderOptions } from '../types.js';
 import { usePhysics3D } from '../composables.js';
 import { _getActorEntityId } from '@gwenjs/core/scene';
 import type { EntityId } from '@gwenjs/core';
 import { nextColliderId } from './collider-id.js';
+import type { PreloadedBvhHandle } from '../index.js';
 
 /**
- * Options for configuring a trimesh (triangle mesh) 3D collider.
+ * Type guard for {@link PreloadedBvhHandle}.
  *
- * **3D only — not available in \@gwenjs/physics2d.**
+ * @param v - Value to test.
+ * @returns `true` when `v` is a `PreloadedBvhHandle`.
  */
-export interface MeshColliderOptions {
-  /**
-   * Flat array of vertex positions in metres.
-   * Layout: `[x0, y0, z0, x1, y1, z1, ...]`.
-   * Length must be a multiple of 3.
-   */
-  vertices: Float32Array;
-  /**
-   * Flat array of triangle indices into the vertex array.
-   * Layout: `[a0, b0, c0, a1, b1, c1, ...]`.
-   * Length must be a multiple of 3.
-   */
-  indices: Uint32Array;
-  /** Mark as sensor — generates events but no physical response. @default false */
-  isSensor?: boolean;
-  /** Numeric collision layer bitmask (membership). */
-  layer?: number;
-  /** Numeric collision filter bitmask (which layers to collide with). */
-  mask?: number;
+function isPreloadedBvhHandle(v: unknown): v is PreloadedBvhHandle {
+  return typeof v === 'object' && v !== null && 'url' in v && 'status' in v;
 }
 
 /**
@@ -50,38 +39,100 @@ export interface MeshColliderOptions {
  * static bodies only; using them on dynamic bodies incurs significant performance
  * overhead in the Rapier3D solver.
  *
- * @param options - Vertex and index arrays, plus optional sensor/layer config.
- * @returns A {@link MeshColliderHandle3D} with a stable `colliderId` and a `remove()` method.
+ * @param options - Vertex/index arrays, a pre-baked BVH URL, or a
+ *   {@link PreloadedBvhHandle} returned by `preloadMeshCollider`.
+ * @returns A {@link MeshColliderHandle3D} with `colliderId`, `remove()`,
+ *   `status`, `ready`, and `abort()`.
  * @throws {GwenPluginNotFoundError} If `@gwenjs/physics3d` is not registered.
  *
  * @example
  * ```typescript
+ * // Synchronous — inline mesh data
  * const TerrainActor = defineActor(TerrainPrefab, () => {
  *   useStaticBody()
  *   useMeshCollider({ vertices: terrainVerts, indices: terrainIndices })
+ * })
+ *
+ * // Async — pre-baked BVH (Vite plugin rewrites the string argument automatically)
+ * const TerrainActor = defineActor(TerrainPrefab, () => {
+ *   useStaticBody()
+ *   const { ready } = useMeshCollider('./terrain.glb')
+ *   ready.then(() => console.log('terrain collider active'))
  * })
  * ```
  *
  * @since 1.0.0
  */
-export function useMeshCollider(options: MeshColliderOptions): MeshColliderHandle3D {
+export function useMeshCollider(
+  options: MeshColliderOptions | PreloadedBvhHandle,
+): MeshColliderHandle3D {
   const physics = usePhysics3D();
   const entityId = _getActorEntityId() as unknown as EntityId;
   const colliderId = nextColliderId();
 
+  // Normalise: PreloadedBvhHandle → MeshColliderOptions
+  const opts: MeshColliderOptions = isPreloadedBvhHandle(options)
+    ? { __bvhUrl: options.url }
+    : options;
+
+  const isAsync = Boolean(opts.__bvhUrl);
+
+  // ── Status / ready / abort tracking ──────────────────────────────────────────
+
+  let _status: MeshColliderHandle3D['status'] = isAsync ? 'loading' : 'active';
+
+  // For the sync path, ready is immediately resolved
+  let _ready: Promise<void> = Promise.resolve();
+  let _abortFn: () => void = () => {
+    // no-op for synchronous colliders
+  };
+
   physics.addCollider(entityId, {
     shape: {
       type: 'mesh',
-      vertices: options.vertices,
-      indices: options.indices,
+      // Provide empty buffers as placeholders when using the async BVH path
+      vertices: opts.vertices ?? new Float32Array(0),
+      indices: opts.indices ?? new Uint32Array(0),
     },
-    isSensor: options.isSensor,
+    isSensor: opts.isSensor,
+    offsetX: opts.offsetX,
+    offsetY: opts.offsetY,
+    offsetZ: opts.offsetZ,
     colliderId,
+    __bvhUrl: opts.__bvhUrl,
   });
+
+  if (isAsync) {
+    // Get the pending load state that addCollider registered
+    const pending = physics._getBvhLoadState(colliderId);
+    if (pending) {
+      _ready = pending.ready.then(
+        () => {
+          _status = 'active';
+        },
+        () => {
+          _status = 'error';
+        },
+      );
+      _abortFn = () => {
+        pending.abort();
+        _status = 'error';
+      };
+    }
+  }
 
   return {
     get colliderId() {
       return colliderId;
+    },
+    get status() {
+      return _status;
+    },
+    get ready() {
+      return _ready;
+    },
+    abort() {
+      _abortFn();
     },
     remove() {
       physics.removeCollider(entityId, colliderId);
