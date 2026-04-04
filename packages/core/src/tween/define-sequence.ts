@@ -29,9 +29,10 @@ import type { SequenceHandle, SequenceStep, TweenableValue } from './tween-types
  *   claimed pool slot that is released immediately after it completes.
  *
  * **Notes:**
- * - `onComplete` callbacks on individual tween handles registered *before*
- *   passing them to `defineSequence` are preserved — the sequence appends its
- *   own listener to chain steps.
+ * - **Calling `sequence.play()` internally calls `tween.play()` on each step,
+ *   which clears any previously registered `onComplete` callbacks on the tween
+ *   handle.** Register `onComplete` on the sequence itself (via
+ *   `sequence.onComplete()`), not on individual tween handles.
  * - Calling `play()` while the sequence is already running restarts it from
  *   step 0.
  * - Each `{ wait }` step claims one pool slot for its duration and releases it

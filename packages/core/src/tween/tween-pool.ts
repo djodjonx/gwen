@@ -267,12 +267,12 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
   private _detectValueType(val: TweenableValue): void {
     if (typeof val === 'number') {
       this._valueType = 'number';
-    } else if ('z' in val && 'a' in val) {
-      // Has z and a → Color
-      this._valueType = 'color';
     } else if ('z' in val) {
       // Has z → Vec3
       this._valueType = 'vec3';
+    } else if ('r' in val && 'a' in val) {
+      // Has r, g, b, a → Color
+      this._valueType = 'color';
     } else if ('x' in val) {
       // Has x → Vec2
       this._valueType = 'vec2';

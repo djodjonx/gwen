@@ -444,3 +444,22 @@ describe('TweenSlot Vec2 interpolation', () => {
     expect(ref1).toBe(ref2);
   });
 });
+
+// ── Color interpolation ───────────────────────────────────────────────────────
+
+describe('TweenSlot Color interpolation', () => {
+  it('interpolates Color values correctly', () => {
+    const pool = new TweenPool(4);
+    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const from = { r: 0, g: 0, b: 0, a: 0 };
+    const to = { r: 1, g: 0.5, b: 0.25, a: 1 };
+    slot.play({ from, to });
+    slot.tick(0.5);
+    const v = slot.value as { r: number; g: number; b: number; a: number };
+    expect(v.r).toBeCloseTo(0.5);
+    expect(v.g).toBeCloseTo(0.25);
+    expect(v.b).toBeCloseTo(0.125);
+    expect(v.a).toBeCloseTo(0.5);
+    pool.release(slot);
+  });
+});
