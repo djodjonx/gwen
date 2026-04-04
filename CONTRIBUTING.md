@@ -50,11 +50,13 @@ This project uses [Husky](https://typicode.github.io/husky/) to automatically ru
 **Runs automatically before every commit**
 
 The pre-commit hook ensures code quality by:
+
 - 🔍 **Linting** - Automatically fixes linting issues with `oxlint --fix`
 - ✨ **Formatting** - Auto-formats code with `oxfmt`
 - ⚡ **Fast** - Only checks staged files (via lint-staged)
 
 **What happens:**
+
 ```bash
 git add .
 git commit -m "feat: add new feature"
@@ -67,11 +69,13 @@ git commit -m "feat: add new feature"
 **Enforces Conventional Commits format**
 
 All commit messages must follow this format:
+
 ```
 type(scope): description
 ```
 
 **Valid types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation changes
@@ -84,6 +88,7 @@ type(scope): description
 - `build` - Build system changes
 
 **Examples:**
+
 ```bash
 ✅ feat(engine-core): add particle system
 ✅ fix(cli): resolve import path issue
@@ -150,6 +155,7 @@ footer (optional)
 ```
 
 **Types:**
+
 - `feat:` — New feature
 - `fix:` — Bug fix
 - `docs:` — Documentation
@@ -221,17 +227,21 @@ test(plugin-input): add gamepad axis mapping tests
 
 ```markdown
 ## Description
+
 Adds panning functionality to the camera system for games with larger maps.
 
 ## Changes
+
 - Add `camera.pan(x, y)` method
 - Add pan animation with configurable duration
 - Add camera boundary constraints
 
 ## Related Issues
+
 Closes #456
 
 ## Testing
+
 - [x] Unit tests added
 - [x] Manual testing on playground
 - [x] No regressions in existing tests
@@ -252,6 +262,7 @@ Closes #456
 ### Monorepo Packages
 
 All packages use:
+
 - **Vite** for building (except CLI which uses TSC)
 - **Vitest** for testing
 - **TypeScript** 5.3+
@@ -315,6 +326,7 @@ GWEN uses a **String Pool** system to store strings efficiently in ECS component
 ### Golden Rule: Never Store String IDs
 
 **❌ NEVER DO THIS:**
+
 ```typescript
 // BAD: Storing string IDs in closures or globals
 const cachedId = GlobalStringPoolManager.scene.intern('PlayerName');
@@ -326,6 +338,7 @@ export const MySystem = () => {
 ```
 
 **✅ ALWAYS DO THIS:**
+
 ```typescript
 // GOOD: Store the string itself, let the schema handle IDs
 const cachedName = 'PlayerName';
@@ -333,8 +346,8 @@ const cachedName = 'PlayerName';
 export const MyComponent = defineComponent({
   name: 'MyComponent',
   schema: {
-    name: Types.string  // Automatic ID management
-  }
+    name: Types.string, // Automatic ID management
+  },
 });
 ```
 
@@ -348,9 +361,9 @@ export const MyComponent = defineComponent({
 const Enemy = defineComponent({
   name: 'Enemy',
   schema: {
-    name: Types.string,      // Cleared on scene transition
-    description: Types.string
-  }
+    name: Types.string, // Cleared on scene transition
+    description: Types.string,
+  },
 });
 ```
 
@@ -366,20 +379,22 @@ const Enemy = defineComponent({
 const PlayerSave = defineComponent({
   name: 'PlayerSave',
   schema: {
-    playerName: Types.persistentString,  // Survives transitions
-    lastPlayed: Types.persistentString
-  }
+    playerName: Types.persistentString, // Survives transitions
+    lastPlayed: Types.persistentString,
+  },
 });
 ```
 
 **Never cleared** — overuse will cause memory leaks!
 
 **Valid use cases:**
+
 - Player names from save files
 - User preferences (language, volume settings)
 - Configuration loaded once at startup
 
 **Invalid use cases:**
+
 - Enemy names
 - UI labels
 - Temporary messages
@@ -399,10 +414,12 @@ console.log(`Persistent pool: ${stats.persistentPoolSize} strings`);
 ```
 
 **Expected behavior:**
+
 - `scenePoolSize`: Only current scene's strings (typically 10-100)
 - `persistentPoolSize`: Stable across transitions (only truly persistent data)
 
 **Red flags:**
+
 - `scenePoolSize` growing with each transition
 - `persistentPoolSize` > 1000 (warning logged in dev mode)
 
@@ -440,7 +457,7 @@ See [docs/core/string-pool.md](docs/core/string-pool.md) for complete documentat
 - Explain "why" not "what"
 - Keep comments up-to-date
 
-```typescript
+````typescript
 /**
  * Load audio file and cache for playback.
  *
@@ -455,13 +472,14 @@ See [docs/core/string-pool.md](docs/core/string-pool.md) for complete documentat
  * ```
  */
 public preload(name: string, url: string): void { }
-```
+````
 
 ## Reporting Issues
 
 ### Bug Reports
 
 Include:
+
 - Clear description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
@@ -471,6 +489,7 @@ Include:
 ### Feature Requests
 
 Include:
+
 - Use case and motivation
 - Proposed API/behavior
 - Examples of similar solutions
@@ -484,9 +503,9 @@ Include:
 ## Recognition
 
 Contributors are recognized in:
+
 - README.md contributors section
 - Release notes
 - Community highlights
 
 Thank you for contributing to GWEN! 🎮✨
-

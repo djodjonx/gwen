@@ -14,30 +14,33 @@ The current ECS API requires one WASM boundary crossing per component read and p
 
 ```ts
 // defineSystem — current runtime pattern
-const entities = useQuery([Position, Velocity])
+const entities = useQuery([Position, Velocity]);
 
 onUpdate((dt) => {
   for (const e of entities) {
-    const pos = e.get(Position)    // → get_component_raw()   ← 1 WASM call
-    const vel = e.get(Velocity)    // → get_component_raw()   ← 1 WASM call
-    e.set(Position, {              // → add_component()        ← 1 WASM call
+    const pos = e.get(Position); // → get_component_raw()   ← 1 WASM call
+    const vel = e.get(Velocity); // → get_component_raw()   ← 1 WASM call
+    e.set(Position, {
+      // → add_component()        ← 1 WASM call
       x: pos.x + vel.x * dt,
       y: pos.y + vel.y * dt,
-    })
+    });
   }
-})
+});
 ```
 
 For **1 000 entities**: `3 000 WASM calls/frame × 60 fps = 180 000 WASM calls/second`.
 
 Each call pays:
+
 - Argument serialization / deserialization (bigint pack/unpack, Uint8Array copy)
 - JS → WASM memory boundary crossing
 - GC pressure from intermediate `Uint8Array` and object allocations
 
 **Measured impact** (from `specs/TODO.md` benchmark notes):
+
 ```
-WASM query alone:    351× faster than pure TS  
+WASM query alone:    351× faster than pure TS
 Full frame (naive):  2.15× SLOWER than pure TS  ← boundary crossing overhead
 ```
 
@@ -70,6 +73,7 @@ Replaces the reactive Proxy created by `useComponent()` with direct SoA typed ar
 ### Level 2 — Query Loop → Bulk Read/Compute/Write
 
 Rewrites `for (e of entities)` loops with component access into:
+
 1. `readComponentsBulk()` — fetch all component data in one call
 2. Plain JS loop over TypedArray (no WASM crossings)
 3. `writeComponentsBulk()` — flush writes in one call
@@ -122,18 +126,19 @@ crates/gwen-core/src/
 
 ```ts
 // Input — actor factory
-const pos = useComponent(Position)   // creates a Proxy at spawn
-const vel = useComponent(Velocity)   // creates a Proxy at spawn
+const pos = useComponent(Position); // creates a Proxy at spawn
+const vel = useComponent(Velocity); // creates a Proxy at spawn
 
 onUpdate((dt) => {
-  pos.x += vel.x * dt               // Proxy getter (2) + setter (1) per frame
-  pos.y += vel.y * dt
-})
+  pos.x += vel.x * dt; // Proxy getter (2) + setter (1) per frame
+  pos.y += vel.y * dt;
+});
 ```
 
 ### The Transform
 
 The optimizer knows at build time:
+
 - `pos` is bound to `Position`
 - `vel` is bound to `Velocity`
 - The actor's entity ID is available as `entityId` (captured at spawn via `_getActorEntityId()`)
@@ -146,10 +151,10 @@ The optimizer knows at build time:
 
 onUpdate((dt) => {
   // Direct SoA typed array access — 0 allocations
-  const _posSlot = _unpackEntityIndex(entityId)
-  Position._data[_posSlot * 2 + 0] += Velocity._data[_posSlot * 2 + 0] * dt
-  Position._data[_posSlot * 2 + 1] += Velocity._data[_posSlot * 2 + 1] * dt
-})
+  const _posSlot = _unpackEntityIndex(entityId);
+  Position._data[_posSlot * 2 + 0] += Velocity._data[_posSlot * 2 + 0] * dt;
+  Position._data[_posSlot * 2 + 1] += Velocity._data[_posSlot * 2 + 1] * dt;
+});
 ```
 
 ### Requirements
@@ -165,23 +170,23 @@ Built by `component-manifest.ts` at transform time:
 ```ts
 interface ComponentManifest {
   /** Import path to the component definition */
-  importPath: string
+  importPath: string;
   /** Variable name in the source file */
-  varName: string
+  varName: string;
   /** ECS component type ID (assigned at runtime, resolved at build time via static analysis) */
-  fields: ComponentField[]
+  fields: ComponentField[];
   /** Total byte size per entity */
-  byteSize: number
+  byteSize: number;
   /** Float32Array stride (byteSize / 4) */
-  f32Stride: number
+  f32Stride: number;
 }
 
 interface ComponentField {
-  name: string
-  type: 'f32' | 'i32' | 'u32' | 'bool' | 'vec2' | 'vec3'
-  byteOffset: number
-  f32Offset: number   // byteOffset / 4 (for Float32Array indexing)
-  elementCount: number // 1 for scalar, 2 for vec2, 3 for vec3
+  name: string;
+  type: 'f32' | 'i32' | 'u32' | 'bool' | 'vec2' | 'vec3';
+  byteOffset: number;
+  f32Offset: number; // byteOffset / 4 (for Float32Array indexing)
+  elementCount: number; // 1 for scalar, 2 for vec2, 3 for vec3
 }
 
 // Example — Position { x: Types.f32, y: Types.f32 }
@@ -193,7 +198,7 @@ const positionManifest: ComponentManifest = {
   ],
   byteSize: 8,
   f32Stride: 2,
-}
+};
 ```
 
 ---
@@ -203,6 +208,7 @@ const positionManifest: ComponentManifest = {
 ### The Pattern
 
 The detector looks for the combination of:
+
 1. A `useQuery([...])` call assigning to a variable
 2. An `onUpdate` / `onBeforeUpdate` / `onAfterUpdate` / `onRender` callback containing
 3. A `for...of` loop over that query variable
@@ -210,18 +216,19 @@ The detector looks for the combination of:
 
 ```ts
 // Input — triggers Level 2 transform
-const entities = useQuery([Position, Velocity])
+const entities = useQuery([Position, Velocity]);
 
 onUpdate((dt) => {
   for (const e of entities) {
-    const pos = e.get(Position)           // read
-    const vel = e.get(Velocity)           // read
-    e.set(Position, {                     // write
+    const pos = e.get(Position); // read
+    const vel = e.get(Velocity); // read
+    e.set(Position, {
+      // write
       x: pos.x + vel.x * dt,
       y: pos.y + vel.y * dt,
-    })
+    });
   }
-})
+});
 ```
 
 **Cost today:** `3N` WASM calls per frame (N reads Pos + N reads Vel + N writes Pos).
@@ -230,29 +237,29 @@ onUpdate((dt) => {
 
 ```ts
 // Output — generated code (Vite build only, not what the developer sees)
-const _queryTypeIds = [Position._typeId, Velocity._typeId]
+const _queryTypeIds = [Position._typeId, Velocity._typeId];
 
 onUpdate((dt) => {
   // 1. Bulk query — 1 WASM call, result in static buffer
-  const _entitySlots = _bridge.queryEntitiesRaw(_queryTypeIds)
-  const _n = _entitySlots.length
-  if (_n === 0) return
+  const _entitySlots = _bridge.queryEntitiesRaw(_queryTypeIds);
+  const _n = _entitySlots.length;
+  if (_n === 0) return;
 
   // 2. Bulk reads — 2 WASM calls (one per component)
-  const _posData = _bridge.readComponentsBulk(_entitySlots, Position._typeId, Position._byteSize)
-  const _velData = _bridge.readComponentsBulk(_entitySlots, Velocity._typeId, Velocity._byteSize)
+  const _posData = _bridge.readComponentsBulk(_entitySlots, Position._typeId, Position._byteSize);
+  const _velData = _bridge.readComponentsBulk(_entitySlots, Velocity._typeId, Velocity._byteSize);
 
   // 3. Compute — pure JS over TypedArrays, 0 WASM calls
   for (let _i = 0; _i < _n; _i++) {
-    const _pi = _i * 2   // Position f32Stride = 2
-    const _vi = _i * 2   // Velocity f32Stride = 2
-    _posData[_pi + 0] += _velData[_vi + 0] * dt   // pos.x += vel.x * dt
-    _posData[_pi + 1] += _velData[_vi + 1] * dt   // pos.y += vel.y * dt
+    const _pi = _i * 2; // Position f32Stride = 2
+    const _vi = _i * 2; // Velocity f32Stride = 2
+    _posData[_pi + 0] += _velData[_vi + 0] * dt; // pos.x += vel.x * dt
+    _posData[_pi + 1] += _velData[_vi + 1] * dt; // pos.y += vel.y * dt
   }
 
   // 4. Bulk write — 1 WASM call (only Position was written)
-  _bridge.writeComponentsBulk(_entitySlots, Position._typeId, _posData)
-})
+  _bridge.writeComponentsBulk(_entitySlots, Position._typeId, _posData);
+});
 ```
 
 **Cost after:** `3 WASM calls/frame` regardless of entity count.
@@ -260,10 +267,10 @@ onUpdate((dt) => {
 ### Reduction Table
 
 | Entities | Before (3N calls) | After (3 calls) | Speedup |
-|---|---|---|---|
-| 100 | 300 | 3 | 100× |
-| 1 000 | 3 000 | 3 | 1 000× |
-| 10 000 | 30 000 | 3 | 10 000× |
+| -------- | ----------------- | --------------- | ------- |
+| 100      | 300               | 3               | 100×    |
+| 1 000    | 3 000             | 3               | 1 000×  |
+| 10 000   | 30 000            | 3               | 10 000× |
 
 ---
 
@@ -586,48 +593,48 @@ The plugin reads `gwen.config.ts` at `buildStart` to detect which WASM tier is a
 ```ts
 // packages/vite/src/plugins/optimizer.ts
 
-type WasmTier = 'core' | 'physics2d' | 'physics3d'
+type WasmTier = 'core' | 'physics2d' | 'physics3d';
 
 function detectTier(options: GwenViteOptions): WasmTier {
-  if (options.wasm?.some(m => m.name === 'physics3d')) return 'physics3d'
-  if (options.wasm?.some(m => m.name === 'physics2d')) return 'physics2d'
-  return 'core'
+  if (options.wasm?.some((m) => m.name === 'physics3d')) return 'physics3d';
+  if (options.wasm?.some((m) => m.name === 'physics2d')) return 'physics2d';
+  return 'core';
 }
 ```
 
 The tier determines which bulk call variants the code generator can emit:
 
-| Tier | Available bulk ops |
-|---|---|
-| `core` | `query_read_components_bulk`, `query_write_components_bulk`, `bulk_integrate_velocity_*`, `bulk_apply_transform_*` |
-| `physics2d` | All of core + `physics2d_bulk_sync_to_rapier`, `physics2d_bulk_sync_from_rapier`, `physics2d_bulk_apply_impulse` |
-| `physics3d` | All of core + `physics3d_bulk_sync_to_rapier`, `physics3d_bulk_sync_from_rapier`, `physics3d_bulk_apply_impulse` |
+| Tier        | Available bulk ops                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `core`      | `query_read_components_bulk`, `query_write_components_bulk`, `bulk_integrate_velocity_*`, `bulk_apply_transform_*` |
+| `physics2d` | All of core + `physics2d_bulk_sync_to_rapier`, `physics2d_bulk_sync_from_rapier`, `physics2d_bulk_apply_impulse`   |
+| `physics3d` | All of core + `physics3d_bulk_sync_to_rapier`, `physics3d_bulk_sync_from_rapier`, `physics3d_bulk_apply_impulse`   |
 
 ### Plugin Lifecycle
 
 ```ts
 export function gwenOptimizerPlugin(options: GwenViteOptions): Plugin {
-  const manifest = new ComponentManifestResolver()
-  const tier = detectTier(options)
+  const manifest = new ComponentManifestResolver();
+  const tier = detectTier(options);
 
   return {
     name: 'gwen:optimizer',
-    enforce: 'pre',   // Must run before TypeScript transform
+    enforce: 'pre', // Must run before TypeScript transform
 
     async buildStart() {
       // Resolve all defineComponent() calls in the project
       // Builds a map: importPath#varName → ComponentManifest
-      await manifest.resolve(options.root ?? process.cwd())
+      await manifest.resolve(options.root ?? process.cwd());
     },
 
     transform(code: string, id: string) {
-      if (!id.match(/\.(tsx?)$/)) return null
-      if (id.includes('node_modules')) return null
+      if (!id.match(/\.(tsx?)$/)) return null;
+      if (id.includes('node_modules')) return null;
 
-      const optimizer = new GwenEcsOptimizer(code, id, manifest, tier)
-      return optimizer.transform()
+      const optimizer = new GwenEcsOptimizer(code, id, manifest, tier);
+      return optimizer.transform();
     },
-  }
+  };
 }
 ```
 
@@ -635,15 +642,15 @@ export function gwenOptimizerPlugin(options: GwenViteOptions): Plugin {
 
 The detector classifies patterns by **purity** before deciding to transform:
 
-| Condition | Result |
-|---|---|
-| `for...of` iterates a `useQuery()` result | ✅ Candidate |
-| Loop body only calls `e.get()` and `e.set()` | ✅ Pure — transform Level 2 |
-| Loop body creates entities | ❌ Skip — invalidates query |
-| Loop body deletes entities | ❌ Skip — invalidates iteration |
-| Loop body has early `return` or `break` | ⚠️ Partial — transform with guard |
-| Component set is statically known | ✅ Candidate |
-| Component set depends on runtime value | ❌ Skip |
+| Condition                                    | Result                            |
+| -------------------------------------------- | --------------------------------- |
+| `for...of` iterates a `useQuery()` result    | ✅ Candidate                      |
+| Loop body only calls `e.get()` and `e.set()` | ✅ Pure — transform Level 2       |
+| Loop body creates entities                   | ❌ Skip — invalidates query       |
+| Loop body deletes entities                   | ❌ Skip — invalidates iteration   |
+| Loop body has early `return` or `break`      | ⚠️ Partial — transform with guard |
+| Component set is statically known            | ✅ Candidate                      |
+| Component set depends on runtime value       | ❌ Skip                           |
 
 ### Opt-In / Opt-Out
 
@@ -717,17 +724,19 @@ version = "X.Y.Z"
 
 ```ts
 // packages/core/src/engine/wasm-bridge.ts
-export const WASM_BULK_API_VERSION = 1  // increment when bulk_ops.rs changes signatures
+export const WASM_BULK_API_VERSION = 1; // increment when bulk_ops.rs changes signatures
 ```
 
 ### Adding a New Bulk Operation
 
 **Determine the correct tier first:**
+
 - Pure ECS (no Rapier) → `bulk_ops.rs`
 - Requires Rapier2D → `bulk_ops_physics2d.rs` with `#[cfg(feature = "physics2d")]`
 - Requires Rapier3D → `bulk_ops_physics3d.rs` with `#[cfg(feature = "physics3d")]`
 
 Then:
+
 1. Add the Rust function to the correct tier file
 2. Document buffer layout in the doc comment (see §6)
 3. Add tests in the matching `tests/bulk_ops_*_tests.rs`
@@ -739,6 +748,7 @@ Then:
 ### Adding a New Schema Type to `defineComponent`
 
 When a new `Types.*` value is added:
+
 1. Define byte size and `f32Offset` in `optimizer/component-manifest.ts`
 2. Ensure the Rust component store encodes it at the same layout
 3. Add a test in `tests/optimizer/schema-layout.test.ts` that verifies TS and Rust agree
@@ -757,18 +767,19 @@ When a new `Types.*` value is added:
 
 Before calling the optimizer "done", the following benchmarks must pass:
 
-| Scenario | Target | Measurement |
-|---|---|---|
-| MovementSystem, 10K entities | ≤ 3 WASM calls/frame | DevTools WASM counter |
-| MovementSystem, 10K entities | Faster than pure TS equivalent | `pnpm bench` |
-| Transform overhead (build) | < 100ms for 100 source files | `pnpm build` timing |
-| Source maps valid | Original line numbers in DevTools | Manual check |
+| Scenario                     | Target                            | Measurement           |
+| ---------------------------- | --------------------------------- | --------------------- |
+| MovementSystem, 10K entities | ≤ 3 WASM calls/frame              | DevTools WASM counter |
+| MovementSystem, 10K entities | Faster than pure TS equivalent    | `pnpm bench`          |
+| Transform overhead (build)   | < 100ms for 100 source files      | `pnpm build` timing   |
+| Source maps valid            | Original line numbers in DevTools | Manual check          |
 
 ---
 
 ## 11. Relationship to Physics (Rapier)
 
 Rapier (physics2d / physics3d) has its own step loop in WASM. The optimizer does NOT touch:
+
 - `physics2d.step(dt)` — this is already a single WASM call
 - `sync_transforms_to_buffer()` / `sync_transforms_from_buffer()` — these already use shared memory
 
@@ -790,6 +801,7 @@ Frame:
 > **This section tracks the phased rollout. Update status as work progresses.**
 
 ### Phase 0 — Foundation (prerequisite for all phases)
+
 - [ ] `defineComponent` exposes `_typeId`, `_byteSize`, `_f32Stride`, `_fields` at runtime
 - [ ] `ComponentManifest` buildable statically from `defineComponent` schema literals
 - [ ] **Tier 1 Rust:** Add `bulk_ops.rs` with `query_read_components_bulk` + `query_write_components_bulk`
@@ -801,6 +813,7 @@ Frame:
 - [ ] Rust unit tests: `tests/bulk_ops_tests.rs`, `tests/bulk_ops_physics2d_tests.rs`, `tests/bulk_ops_physics3d_tests.rs`
 
 ### Phase 1 — Level 2 Transform (highest ROI)
+
 - [ ] `ast-walker.ts`: parse TS files, detect `useQuery` + `for...of` + `e.get/set` pattern
 - [ ] `pattern-detector.ts`: classify loops as pure / impure
 - [ ] `code-generator.ts`: emit tier-aware bulk read + plain loop + bulk write
@@ -810,16 +823,19 @@ Frame:
 - [ ] Benchmark: MovementSystem 10K entities — core / physics2d / physics3d tiers
 
 ### Phase 2 — Level 1 Transform
+
 - [ ] `ast-walker.ts`: detect `useComponent(X)` + property access in `onUpdate`
 - [ ] `code-generator.ts`: replace Proxy access with direct `ComponentDef._data[]` access
 - [ ] Tests: `tests/optimizer/level1.test.ts`
 
 ### Phase 3 — WASM Built-ins (canonical patterns → single WASM call)
+
 - [ ] Detect velocity integration pattern → emit `bulk_integrate_velocity_2d/3d` (Tier 1)
 - [ ] Detect physics sync bookend → emit `physics2d_bulk_sync_to_rapier` (Tier 2)
 - [ ] Detect impulse apply → emit `physics2d_bulk_apply_impulse` (Tier 2)
 
 ### Phase 4 — Polish
+
 - [ ] `@gwen-no-optimize` / `@gwen-force-bulk` annotations
 - [ ] Dev-mode warning when a transformable pattern is skipped
 - [ ] DevTools integration: label bulk calls in WASM profiling

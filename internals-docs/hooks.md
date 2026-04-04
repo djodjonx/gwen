@@ -38,7 +38,7 @@ export const MySystem = defineSystem({
 
     // You can unregister later
     // unregister();
-  }
+  },
 });
 ```
 
@@ -74,51 +74,51 @@ await api.hooks.callHook('test');
 
 ### 🎮 Engine Lifecycle
 
-| Hook | Parameters | Description |
-|------|-----------|------------|
-| `engine:init` | - | Engine initialized |
-| `engine:start` | - | Game loop started |
-| `engine:stop` | - | Game loop stopped |
-| `engine:tick` | `deltaTime: number` | Each frame |
+| Hook           | Parameters          | Description        |
+| -------------- | ------------------- | ------------------ |
+| `engine:init`  | -                   | Engine initialized |
+| `engine:start` | -                   | Game loop started  |
+| `engine:stop`  | -                   | Game loop stopped  |
+| `engine:tick`  | `deltaTime: number` | Each frame         |
 
 ### 🧩 Plugin Lifecycle
 
-| Hook | Parameters | Description |
-|------|-----------|------------|
-| `plugin:register` | `plugin: TsPlugin` | Plugin registered |
-| `plugin:init` | `plugin: TsPlugin, api: EngineAPI` | Plugin initialized |
-| `plugin:beforeUpdate` | `api: EngineAPI, dt: number` | Before update (input capture) |
-| `plugin:update` | `api: EngineAPI, dt: number` | After WASM (game logic) |
-| `plugin:render` | `api: EngineAPI` | Render |
-| `plugin:destroy` | `plugin: TsPlugin` | Plugin destroyed |
+| Hook                  | Parameters                         | Description                   |
+| --------------------- | ---------------------------------- | ----------------------------- |
+| `plugin:register`     | `plugin: TsPlugin`                 | Plugin registered             |
+| `plugin:init`         | `plugin: TsPlugin, api: EngineAPI` | Plugin initialized            |
+| `plugin:beforeUpdate` | `api: EngineAPI, dt: number`       | Before update (input capture) |
+| `plugin:update`       | `api: EngineAPI, dt: number`       | After WASM (game logic)       |
+| `plugin:render`       | `api: EngineAPI`                   | Render                        |
+| `plugin:destroy`      | `plugin: TsPlugin`                 | Plugin destroyed              |
 
 ### 🎬 Entity Management
 
-| Hook | Parameters | Description |
-|------|-----------|------------|
-| `entity:create` | `id: EntityId` | Entity created |
-| `entity:destroy` | `id: EntityId` | Before destruction |
-| `entity:destroyed` | `id: EntityId` | After destruction |
+| Hook               | Parameters     | Description        |
+| ------------------ | -------------- | ------------------ |
+| `entity:create`    | `id: EntityId` | Entity created     |
+| `entity:destroy`   | `id: EntityId` | Before destruction |
+| `entity:destroyed` | `id: EntityId` | After destruction  |
 
 ### 📦 Component Management
 
-| Hook | Parameters | Description |
-|------|-----------|------------|
-| `component:add` | `id: EntityId, type: string, data: unknown` | Component added |
-| `component:remove` | `id: EntityId, type: string` | Before removal |
-| `component:removed` | `id: EntityId, type: string` | After removal |
-| `component:update` | `id: EntityId, type: string, data: unknown` | Component updated |
+| Hook                | Parameters                                  | Description       |
+| ------------------- | ------------------------------------------- | ----------------- |
+| `component:add`     | `id: EntityId, type: string, data: unknown` | Component added   |
+| `component:remove`  | `id: EntityId, type: string`                | Before removal    |
+| `component:removed` | `id: EntityId, type: string`                | After removal     |
+| `component:update`  | `id: EntityId, type: string, data: unknown` | Component updated |
 
 ### 🎪 Scene Management
 
-| Hook | Parameters | Description |
-|------|-----------|------------|
-| `scene:beforeLoad` | `name: string` | Before loading |
-| `scene:load` | `name: string` | Scene loaded |
-| `scene:loaded` | `name: string` | After loading |
+| Hook                 | Parameters     | Description      |
+| -------------------- | -------------- | ---------------- |
+| `scene:beforeLoad`   | `name: string` | Before loading   |
+| `scene:load`         | `name: string` | Scene loaded     |
+| `scene:loaded`       | `name: string` | After loading    |
 | `scene:beforeUnload` | `name: string` | Before unloading |
-| `scene:unload` | `name: string` | Scene unloaded |
-| `scene:unloaded` | `name: string` | After unloading |
+| `scene:unload`       | `name: string` | Scene unloaded   |
+| `scene:unloaded`     | `name: string` | After unloading  |
 
 ### 🔧 Custom Hooks
 
@@ -132,9 +132,9 @@ export const PhysicsPlugin = defineSystem({
     // Emit a custom hook
     api.hooks.callHook('physics:collision' as any, {
       bodyA: entity1,
-      bodyB: entity2
+      bodyB: entity2,
     });
-  }
+  },
 });
 
 // Register a handler
@@ -164,7 +164,7 @@ export const ProfilingPlugin = defineSystem({
       performance.mark('update-end');
       performance.measure('update', 'update-start', 'update-end');
     });
-  }
+  },
 });
 ```
 
@@ -182,7 +182,7 @@ export const ValidationPlugin = defineSystem({
         throw new Error('Position requires x and y');
       }
     });
-  }
+  },
 });
 ```
 
@@ -207,7 +207,7 @@ export const PersistencePlugin = defineSystem({
         id,
         componentType,
         data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     });
 
@@ -216,7 +216,7 @@ export const PersistencePlugin = defineSystem({
       console.log('Saving changes:', changes);
       changes.length = 0;
     }, 5000);
-  }
+  },
 });
 ```
 
@@ -242,7 +242,7 @@ export const DebugEventsPlugin = defineSystem({
     api.hooks.hook('component:add', (id, type, data) => {
       console.debug('[DEBUG] component:add', id, type, data);
     });
-  }
+  },
 });
 ```
 
@@ -275,6 +275,7 @@ unregister(); // ✅ Hook unsubscribed
 ## Best Practices
 
 ✅ **Do:**
+
 - Register hooks in `onInit()`
 - Keep handlers lightweight and fast
 - Handle errors in async handlers
@@ -282,6 +283,7 @@ unregister(); // ✅ Hook unsubscribed
 - Document custom hooks you create
 
 ❌ **Avoid:**
+
 - Registering hooks in other lifecycles
 - Long operations in handlers (blocks the frame)
 - Creating circular dependencies between hooks
@@ -304,6 +306,7 @@ api.hooks.hook('entity:create', (id) => {
 ```
 
 Mappings:
+
 - `entityCreated` → `entity:create`
 - `entityDestroyed` → `entity:destroyed`
 - `componentAdded` → `component:add`
@@ -312,4 +315,3 @@ Mappings:
 ---
 
 **See also:** [Plugin System](./plugins/creating.md) | [Engine Architecture](./ARCHITECTURE.md)
-

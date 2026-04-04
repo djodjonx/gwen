@@ -3,6 +3,7 @@
 React Three Fiber adapter foundation for GWEN.
 
 Current scope (RFC-006 foundation):
+
 - `GwenProvider` to expose a shared `Engine` instance,
 - `GwenLoop` to bridge R3F frame deltas to `engine.advance(delta)`,
 - hooks: `useGwenEngine`, `useService`, `usePhysicsBodyState`, `useEvent`, `useQuery`, `useComponentValue`, `useEntityTransform`.
@@ -37,7 +38,13 @@ export function App() {
 ## Hooks
 
 ```tsx
-import { useQuery, useEvent, usePhysicsBodyState, useComponentValue, useEntityTransform } from '@gwenjs/r3f';
+import {
+  useQuery,
+  useEvent,
+  usePhysicsBodyState,
+  useComponentValue,
+  useEntityTransform,
+} from '@gwenjs/r3f';
 
 function PlayerMesh({ id, meshRef }: { id: bigint; meshRef: React.MutableRefObject<any> }) {
   // Query entities with required components
@@ -68,4 +75,3 @@ function PlayerMesh({ id, meshRef }: { id: bigint; meshRef: React.MutableRefObje
 - `GwenLoop` advances only when engine config uses `loop: 'external'`.
 - `usePhysicsBodyState` and `useComponentValue` use structural deep-equality (2 levels) to avoid unnecessary React re-renders when the engine returns structurally identical data on consecutive frames.
 - `useEntityTransform` writes directly to Three.js object properties — it never triggers a React render.
-

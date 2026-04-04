@@ -73,10 +73,7 @@ This removes the fixed body and all attached colliders for that chunk.
 ## Patching one chunk
 
 ```ts
-import {
-  buildTilemapPhysicsChunks,
-  patchTilemapPhysicsChunk,
-} from '@gwenjs/physics2d';
+import { buildTilemapPhysicsChunks, patchTilemapPhysicsChunk } from '@gwenjs/physics2d';
 
 const patchedBake = patchTilemapPhysicsChunk({
   source: {

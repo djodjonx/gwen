@@ -29,11 +29,13 @@ GlobalStringPoolManager
 ```
 
 **Scene Pool** (`GlobalStringPoolManager.scene`):
+
 - Used by default for `Types.string` fields
 - Automatically cleared when transitioning between scenes
 - Prevents memory leaks from accumulated string data
 
 **Persistent Pool** (`GlobalStringPoolManager.persistent`):
+
 - Used for `Types.persistentString` fields
 - Survives scene transitions
 - For player names, preferences, configuration, etc.
@@ -51,15 +53,15 @@ import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 export const Enemy = defineComponent({
   name: 'Enemy',
   schema: {
-    name: Types.string,      // Cleared on scene transition
+    name: Types.string, // Cleared on scene transition
     health: Types.f32,
-  }
+  },
 });
 
 // Usage
 api.addComponent(id, Enemy, {
   name: 'Goblin',
-  health: 100
+  health: 100,
 });
 ```
 
@@ -76,17 +78,17 @@ import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 export const PlayerSave = defineComponent({
   name: 'PlayerSave',
   schema: {
-    playerName: Types.persistentString,  // Survives transitions
-    lastPlayed: Types.persistentString,  // Survives transitions
+    playerName: Types.persistentString, // Survives transitions
+    lastPlayed: Types.persistentString, // Survives transitions
     highScore: Types.i32,
-  }
+  },
 });
 
 // Usage
 api.addComponent(id, PlayerSave, {
   playerName: 'Hero',
   lastPlayed: '2026-03-05',
-  highScore: 9999
+  highScore: 9999,
 });
 ```
 
@@ -132,8 +134,8 @@ api.addComponent(id, PlayerSave, {
 const Enemy = defineComponent({
   name: 'Enemy',
   schema: {
-    name: Types.string  // Automatic pool management
-  }
+    name: Types.string, // Automatic pool management
+  },
 });
 ```
 
@@ -148,8 +150,8 @@ const enemyName = 'Goblin';
 const PlayerData = defineComponent({
   name: 'PlayerData',
   schema: {
-    playerName: Types.persistentString
-  }
+    playerName: Types.persistentString,
+  },
 });
 ```
 
@@ -174,8 +176,8 @@ GlobalStringPoolManager.persistent.intern('temp-ui-label');
 const Enemy = defineComponent({
   name: 'Enemy',
   schema: {
-    name: Types.persistentString  // ❌ Enemy is scene-scoped!
-  }
+    name: Types.persistentString, // ❌ Enemy is scene-scoped!
+  },
 });
 ```
 
@@ -217,14 +219,16 @@ const str = GlobalStringPool.get(id);
 ### Zero-Allocation During Game Loop
 
 **Setup Phase** (one-time cost):
+
 ```typescript
-computeSchemaLayout(schema)  // Builds serialize/deserialize functions
+computeSchemaLayout(schema); // Builds serialize/deserialize functions
 ```
 
 **Runtime** (zero-allocation):
+
 ```typescript
-serialize(data, view)    // Calls pool.intern() — O(1) amortized
-deserialize(view)        // Calls pool.get() — O(1)
+serialize(data, view); // Calls pool.intern() — O(1) amortized
+deserialize(view); // Calls pool.get() — O(1)
 ```
 
 **Impact**: `(typeObj as any).isPersistent` is evaluated ONCE per component definition, not per entity.
@@ -240,12 +244,12 @@ deserialize(view)        // Calls pool.get() — O(1)
 api.addComponent(id, Enemy, { name: 'Goblin', health: 100 });
 
 // Internally:
-const strId = GlobalStringPoolManager.scene.intern('Goblin');  // ID = 42
-view.setInt32(offset, strId, true);  // Store ID 42 in binary buffer
+const strId = GlobalStringPoolManager.scene.intern('Goblin'); // ID = 42
+view.setInt32(offset, strId, true); // Store ID 42 in binary buffer
 
 // On deserialization:
-const strId = view.getInt32(offset, true);  // Read ID 42
-const name = GlobalStringPoolManager.scene.get(strId);  // 'Goblin'
+const strId = view.getInt32(offset, true); // Read ID 42
+const name = GlobalStringPoolManager.scene.get(strId); // 'Goblin'
 ```
 
 ---
@@ -297,18 +301,20 @@ console.log(`Persistent pool: ${after.persistentPoolSize}`);
 ### From Legacy API
 
 **Before** (manual ID management):
+
 ```typescript
 const id = GlobalStringPool.intern('Name');
 component.nameId = id;
 ```
 
 **After** (declarative DSL):
+
 ```typescript
 const Component = defineComponent({
   name: 'Component',
   schema: {
-    name: Types.string  // Automatic
-  }
+    name: Types.string, // Automatic
+  },
 });
 api.addComponent(id, Component, { name: 'Name' });
 ```
@@ -348,6 +354,7 @@ export const System = () => {
 ### Q: What happens if I use the wrong pool?
 
 **A**:
+
 - `string` in persistent data → Data lost on scene transition
 - `persistentString` in temporary data → Memory leak (never freed)
 
@@ -376,10 +383,10 @@ export const System = () => {
 ## Changelog
 
 ### v0.1.0 (March 2026)
+
 - ✨ Added dual-pool architecture (scene + persistent)
 - ✨ Added `Types.persistentString` DSL
 - ✨ Automatic scene pool cleanup on transitions
 - ✨ Debug stats API (`getDebugStats()`)
 - 🔧 Legacy `GlobalStringPool` now delegates to scene pool
 - 📚 Comprehensive documentation and warnings
-

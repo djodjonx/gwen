@@ -194,6 +194,7 @@ const id2: EntityId = 42n; // ❌ Error — enforces correct usage
 ### Backward Compatibility
 
 Functions accepting `EntityId` continue to work because:
+
 - The type is just a bigint with a compile-time brand
 - At runtime, there's no type information (TypeScript is erased)
 - Legacy code using numeric IDs may compile with warnings
@@ -253,11 +254,7 @@ const restored = entityIdFromString(json.entityId);
 ### Complete System Example
 
 ```typescript
-import {
-  type EntityId,
-  createEntityId,
-  entityIdEqual,
-} from '@djodjonx/gwen-engine-core';
+import { type EntityId, createEntityId, entityIdEqual } from '@djodjonx/gwen-engine-core';
 
 function bulletSystem(engine: Engine, entities: EntityId[]): void {
   for (const id of entities) {
@@ -319,5 +316,3 @@ function deregisterActive(id: EntityId): void {
 - [Entity Component System (ECS)](/docs/core/ecs.md)
 - [Engine API](/docs/api/engine-api.md)
 - [Plugin Development](/docs/plugins/plugin-development.md)
-
-

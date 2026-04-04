@@ -59,10 +59,7 @@ interface ReloadContext {
 ### ReloadEvaluator
 
 ```typescript
-type ReloadEvaluator = (
-  api: EngineAPI,
-  context: ReloadContext
-) => boolean;
+type ReloadEvaluator = (api: EngineAPI, context: ReloadContext) => boolean;
 ```
 
 ## Usage
@@ -77,7 +74,7 @@ export const GameScene = defineScene('Game', () => ({
   onEnter(api) {
     // Setup entities
   },
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -89,7 +86,7 @@ export const PauseScene = defineScene('Pause', () => ({
   onEnter(api) {
     // Keeps state
   },
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -104,7 +101,7 @@ export const GameScene = defineScene('Game', () => ({
 
   systems: [MovementSystem, PlayerSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // Utilisation
@@ -122,7 +119,7 @@ export const GameScene = defineScene('Game', () => ({
 
   systems: [MovementSystem, PlayerSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -137,7 +134,7 @@ export const BossScene = defineScene('Boss', () => ({
 
   systems: [BossSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -159,7 +156,7 @@ api.hooks.hook('scene:willReload', (name, context) => {
   // Analytics
   analytics.track('scene_reload', {
     scene: name,
-    enterCount: context.enterCount
+    enterCount: context.enterCount,
   });
 });
 ```
@@ -215,7 +212,7 @@ export const GameScene = defineScene('Game', () => ({
     }
   },
 
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // Dans CollisionSystem
@@ -243,7 +240,7 @@ export const PauseScene = defineScene('Pause', () => ({
 
   onExit(api) {
     // Resume le jeu
-  }
+  },
 }));
 ```
 
@@ -259,7 +256,7 @@ export const GameScene = defineScene('Game', () => ({
 
   systems: [MovementSystem, PlayerSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // Game over → reload
@@ -275,12 +272,12 @@ if (keyboard.isPressed('R')) {
 
 ## Comparison with Other Engines
 
-| Engine | Behavior | GWEN Equivalent |
-|--------|--------------|-----------------|
-| **Unity** | Always reload | `reloadOnReenter: true` (default) |
-| **Godot** | Always reload | `reloadOnReenter: true` (default) |
-| **Phaser** | start/restart/pause/resume | `reloadOnReenter: boolean` |
-| **Unreal** | Always reload | `reloadOnReenter: true` (default) |
+| Engine     | Behavior                   | GWEN Equivalent                   |
+| ---------- | -------------------------- | --------------------------------- |
+| **Unity**  | Always reload              | `reloadOnReenter: true` (default) |
+| **Godot**  | Always reload              | `reloadOnReenter: true` (default) |
+| **Phaser** | start/restart/pause/resume | `reloadOnReenter: boolean`        |
+| **Unreal** | Always reload              | `reloadOnReenter: true` (default) |
 
 ## Best Practices
 
@@ -292,7 +289,7 @@ export const GameScene = defineScene('Game', () => ({
   // reloadOnReenter not specified → true by default
   systems: [MovementSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // Utiliser false pour menus/pause
@@ -300,7 +297,7 @@ export const PauseScene = defineScene('Pause', () => ({
   reloadOnReenter: false,
   ui: [PauseUI],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // Utiliser function pour logique complexe
@@ -310,7 +307,7 @@ export const BossScene = defineScene('Boss', () => ({
   },
   systems: [BossSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -321,10 +318,10 @@ export const BossScene = defineScene('Boss', () => ({
 export const GameScene = defineScene('Game', () => ({
   systems: [
     () => MovementSystem, // ❌ Not needed!
-    () => PlayerSystem,   // ❌ reloadOnReenter handles this
+    () => PlayerSystem, // ❌ reloadOnReenter handles this
   ],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 
 // ✅ Use reloadOnReenter instead
@@ -332,7 +329,7 @@ export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true, // ✅ Systems recreated automatically
   systems: [MovementSystem, PlayerSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -349,7 +346,7 @@ export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true, // ← Add this
   systems: [MovementSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -368,7 +365,7 @@ export const GameScene = defineScene('Game', () => ({
   },
   systems: [MovementSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -388,7 +385,7 @@ export const GameScene = defineScene('Game', () => ({
   },
   systems: [MovementSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -398,13 +395,9 @@ export const GameScene = defineScene('Game', () => ({
 
 ```typescript
 export const GameScene = defineScene('Game', () => ({
-  systems: [
-    () => MovementSystem,
-    () => PlayerSystem,
-    () => SpawnerSystem,
-  ],
+  systems: [() => MovementSystem, () => PlayerSystem, () => SpawnerSystem],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
@@ -414,16 +407,17 @@ export const GameScene = defineScene('Game', () => ({
 export const GameScene = defineScene('Game', () => ({
   reloadOnReenter: true, // ← New!
   systems: [
-    MovementSystem,    // ← No more factories
+    MovementSystem, // ← No more factories
     PlayerSystem,
     SpawnerSystem,
   ],
   onEnter(api) {},
-  onExit(api) {}
+  onExit(api) {},
 }));
 ```
 
 **Benefits**:
+
 - ✅ Simpler code
 - ✅ Clear intent
 - ✅ Fine-grained control with function evaluator
@@ -441,7 +435,9 @@ it('should reload scene when reloadOnReenter is true', () => {
   const TestScene = defineScene({
     name: 'Test',
     reloadOnReenter: true,
-    onEnter() { enterCount++; },
+    onEnter() {
+      enterCount++;
+    },
     onExit() {},
   });
 
@@ -457,10 +453,12 @@ it('should reload scene when reloadOnReenter is true', () => {
 ## Performance
 
 **Reload** (default):
+
 - ⚠️ Cost: Medium (destruction + recreation)
 - ✅ Benefit: Guaranteed fresh state, no state bugs
 
 **No Reload** (false):
+
 - ✅ Cost: Zero (no operations)
 - ⚠️ Risk: State can be corrupted
 
@@ -471,4 +469,3 @@ it('should reload scene when reloadOnReenter is true', () => {
 **Status** : ✅ Stable depuis v0.2.0
 **Tested** : 13 tests pass
 **Inspired by** : Unity, Godot, Phaser
-

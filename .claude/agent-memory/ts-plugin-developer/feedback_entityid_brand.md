@@ -9,8 +9,10 @@ type: feedback
 **Why:** The branded type prevents accidental entity id mixing, but tests need lightweight stubs.
 
 **How to apply:** In test files, cast with `as unknown as EntityId`:
+
 ```ts
 import type { EntityId } from '@djodjonx/gwen-engine-core';
 const e1 = 1n as unknown as EntityId;
 ```
+
 Do NOT declare `type EntityId = bigint` locally — that creates a type alias that still fails to satisfy the branded constraint.

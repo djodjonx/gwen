@@ -14,7 +14,7 @@ The goal of GWEN is to provide a 2D/3D web game engine that delivers **the raw p
 
 The architecture rests on a strict separation of concerns:
 
-- **The Muscle (Rust/WASM):** Manages linear memory, ECS, mathematics, physics, AI. The *game* developer never writes Rust — it is transparent.
+- **The Muscle (Rust/WASM):** Manages linear memory, ECS, mathematics, physics, AI. The _game_ developer never writes Rust — it is transparent.
 - **The Brain & The Face (TypeScript & DOM):** Manages business logic, user input, rendering, orchestration, and interfaces (HUD).
 
 **Founding principle:** the developer writes their game in TypeScript. The engine silently delegates intensive operations to the Rust/WASM core — transparent, without lock-in.
@@ -71,11 +71,11 @@ The two modules share the **same linear memory** via `SharedArrayBuffer`. The Ty
 
 ### Real overhead
 
-| Approach | Overhead per frame (1000 entities) | Rust required by user |
-|----------|-----------------------------------|-------------------------|
-| Monolithic build | ~0 ms | ✅ **YES** — blocking |
-| Two WASM + JS copy | ~10 ms | ❌ No — but **too slow** |
-| **Two WASM + SharedArrayBuffer** | **~0.01 ms** | ❌ **No — chosen** |
+| Approach                         | Overhead per frame (1000 entities) | Rust required by user    |
+| -------------------------------- | ---------------------------------- | ------------------------ |
+| Monolithic build                 | ~0 ms                              | ✅ **YES** — blocking    |
+| Two WASM + JS copy               | ~10 ms                             | ❌ No — but **too slow** |
+| **Two WASM + SharedArrayBuffer** | **~0.01 ms**                       | ❌ **No — chosen**       |
 
 SharedArrayBuffer synchronization is negligible (< 0.1% of frame budget at 60 FPS).
 
@@ -102,15 +102,10 @@ export default defineConfig({
 
   // WASM Plugins — pre-compiled artifacts in the npm package.
   // No Rust installation required. The CLI loads the .wasm at startup.
-  wasm: [
-    physics2D({ gravity: 9.81, friction: 0.9 })
-  ],
+  wasm: [physics2D({ gravity: 9.81, friction: 0.9 })],
 
   // TypeScript Plugins — logic, DOM, Web APIs
-  plugins: [
-    new InputPlugin(),
-    new Canvas2DRenderer({ width: 800, height: 600 }),
-  ]
+  plugins: [new InputPlugin(), new Canvas2DRenderer({ width: 800, height: 600 })],
 });
 ```
 
@@ -182,9 +177,8 @@ export class Physics2DPlugin implements GwenWasmPlugin {
   }
 }
 
-  // Config helper (pure descriptor object)
-  export const physics2D = (options = { gravity: 9.81 }) =>
-  new Physics2DPlugin(options);
+// Config helper (pure descriptor object)
+export const physics2D = (options = { gravity: 9.81 }) => new Physics2DPlugin(options);
 ```
 
 ---
@@ -222,6 +216,7 @@ export class PlayerController implements GwenPlugin {
 Two loop modes are supported. See [External Loop Contract](specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md#3-final-runtime-contract-external-loop) for the authoritative specification.
 
 ### Mode `loop: 'internal'` (default)
+
 The engine owns `requestAnimationFrame`. Delta is computed internally and capped at `maxDeltaSeconds` (default `0.1`).
 
 ```
@@ -229,6 +224,7 @@ RAF(now) → compute ΔT (capped) → onBeforeUpdate → engine.advance(ΔT) →
 ```
 
 ### Mode `loop: 'external'`
+
 JS controls timing. The engine never starts RAF. The caller must invoke `engine.advance(delta)` each frame.
 
 ```
@@ -236,6 +232,7 @@ JS tick → engine.advance(delta) → [onBeforeUpdate → Core reset channels �
 ```
 
 Frame sequence detail:
+
 ```
 1. onBeforeUpdate  → TsPlugins: capture inputs, intentions             ~0.1ms
 2. Core            → reset event channels (Data Bus protocol)         ~0.001ms
@@ -273,7 +270,7 @@ import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Velocity = defineComponent({
   name: 'Velocity',
-  schema: { x: Types.f32, y: Types.f32 }
+  schema: { x: Types.f32, y: Types.f32 },
 });
 ```
 
@@ -295,7 +292,7 @@ export const HealthBar = defineUI({
   render(api, entityId) {
     const hp = api.components.Health.getCurrent(entityId);
     api.services.get('htmlUI').style(entityId, 'fill', 'width', `${hp}%`);
-  }
+  },
 });
 ```
 
@@ -309,9 +306,9 @@ export const HealthBar = defineUI({
 
 ```typescript
 // Type inferred automatically from config — zero manual cast
-api.services.get('keyboard')  // → KeyboardInput ✅
-api.services.get('renderer')  // → Canvas2DRenderer ✅
-api.services.get('physics')   // → Physics2DAPI ✅ (if wasm: [physics2D()])
+api.services.get('keyboard'); // → KeyboardInput ✅
+api.services.get('renderer'); // → Canvas2DRenderer ✅
+api.services.get('physics'); // → Physics2DAPI ✅ (if wasm: [physics2D()])
 ```
 
 ---
@@ -323,15 +320,19 @@ api.services.get('physics')   // → Physics2DAPI ✅ (if wasm: [physics2D()])
 export const EnemyPrefab = definePrefab({
   name: 'Enemy',
   components: [Transform, Velocity, AI, Sprite],
-  defaults: { Velocity: { x: 0, y: 50 } }
+  defaults: { Velocity: { x: 0, y: 50 } },
 });
 
 // Scene: global lifecycle, clears WASM memory on transition
 export const GameScene = defineScene('Game', (scenes) => ({
   ui: [BackgroundUI, PlayerUI, ScoreUI],
   plugins: [MovementSystem, PlayerSystem, CollisionSystem],
-  onEnter(api) { api.prefabs.instantiate('Enemy', { x: 100, y: 0 }); },
-  onExit(api)  { /* cleanup */ },
+  onEnter(api) {
+    api.prefabs.instantiate('Enemy', { x: 100, y: 0 });
+  },
+  onExit(api) {
+    /* cleanup */
+  },
 }));
 ```
 
@@ -412,29 +413,29 @@ gwen preview
 
 ## 15. Performance Targets
 
-| Metric | Target |
-|----------|-------|
-| Stable FPS | 60 FPS with 10,000 active entities |
-| Base WASM size | < 150 KB (ECS + Transform) |
-| Physics WASM size | < 400 KB (Rapier2D) |
-| SharedArrayBuffer overhead | < 0.01 ms/frame |
-| Physics step (1000 entities) | < 0.5 ms (native Rapier2D) |
-| TTI | < 2 s on a standard connection |
+| Metric                       | Target                             |
+| ---------------------------- | ---------------------------------- |
+| Stable FPS                   | 60 FPS with 10,000 active entities |
+| Base WASM size               | < 150 KB (ECS + Transform)         |
+| Physics WASM size            | < 400 KB (Rapier2D)                |
+| SharedArrayBuffer overhead   | < 0.01 ms/frame                    |
+| Physics step (1000 entities) | < 0.5 ms (native Rapier2D)         |
+| TTI                          | < 2 s on a standard connection     |
 
 ---
 
 ## 16. Key Architectural Decisions (ADR)
 
-| ADR | Decision | Reason |
-|-----|----------|--------|
-| **ADR-1** | WASM Plugins = separate `.wasm` published in npm | Rust never required on the user side — maximum DX |
-| **ADR-2** | Inter-WASM communication via SharedArrayBuffer | Zero copy between WASM modules, ~0.01ms overhead |
-| **ADR-3** | TS Plugin = initialization glue, zero logic | Simulation stays 100% in Rust, TS is just a wirer |
-| **ADR-4** | TS for game logic, Rust for the engine | Clear separation, game developers never touch Rust |
-| **ADR-5** | Static compile-time configuration (`gwen.config.ts`) | Inferred typing, Tree-shaking, Nuxt-like DX |
-| **ADR-6** | `defineComponent()` DSL with `Types.*` | Zero allocation per frame, compiled serialize/deserialize |
-| **ADR-7** | Pure DI + Service Locator (`api.services`) | Testability, multi-instance, automatically inferred typing |
+| ADR       | Decision                                             | Reason                                                     |
+| --------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| **ADR-1** | WASM Plugins = separate `.wasm` published in npm     | Rust never required on the user side — maximum DX          |
+| **ADR-2** | Inter-WASM communication via SharedArrayBuffer       | Zero copy between WASM modules, ~0.01ms overhead           |
+| **ADR-3** | TS Plugin = initialization glue, zero logic          | Simulation stays 100% in Rust, TS is just a wirer          |
+| **ADR-4** | TS for game logic, Rust for the engine               | Clear separation, game developers never touch Rust         |
+| **ADR-5** | Static compile-time configuration (`gwen.config.ts`) | Inferred typing, Tree-shaking, Nuxt-like DX                |
+| **ADR-6** | `defineComponent()` DSL with `Types.*`               | Zero allocation per frame, compiled serialize/deserialize  |
+| **ADR-7** | Pure DI + Service Locator (`api.services`)           | Testability, multi-instance, automatically inferred typing |
 
 ---
 
-*This document is the authoritative architectural source of truth for GWEN. All technical decisions must be aligned with these principles.*
+_This document is the authoritative architectural source of truth for GWEN. All technical decisions must be aligned with these principles._

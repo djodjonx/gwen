@@ -78,6 +78,7 @@ console.log(manifest.buildDate);
 
 `gwenTransform()` exposes the compile-time transform contract used by RFC-008.
 Current implemented behavior is intentionally safe and incremental:
+
 - optional GWEN helper auto-import injection (`autoImports`),
 - optional `query: [...]` typing rewrite to `query: [...] as const` (`compileSystems`).
 

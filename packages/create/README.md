@@ -10,9 +10,9 @@ with a single command. Internally it delegates every argument to `gwen init` fro
 
 ## Prerequisites
 
-| Requirement | Version |
-|---|---|
-| Node.js | ≥ 20 |
+| Requirement       | Version            |
+| ----------------- | ------------------ |
+| Node.js           | ≥ 20               |
 | npm / pnpm / yarn | any recent version |
 
 ---
@@ -52,10 +52,10 @@ When run without flags `gwen init` asks two questions:
 
 All arguments after the package name are forwarded verbatim to `gwen init`.
 
-| Argument | Type | Description |
-|---|---|---|
-| `[name]` | positional | Project directory name. Prompted interactively if omitted. |
-| `--modules`, `-m` | `string` | Comma-separated list of optional modules. Skips the interactive module prompt. |
+| Argument          | Type       | Description                                                                    |
+| ----------------- | ---------- | ------------------------------------------------------------------------------ |
+| `[name]`          | positional | Project directory name. Prompted interactively if omitted.                     |
+| `--modules`, `-m` | `string`   | Comma-separated list of optional modules. Skips the interactive module prompt. |
 
 ### Examples
 
@@ -79,13 +79,13 @@ Starfield Shooter game and are required for the project to run out of the box.
 
 The following modules can be added via `--modules` or the interactive prompt:
 
-| Package | Description |
-|---|---|
-| `@gwenjs/physics2d` | Rapier-based 2D physics |
-| `@gwenjs/physics3d` | Rapier-based 3D physics |
-| `@gwenjs/audio` | Web Audio API integration |
-| `@gwenjs/r3f` | React Three Fiber renderer adapter |
-| `@gwenjs/debug` | Performance HUD and inspector |
+| Package             | Description                        |
+| ------------------- | ---------------------------------- |
+| `@gwenjs/physics2d` | Rapier-based 2D physics            |
+| `@gwenjs/physics3d` | Rapier-based 3D physics            |
+| `@gwenjs/audio`     | Web Audio API integration          |
+| `@gwenjs/r3f`       | React Three Fiber renderer adapter |
+| `@gwenjs/debug`     | Performance HUD and inspector      |
 
 ---
 
@@ -121,34 +121,31 @@ my-game/
 The engine config is ready to run immediately:
 
 ```ts
-import { defineConfig } from '@gwenjs/app'
-import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d'
-import { InputPlugin } from '@gwenjs/input'
+import { defineConfig } from '@gwenjs/app';
+import { Canvas2DRenderer } from '@gwenjs/renderer-canvas2d';
+import { InputPlugin } from '@gwenjs/input';
 
 export default defineConfig({
   engine: { maxEntities: 2_000, targetFPS: 60 },
   modules: [],
-  plugins: [
-    Canvas2DRenderer({ width: 800, height: 600, background: '#0a0a1a' }),
-    InputPlugin(),
-  ],
-})
+  plugins: [Canvas2DRenderer({ width: 800, height: 600, background: '#0a0a1a' }), InputPlugin()],
+});
 ```
 
 Selected optional modules are appended to the `modules` array automatically.
 
 #### `package.json` scripts
 
-| Script | Command | Description |
-|---|---|---|
-| `dev` | `gwen dev` | Start the development server (http://localhost:5173) |
-| `build` | `gwen build` | Production build |
-| `postinstall` | `gwen prepare` | One-time post-install setup (runs automatically) |
-| `lint` | `oxlint src/` | Lint source files |
-| `lint:fix` | `oxlint --fix src/` | Auto-fix lint issues |
-| `format` | `oxfmt src/` | Format source files |
-| `format:check` | `oxfmt --check src/` | Check formatting without writing |
-| `typecheck` | `tsc --noEmit` | TypeScript type check |
+| Script         | Command              | Description                                          |
+| -------------- | -------------------- | ---------------------------------------------------- |
+| `dev`          | `gwen dev`           | Start the development server (http://localhost:5173) |
+| `build`        | `gwen build`         | Production build                                     |
+| `postinstall`  | `gwen prepare`       | One-time post-install setup (runs automatically)     |
+| `lint`         | `oxlint src/`        | Lint source files                                    |
+| `lint:fix`     | `oxlint --fix src/`  | Auto-fix lint issues                                 |
+| `format`       | `oxfmt src/`         | Format source files                                  |
+| `format:check` | `oxfmt --check src/` | Check formatting without writing                     |
+| `typecheck`    | `tsc --noEmit`       | TypeScript type check                                |
 
 ---
 
@@ -163,10 +160,10 @@ pnpm dev         # open http://localhost:5173
 You will see the **Starfield Shooter** landing game — a playable mini-game built with the
 scaffolded ECS components and systems.
 
-| Key | Action |
-|---|---|
+| Key               | Action        |
+| ----------------- | ------------- |
 | Arrow keys / WASD | Move the ship |
-| Space | Fire |
+| Space             | Fire          |
 
 ---
 

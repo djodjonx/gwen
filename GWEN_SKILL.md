@@ -5,6 +5,7 @@ Gwen is an ultra-performant hybrid ECS (Entity Component System) game engine, us
 ## 🏗️ Architecture & Directory Structure
 
 Gwen follows a strict "Convention over Configuration" approach:
+
 - `gwen.config.ts`: Configuration entry point (plugins, engine, html).
 - `src/components/`: Data definitions (Schemas).
 - `src/systems/`: Game logic (Update loop).
@@ -15,18 +16,22 @@ Gwen follows a strict "Convention over Configuration" approach:
 ## 🛠️ Core API (TypeScript)
 
 ### 1. Components (`defineComponent`)
+
 Components are pure data structures.
+
 ```typescript
 import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',
-  schema: { x: Types.f32, y: Types.f32 }
+  schema: { x: Types.f32, y: Types.f32 },
 });
 ```
 
 ### 2. Systems (`defineSystem`)
+
 Systems run every frame.
+
 ```typescript
 export const MovementSystem = defineSystem({
   name: 'MovementSystem',
@@ -36,12 +41,14 @@ export const MovementSystem = defineSystem({
       const pos = api.getComponent(id, Position);
       api.addComponent(id, Position, { x: pos.x + 10 });
     }
-  }
+  },
 });
 ```
 
 ### 3. Scenes (`defineScene`)
+
 Manage the lifecycle and activation of systems/UI.
+
 ```typescript
 export const GameScene = defineScene('Game', () => ({
   systems: [MovementSystem, CollisionSystem],
@@ -49,12 +56,14 @@ export const GameScene = defineScene('Game', () => ({
   onEnter(api) {
     api.prefabs.register(PlayerPrefab);
     api.prefabs.instantiate('Player');
-  }
+  },
 }));
 ```
 
 ### 4. UI (`defineUI`)
+
 Entity-specific rendering for entities with a `UIComponent`.
+
 ```typescript
 export const PlayerUI = defineUI({
   name: 'PlayerUI',
@@ -62,13 +71,14 @@ export const PlayerUI = defineUI({
     const { ctx } = api.services.get('renderer'); // Auto-typed service
     const pos = api.getComponent(id, Position);
     ctx.fillRect(pos.x, pos.y, 20, 20);
-  }
+  },
 });
 ```
 
 ## 🔌 Plugins & Services
 
 Gwen is extensible via plugins. Services exposed by plugins are accessible via `api.services.get('name')`.
+
 - **Keyboard**: `api.services.get('keyboard')` -> `isPressed(key)`
 - **Renderer**: `api.services.get('renderer')` -> `ctx` (CanvasRenderingContext2D)
 - **Audio**: `api.services.get('audio')` -> `play(sound, options)`

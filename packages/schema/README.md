@@ -9,13 +9,13 @@
 
 `@gwenjs/schema` centralises every concern related to the GWEN engine configuration:
 
-| Responsibility | What is exported |
-|---|---|
+| Responsibility      | What is exported                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Canonical types** | `GwenOptions`, `GwenConfigInput`, `GwenPluginBase`, `GwenModuleEntry`, `GwenHookHandler`, `DeepPartial`, `EngineAPI` |
-| **Hook contracts** | `GwenHooks` and its five constituent interfaces |
-| **Default values** | `defaultOptions` — the fully typed baseline config |
-| **Resolution** | `resolveConfig()` — merges partial user input with defaults |
-| **Validation** | `validateResolvedConfig()`, `assertModuleFirstInput()` |
+| **Hook contracts**  | `GwenHooks` and its five constituent interfaces                                                                      |
+| **Default values**  | `defaultOptions` — the fully typed baseline config                                                                   |
+| **Resolution**      | `resolveConfig()` — merges partial user input with defaults                                                          |
+| **Validation**      | `validateResolvedConfig()`, `assertModuleFirstInput()`                                                               |
 
 All other packages in the monorepo (`@gwenjs/app`, `@gwenjs/core`, `@gwenjs/vite`, the CLI) import their config types **only** from `@gwenjs/schema`. No package duplicates these definitions.
 
@@ -54,22 +54,22 @@ import type { GwenOptions } from '@gwenjs/schema';
 
 const opts: GwenOptions = {
   engine: {
-    maxEntities: 5_000,      // Integer, 100–1_000_000
-    targetFPS: 60,           // 30–240
+    maxEntities: 5_000, // Integer, 100–1_000_000
+    targetFPS: 60, // 30–240
     debug: false,
     enableStats: true,
     sparseTransformSync: true,
-    loop: 'internal',        // 'internal' | 'external'
-    maxDeltaSeconds: 0.1,    // > 0, <= 1
+    loop: 'internal', // 'internal' | 'external'
+    maxDeltaSeconds: 0.1, // > 0, <= 1
   },
   html: {
     title: 'My Game',
-    background: '#000000',   // Hex colour string
+    background: '#000000', // Hex colour string
   },
   modules: [],
   plugins: [],
   scenes: [],
-  scenesMode: 'auto',        // 'auto' | false
+  scenesMode: 'auto', // 'auto' | false
   srcDir: 'src',
   outDir: 'dist',
 };
@@ -83,7 +83,7 @@ The user-facing partial config type. Extends `DeepPartial<GwenOptions>` and adds
 import type { GwenConfigInput } from '@gwenjs/schema';
 
 const input: GwenConfigInput = {
-  engine: { maxEntities: 10_000 },   // Only override what you need
+  engine: { maxEntities: 10_000 }, // Only override what you need
   modules: ['@gwenjs/physics2d'],
   // Legacy (deprecated) — migrated automatically by resolveConfig():
   // tsPlugins: [...],
@@ -114,10 +114,7 @@ A module declaration: either a plain string or a `[name, options]` tuple.
 ```typescript
 import type { GwenModuleEntry } from '@gwenjs/schema';
 
-const entries: GwenModuleEntry[] = [
-  '@gwenjs/input',
-  ['@gwenjs/audio', { masterVolume: 0.8 }],
-];
+const entries: GwenModuleEntry[] = ['@gwenjs/input', ['@gwenjs/audio', { masterVolume: 0.8 }]];
 ```
 
 ### `DeepPartial<T>`
@@ -165,10 +162,10 @@ type Hooks = GwenHooks;
 
 // Runtime-bound (used by engine-core with concrete entity/plugin types):
 type RuntimeHooks = GwenHooks<
-  number,   // EntityId
+  number, // EntityId
   MyPlugin, // Plugin
-  MyAPI,    // API
-  object,   // ReloadContext
+  MyAPI, // API
+  object, // ReloadContext
   PrefabExt,
   SceneExt,
   UIExt
@@ -177,14 +174,14 @@ type RuntimeHooks = GwenHooks<
 
 ### Sub-interfaces
 
-| Interface | Hook names |
-|---|---|
-| `EngineLifecycleHooks` | `engine:init`, `engine:start`, `engine:stop`, `engine:tick`, `engine:runtimeError` |
-| `PluginLifecycleHooks` | `plugin:register`, `plugin:init`, `plugin:beforeUpdate`, `plugin:update`, `plugin:render`, `plugin:destroy` |
-| `EntityLifecycleHooks` | `entity:create`, `entity:destroy`, `entity:destroyed` |
-| `ComponentLifecycleHooks` | `component:add`, `component:remove`, `component:removed`, `component:update` |
-| `SceneLifecycleHooks` | `scene:beforeLoad`, `scene:load`, `scene:loaded`, `scene:beforeUnload`, `scene:unload`, `scene:unloaded`, `scene:willReload` |
-| `ExtensionLifecycleHooks` | `prefab:instantiate`, `scene:extensions`, `ui:extensions` |
+| Interface                 | Hook names                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `EngineLifecycleHooks`    | `engine:init`, `engine:start`, `engine:stop`, `engine:tick`, `engine:runtimeError`                                           |
+| `PluginLifecycleHooks`    | `plugin:register`, `plugin:init`, `plugin:beforeUpdate`, `plugin:update`, `plugin:render`, `plugin:destroy`                  |
+| `EntityLifecycleHooks`    | `entity:create`, `entity:destroy`, `entity:destroyed`                                                                        |
+| `ComponentLifecycleHooks` | `component:add`, `component:remove`, `component:removed`, `component:update`                                                 |
+| `SceneLifecycleHooks`     | `scene:beforeLoad`, `scene:load`, `scene:loaded`, `scene:beforeUnload`, `scene:unload`, `scene:unloaded`, `scene:willReload` |
+| `ExtensionLifecycleHooks` | `prefab:instantiate`, `scene:extensions`, `ui:extensions`                                                                    |
 
 ### `RuntimeErrorRecord`
 
@@ -208,30 +205,30 @@ The baseline `GwenOptions` object. Read-only reference — never mutate it direc
 import { defaultOptions } from '@gwenjs/schema';
 
 console.log(defaultOptions.engine.maxEntities); // 5000
-console.log(defaultOptions.engine.targetFPS);   // 60
-console.log(defaultOptions.html.background);    // '#000000'
-console.log(defaultOptions.scenesMode);         // 'auto'
+console.log(defaultOptions.engine.targetFPS); // 60
+console.log(defaultOptions.html.background); // '#000000'
+console.log(defaultOptions.scenesMode); // 'auto'
 ```
 
 Full default values:
 
-| Field | Default |
-|---|---|
-| `engine.maxEntities` | `5000` |
-| `engine.targetFPS` | `60` |
-| `engine.debug` | `false` |
-| `engine.enableStats` | `true` |
-| `engine.sparseTransformSync` | `true` |
-| `engine.loop` | `'internal'` |
-| `engine.maxDeltaSeconds` | `0.1` |
-| `html.title` | `'GWEN Project'` |
-| `html.background` | `'#000000'` |
-| `modules` | `[]` |
-| `plugins` | `[]` |
-| `scenes` | `[]` |
-| `scenesMode` | `'auto'` |
-| `srcDir` | `'src'` |
-| `outDir` | `'dist'` |
+| Field                        | Default          |
+| ---------------------------- | ---------------- |
+| `engine.maxEntities`         | `5000`           |
+| `engine.targetFPS`           | `60`             |
+| `engine.debug`               | `false`          |
+| `engine.enableStats`         | `true`           |
+| `engine.sparseTransformSync` | `true`           |
+| `engine.loop`                | `'internal'`     |
+| `engine.maxDeltaSeconds`     | `0.1`            |
+| `html.title`                 | `'GWEN Project'` |
+| `html.background`            | `'#000000'`      |
+| `modules`                    | `[]`             |
+| `plugins`                    | `[]`             |
+| `scenes`                     | `[]`             |
+| `scenesMode`                 | `'auto'`         |
+| `srcDir`                     | `'src'`          |
+| `outDir`                     | `'dist'`         |
 
 ### `resolveConfig(input?)`
 
@@ -248,7 +245,7 @@ const config = resolveConfig({
 });
 
 // config is a fully typed, validated GwenOptions
-console.log(config.engine.targetFPS);   // 60  (from defaults)
+console.log(config.engine.targetFPS); // 60  (from defaults)
 console.log(config.engine.maxEntities); // 10_000  (from input)
 ```
 
@@ -267,15 +264,15 @@ const config = validateResolvedConfig({
 
 **Validation rules:**
 
-| Field | Constraint |
-|---|---|
-| `engine.maxEntities` | Integer, 100–1_000_000 |
-| `engine.targetFPS` | Number, 30–240 |
-| `engine.loop` | `'internal'` or `'external'` |
-| `engine.maxDeltaSeconds` | `> 0` and `<= 1` |
-| `html.background` | Valid 3- or 6-digit hex colour (`#rgb` or `#rrggbb`) |
-| `modules` | Array; each entry is a non-empty string or a `[name, options?]` tuple |
-| `plugins` | Array |
+| Field                    | Constraint                                                            |
+| ------------------------ | --------------------------------------------------------------------- |
+| `engine.maxEntities`     | Integer, 100–1_000_000                                                |
+| `engine.targetFPS`       | Number, 30–240                                                        |
+| `engine.loop`            | `'internal'` or `'external'`                                          |
+| `engine.maxDeltaSeconds` | `> 0` and `<= 1`                                                      |
+| `html.background`        | Valid 3- or 6-digit hex colour (`#rgb` or `#rrggbb`)                  |
+| `modules`                | Array; each entry is a non-empty string or a `[name, options?]` tuple |
+| `plugins`                | Array                                                                 |
 
 ### `assertModuleFirstInput(input)`
 
@@ -307,35 +304,32 @@ import { InputPlugin } from '@gwenjs/input';
 export default defineConfig({
   // ── Engine ───────────────────────────────────────────────────────────────
   engine: {
-    maxEntities: 2_000,      // How many ECS entities to pre-allocate (100–1_000_000)
-    targetFPS: 60,           // Target simulation rate (30–240)
-    debug: false,            // Set to true to enable engine debug logging
-    enableStats: true,       // Collect per-frame performance stats
-    loop: 'internal',        // Engine drives its own requestAnimationFrame loop
-    maxDeltaSeconds: 0.1,    // Cap a single tick at 100 ms to avoid spiral-of-death
+    maxEntities: 2_000, // How many ECS entities to pre-allocate (100–1_000_000)
+    targetFPS: 60, // Target simulation rate (30–240)
+    debug: false, // Set to true to enable engine debug logging
+    enableStats: true, // Collect per-frame performance stats
+    loop: 'internal', // Engine drives its own requestAnimationFrame loop
+    maxDeltaSeconds: 0.1, // Cap a single tick at 100 ms to avoid spiral-of-death
   },
 
   // ── HTML dev server ───────────────────────────────────────────────────────
   html: {
     title: 'Space Shooter',
-    background: '#0a0a1a',   // 3- or 6-digit hex colour
+    background: '#0a0a1a', // 3- or 6-digit hex colour
   },
 
   // ── Framework modules (module-first composition) ──────────────────────────
   modules: [
-    '@gwenjs/physics2d',                            // string shorthand
-    ['@gwenjs/audio', { masterVolume: 0.8 }],       // [name, options] tuple
+    '@gwenjs/physics2d', // string shorthand
+    ['@gwenjs/audio', { masterVolume: 0.8 }], // [name, options] tuple
   ],
 
   // ── Plugins (direct instantiation — no module wrapper) ───────────────────
-  plugins: [
-    Canvas2DRenderer({ width: 800, height: 600 }),
-    InputPlugin({ gamepad: true }),
-  ],
+  plugins: [Canvas2DRenderer({ width: 800, height: 600 }), InputPlugin({ gamepad: true })],
 
   // ── Scene discovery ───────────────────────────────────────────────────────
-  scenesMode: 'auto',        // Auto-discover scene files under srcDir
-  mainScene: 'GameScene',    // Load this scene on startup
+  scenesMode: 'auto', // Auto-discover scene files under srcDir
+  mainScene: 'GameScene', // Load this scene on startup
 
   // ── Paths ─────────────────────────────────────────────────────────────────
   srcDir: 'src',
@@ -359,8 +353,8 @@ To use it within the monorepo:
 // packages/your-package/package.json
 {
   "dependencies": {
-    "@gwenjs/schema": "workspace:*"
-  }
+    "@gwenjs/schema": "workspace:*",
+  },
 }
 ```
 
@@ -389,4 +383,3 @@ pnpm test
 ```
 
 Tests live in `tests/` and cover defaults, merge logic, all validation rules, and hook type contracts.
-

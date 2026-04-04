@@ -4,10 +4,10 @@
 
 Currently supported versions and their security status:
 
-| Version | Status | Support Until |
-|---------|--------|---|
-| 0.1.x | ✅ Active | 2027-03-03 |
-| 0.0.x | ⛔ EOL | 2025-12-31 |
+| Version | Status    | Support Until |
+| ------- | --------- | ------------- |
+| 0.1.x   | ✅ Active | 2027-03-03    |
+| 0.0.x   | ⛔ EOL    | 2025-12-31    |
 
 **Version 0.1.x** receives security updates immediately.
 **Older versions** receive critical security patches only.
@@ -23,12 +23,14 @@ security@gwen-engine.dev
 ```
 
 **Please include:**
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
 - Suggested fix (if applicable)
 
 **Timeline:**
+
 - We aim to acknowledge reports within 48 hours
 - We'll provide status updates every 7 days
 - Critical vulnerabilities will be patched ASAP
@@ -39,6 +41,7 @@ security@gwen-engine.dev
 ### For Application Developers
 
 1. **Keep GWEN Updated**
+
    ```bash
    npm update@djodjonx/gwen-engine-core
    ```
@@ -48,6 +51,7 @@ security@gwen-engine.dev
    - Browser security policies require it
 
 3. **Validate User Input**
+
    ```typescript
    // Always validate data from users/network
    const x = parseFloat(userInput);
@@ -70,6 +74,7 @@ security@gwen-engine.dev
 1. **Dependency Scanning**
    - We use `npm audit` and `cargo audit`
    - Check for vulnerabilities before committing
+
    ```bash
    npm audit
    cargo audit
@@ -114,6 +119,7 @@ The TypeScript API is a thin wrapper around WASM:
 ### Recommendations
 
 1. **Always validate user input**
+
    ```typescript
    // ✓ Good
    const position = Math.max(0, userInput);
@@ -167,10 +173,9 @@ After coordinated disclosure:
 **Security Team:** security@gwen-engine.dev
 
 **Maintainers:**
+
 - Jonathan Moutier - [@djodjonx](https://github.com/djodjonx)
 
 ---
 
 **Last Updated:** March 3, 2026
-
-

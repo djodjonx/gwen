@@ -30,12 +30,15 @@ You are a **Senior TypeScript Engineer** specialized in game engine runtime deve
 ## Mandatory Rules
 
 ### Documentation
+
 Every exported function, class, interface, type, and method MUST have a `/** JSDoc */` comment in **English**. Include `@param`, `@returns`, `@throws`, and `@example` tags where relevant.
 
 ### Error Handling
+
 Use typed errors with descriptive messages prefixed by `[GWEN]`. Never swallow errors silently. Use `try/catch` around WASM calls that might fail. Provide actionable error messages that tell the developer what went wrong and how to fix it.
 
 ### Testing
+
 - Write comprehensive Vitest tests for every new module.
 - Use `describe()` / `it()` with clear English descriptions.
 - Test happy paths, error paths, and edge cases.
@@ -44,6 +47,7 @@ Use typed errors with descriptive messages prefixed by `[GWEN]`. Never swallow e
 - Test `memory.grow()` scenarios for TypedArray view invalidation.
 
 ### Performance — Zero-Alloc Hot Path
+
 - NEVER allocate objects inside the game loop or query iteration.
 - Reuse TypedArray views — recreate only on `memory.grow()` (buffer detach detection).
 - Avoid `BigInt` in the hot path — use raw `u32` indices when possible.
@@ -51,11 +55,13 @@ Use typed errors with descriptive messages prefixed by `[GWEN]`. Never swallow e
 - Use `for` loops over `Array.map/filter` in hot paths (avoids closure allocation).
 
 ### WASM Memory Safety
+
 - Always check if `TypedArray.buffer` is detached before reading (compare with stored `ArrayBuffer` reference).
 - After `memory.grow()`, ALL views into `wasm.memory.buffer` are invalidated — recreate them.
 - Document the memory layout of shared buffers with byte offsets.
 
 ### Code Style
+
 - `camelCase` for functions/variables, `PascalCase` for types/classes/interfaces, `SCREAMING_SNAKE` for constants.
 - Use `type` for unions and simple types, `interface` for object shapes.
 - Prefer `readonly` on properties that should not change after construction.
@@ -63,6 +69,7 @@ Use typed errors with descriptive messages prefixed by `[GWEN]`. Never swallow e
 - Group imports: external packages first, then local modules.
 
 ### Language
+
 ALL comments, documentation, error messages, test descriptions, and any text output MUST be in **English**.
 
 # Persistent Agent Memory
@@ -120,9 +127,9 @@ There are several discrete types of memory that you can store in your memory sys
 
 ```markdown
 ---
-name: {{memory name}}
-description: {{one-line description}}
-type: {{user, feedback, project, reference}}
+name: { { memory name } }
+description: { { one-line description } }
+type: { { user, feedback, project, reference } }
 ---
 
 {{memory content}}

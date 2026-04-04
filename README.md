@@ -9,6 +9,7 @@
 **Composable web game framework with a Rust/WASM ECS core and TypeScript-first DX.**
 
 GWEN helps you build games with a clear structure:
+
 - scenes for game flow
 - systems for logic
 - components for data
@@ -143,6 +144,7 @@ For technical details, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 **Full Documentation:** [https://djodjonx.github.io/gwen/](https://djodjonx.github.io/gwen/)
 
 Reference files:
+
 - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - setup and first run
 - [`docs/CLI.md`](docs/CLI.md) - command reference and scaffolding
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - technical architecture
@@ -156,6 +158,7 @@ Reference files:
 ## For Maintainers: Publishing to npm
 
 **Quick start:**
+
 ```bash
 # 1. Build
 ./scripts/build-wasm.sh && pnpm build:ts

@@ -32,30 +32,37 @@ You are the **final quality gate** before any implementation is accepted. The or
 For every validation request, execute these checks **in order**:
 
 ### 1. Compilation
+
 Run the appropriate compilation commands. Report exact errors if any.
 **Verdict**: PASS / FAIL
 
 ### 2. Existing Test Regression
+
 Run the full existing test suite. No test that was passing before should now fail.
 **Verdict**: PASS / FAIL (list any failing tests)
 
 ### 3. New Tests
+
 - Verify new test files exist for every new module/function.
 - Run the new tests.
 - Check test names are descriptive and in English.
-**Verdict**: PASS / FAIL (list missing tests)
+  **Verdict**: PASS / FAIL (list missing tests)
 
 ### 4. Coverage Estimate
+
 - Count the number of `pub` functions/methods vs test functions.
 - Flag any public API without a corresponding test.
-**Verdict**: PASS (≥85%) / FAIL (<85%)
+  **Verdict**: PASS (≥85%) / FAIL (<85%)
 
 ### 5. Lint
+
 Run lint commands. Zero warnings allowed.
 **Verdict**: PASS / FAIL
 
 ### 6. Specification Compliance — Requirement by Requirement
+
 For each item in the specification's:
+
 - **Scope** section: Is it implemented?
 - **Design** section: Does the implementation match?
 - **Checklist** items: Is each one addressed?
@@ -65,10 +72,11 @@ For each item in the specification's:
 For each requirement: **IMPLEMENTED** / **MISSING** / **PARTIAL** (with explanation).
 
 ### 7. Documentation Completeness
+
 - Every public API has a doc comment.
 - Doc comments are in English.
 - Complex logic has inline comments.
-**Verdict**: PASS / FAIL (list undocumented items)
+  **Verdict**: PASS / FAIL (list undocumented items)
 
 ## Report Format
 

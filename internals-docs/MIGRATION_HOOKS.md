@@ -13,6 +13,7 @@ GWEN Engine v0.2.0 introduces the new hooks system based on `@unjs/hookable`, re
 ## Quick Summary
 
 ### Before (v0.1.x) ❌
+
 ```typescript
 engine.on('entityCreated', (data) => {
   console.log('Entity created:', data.id);
@@ -24,6 +25,7 @@ engine.on('componentAdded', (data) => {
 ```
 
 ### After (v0.2.0+) ✅
+
 ```typescript
 api.hooks.hook('entity:create', (id) => {
   console.log('Entity created:', id);
@@ -42,28 +44,29 @@ api.hooks.hook('component:add', (id, type, data) => {
 
 #### Entity Events
 
-| Old | New |
-|-----|-----|
-| `engine.on('entityCreated', ({id}) => ...)` | `api.hooks.hook('entity:create', (id) => ...)` |
+| Old                                           | New                                               |
+| --------------------------------------------- | ------------------------------------------------- |
+| `engine.on('entityCreated', ({id}) => ...)`   | `api.hooks.hook('entity:create', (id) => ...)`    |
 | `engine.on('entityDestroyed', ({id}) => ...)` | `api.hooks.hook('entity:destroyed', (id) => ...)` |
 
 #### Component Events
 
-| Old | New |
-|-----|-----|
-| `engine.on('componentAdded', ({id, type}) => ...)` | `api.hooks.hook('component:add', (id, type, data) => ...)` |
-| `engine.on('componentRemoved', ({id, type}) => ...)` | `api.hooks.hook('component:removed', (id, type) => ...)` |
+| Old                                                  | New                                                        |
+| ---------------------------------------------------- | ---------------------------------------------------------- |
+| `engine.on('componentAdded', ({id, type}) => ...)`   | `api.hooks.hook('component:add', (id, type, data) => ...)` |
+| `engine.on('componentRemoved', ({id, type}) => ...)` | `api.hooks.hook('component:removed', (id, type) => ...)`   |
 
 #### Engine Events
 
-| Old | New |
-|-----|-----|
+| Old                             | New                                         |
+| ------------------------------- | ------------------------------------------- |
 | `engine.on('start', () => ...)` | `api.hooks.hook('engine:start', () => ...)` |
-| `engine.on('stop', () => ...)` | `api.hooks.hook('engine:stop', () => ...)` |
+| `engine.on('stop', () => ...)`  | `api.hooks.hook('engine:stop', () => ...)`  |
 
 ### Step 2: Move Listeners to Plugin Initialization
 
 **Before:**
+
 ```typescript
 // ❌ Bad - listeners registered outside plugin
 engine.on('entity:create', (id) => {
@@ -74,6 +77,7 @@ const entity = engine.createEntity();
 ```
 
 **After:**
+
 ```typescript
 // ✅ Good - listeners registered in onInit
 export const MyPlugin = defineSystem({
@@ -82,7 +86,7 @@ export const MyPlugin = defineSystem({
     api.hooks.hook('entity:create', (id) => {
       console.log('Entity:', id);
     });
-  }
+  },
 });
 
 engine.registerSystem(MyPlugin);
@@ -94,11 +98,13 @@ const entity = engine.createEntity();
 Hooks are now async by default (v5.5.3+). When calling manually:
 
 **Before:**
+
 ```typescript
 engine.emit('custom:event', data);
 ```
 
 **After:**
+
 ```typescript
 // Option 1: Fire and forget
 api.hooks.callHook('custom:event' as any, data);
@@ -107,7 +113,7 @@ api.hooks.callHook('custom:event' as any, data);
 await api.hooks.callHook('custom:event' as any, data);
 
 // Option 3: With error handling
-await api.hooks.callHook('custom:event' as any, data).catch(err => {
+await api.hooks.callHook('custom:event' as any, data).catch((err) => {
   console.error('Hook error:', err);
 });
 ```
@@ -119,15 +125,16 @@ await api.hooks.callHook('custom:event' as any, data).catch(err => {
 ### Scenario: Auth System
 
 **Old Code (v0.1.x):**
+
 ```typescript
 // initialization.ts
 const engine = new Engine();
 
-engine.on('entityCreated', ({id}) => {
+engine.on('entityCreated', ({ id }) => {
   console.log(`[Auth] Entity created: ${id}`);
 });
 
-engine.on('componentAdded', ({id, type}) => {
+engine.on('componentAdded', ({ id, type }) => {
   if (type === 'Player') {
     console.log(`[Auth] Player assigned to entity ${id}`);
   }
@@ -139,6 +146,7 @@ engine.on('start', () => {
 ```
 
 **New Code (v0.2.0+):**
+
 ```typescript
 // auth-plugin.ts
 import { defineSystem } from '@djodjonx/gwen-engine-core';
@@ -163,7 +171,7 @@ export const AuthPlugin = defineSystem({
     api.hooks.hook('engine:start', () => {
       console.log('[Auth] Engine started - authenticating...');
     });
-  }
+  },
 });
 
 // initialization.ts
@@ -237,7 +245,7 @@ export const TrackerPlugin = defineSystem({
     api.hooks.hook('engine:tick', (dt) => {
       console.log(`Active entities: ${createdEntities.size}`);
     });
-  }
+  },
 });
 ```
 
@@ -253,7 +261,7 @@ export const EventBridgePlugin = defineSystem({
     // Forward entity:create to custom listeners
     api.hooks.hook('entity:create', (id) => {
       const cbs = listeners.get('entity:create') || [];
-      cbs.forEach(cb => cb(id));
+      cbs.forEach((cb) => cb(id));
     });
 
     // Public API for consumers
@@ -261,9 +269,9 @@ export const EventBridgePlugin = defineSystem({
       on(event: string, handler: Function) {
         if (!listeners.has(event)) listeners.set(event, []);
         listeners.get(event)!.push(handler);
-      }
+      },
     };
-  }
+  },
 });
 ```
 
@@ -281,7 +289,7 @@ export const FilterPlugin = defineSystem({
         console.log(`Player ${id} destroyed`);
       }
     });
-  }
+  },
 });
 ```
 
@@ -359,4 +367,3 @@ api.hooks.hook('entity:create', (id) => {
 
 **Version:** v0.2.0
 **Updated:** March 2026
-

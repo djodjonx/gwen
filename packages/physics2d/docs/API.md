@@ -267,7 +267,10 @@ Use domain subpaths when possible to keep bundle size minimal.
 ```ts
 import { getBodySnapshot } from '@gwenjs/physics2d/helpers/queries';
 import { moveKinematicByVelocity } from '@gwenjs/physics2d/helpers/movement';
-import { selectContactsForEntityId, getEntityCollisionContacts } from '@gwenjs/physics2d/helpers/contact';
+import {
+  selectContactsForEntityId,
+  getEntityCollisionContacts,
+} from '@gwenjs/physics2d/helpers/contact';
 import { buildStaticGeometryChunk } from '@gwenjs/physics2d/helpers/static-geometry';
 import { createTilemapChunkOrchestrator } from '@gwenjs/physics2d/helpers/orchestration';
 ```

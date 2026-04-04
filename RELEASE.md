@@ -13,6 +13,7 @@ This document outlines the release process for GWEN.
 ## 🛡️ Automated Safety Checks
 
 We use a custom verification script `scripts/verify-release.mjs` that runs automatically during the release. It ensures:
+
 - All packages have a `dist/` folder (compiled TS).
 - WASM-dependent packages (like `engine-core` and `plugin-physics2d`) have their `.wasm` files in the `wasm/` folder.
 - Internal `workspace:*` dependencies are valid.
@@ -60,19 +61,25 @@ pnpm release
 ## 🛠️ Maintenance Commands
 
 ### Build WASM only
+
 To manually trigger the Rust to WASM compilation and distribution:
+
 ```bash
 ./scripts/build-wasm.sh
 ```
 
 ### Verify Packages only
+
 To check if your packages are ready for npm without publishing:
+
 ```bash
 pnpm release:verify
 ```
 
 ### Create a Changeset
+
 Every user-facing change should include a changeset:
+
 ```bash
 pnpm changeset
 ```
@@ -84,4 +91,3 @@ pnpm changeset
 **WASM Artifacts:** Packages are distributed with their WASM binaries encapsulated. Users do not need Rust installed to use GWEN, but **maintainers** must have it to build the release.
 
 **Scope:** All packages are published under the `@djodjonx` scope (e.g., `@djodjonx/gwen-engine-core`).
-
