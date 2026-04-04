@@ -38,6 +38,7 @@ export default defineConfig({
           { text: 'Scenes', link: '/core/scenes' },
           { text: 'Layouts', link: '/guide/layouts' },
           { text: 'Scene Router', link: '/guide/scene-router' },
+          { text: 'Tween & Animation', link: '/guide/tween' },
         ],
       },
       {
@@ -57,6 +58,7 @@ export default defineConfig({
           { text: 'Engine API', link: '/api/engine' },
           { text: 'Layout API', link: '/api/layout' },
           { text: 'Scene Router API', link: '/api/scene-router' },
+          { text: 'Tween API', link: '/api/tween' },
         ],
       },
       {

@@ -4,6 +4,7 @@ import { gwenTypesPlugin } from './types-writer.js';
 import { gwenVirtualPlugin } from './virtual-env.js';
 import { gwenActorPlugin } from './actor.js';
 import { gwenLayoutPlugin } from './layout.js';
+import { gwenTweenPlugin } from './tween.js';
 import type { GwenViteOptions } from '../types.js';
 import type { PluginOption } from 'vite';
 
@@ -23,6 +24,7 @@ export {
   generateRouterDevtools,
   transformRouterNames,
 } from './scene-router.js';
+export { gwenTweenPlugin, extractUsedEasings, type GwenTweenOptions } from './tween.js';
 
 /**
  * Composite Vite plugin that wires together all GWEN sub-plugins:
@@ -33,6 +35,7 @@ export {
  * - `gwen:virtual` — injects `virtual:gwen/env` constants
  * - `gwen:actor` — actor auto-discovery and name injection
  * - `gwen:layout` — layout virtual module and name injection
+ * - `gwen:tween` — easing tree-shake analysis via `virtual:gwen/used-easings`
  *
  * @param options - Plugin configuration. All sub-options are optional.
  *
@@ -55,5 +58,6 @@ export function gwenVitePlugin(options: GwenViteOptions = {}): PluginOption {
     gwenActorPlugin(options),
     gwenLayoutPlugin(options),
     gwenSceneRouterPlugin(options),
+    gwenTweenPlugin(options),
   ];
 }
