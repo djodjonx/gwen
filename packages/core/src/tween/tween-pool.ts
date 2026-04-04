@@ -46,6 +46,11 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
   private _valueType: ValueType = 'number';
   private _onReturnLeg: boolean = false; // True during yoyo reverse
 
+  // ─ Pre-allocated scratch objects for zero-alloc vector updates ──────────
+  private readonly _vec2Scratch = { x: 0, y: 0 };
+  private readonly _vec3Scratch = { x: 0, y: 0, z: 0 };
+  private readonly _colorScratch = { r: 0, g: 0, b: 0, a: 0 };
+
   /**
    * Current interpolated value of the tween.
    * Updated automatically each frame via {@link tick}.
@@ -179,16 +184,20 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
       }
 
       if (this._loop) {
-        // For looping: reset elapsed and toggle yoyo leg if needed
-        this._elapsed = 0;
-        if (this._yoyo) {
-          this._onReturnLeg = !this._onReturnLeg;
-        }
+        // For looping: always restart from forward
+        this._elapsed -= this._duration;
+        this._onReturnLeg = false;
       } else if (this._yoyo) {
-        // For yoyo without loop: toggle leg and continue
-        this._onReturnLeg = !this._onReturnLeg;
-        this._elapsed = 0;
-        // Continue playing for the return leg
+        if (this._onReturnLeg) {
+          // Return leg done — full yoyo cycle complete, STOP
+          this._playing = false;
+          this._onReturnLeg = false;
+          this._elapsed = 0;
+        } else {
+          // Forward leg done — start return leg
+          this._onReturnLeg = true;
+          this._elapsed -= this._duration;
+        }
       } else {
         // Non-looping, non-yoyo: stop
         this._playing = false;
@@ -271,6 +280,10 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
    * Interpolate from `_from` to `_to` by the eased factor and update `_value`.
    * Dispatches to the correct interpolation path based on `_valueType`.
    *
+   * **Mutation:**
+   * The returned object reference is stable; its properties are mutated each frame.
+   * Do not store references to individual properties.
+   *
    * @internal
    */
   private _updateValue(easedT: number): void {
@@ -285,31 +298,28 @@ export class TweenSlot implements TweenHandle<TweenableValue> {
       case 'vec2': {
         const fromVec2 = from as { x: number; y: number };
         const toVec2 = to as { x: number; y: number };
-        (this._value as any) = {
-          x: lerp(fromVec2.x, toVec2.x, easedT),
-          y: lerp(fromVec2.y, toVec2.y, easedT),
-        };
+        this._vec2Scratch.x = lerp(fromVec2.x, toVec2.x, easedT);
+        this._vec2Scratch.y = lerp(fromVec2.y, toVec2.y, easedT);
+        this._value = this._vec2Scratch;
         break;
       }
       case 'vec3': {
         const fromVec3 = from as { x: number; y: number; z: number };
         const toVec3 = to as { x: number; y: number; z: number };
-        (this._value as any) = {
-          x: lerp(fromVec3.x, toVec3.x, easedT),
-          y: lerp(fromVec3.y, toVec3.y, easedT),
-          z: lerp(fromVec3.z, toVec3.z, easedT),
-        };
+        this._vec3Scratch.x = lerp(fromVec3.x, toVec3.x, easedT);
+        this._vec3Scratch.y = lerp(fromVec3.y, toVec3.y, easedT);
+        this._vec3Scratch.z = lerp(fromVec3.z, toVec3.z, easedT);
+        this._value = this._vec3Scratch;
         break;
       }
       case 'color': {
         const fromColor = from as { r: number; g: number; b: number; a: number };
         const toColor = to as { r: number; g: number; b: number; a: number };
-        (this._value as any) = {
-          r: lerp(fromColor.r, toColor.r, easedT),
-          g: lerp(fromColor.g, toColor.g, easedT),
-          b: lerp(fromColor.b, toColor.b, easedT),
-          a: lerp(fromColor.a, toColor.a, easedT),
-        };
+        this._colorScratch.r = lerp(fromColor.r, toColor.r, easedT);
+        this._colorScratch.g = lerp(fromColor.g, toColor.g, easedT);
+        this._colorScratch.b = lerp(fromColor.b, toColor.b, easedT);
+        this._colorScratch.a = lerp(fromColor.a, toColor.a, easedT);
+        this._value = this._colorScratch;
         break;
       }
     }

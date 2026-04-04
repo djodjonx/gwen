@@ -45,7 +45,6 @@ const TWEEN_MANAGER_KEY = Symbol('gwen.tweenManager');
  */
 export class TweenManager {
   private _pool: TweenPool;
-  private _activeSlots: Set<TweenSlot>;
   private _unregister: (() => void) | null = null;
 
   /**
@@ -60,7 +59,6 @@ export class TweenManager {
    */
   constructor(engine: GwenEngine, poolSize: number = 256) {
     this._pool = new TweenPool(poolSize);
-    this._activeSlots = new Set();
 
     // Register the tick hook on the engine
     // The hook fires at the start of every frame with the delta time
@@ -81,9 +79,7 @@ export class TweenManager {
    * @since 1.0.0
    */
   claim(options: TweenOptions<TweenableValue>): TweenSlot {
-    const slot = this._pool.claim(options);
-    this._activeSlots.add(slot);
-    return slot;
+    return this._pool.claim(options);
   }
 
   /**
@@ -96,7 +92,6 @@ export class TweenManager {
    * @since 1.0.0
    */
   release(slot: TweenSlot): void {
-    this._activeSlots.delete(slot);
     this._pool.release(slot);
   }
 
@@ -115,16 +110,14 @@ export class TweenManager {
 
   /**
    * Advance all active tween slots by `dt`.
+   * Delegates to {@link TweenPool.tick} to tick all active slots.
    * Called automatically via the `engine:tick` hook each frame.
    *
    * @param dt - Time delta in seconds
    * @internal
    */
   private _tick(dt: number): void {
-    // Iterate a snapshot since slots may be released during tick
-    for (const slot of Array.from(this._activeSlots)) {
-      slot.tick(dt);
-    }
+    this._pool.tick(dt);
   }
 }
 
