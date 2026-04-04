@@ -1472,6 +1472,270 @@ impl Engine {
         }
     }
 
+    /// Attach a heightfield collider to a 3D fixed body.
+    ///
+    /// The heightfield is defined on a `rows × cols` grid. Pass a row-major
+    /// `Float32Array` from JavaScript. Returns `false` if the entity has no
+    /// registered body, the world is not initialised, or the array length does
+    /// not equal `rows * cols`.
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `heights_flat`  — Row-major `Float32Array` of `rows × cols` heights.
+    /// * `rows`          — Number of rows (Z axis).
+    /// * `cols`          — Number of columns (X axis).
+    /// * `scale_x`       — World-space width of the entire heightfield (metres).
+    /// * `scale_y`       — World-space maximum height multiplier (metres).
+    /// * `scale_z`       — World-space depth of the entire heightfield (metres).
+    /// * `friction`      — Surface friction coefficient (≥ 0).
+    /// * `restitution`   — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    /// * `collider_id`   — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_heightfield_collider(
+        &mut self,
+        entity_index: u32,
+        heights_flat: &[f32],
+        rows: u32,
+        cols: u32,
+        scale_x: f32,
+        scale_y: f32,
+        scale_z: f32,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_heightfield_collider(
+                entity_index,
+                heights_flat,
+                rows as usize,
+                cols as usize,
+                scale_x,
+                scale_y,
+                scale_z,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Replace the height data of an existing heightfield collider.
+    ///
+    /// Atomically removes the old collider and inserts a new one with the
+    /// provided height data. All other parameters (scale, friction, layers)
+    /// must be re-supplied. Returns `false` if the entity has no registered
+    /// body, the world is not initialised, or the array length is wrong.
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `collider_id`   — Stable ID that was passed when the collider was created.
+    /// * `heights_flat`  — Updated row-major `Float32Array` of `rows × cols` heights.
+    /// * `rows`          — Number of rows (Z axis) — must match original.
+    /// * `cols`          — Number of columns (X axis) — must match original.
+    /// * `scale_x`       — World-space width (metres).
+    /// * `scale_y`       — World-space height multiplier (metres).
+    /// * `scale_z`       — World-space depth (metres).
+    /// * `friction`      — Surface friction coefficient (≥ 0).
+    /// * `restitution`   — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_update_heightfield_collider(
+        &mut self,
+        entity_index: u32,
+        collider_id: u32,
+        heights_flat: &[f32],
+        rows: u32,
+        cols: u32,
+        scale_x: f32,
+        scale_y: f32,
+        scale_z: f32,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.update_heightfield_collider(
+                entity_index,
+                collider_id,
+                heights_flat,
+                rows as usize,
+                cols as usize,
+                scale_x,
+                scale_y,
+                scale_z,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Attach a triangle-mesh (trimesh) collider to a 3D body.
+    ///
+    /// Returns `false` if the entity has no registered body, either slice is empty,
+    /// or the world is not initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `vertices`        — Flat vertex buffer `[x0,y0,z0, x1,y1,z1, ...]` (length multiple of 3).
+    /// * `indices`         — Flat index buffer `[a0,b0,c0, ...]` (length multiple of 3).
+    /// * `offset_x/y/z`   — Local-space offset from the body origin (metres).
+    /// * `is_sensor`       — When `true`, collision response is suppressed; only events fire.
+    /// * `friction`        — Surface friction coefficient (≥ 0).
+    /// * `restitution`     — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`      — Collision layer membership bitmask.
+    /// * `mask_bits`       — Collision filter bitmask.
+    /// * `collider_id`     — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_mesh_collider(
+        &mut self,
+        entity_index: u32,
+        vertices: &[f32],
+        indices: &[u32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_mesh_collider(
+                entity_index,
+                vertices,
+                indices,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Attach a convex-hull collider to a 3D body.
+    ///
+    /// Falls back to a unit sphere when Rapier cannot construct a valid convex hull
+    /// (degenerate point cloud). Returns `false` if the entity has no registered body,
+    /// the vertex slice is empty, or the world is not initialised.
+    ///
+    /// # Arguments
+    /// * `entity_index`    — ECS entity slot index.
+    /// * `vertices`        — Flat vertex buffer `[x0,y0,z0, x1,y1,z1, ...]` (length multiple of 3).
+    /// * `offset_x/y/z`   — Local-space offset from the body origin (metres).
+    /// * `is_sensor`       — When `true`, collision response is suppressed; only events fire.
+    /// * `friction`        — Surface friction coefficient (≥ 0).
+    /// * `restitution`     — Bounciness coefficient (\[0, 1\]).
+    /// * `density`         — Collider density (kg/m³). Applied to dynamic bodies.
+    /// * `layer_bits`      — Collision layer membership bitmask.
+    /// * `mask_bits`       — Collision filter bitmask.
+    /// * `collider_id`     — Stable application-defined ID stored in collision events.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_convex_collider(
+        &mut self,
+        entity_index: u32,
+        vertices: &[f32],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        density: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_convex_collider(
+                entity_index,
+                vertices,
+                offset_x,
+                offset_y,
+                offset_z,
+                is_sensor,
+                friction,
+                restitution,
+                density,
+                layer_bits,
+                mask_bits,
+                collider_id,
+            )
+        } else {
+            false
+        }
+    }
+
+    /// Bulk-spawn N static box bodies in one call.
+    ///
+    /// Entity indices must be pre-allocated by the TypeScript caller via
+    /// `engine.createEntity()`. This function creates the Rapier bodies and
+    /// attaches box colliders in one Rust pass.
+    ///
+    /// Returns the number of bodies successfully created.
+    ///
+    /// # Arguments
+    /// * `entity_indices`    — Pre-allocated ECS entity slot indices (one per body).
+    /// * `positions_flat`    — Flat `[x0,y0,z0, x1,y1,z1, ...]` — `N × 3` f32 elements.
+    /// * `half_extents_flat` — Either 3 floats (uniform) or `N × 3` floats (per-entity).
+    /// * `friction`          — Surface friction coefficient (≥ 0).
+    /// * `restitution`       — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`        — Collision layer membership bitmask.
+    /// * `mask_bits`         — Collision filter bitmask.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_bulk_spawn_static_boxes(
+        &mut self,
+        entity_indices: &[u32],
+        positions_flat: &[f32],
+        half_extents_flat: &[f32],
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.bulk_add_static_boxes(
+                entity_indices,
+                positions_flat,
+                half_extents_flat,
+                friction,
+                restitution,
+                layer_bits,
+                mask_bits,
+            )
+        } else {
+            0
+        }
+    }
+
     /// Remove a specific collider from a 3D body.
     ///
     /// Returns `false` if the collider was not found or the world is not
