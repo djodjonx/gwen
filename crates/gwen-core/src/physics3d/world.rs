@@ -2210,4 +2210,103 @@ mod tests {
         );
         assert_eq!(n, 0);
     }
+
+    // ── add_compound_collider ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_add_compound_collider_three_boxes_returns_3() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        // Three BOX shapes encoded as 3 × 12 floats
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // shape, p0,  p1,  p2,  p3,  ox,  oy,  oz,  sensor, friction, rest, id
+            0.0, 1.0, 0.3, 2.0, 0.0,  0.0, 0.3, 0.0,  0.0, 0.5, 0.0, 1.0, // chassis box
+            0.0, 0.35,0.35,0.35,0.0, -0.9, 0.0, 1.6,  0.0, 0.5, 0.0, 2.0, // wheel FL
+            0.0, 0.35,0.35,0.35,0.0,  0.9, 0.0, 1.6,  0.0, 0.5, 0.0, 3.0, // wheel FR
+        ];
+
+        let count = world.add_compound_collider(0, &data, u32::MAX, u32::MAX);
+        assert_eq!(count, 3);
+        assert_eq!(world.collider_handles.len(), 3);
+    }
+
+    #[test]
+    fn test_add_compound_collider_mixed_shapes_returns_3() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // BOX (type 0)
+            0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 10.0,
+            // SPHERE (type 1)
+            1.0, 0.4, 0.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.5, 0.0, 11.0,
+            // CAPSULE (type 2)
+            2.0, 0.25,0.5, 0.0, 0.0,  0.0,-1.0, 0.0,  0.0, 0.5, 0.0, 12.0,
+        ];
+
+        let count = world.add_compound_collider(0, &data, u32::MAX, u32::MAX);
+        assert_eq!(count, 3);
+        assert_eq!(world.collider_handles.len(), 3);
+    }
+
+    #[test]
+    fn test_add_compound_collider_unknown_entity_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // No body registered at entity 99.
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 1.0,
+        ];
+        assert_eq!(world.add_compound_collider(99, &data, u32::MAX, u32::MAX), 0);
+    }
+
+    #[test]
+    fn test_add_compound_collider_empty_buffer_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        assert_eq!(world.add_compound_collider(0, &[], u32::MAX, u32::MAX), 0);
+    }
+
+    #[test]
+    fn test_add_compound_collider_misaligned_buffer_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        // 11 floats — not a multiple of 12
+        let data = vec![0.0f32; 11];
+        assert_eq!(world.add_compound_collider(0, &data, u32::MAX, u32::MAX), 0);
+    }
+
+    #[test]
+    fn test_add_compound_collider_unknown_shape_type_skipped() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // shape type 99 — unknown, should be skipped
+            99.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 1.0,
+            // valid BOX
+             0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 2.0,
+        ];
+
+        // Only the valid box is inserted.
+        assert_eq!(world.add_compound_collider(0, &data, u32::MAX, u32::MAX), 1);
+        assert_eq!(world.collider_handles.len(), 1);
+    }
+
+    #[test]
+    fn test_add_compound_collider_sensor_shape_tracked() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // is_sensor = 1.0
+            0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  1.0, 0.5, 0.0, 5.0,
+        ];
+        assert_eq!(world.add_compound_collider(0, &data, u32::MAX, u32::MAX), 1);
+    }
 }
