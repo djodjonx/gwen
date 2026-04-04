@@ -114,6 +114,20 @@ main() {
   build_variant "physics3d" "physics3d"
   echo ""
 
+  # Build Node.js target for Vite plugin build-tools
+  log_info "Building gwen-core build-tools (Node.js target)..."
+  wasm-pack build "$CRATE_DIR" \
+    --target nodejs \
+    --out-dir "$PROJECT_ROOT/packages/physics3d/build-tools" \
+    --features "build-tools" \
+    --release \
+    -- --no-default-features 2>&1
+
+  # Clean up wasm-pack Node.js artifacts we don't need
+  rm -f "$PROJECT_ROOT/packages/physics3d/build-tools/.gitignore"
+  log_info "Build-tools WASM built successfully"
+  echo ""
+
   log_success "🎉 All WASM variants built successfully!"
 }
 
