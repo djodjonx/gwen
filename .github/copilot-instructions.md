@@ -105,38 +105,47 @@ export default defineConfig({
   core: { maxEntities: 10_000, targetFPS: 60 },
   wasm: [physics2D({ gravity: 9.81 })],
   plugins: [new InputPlugin(), new Canvas2DRenderer({ width: 800, height: 600 })],
-})
+});
 ```
 
 ## Key Conventions
 
 ### Package naming
+
 All published packages use the `@gwenjs/*` scope (not `@djodjonx/*` — that scope appears in older docs but the actual packages use `@gwenengine`).
 
 ### TypeScript packages use `src/index.ts` as the live entry point during development
+
 The `main`/`types`/`exports` fields in `package.json` point to `./src/index.ts` directly (not `dist/`) for intra-monorepo imports. Built output goes to `dist/`.
 
 ### Testing
+
 - TS packages use **Vitest** with config at `vitest.config.ts` in each package
 - Rust crates use standard `cargo test`; integration tests live in `crates/*/tests/`
 - Type-level tests use `.type-test.ts` suffix (e.g., `global-types.type-test.ts`)
 
 ### Linting & Formatting
+
 - **oxlint** (`oxlint.json` at root) for JS/TS linting
 - **oxfmt** for formatting
 - Pre-commit hooks (Husky + lint-staged) auto-fix staged files
 
 ### Commit messages
+
 Conventional Commits required (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`). Format: `type(scope): description`. Enforced by commit-msg hook.
 
 ### Service types — never cast manually
+
 After running `gwen prepare` (or `pnpm dev`), service types are auto-generated into `GwenDefaultServices`. Never write `api.services.get('physics') as Physics2DAPI` — always let the generated types flow through.
 
 ### Prefabs over manual entity creation
+
 For complex entities, always define a `definePrefab(...)` and use `api.instantiate(prefab)` rather than calling `createEntity` + individual `setComponent` calls.
 
 ### WASM module handles (RFC-008)
+
 Community WASM plugins load via `engine.loadWasmModule({ name, url, memory?, channels?, step? })`. Per-frame logic goes in the `step` callback. Named memory regions use `handle.region(name)` and ring-buffer channels use `handle.channel(name)`.
 
 ### RFCs
+
 Architecture decisions and implementation contracts live in `specs/`. `ARCHITECTURE.md` provides the overview; the playbook in `specs/rfc-v3/IMPLEMENTATION_PLAYBOOK_V2.md` (when present) governs execution order and frozen decisions.

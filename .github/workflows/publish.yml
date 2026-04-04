@@ -3,7 +3,7 @@ name: Publish to npm
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ". -> target"
+          workspaces: '. -> target'
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -47,4 +47,3 @@ jobs:
         run: pnpm --filter "create-gwen-app" publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
