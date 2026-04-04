@@ -1,5 +1,6 @@
 import type { AutoImport, GwenTypeTemplate } from '@gwenjs/kit';
 import type { GwenSceneRouterOptions } from './plugins/scene-router.js';
+import type { GwenTweenOptions } from './plugins/tween.js';
 
 /**
  * Which WASM binary build variant to load.
@@ -107,4 +108,7 @@ export interface GwenViteOptions {
   layout?: GwenLayoutOptions;
   /** Options for the scene router sub-plugin. */
   sceneRouter?: GwenSceneRouterOptions;
+
+  /** Options for the tween easing analysis sub-plugin. */
+  tween?: GwenTweenOptions;
 }

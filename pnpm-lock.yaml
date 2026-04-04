@@ -159,6 +159,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@gwenjs/math':
+        specifier: workspace:*
+        version: link:../math
       '@gwenjs/schema':
         specifier: workspace:*
         version: link:../schema
