@@ -243,6 +243,71 @@ export interface DynamicBodyHandle3D extends StaticBodyHandle3D {
 }
 
 /**
+ * Configuration for a kinematic 3D physics body.
+ *
+ * Kinematic bodies are driven by explicit position writes rather than the
+ * physics simulation. They participate in collision detection but are never
+ * displaced by forces or gravity.
+ */
+export interface KinematicBodyOptions3D {
+  /** Initial world-space position in metres. */
+  initialPosition?: Physics3DVec3;
+  /** Initial orientation as a unit quaternion. Default: identity. */
+  initialRotation?: Physics3DQuat;
+  /**
+   * When `true`, angular velocity calls are ignored and orientation stays fixed.
+   * @default false
+   */
+  fixedRotation?: boolean;
+}
+
+/**
+ * Runtime handle returned by {@link useKinematicBody} for a 3D kinematic body.
+ *
+ * Move the body each frame via {@link setVelocity}; the engine integrates
+ * `pos += vel * dt` in `onBeforeUpdate`. Use {@link moveTo} for instant teleports.
+ */
+export interface KinematicBodyHandle3D {
+  /** Opaque numeric body id assigned by the physics engine. */
+  readonly bodyId: number;
+  /** Whether the body is currently active in the simulation. */
+  readonly active: boolean;
+  /**
+   * Teleport the body to an exact world-space position.
+   *
+   * @param x - Target X position in metres.
+   * @param y - Target Y position in metres.
+   * @param z - Target Z position in metres.
+   * @param qx - Quaternion X component. Defaults to 0.
+   * @param qy - Quaternion Y component. Defaults to 0.
+   * @param qz - Quaternion Z component. Defaults to 0.
+   * @param qw - Quaternion W component. Defaults to 1 (identity).
+   */
+  moveTo(x: number, y: number, z: number, qx?: number, qy?: number, qz?: number, qw?: number): void;
+  /**
+   * Set the desired linear velocity in m/s.
+   *
+   * The engine integrates `pos += vel * dt` each `onBeforeUpdate` tick.
+   */
+  setVelocity(vx: number, vy: number, vz: number): void;
+  /**
+   * Set the desired angular velocity in rad/s (world-space axis rates).
+   *
+   * The engine integrates orientation using first-order quaternion integration.
+   * No-op when the body was created with `fixedRotation: true`.
+   */
+  setAngularVelocity(wx: number, wy: number, wz: number): void;
+  /** Current linear velocity as last set by {@link setVelocity}, in m/s. */
+  readonly velocity: Physics3DVec3;
+  /** Current angular velocity as last set by {@link setAngularVelocity}, in rad/s. */
+  readonly angularVelocity: Physics3DVec3;
+  /** Re-create the body in the simulation (no-op when already active). */
+  enable(): void;
+  /** Remove the body from the simulation (no-op when already inactive). */
+  disable(): void;
+}
+
+/**
  * Runtime handle for a physics collider attached via useBoxCollider,
  * useSphereCollider, useCapsuleCollider, useMeshCollider, or useConvexCollider.
  */
