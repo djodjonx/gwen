@@ -2,6 +2,7 @@
 members = [
     "crates/gwen-core",
     "crates/gwen-wasm-utils",
+    "crates/gwen-physics3d-fracture",
 ]
 resolver = "2"
 
