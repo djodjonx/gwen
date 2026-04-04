@@ -31,9 +31,9 @@ use rapier3d::{geometry::TriMesh, na::Point3};
 ///
 /// # Arguments
 /// * `vertices_flat` — Flat vertex positions `[x0,y0,z0, x1,y1,z1, ...]`.
-///                     Length must be a multiple of 3.
+///   Length must be a multiple of 3.
 /// * `indices_flat`  — Flat triangle indices `[i0,i1,i2, ...]`.
-///                     Length must be a multiple of 3.
+///   Length must be a multiple of 3.
 ///
 /// # Panics
 /// Panics if `vertices_flat.len() % 3 != 0` or `indices_flat.len() % 3 != 0`.
@@ -77,7 +77,7 @@ pub fn build_bvh_buffer(vertices_flat: &[f32], indices_flat: &[u32]) -> Vec<u8> 
 /// # Arguments
 /// * `glb_bytes`  — Raw bytes of the `.glb` file.
 /// * `mesh_name`  — Optional mesh name to search for. When `None`, the first
-///                  `TRIANGLES` primitive is used.
+///   `TRIANGLES` primitive is used.
 ///
 /// # Errors
 /// Returns a descriptive `String` error if the GLB is malformed, no matching
@@ -114,7 +114,7 @@ pub fn build_bvh_from_glb(glb_bytes: &[u8], mesh_name: Option<&str>) -> Result<V
                 continue;
             };
             let vertices_flat: Vec<f32> =
-                positions.flat_map(|[x, y, z]| [x, y, z]).collect();
+                positions.flatten().collect();
             if vertices_flat.is_empty() {
                 continue;
             }

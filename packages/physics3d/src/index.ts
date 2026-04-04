@@ -110,6 +110,51 @@ export function _clearBvhCache(): void {
   _bvhCache.clear();
 }
 
+// ─── BVH worker (module-level — lazy singleton) ───────────────────────────────
+
+/**
+ * Minimum triangle count at which the async BVH worker is preferred over the
+ * synchronous `physics3d_add_mesh_collider` path.
+ *
+ * 500 triangles is empirically where the synchronous Rapier QBVH construction
+ * time exceeds ~1 ms on mid-range hardware, risking a visible frame spike on
+ * the first collider add. Below this threshold the sync path is cheaper because
+ * it avoids Worker instantiation and message-passing overhead.
+ */
+const BVH_WORKER_THRESHOLD = 500;
+
+/** Lazy BVH worker singleton — created on first large-mesh collider add. */
+let _bvhWorker: Worker | null = null;
+
+/** Monotonically-increasing job id for the BVH worker. */
+let _bvhWorkerNextId = 0;
+
+/** Pending BVH worker callbacks keyed by job id. */
+const _bvhWorkerCallbacks = new Map<
+  number,
+  { resolve: (bytes: Uint8Array) => void; reject: (err: unknown) => void }
+>();
+
+/** Get (or lazily create) the module-level BVH worker. */
+function _getBvhWorker(): Worker {
+  if (!_bvhWorker) {
+    _bvhWorker = new Worker(new URL('./bvh-worker.ts', import.meta.url), { type: 'module' });
+    _bvhWorker.onmessage = ({
+      data,
+    }: MessageEvent<{ id: number; bvhBytes: Uint8Array | null; error: string | null }>) => {
+      const cb = _bvhWorkerCallbacks.get(data.id);
+      if (!cb) return;
+      _bvhWorkerCallbacks.delete(data.id);
+      if (data.error || !data.bvhBytes) {
+        cb.reject(new Error(data.error ?? '[GWEN:Physics3D] BVH worker returned empty result'));
+      } else {
+        cb.resolve(data.bvhBytes);
+      }
+    };
+  }
+  return _bvhWorker;
+}
+
 // ─── Plugin metadata ────────────────────────────────────────────────────────────
 
 // ─── Internal types ─────────────────────────────────────────────────────────────
@@ -306,6 +351,25 @@ interface Physics3DWasmBridge {
     layerBits: number,
     maskBits: number,
     colliderId: number,
+  ) => boolean;
+  /**
+   * Rebuild an existing triangle-mesh collider with new geometry.
+   * Removes the old trimesh and inserts a fresh one atomically inside Rapier3D.
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_rebuild_mesh_collider?: (
+    entityIndex: number,
+    colliderId: number,
+    vertices: Float32Array,
+    indices: Uint32Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: boolean,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
   ) => boolean;
   /**
    * Attach a pre-baked BVH triangle-mesh collider to a 3D body.
@@ -1302,6 +1366,65 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           return true;
         }
         // ── Sync path: inline vertices + indices ─────────────────────────────
+        // For large meshes, delegate BVH construction to the off-main-thread worker.
+        const triCount = shape.indices.length / 3;
+        if (triCount >= BVH_WORKER_THRESHOLD && typeof Worker !== 'undefined') {
+          const jobId = _bvhWorkerNextId++;
+          const ac = new AbortController();
+          let resolveReady!: () => void;
+          let rejectReady!: (e: unknown) => void;
+          const ready = new Promise<void>((res, rej) => {
+            resolveReady = res;
+            rejectReady = rej;
+          });
+
+          _bvhWorkerCallbacks.set(jobId, {
+            resolve: (bvhBytes: Uint8Array) => {
+              if (ac.signal.aborted) return;
+              const ok =
+                wasmBridge!.physics3d_load_bvh_collider?.(
+                  idx,
+                  bvhBytes,
+                  ox,
+                  oy,
+                  oz,
+                  finalOptions.isSensor ?? false,
+                  friction,
+                  restitution,
+                  membership,
+                  filter,
+                  colliderId,
+                ) ?? false;
+              if (ok) resolveReady();
+              else
+                rejectReady(
+                  new Error('[GWEN:Physics3D] physics3d_load_bvh_collider returned false'),
+                );
+            },
+            reject: rejectReady,
+          });
+
+          try {
+            // Transfer the typed array buffers to the worker (zero-copy).
+            const vBuf = shape.vertices.buffer.slice(0) as ArrayBuffer;
+            const iBuf = shape.indices.buffer.slice(0) as ArrayBuffer;
+            _getBvhWorker().postMessage(
+              {
+                id: jobId,
+                vertices: new Float32Array(vBuf),
+                indices: new Uint32Array(iBuf),
+              },
+              [vBuf, iBuf],
+            );
+          } catch (e) {
+            _bvhWorkerCallbacks.delete(jobId);
+            rejectReady(e);
+          }
+
+          _pendingBvhLoads.set(colliderId, { ac, ready });
+          return true;
+        }
+
         return (
           wasmBridge!.physics3d_add_mesh_collider?.(
             idx,
@@ -1360,6 +1483,51 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     }
 
     return true;
+  };
+
+  const rebuildMeshCollider: Physics3DAPI['rebuildMeshCollider'] = (
+    entityId,
+    colliderId,
+    vertices,
+    indices,
+    options,
+  ) => {
+    const slot = toEntityIndex(entityId);
+    if (!bodyByEntity.has(slot)) return false;
+
+    // Update local collider registry with new geometry.
+    const colliders = localColliders.get(slot);
+    if (colliders) {
+      const entry = colliders.find((c) => c.colliderId === colliderId);
+      if (entry && entry.shape.type === 'mesh') {
+        entry.shape.vertices = vertices;
+        entry.shape.indices = indices;
+      }
+    }
+
+    if (backendMode !== 'wasm') return true;
+
+    const { friction, restitution } = resolveColliderMaterial({ ...options });
+    const isSensor = options?.isSensor ?? false;
+    const membership = resolveLayerBits(options?.layers, layerRegistry);
+    const filter = resolveLayerBits(options?.mask, layerRegistry);
+
+    return (
+      wasmBridge!.physics3d_rebuild_mesh_collider?.(
+        slot,
+        colliderId,
+        vertices,
+        indices,
+        0,
+        0,
+        0,
+        isSensor,
+        friction,
+        restitution,
+        membership,
+        filter,
+      ) ?? false
+    );
   };
 
   /**
@@ -1620,6 +1788,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     setKinematicPosition,
     addCollider,
     removeCollider,
+    rebuildMeshCollider,
     bulkSpawnStaticBoxes,
     addCompoundCollider,
     getSensorState,
