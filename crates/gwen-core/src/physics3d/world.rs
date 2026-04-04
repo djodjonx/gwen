@@ -927,6 +927,75 @@ impl PhysicsWorld3D {
         )
     }
 
+    /// Load a pre-baked BVH buffer as a trimesh collider.
+    ///
+    /// The buffer must have been produced by `build_bvh_buffer()` or
+    /// `build_bvh_from_glb()` (both in the `build-tools` feature). Deserialising
+    /// the pre-baked [`rapier3d::geometry::TriMesh`] costs ~2 ms vs ~50 ms for a
+    /// fresh `trimesh()` construction on large meshes.
+    ///
+    /// # Format
+    /// `[4: "GBVH"][2: rapier_major u16 LE][2: rapier_minor u16 LE][N: bincode(TriMesh)]`
+    ///
+    /// # Arguments
+    /// * `entity_index`  — ECS entity slot index.
+    /// * `bvh_bytes`     — Pre-baked BVH buffer (GBVH header + bincode `TriMesh`).
+    /// * `offset_x/y/z`  — Local-space offset from the body origin (metres).
+    /// * `is_sensor`     — When `true`, collision response is suppressed; only events fire.
+    /// * `friction`      — Surface friction coefficient (≥ 0).
+    /// * `restitution`   — Bounciness coefficient (\[0, 1\]).
+    /// * `layer_bits`    — Collision layer membership bitmask.
+    /// * `mask_bits`     — Collision filter bitmask.
+    /// * `collider_id`   — Stable application-defined collider ID.
+    ///
+    /// # Returns
+    /// `true` on success, `false` if `bvh_bytes` is too short, the magic header
+    /// is wrong, bincode decoding fails, or the entity has no registered body.
+    #[allow(clippy::too_many_arguments)]
+    pub fn load_bvh_collider(
+        &mut self,
+        entity_index: u32,
+        bvh_bytes: &[u8],
+        offset_x: f32,
+        offset_y: f32,
+        offset_z: f32,
+        is_sensor: bool,
+        friction: f32,
+        restitution: f32,
+        layer_bits: u32,
+        mask_bits: u32,
+        collider_id: u32,
+    ) -> bool {
+        use rapier3d::geometry::TriMesh;
+        if bvh_bytes.len() < 8 {
+            return false;
+        }
+        if &bvh_bytes[0..4] != b"GBVH" {
+            return false;
+        }
+        let payload = &bvh_bytes[8..];
+        let result: Result<(TriMesh, _), _> =
+            bincode::serde::decode_from_slice(payload, bincode::config::standard());
+        let trimesh = match result {
+            Ok((t, _)) => t,
+            Err(_) => return false,
+        };
+        let builder = ColliderBuilder::new(rapier3d::geometry::SharedShape::new(trimesh));
+        self.insert_collider(
+            entity_index,
+            collider_id,
+            offset_x,
+            offset_y,
+            offset_z,
+            is_sensor,
+            friction,
+            restitution,
+            layer_bits,
+            mask_bits,
+            builder,
+        )
+    }
+
     /// Bulk-create N static rigid bodies with box colliders in a single call.
     ///
     /// # Arguments
@@ -2308,5 +2377,62 @@ mod tests {
             0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  1.0, 0.5, 0.0, 5.0,
         ];
         assert_eq!(world.add_compound_collider(0, &data, u32::MAX, u32::MAX), 1);
+    }
+
+    // ─── load_bvh_collider ────────────────────────────────────────────────────
+
+    /// Helper: build a minimal valid GBVH buffer (2-triangle quad mesh).
+    fn make_simple_trimesh_bytes() -> Vec<u8> {
+        use rapier3d::geometry::TriMesh;
+        use rapier3d::na::Point3;
+        let verts = vec![
+            Point3::new(0.0f32, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+            Point3::new(1.0, 1.0, 0.0),
+        ];
+        let idxs = vec![[0u32, 1, 2], [1, 3, 2]];
+        let trimesh = TriMesh::new(verts, idxs);
+        let bvh =
+            bincode::serde::encode_to_vec(&trimesh, bincode::config::standard()).unwrap();
+        let mut out = b"GBVH".to_vec();
+        out.extend_from_slice(&0u16.to_le_bytes()); // rapier major
+        out.extend_from_slice(&22u16.to_le_bytes()); // rapier minor
+        out.extend_from_slice(&bvh);
+        out
+    }
+
+    #[test]
+    fn test_load_bvh_collider_success() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.1, 0.1);
+        let bytes = make_simple_trimesh_bytes();
+        let ok = world.load_bvh_collider(0, &bytes, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF, 0xFFFF, 1);
+        assert!(ok, "load_bvh_collider should succeed with valid bytes");
+        assert!(world.collider_handles.contains_key(&(0, 1)));
+    }
+
+    #[test]
+    fn test_load_bvh_collider_invalid_bytes() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.1, 0.1);
+        let ok = world.load_bvh_collider(0, &[0u8; 8], 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF, 0xFFFF, 1);
+        assert!(!ok, "load_bvh_collider should fail with garbage bytes");
+    }
+
+    #[test]
+    fn test_load_bvh_collider_too_short() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.1, 0.1);
+        let ok = world.load_bvh_collider(0, &[0u8; 4], 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF, 0xFFFF, 1);
+        assert!(!ok, "load_bvh_collider should fail when buffer is shorter than 8 bytes");
+    }
+
+    #[test]
+    fn test_load_bvh_collider_no_body() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let bytes = make_simple_trimesh_bytes();
+        let ok = world.load_bvh_collider(99, &bytes, 0.0, 0.0, 0.0, false, 0.5, 0.0, 0xFFFF, 0xFFFF, 1);
+        assert!(!ok, "should fail when entity has no registered body");
     }
 }
