@@ -29,6 +29,9 @@ import type {
   Physics3DSensorState,
   Physics3DPrefabExtension,
   Physics3DPluginHooks,
+  CompoundColliderOptions3D,
+  CompoundColliderHandle3D,
+  CompoundShapeSpec,
 } from './types';
 
 import { PHYSICS3D_MATERIAL_PRESETS } from './types';
@@ -46,6 +49,8 @@ import {
   _dispatchSensorExit,
   _clearSensorCallbacks,
 } from './composables/on-sensor.js';
+import { encodeCompoundShapes } from './helpers/compound.js';
+import { nextColliderId } from './composables/collider-id.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -207,6 +212,40 @@ interface Physics3DWasmBridge {
     offsetY: number,
     offsetZ: number,
   ) => boolean;
+  physics3d_add_heightfield_collider?: (
+    entityIndex: number,
+    heightsFlat: Float32Array,
+    rows: number,
+    cols: number,
+    scaleX: number,
+    scaleY: number,
+    scaleZ: number,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+    colliderId: number,
+  ) => boolean;
+  physics3d_update_heightfield_collider?: (
+    entityIndex: number,
+    colliderId: number,
+    heightsFlat: Float32Array,
+    rows: number,
+    cols: number,
+    scaleX: number,
+    scaleY: number,
+    scaleZ: number,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+  ) => boolean;
+  physics3d_add_compound_collider?: (
+    entityIndex: number,
+    shapeData: Float32Array,
+    layerBits: number,
+    maskBits: number,
+  ) => number;
   physics3d_remove_collider?: (entityIndex: number, colliderId: number) => boolean;
 
   // Sensor
@@ -971,6 +1010,40 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
   // ─── Collider management ──────────────────────────────────────────────────────
 
+  /** Convert a single {@link CompoundShapeSpec} entry into {@link Physics3DColliderOptions}. */
+  const shapeSpecToColliderOptions = (
+    shape: CompoundShapeSpec,
+    colliderId: number,
+    layers: string[] | undefined,
+    mask: string[] | undefined,
+  ): Physics3DColliderOptions => {
+    const common = {
+      colliderId,
+      offsetX: shape.offsetX,
+      offsetY: shape.offsetY,
+      offsetZ: shape.offsetZ,
+      isSensor: shape.isSensor,
+      friction: shape.friction,
+      restitution: shape.restitution,
+      layers,
+      mask,
+    };
+    switch (shape.type) {
+      case 'box':
+        return {
+          ...common,
+          shape: { type: 'box', halfX: shape.halfX, halfY: shape.halfY, halfZ: shape.halfZ },
+        };
+      case 'sphere':
+        return { ...common, shape: { type: 'sphere', radius: shape.radius } };
+      case 'capsule':
+        return {
+          ...common,
+          shape: { type: 'capsule', radius: shape.radius, halfHeight: shape.halfHeight },
+        };
+    }
+  };
+
   /**
    * Internal implementation of addCollider — shared by createBody collider loop
    * and the public addCollider API method.
@@ -1057,6 +1130,24 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           ) ?? false
         );
       }
+      if (shape.type === 'heightfield') {
+        return (
+          wasmBridge!.physics3d_add_heightfield_collider?.(
+            idx,
+            shape.heights,
+            shape.rows,
+            shape.cols,
+            shape.scaleX ?? 1,
+            shape.scaleY ?? 1,
+            shape.scaleZ ?? 1,
+            friction,
+            restitution,
+            membership,
+            filter,
+            colliderId,
+          ) ?? false
+        );
+      }
     }
 
     return true;
@@ -1080,6 +1171,43 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     }
 
     return true;
+  };
+
+  const addCompoundCollider: Physics3DAPI['addCompoundCollider'] = (entityId, options) => {
+    const slot = toEntityIndex(entityId);
+    if (!bodyByEntity.has(slot)) return null;
+
+    const { shapes, layers, mask } = options;
+    const colliderIds = shapes.map(() => nextColliderId());
+
+    if (backendMode === 'wasm' && wasmBridge?.physics3d_add_compound_collider) {
+      const layerBits = resolveLayerBits(layers, layerRegistry);
+      const maskBits = resolveLayerBits(mask, layerRegistry);
+      const buf = encodeCompoundShapes(shapes, colliderIds);
+      const count = wasmBridge.physics3d_add_compound_collider(slot, buf, layerBits, maskBits);
+
+      if (count !== shapes.length) return null;
+
+      // Mirror into local collider registry for inspection and removeBody cleanup.
+      if (!localColliders.has(slot)) localColliders.set(slot, []);
+      shapes.forEach((shape, i) => {
+        localColliders
+          .get(slot)!
+          .push(shapeSpecToColliderOptions(shape, colliderIds[i]!, layers, mask));
+      });
+    } else {
+      // Local-simulation fallback: insert each shape individually.
+      shapes.forEach((shape, i) => {
+        addColliderImpl(entityId, shapeSpecToColliderOptions(shape, colliderIds[i]!, layers, mask));
+      });
+    }
+
+    return {
+      colliderIds,
+      remove() {
+        colliderIds.forEach((id) => removeCollider(entityId, id));
+      },
+    };
   };
 
   // ─── Sensor state ─────────────────────────────────────────────────────────────
@@ -1222,6 +1350,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     setKinematicPosition,
     addCollider,
     removeCollider,
+    addCompoundCollider,
     getSensorState,
     updateSensorState,
 
@@ -1551,4 +1680,8 @@ export type {
   CapsuleColliderHandle3D,
   MeshColliderHandle3D,
   ConvexColliderHandle3D,
+  HeightfieldColliderHandle3D,
+  CompoundColliderHandle3D,
+  CompoundShapeSpec,
+  CompoundColliderOptions3D,
 } from './types.js';

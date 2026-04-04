@@ -221,7 +221,22 @@ export type Physics3DColliderShape =
   | { type: 'sphere'; radius: number }
   | { type: 'capsule'; radius: number; halfHeight: number }
   | { type: 'mesh'; vertices: Float32Array; indices: Uint32Array }
-  | { type: 'convex'; vertices: Float32Array };
+  | { type: 'convex'; vertices: Float32Array }
+  | {
+      type: 'heightfield';
+      /** Row-major flat array of rows × cols height values. */
+      heights: Float32Array;
+      /** Number of rows (Z axis). */
+      rows: number;
+      /** Number of columns (X axis). */
+      cols: number;
+      /** World-space width of the entire heightfield in metres. @default 1 */
+      scaleX?: number;
+      /** World-space maximum height multiplier in metres. @default 1 */
+      scaleY?: number;
+      /** World-space depth of the entire heightfield in metres. @default 1 */
+      scaleZ?: number;
+    };
 
 /**
  * Built-in material presets for common surface types.
@@ -662,6 +677,24 @@ export interface Physics3DAPI {
   removeCollider(entityId: Physics3DEntityId, colliderId: number): boolean;
 
   /**
+   * Attach multiple primitive colliders to one body in a single batch call.
+   *
+   * Uses `physics3d_add_compound_collider` in WASM mode (one round-trip) and
+   * falls back to individual `addCollider` calls in local-simulation mode.
+   *
+   * @param entityId - The entity that owns the rigid body.
+   * @param options  - Shapes, shared layer membership, and collision filter.
+   * @returns A {@link CompoundColliderHandle3D} on success, or `null` when the
+   *          entity has no registered body.
+   *
+   * @since 1.0.0
+   */
+  addCompoundCollider(
+    entityId: Physics3DEntityId,
+    options: CompoundColliderOptions3D,
+  ): CompoundColliderHandle3D | null;
+
+  /**
    * Read the sensor contact state for `(entityId, sensorId)`.
    *
    * Returns `{ contactCount: 0, isActive: false }` when the sensor was never
@@ -881,3 +914,91 @@ export type CapsuleColliderHandle3D = ColliderHandle3D;
 export type MeshColliderHandle3D = ColliderHandle3D;
 /** Handle returned by {@link useConvexCollider}. */
 export type ConvexColliderHandle3D = ColliderHandle3D;
+
+// ─── Compound collider ────────────────────────────────────────────────────────
+
+/**
+ * Specification for a single primitive shape within a compound collider.
+ *
+ * All offsets are in local body space (metres). `isSensor`, `friction`, and
+ * `restitution` default to `false`, `0.5`, and `0.0` respectively when omitted.
+ */
+export type CompoundShapeSpec =
+  | {
+      type: 'box';
+      /** Half-extent along the local X axis (metres). */
+      halfX: number;
+      /** Half-extent along the local Y axis (metres). */
+      halfY: number;
+      /** Half-extent along the local Z axis (metres). */
+      halfZ: number;
+      offsetX?: number;
+      offsetY?: number;
+      offsetZ?: number;
+      isSensor?: boolean;
+      friction?: number;
+      restitution?: number;
+    }
+  | {
+      type: 'sphere';
+      radius: number;
+      offsetX?: number;
+      offsetY?: number;
+      offsetZ?: number;
+      isSensor?: boolean;
+      friction?: number;
+      restitution?: number;
+    }
+  | {
+      type: 'capsule';
+      radius: number;
+      halfHeight: number;
+      offsetX?: number;
+      offsetY?: number;
+      offsetZ?: number;
+      isSensor?: boolean;
+      friction?: number;
+      restitution?: number;
+    };
+
+/**
+ * Options for {@link useCompoundCollider}.
+ *
+ * At least one shape must be provided. `layers` and `mask` are shared across
+ * all shapes in the compound body.
+ */
+export interface CompoundColliderOptions3D {
+  /** Ordered list of primitive shapes to attach to the body. */
+  shapes: CompoundShapeSpec[];
+  /** Collision layer membership (named layers, resolved to bitmask). */
+  layers?: string[];
+  /** Collision filter — which layers this body collides with. */
+  mask?: string[];
+}
+
+/**
+ * Handle returned by {@link useCompoundCollider}.
+ *
+ * Holds stable IDs for every shape collider, in the same order as
+ * `options.shapes`. Call `remove()` to detach all shapes at once.
+ */
+export interface CompoundColliderHandle3D {
+  /** Stable numeric IDs for each shape collider, in `options.shapes` order. */
+  readonly colliderIds: readonly number[];
+  /** Remove all shapes of this compound collider from the entity. */
+  remove(): void;
+}
+
+/** Handle returned by {@link useHeightfieldCollider}. */
+export interface HeightfieldColliderHandle3D extends ColliderHandle3D {
+  /**
+   * Replace the height data of the collider.
+   *
+   * Rebuilds the underlying Rapier3D heightfield in-place using the same
+   * grid dimensions and scale that were used at construction time.
+   *
+   * @param newHeights - Row-major flat array of `rows × cols` height values.
+   *   Must have exactly the same length as the original heights array.
+   */
+  update(newHeights: Float32Array): void;
+}
