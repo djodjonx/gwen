@@ -286,8 +286,12 @@ export const Physics2DPlugin = definePlugin((config: Physics2DConfig = {}) => {
           opts.offsetY,
         ),
       removeBody: (entityId) => pb.physics_remove_rigid_body(slot(entityId)),
-      setKinematicPosition: (entityId, x, y) =>
-        pb.physics_set_kinematic_position(slot(entityId), x, y),
+      setKinematicPosition: (entityId, x, y) => {
+        pb.physics_set_kinematic_position(slot(entityId), x, y, 0);
+      },
+      setKinematicPositionWithAngle: (entityId, x, y, angle) =>
+        pb.physics_set_kinematic_position(slot(entityId), x, y, angle) === 1,
+      bulkStepKinematics: (slots, vx, vy, dt) => pb.physics_bulk_step_kinematics(slots, vx, vy, dt),
       applyImpulse: (entityId, x, y) => pb.physics_apply_impulse(slot(entityId), x, y),
       setLinearVelocity: (entityId, vx, vy) =>
         pb.physics_set_linear_velocity(slot(entityId), vx, vy),

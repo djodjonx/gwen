@@ -27,6 +27,7 @@ export {
   _clearContactCallbacks,
   _clearSensorCallbacks,
   useShape,
+  useKinematicBody,
 } from './composables/index';
 export { physics2dVitePlugin } from './vite-plugin';
 export type {
@@ -40,6 +41,8 @@ export type {
   StaticBodyHandle,
   DynamicBodyOptions,
   DynamicBodyHandle,
+  KinematicBodyOptions2D,
+  KinematicBodyHandle2D,
   BoxColliderHandle,
   CircleColliderHandle,
   CapsuleColliderHandle,

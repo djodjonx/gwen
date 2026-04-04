@@ -17,3 +17,4 @@ export {
 } from './on-sensor';
 export { useShape } from './use-shape';
 export type { ShapeOptions } from './use-shape';
+export { useKinematicBody } from './use-kinematic-body';

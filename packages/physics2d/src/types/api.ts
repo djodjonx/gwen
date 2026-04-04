@@ -70,6 +70,28 @@ export interface Physics2DAPI {
   addBallCollider(bodyHandle: number, radius: number, opts?: ColliderOptions): void;
   removeBody(entityId: EntityId): void;
   setKinematicPosition(entityId: EntityId, x: number, y: number): void;
+  /**
+   * Teleport a 2D kinematic body to the given world-space position and angle.
+   *
+   * @param entityId - Packed entity id.
+   * @param x - Target X position in metres.
+   * @param y - Target Y position in metres.
+   * @param angle - Target orientation in radians.
+   * @returns `true` if the body was found.
+   */
+  setKinematicPositionWithAngle(entityId: EntityId, x: number, y: number, angle: number): boolean;
+  /**
+   * Integrate N kinematic body positions in one WASM call.
+   *
+   * Each body `i` is moved by `(vx[i], vy[i]) * dt`. Preserves current angle.
+   *
+   * @param slots - Uint32Array of entity slot indices.
+   * @param vx - Float32Array of X velocity components in m/s.
+   * @param vy - Float32Array of Y velocity components in m/s.
+   * @param dt - Delta time in seconds.
+   * @returns Number of bodies updated.
+   */
+  bulkStepKinematics(slots: Uint32Array, vx: Float32Array, vy: Float32Array, dt: number): number;
   applyImpulse(entityId: EntityId, x: number, y: number): void;
   setLinearVelocity(entityId: EntityId, vx: number, vy: number): void;
   getLinearVelocity(entityId: EntityId): { x: number; y: number } | null;

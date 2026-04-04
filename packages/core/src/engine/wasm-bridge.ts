@@ -391,7 +391,13 @@ export interface WasmEnginePhysics2D extends WasmEngineBase {
   /** Remove a rigid body. */
   physics_remove_rigid_body(slot: number): void;
   /** Set kinematic position. */
-  physics_set_kinematic_position(slot: number, x: number, y: number): void;
+  physics_set_kinematic_position(slot: number, x: number, y: number, angle: number): number;
+  physics_bulk_step_kinematics(
+    slots: Uint32Array,
+    vx: Float32Array,
+    vy: Float32Array,
+    dt: number,
+  ): number;
   /** Apply impulse. */
   physics_apply_impulse(slot: number, x: number, y: number): void;
   /** Set linear velocity. */

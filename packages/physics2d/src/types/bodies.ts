@@ -118,6 +118,71 @@ export interface DynamicBodyHandle {
   disable(): void;
 }
 
+/**
+ * Configuration for a kinematic 2D physics body.
+ *
+ * Kinematic bodies are driven by explicit position writes rather than the
+ * physics simulation. They participate in collision detection and push dynamic
+ * bodies out of the way, but are never displaced by forces or gravity.
+ */
+export interface KinematicBodyOptions2D {
+  /** Initial world-space position in metres. */
+  initialPosition?: { x: number; y: number };
+  /** Initial orientation in radians. @default 0 */
+  initialAngle?: number;
+  /**
+   * When `true`, angular velocity and angle integration are disabled.
+   * @default false
+   */
+  fixedRotation?: boolean;
+}
+
+/**
+ * Runtime handle returned by {@link useKinematicBody} for a 2D kinematic body.
+ *
+ * Use {@link setVelocity} each frame to move the body. The engine integrates
+ * `pos += vel * dt` in `onBeforeUpdate`. Use {@link moveTo} for instant teleports.
+ */
+export interface KinematicBodyHandle2D {
+  /** Opaque numeric body id assigned by the physics engine. */
+  readonly bodyId: number;
+  /** Whether the body is currently active in the simulation. */
+  readonly active: boolean;
+  /**
+   * Teleport the body to an exact world-space position.
+   *
+   * @param x - Target X position in metres.
+   * @param y - Target Y position in metres.
+   * @param angle - Target orientation in radians. Defaults to 0 when omitted.
+   */
+  moveTo(x: number, y: number, angle?: number): void;
+  /**
+   * Set the desired linear velocity in m/s.
+   *
+   * The engine integrates `pos += vel * dt` each `onBeforeUpdate` tick.
+   *
+   * @param vx - Velocity X component in m/s.
+   * @param vy - Velocity Y component in m/s.
+   */
+  setVelocity(vx: number, vy: number): void;
+  /**
+   * Set the desired angular velocity in rad/s.
+   *
+   * No-op when the body was created with `fixedRotation: true`.
+   *
+   * @param omega - Angular velocity in rad/s (counter-clockwise positive).
+   */
+  setAngularVelocity(omega: number): void;
+  /** Current linear velocity as last set by {@link setVelocity}, in m/s. */
+  readonly velocity: { x: number; y: number };
+  /** Current angular velocity as last set by {@link setAngularVelocity}, in rad/s. */
+  readonly angularVelocity: number;
+  /** Re-create the body in the simulation (no-op when already active). */
+  enable(): void;
+  /** Remove the body from the simulation (no-op when already inactive). */
+  disable(): void;
+}
+
 export interface BoxColliderHandle {
   /** Unique collider ID assigned by the physics engine. */
   readonly colliderId: number;
