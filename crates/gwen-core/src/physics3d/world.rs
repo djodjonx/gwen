@@ -1275,6 +1275,10 @@ impl PhysicsWorld3D {
     /// `new_pos = current_pos + (vx[i], vy[i], vz[i]) * dt`
     /// The current orientation is preserved unchanged.
     ///
+    /// Lengths of `slots`, `vx`, `vy`, and `vz` must be equal; any trailing mismatch
+    /// is silently ignored (only `min(slots.len(), vx.len(), vy.len(), vz.len())` bodies
+    /// are processed). Bodies not found by their slot index are silently skipped.
+    ///
     /// # Arguments
     /// * `slots` — Entity indices. Must have the same length as `vx`, `vy`, `vz`.
     /// * `vx`, `vy`, `vz` — Desired velocity components in m/s.
@@ -1317,6 +1321,10 @@ impl PhysicsWorld3D {
     /// Applies first-order quaternion integration:
     /// `dq = 0.5 * [wx, wy, wz, 0] * q * dt`, then normalises.
     /// The current position is preserved unchanged.
+    ///
+    /// Lengths of `slots`, `wx`, `wy`, and `wz` must be equal; any trailing mismatch
+    /// is silently ignored. Bodies not found by their slot index are silently skipped.
+    /// The position of each body is preserved unchanged.
     ///
     /// # Arguments
     /// * `slots` — Entity indices.
@@ -2649,17 +2657,71 @@ mod tests {
         let vz = [0.0f32, 0.0f32];
         let n = world.bulk_step_kinematics(&slots, &vx, &vy, &vz, 1.0);
         assert_eq!(n, 2);
+
+        // Verify positions changed after simulation step
+        world.step(1.0 / 60.0);
+        let state0 = world.get_body_state(0);
+        let state1 = world.get_body_state(1);
+
+        // Entity 0: vx=1.0, dt=1.0, expected x ≈ 1.0
+        assert!((state0[0] - 1.0).abs() < 1e-4, "entity 0 should move 1.0 on X");
+
+        // Entity 1: vy=2.0, dt=1.0, expected y ≈ 2.0
+        assert!((state1[1] - 2.0).abs() < 1e-4, "entity 1 should move 2.0 on Y");
     }
 
     #[test]
-    fn test_bulk_step_kinematic_rotations_3d_runs() {
+    fn test_bulk_step_kinematic_rotations_3d_integrates_orientations() {
         let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
         assert!(world.add_body(0, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+
         let slots = [0u32];
         let wx = [0.0f32];
         let wy = [1.0f32]; // 1 rad/s around Y
         let wz = [0.0f32];
+
+        let state_before = world.get_body_state(0);
+        let qw_before = state_before[6]; // w component of quaternion at index 6
+
         let n = world.bulk_step_kinematic_rotations(&slots, &wx, &wy, &wz, 1.0);
         assert_eq!(n, 1);
+
+        // Verify quaternion changed after simulation step
+        world.step(1.0 / 60.0);
+        let state_after = world.get_body_state(0);
+        let qw_after = state_after[6];
+
+        // Quaternion w component should have changed due to rotation
+        assert!(
+            (qw_after - qw_before).abs() > 1e-5,
+            "quaternion w component should change with rotation"
+        );
+    }
+
+    #[test]
+    fn test_bulk_step_kinematics_3d_unknown_entity_skipped() {
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        // entity 0 exists, entity 999 does not
+        assert!(world.add_body(0, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        let slots = [0u32, 999u32];
+        let vx = [1.0f32, 1.0f32];
+        let vy = [0.0f32, 0.0f32];
+        let vz = [0.0f32, 0.0f32];
+        let n = world.bulk_step_kinematics(&slots, &vx, &vy, &vz, 1.0);
+        assert_eq!(n, 1, "only 1 of 2 bodies exists");
+    }
+
+    #[test]
+    fn test_bulk_step_kinematics_3d_mismatched_arrays() {
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        assert!(world.add_body(0, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        assert!(world.add_body(1, 0.0, 0.0, 0.0, 2, 0.0, 0.0, 0.0));
+        // slots has 2, but vx/vy/vz only have 1 — should process min(2,1,1,1)=1
+        let slots = [0u32, 1u32];
+        let vx = [1.0f32];
+        let vy = [0.0f32];
+        let vz = [0.0f32];
+        let n = world.bulk_step_kinematics(&slots, &vx, &vy, &vz, 1.0);
+        assert_eq!(n, 1, "should process min slice length");
     }
 }
