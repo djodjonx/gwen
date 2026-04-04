@@ -353,6 +353,8 @@ export class TweenPool {
   private _slots: TweenSlot[] = [];
   private _available: TweenSlot[] = [];
   private _active: Set<TweenSlot> = new Set();
+  /** Pre-allocated buffer for zero-alloc tick iteration. @since 1.0.0 */
+  private readonly _tickBuffer: TweenSlot[];
 
   /**
    * Create a new TweenPool with a fixed capacity.
@@ -372,6 +374,9 @@ export class TweenPool {
       this._slots.push(slot);
       this._available.push(slot);
     }
+
+    // Pre-allocate tick buffer for zero-alloc iteration
+    this._tickBuffer = new Array(size) as TweenSlot[];
   }
 
   /**
@@ -424,18 +429,25 @@ export class TweenPool {
    * Advance all active slots by `dt`.
    * Called automatically by {@link TweenManager.tick} each frame.
    *
-   * **Optimization:**
-   * - Iterates only active slots (not the entire pool)
-   * - Direct mutation — no allocations in this loop
+   * **Zero-Allocation:**
+   * Uses a pre-allocated buffer — no heap allocation per frame.
+   * Copies active slots into the buffer, then iterates the buffer.
+   * This allows onComplete callbacks to safely call release() without
+   * corrupting Set iteration.
    *
    * @param dt - Time delta in seconds
    * @internal
    */
   tick(dt: number): void {
-    // Iterate a snapshot of active slots since tick() may mutate the active set
-    // when tweens complete and remove themselves
-    for (const slot of Array.from(this._active)) {
-      slot.tick(dt);
+    // Copy active slots into pre-allocated buffer, then iterate buffer.
+    // This allows onComplete callbacks to safely call release() without
+    // corrupting Set iteration.
+    let count = 0;
+    for (const slot of this._active) {
+      this._tickBuffer[count++] = slot;
+    }
+    for (let i = 0; i < count; i++) {
+      this._tickBuffer[i]!.tick(dt);
     }
   }
 }
