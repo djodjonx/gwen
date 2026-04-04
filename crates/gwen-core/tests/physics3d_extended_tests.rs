@@ -414,4 +414,67 @@ mod physics3d_extended {
         let av = engine.physics3d_get_angular_velocity(0);
         assert_eq!(av.len(), 3);
     }
+
+    // ── add_compound_collider binding ─────────────────────────────────────────
+
+    #[test]
+    fn test_physics3d_add_compound_collider_returns_count() {
+        let mut engine = engine_with_one_body();
+
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // BOX chassis
+            0.0, 1.0, 0.3, 2.0, 0.0,  0.0, 0.3, 0.0,  0.0, 0.5, 0.0, 1.0,
+            // SPHERE wheel
+            1.0, 0.35,0.0, 0.0, 0.0, -0.9, 0.0, 1.6,  0.0, 0.5, 0.0, 2.0,
+            // CAPSULE bumper
+            2.0, 0.1, 0.4, 0.0, 0.0,  0.0, 0.0,-2.0,  0.0, 0.5, 0.0, 3.0,
+        ];
+
+        assert_eq!(
+            engine.physics3d_add_compound_collider(0, &data, 0xFFFF_FFFF, 0xFFFF_FFFF),
+            3
+        );
+    }
+
+    #[test]
+    fn test_physics3d_add_compound_collider_no_body_returns_zero() {
+        let mut engine = Engine::new(32);
+        engine.physics3d_init(0.0, -9.81, 0.0, 32);
+        // Entity 5 has no body.
+        let data: Vec<f32> = vec![0.0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 1.0];
+        assert_eq!(
+            engine.physics3d_add_compound_collider(5, &data, 0xFFFF_FFFF, 0xFFFF_FFFF),
+            0
+        );
+    }
+
+    #[test]
+    fn test_physics3d_add_compound_collider_world_uninitialised_returns_zero() {
+        let mut engine = Engine::new(32);
+        // No physics3d_init call.
+        let data: Vec<f32> = vec![0.0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 1.0];
+        assert_eq!(
+            engine.physics3d_add_compound_collider(0, &data, 0xFFFF_FFFF, 0xFFFF_FFFF),
+            0
+        );
+    }
+
+    #[test]
+    fn test_physics3d_add_compound_collider_partial_on_unknown_shape() {
+        let mut engine = engine_with_one_body();
+
+        #[rustfmt::skip]
+        let data: Vec<f32> = vec![
+            // shape type 77 — unknown, skipped
+            77.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 1.0,
+            // valid BOX
+             0.0, 0.5, 0.5, 0.5, 0.0,  0.0, 0.0, 0.0,  0.0, 0.5, 0.0, 2.0,
+        ];
+
+        assert_eq!(
+            engine.physics3d_add_compound_collider(0, &data, 0xFFFF_FFFF, 0xFFFF_FFFF),
+            1
+        );
+    }
 }

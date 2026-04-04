@@ -1736,6 +1736,34 @@ impl Engine {
         }
     }
 
+    /// Attach multiple primitive colliders to one 3D body in a single WASM call.
+    ///
+    /// The `shape_data` slice encodes 12 `f32` values per shape:
+    /// `[shape_type, p0, p1, p2, p3, offset_x, offset_y, offset_z, is_sensor, friction, restitution, collider_id]`
+    ///
+    /// Shape types: `0` = BOX, `1` = SPHERE, `2` = CAPSULE.
+    ///
+    /// `layer_bits` and `mask_bits` apply to all shapes in the batch.
+    ///
+    /// # Returns
+    /// Number of colliders successfully inserted; `0` if the world is not
+    /// initialised, the entity has no body, or `shape_data` is malformed.
+    #[cfg(feature = "physics3d")]
+    #[wasm_bindgen]
+    pub fn physics3d_add_compound_collider(
+        &mut self,
+        entity_index: u32,
+        shape_data: &[f32],
+        layer_bits: u32,
+        mask_bits: u32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_compound_collider(entity_index, shape_data, layer_bits, mask_bits)
+        } else {
+            0
+        }
+    }
+
     /// Remove a specific collider from a 3D body.
     ///
     /// Returns `false` if the collider was not found or the world is not
