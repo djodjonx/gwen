@@ -779,6 +779,45 @@ export interface WasmEnginePhysics3D extends WasmEngineBase {
    */
   physics3d_remove_collider?(entityIndex: number, colliderId: number): boolean;
 
+  /**
+   * Attach a triangle-mesh collider to a 3D body.
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_add_mesh_collider?(
+    entityIndex: number,
+    vertices: Float32Array,
+    indices: Uint32Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: boolean,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+    colliderId: number,
+  ): boolean;
+
+  /**
+   * Rebuild an existing triangle-mesh collider with new geometry.
+   * Removes the old trimesh and inserts a fresh one atomically inside Rapier3D.
+   * Parameter order matches the Rust WASM export exactly.
+   */
+  physics3d_rebuild_mesh_collider?(
+    entityIndex: number,
+    colliderId: number,
+    vertices: Float32Array,
+    indices: Uint32Array,
+    offsetX: number,
+    offsetY: number,
+    offsetZ: number,
+    isSensor: boolean,
+    friction: number,
+    restitution: number,
+    layerBits: number,
+    maskBits: number,
+  ): boolean;
+
   // ── Sensor state ──────────────────────────────────────────────────────────
 
   /**

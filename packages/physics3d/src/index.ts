@@ -1507,7 +1507,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
     if (backendMode !== 'wasm') return true;
 
-    const { friction, restitution } = resolveColliderMaterial({ ...options });
+    const { friction, restitution } = resolveColliderMaterial({
+      ...options,
+    } as Physics3DColliderOptions);
     const isSensor = options?.isSensor ?? false;
     const membership = resolveLayerBits(options?.layers, layerRegistry);
     const filter = resolveLayerBits(options?.mask, layerRegistry);

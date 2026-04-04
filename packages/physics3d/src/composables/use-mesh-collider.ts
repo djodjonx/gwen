@@ -75,6 +75,9 @@ export function useMeshCollider(
     ? { __bvhUrl: options.url }
     : options;
 
+  // Tracks current collider options so rebuild() can inherit material settings.
+  let currentOptions: MeshColliderOptions = opts;
+
   const isAsync = Boolean(opts.__bvhUrl);
 
   // ── Status / ready / abort tracking ──────────────────────────────────────────
@@ -133,6 +136,26 @@ export function useMeshCollider(
     },
     abort() {
       _abortFn();
+    },
+    async rebuild(vertices: Float32Array, indices: Uint32Array): Promise<void> {
+      // RFC-06c: replace the await below with a Worker-based BVH build.
+      // The Worker receives vertices + indices, pre-computes the BVH off-thread,
+      // then returns processed data. On response, call rebuildMeshCollider.
+      //
+      // Current implementation: synchronous WASM call (blocks main thread briefly
+      // for large meshes — acceptable until RFC-06c is integrated).
+      currentOptions = { ...currentOptions, vertices, indices };
+      _status = 'loading';
+      const ok = physics.rebuildMeshCollider(entityId, colliderId, vertices, indices, {
+        isSensor: currentOptions.isSensor,
+      });
+      if (!ok) {
+        _status = 'error';
+        throw new Error(
+          `physics3d_rebuild_mesh_collider failed for entity ${String(entityId)}, colliderId ${colliderId}`,
+        );
+      }
+      _status = 'active';
     },
     remove() {
       physics.removeCollider(entityId, colliderId);

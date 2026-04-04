@@ -722,6 +722,31 @@ export interface Physics3DAPI {
   removeCollider(entityId: Physics3DEntityId, colliderId: number): boolean;
 
   /**
+   * Rebuild an existing mesh collider with new geometry.
+   *
+   * Removes the old trimesh collider identified by `colliderId` and inserts a
+   * fresh one built from `vertices` and `indices`. The entity stays in the
+   * simulation — only the collider shape changes.
+   *
+   * @param entityId   - Target entity.
+   * @param colliderId - Stable collider ID originally returned by {@link useMeshCollider}.
+   * @param vertices   - New flat vertex buffer `[x0,y0,z0, ...]`.
+   * @param indices    - New flat index buffer `[a0,b0,c0, ...]`.
+   * @param options    - Optional material overrides (friction, restitution, etc.).
+   * @returns `true` on success; `false` if the entity has no body.
+   */
+  rebuildMeshCollider(
+    entityId: Physics3DEntityId,
+    colliderId: number,
+    vertices: Float32Array,
+    indices: Uint32Array,
+    options?: Pick<
+      Physics3DColliderOptions,
+      'isSensor' | 'friction' | 'restitution' | 'layers' | 'mask'
+    >,
+  ): boolean;
+
+  /**
    * Retrieve the pending async BVH load state for a collider that was created
    * with a `__bvhUrl` option. Returns `null` for synchronously-created colliders.
    *
@@ -1011,6 +1036,22 @@ export interface MeshColliderHandle3D extends ColliderHandle3D {
    * the collider becomes active). No-op when load already completed.
    */
   abort(): void;
+  /**
+   * Swap the collider geometry with new vertex and index data.
+   *
+   * Under the hood this:
+   * 1. Sends `vertices` and `indices` to the BVH Web Worker (RFC-06c) for
+   *    non-blocking construction.
+   * 2. Once the Worker responds, calls `physics3d_rebuild_mesh_collider`
+   *    on the WASM bridge, which removes the old collider and inserts the new
+   *    trimesh atomically inside the Rapier3D world.
+   *
+   * @param vertices - New vertex positions `[x0,y0,z0, x1,y1,z1, ...]`.
+   * @param indices  - New triangle indices `[a0,b0,c0, ...]`.
+   * @returns A promise that resolves once the WASM swap is complete.
+   * @throws If `physics3d_rebuild_mesh_collider` returns `false` (entity missing).
+   */
+  rebuild(vertices: Float32Array, indices: Uint32Array): Promise<void>;
 }
 
 /**
