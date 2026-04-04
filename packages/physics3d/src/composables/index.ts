@@ -31,6 +31,12 @@ export type { MeshColliderOptions } from './use-mesh-collider.js';
 export { useConvexCollider } from './use-convex-collider.js';
 export type { ConvexColliderOptions } from './use-convex-collider.js';
 
+export { useCompoundCollider } from './use-compound-collider.js';
+export type { CompoundColliderOptions3D } from './use-compound-collider.js';
+
+export { useHeightfieldCollider } from './use-heightfield-collider.js';
+export type { HeightfieldColliderOptions } from './use-heightfield-collider.js';
+
 export { defineLayers } from './define-layers.js';
 
 export { onContact, _dispatchContactEvent, _clearContactCallbacks } from './on-contact.js';
