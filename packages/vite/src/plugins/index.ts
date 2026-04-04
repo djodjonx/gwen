@@ -18,6 +18,11 @@ export {
   transformLayoutNames,
   extractLayoutNames,
 } from './layout.js';
+export {
+  gwenSceneRouterPlugin,
+  generateRouterDevtools,
+  transformRouterNames,
+} from './scene-router.js';
 
 /**
  * Composite Vite plugin that wires together all GWEN sub-plugins:
@@ -49,5 +54,6 @@ export function gwenVitePlugin(options: GwenViteOptions = {}): PluginOption {
     gwenVirtualPlugin(options),
     gwenActorPlugin(options),
     gwenLayoutPlugin(options),
+    gwenSceneRouterPlugin(options),
   ];
 }

@@ -1,4 +1,5 @@
 import type { AutoImport, GwenTypeTemplate } from '@gwenjs/kit';
+import type { GwenSceneRouterOptions } from './plugins/scene-router.js';
 
 /**
  * Which WASM binary build variant to load.
@@ -104,4 +105,6 @@ export interface GwenViteOptions {
 
   /** Options for the layout virtual module sub-plugin. */
   layout?: GwenLayoutOptions;
+  /** Options for the scene router sub-plugin. */
+  sceneRouter?: GwenSceneRouterOptions;
 }
