@@ -102,6 +102,7 @@ describe('GwenApp.prepare()', () => {
     expect(content).toContain('virtual:gwen/auto-imports');
     expect(content).toContain('virtual:gwen/wasm');
     expect(content).toContain('virtual:gwen/env');
+    expect(content).toContain('/// <reference types="vite/client" />');
   });
 
   it('writes .gwen/tsconfig.json with correct include paths', async () => {
