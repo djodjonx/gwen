@@ -104,5 +104,10 @@ export function definePluginTypes(options: PluginTypesOptions): string {
   }
 
   if (blocks.length === 0) return '';
-  return `declare module '@gwenjs/core' {\n${blocks.join('\n')}\n}`;
+
+  const importLines =
+    options.imports && options.imports.length > 0 ? options.imports.join('\n') + '\n\n' : '';
+  // `export {}` makes this a module file, enabling proper declaration merging
+  // instead of ambient module replacement.
+  return `export {}\n\n${importLines}declare module '@gwenjs/core' {\n${blocks.join('\n')}\n}`;
 }

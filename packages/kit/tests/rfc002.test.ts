@@ -44,6 +44,11 @@ describe('definePluginTypes', () => {
     expect(output).toContain('physics2d: Physics2DAPI');
   });
 
+  it('starts with export {} to ensure module augmentation (not ambient replacement)', () => {
+    const output = definePluginTypes({ provides: { foo: 'FooAPI' } });
+    expect(output.trimStart()).toMatch(/^export \{\}/);
+  });
+
   it('generates declaration merging with hooks', () => {
     const output = definePluginTypes({
       hooks: { 'physics2d:step': '(dt: number) => void' },
@@ -63,5 +68,14 @@ describe('definePluginTypes', () => {
     });
     expect(output).toContain('GwenProvides');
     expect(output).toContain('GwenRuntimeHooks');
+  });
+
+  it('includes import statements when imports option is provided', () => {
+    const output = definePluginTypes({
+      imports: ["import type { MyAPI } from '@gwenjs/my-pkg'"],
+      provides: { my: 'MyAPI' },
+    });
+    expect(output).toContain("import type { MyAPI } from '@gwenjs/my-pkg'");
+    expect(output).toContain('my: MyAPI');
   });
 });
