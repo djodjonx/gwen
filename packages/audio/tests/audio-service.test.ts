@@ -115,7 +115,10 @@ describe('AudioService', () => {
     it('resolves after loading an audio buffer from a URL', async () => {
       const { plugin, service } = setup();
       (globalThis as any).fetch = vi.fn(() =>
-        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+        Promise.resolve({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+        }),
       );
 
       await service.preload('sfx', '/sounds/sfx.wav');

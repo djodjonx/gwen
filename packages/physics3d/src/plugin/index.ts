@@ -45,18 +45,15 @@ import type {
   Physics3DWasmBridge,
   Physics3DBridgeRuntime,
 } from './bridge';
-import { _fetchBvhBuffer, _clearBvhCache, getBvhWorker, BVH_WORKER_THRESHOLD } from './bvh';
-
-// ─── BVH worker state (module-level — lazy singleton) ───────────────────────
-
-/** Monotonically-increasing job id for the BVH worker. */
-let _bvhWorkerNextId = 0;
-
-/** Pending BVH worker callbacks keyed by job id. */
-const _bvhWorkerCallbacks = new Map<
-  number,
-  { resolve: (bytes: Uint8Array) => void; reject: (err: unknown) => void }
->();
+import {
+  _fetchBvhBuffer,
+  _clearBvhCache,
+  getBvhWorker,
+  BVH_WORKER_THRESHOLD,
+  _bvhWorkerCallbacks,
+  getNextBvhJobId,
+  registerBvhCallback,
+} from './bvh';
 
 // ─── Utility functions (module-private) ────────────────────────────────────────
 
@@ -812,8 +809,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   const shapeSpecToColliderOptions = (
     shape: CompoundShapeSpec,
     colliderId: number,
-    layers: (string | number)[] | undefined,
-    mask: (string | number)[] | undefined,
+    layers: string[] | undefined,
+    mask: string[] | undefined,
   ): Physics3DColliderOptions => {
     const common = {
       colliderId,
@@ -990,7 +987,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         // For large meshes, delegate BVH construction to the off-main-thread worker.
         const triCount = shape.indices.length / 3;
         if (triCount >= BVH_WORKER_THRESHOLD && typeof Worker !== 'undefined') {
-          const jobId = _bvhWorkerNextId++;
+          const jobId = getNextBvhJobId();
           const ac = new AbortController();
           let resolveReady!: () => void;
           let rejectReady!: (e: unknown) => void;
@@ -999,8 +996,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
             rejectReady = rej;
           });
 
-          _bvhWorkerCallbacks.set(jobId, {
-            resolve: (bvhBytes: Uint8Array) => {
+          registerBvhCallback(
+            jobId,
+            (bvhBytes: Uint8Array) => {
               if (ac.signal.aborted) return;
               const ok =
                 wasmBridge!.physics3d_load_bvh_collider?.(
@@ -1022,8 +1020,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
                   new Error('[GWEN:Physics3D] physics3d_load_bvh_collider returned false'),
                 );
             },
-            reject: rejectReady,
-          });
+            rejectReady,
+          );
 
           try {
             // Transfer the typed array buffers to the worker (zero-copy).
@@ -1079,6 +1077,22 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
             filter,
             colliderId,
           ) ?? false
+        );
+      }
+    }
+
+    // Emit warnings for unimplemented shape types in local mode
+    if (backendMode === 'local') {
+      const shape = finalOptions.shape;
+      if (shape.type === 'mesh') {
+        console.warn(
+          '[PHYSICS3D:MESH_FALLBACK] useMeshCollider() is not yet fully implemented. ' +
+            'Falling back to a 1×1×1 box collider. Upgrade to a build with RFC-06b support.',
+        );
+      } else if (shape.type === 'convex') {
+        console.warn(
+          '[PHYSICS3D:CONVEX_FALLBACK] useConvexCollider() is not yet fully implemented. ' +
+            'Falling back to a 1×1×1 box collider. Upgrade to a build with RFC-06b support.',
         );
       }
     }

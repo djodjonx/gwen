@@ -23,6 +23,14 @@ pub const FLAGS_OFFSET: usize = 20;
 /// Byte offset of the `flags` field within a 3D entity slot.
 pub const FLAGS3D_OFFSET: usize = 40;
 
+/// Sentinel component type ID used to identify the transform SAB column.
+///
+/// This value is chosen to be far outside the normal type-ID range so it
+/// never collides with a user-registered component type.
+/// Must stay in sync with the TypeScript side: `TRANSFORM_SAB_TYPE_ID` in
+/// `packages/core/src/engine/wasm-bridge.ts`.
+pub const TRANSFORM_SAB_TYPE_ID: u32 = u32::MAX - 1;
+
 use crate::entity::EntityId;
 use crate::transform_math::{Mat3, Vec2};
 use bytemuck::{Pod, Zeroable};

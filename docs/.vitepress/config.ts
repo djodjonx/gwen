@@ -39,6 +39,7 @@ export default defineConfig({
           { text: 'Layouts', link: '/guide/layouts' },
           { text: 'Scene Router', link: '/guide/scene-router' },
           { text: 'Tween & Animation', link: '/guide/tween' },
+          { text: 'Error Bus', link: '/guide/error-bus' },
         ],
       },
       {

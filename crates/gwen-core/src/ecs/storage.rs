@@ -6,6 +6,7 @@ use crate::ecs::archetype::{Archetype, ArchetypeId};
 use crate::ecs::archetype_graph::ArchetypeGraph;
 use crate::ecs::component::{ComponentRegistry, ComponentTypeId};
 use crate::ecs::bitset::BitSet128;
+use crate::transform::TRANSFORM_SAB_TYPE_ID;
 use std::collections::HashMap;
 
 /// Result of a component modification that might cause archetype migration.
@@ -247,15 +248,13 @@ impl ArchetypeStorage {
 
     // ── Shared Buffer helpers ──────────────
 
-    const TRANSFORM_SAB_TYPE_ID: u32 = u32::MAX - 1;
-
     pub fn get_transform_raw(&self, entity_id: u32) -> Option<&[u8]> {
-        let type_id = ComponentTypeId::from_raw(Self::TRANSFORM_SAB_TYPE_ID);
+        let type_id = ComponentTypeId::from_raw(TRANSFORM_SAB_TYPE_ID);
         self.get_component(entity_id, type_id)
     }
 
     pub fn upsert_transform_raw(&mut self, entity_id: u32, data: &[u8]) {
-        let type_id = ComponentTypeId::from_raw(Self::TRANSFORM_SAB_TYPE_ID);
+        let type_id = ComponentTypeId::from_raw(TRANSFORM_SAB_TYPE_ID);
         self.upsert_js(entity_id, type_id, data);
     }
 }
