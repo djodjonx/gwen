@@ -134,7 +134,7 @@ describe('GwenEngine + EngineErrorBus (Task 5)', () => {
 
     it('fatal callback is registered during construction', async () => {
       const bus = makeMockBus();
-      const engine = await createEngine({ errorBus: bus });
+      const _engine = await createEngine({ errorBus: bus });
 
       // Fatal callback should be a function
       expect(bus._fatalCb).toBeTypeOf('function');

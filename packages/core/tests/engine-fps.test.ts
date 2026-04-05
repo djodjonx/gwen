@@ -2,7 +2,7 @@
  * Task 6: RAF loop targetFPS throttle tests
  * Validates that targetFPS is enforced in the game loop.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createEngine } from '../src/index.js';
 
 describe('GwenEngine — targetFPS throttle', () => {
