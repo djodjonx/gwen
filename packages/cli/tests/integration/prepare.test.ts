@@ -80,4 +80,35 @@ describe('prepare integration', () => {
     expect(result.success).toBe(true);
     expect(result.files.length).toBeGreaterThan(0);
   });
+
+  it('resolves config written with defineConfig wrapper (CJS/ESM interop)', async () => {
+    // Simulate the double-wrap that occurs when `defineConfig` is re-exported
+    // through the jiti-register ESM hook. We write a config that uses a
+    // `defineConfig`-style wrapper function so the loader must handle
+    // the extra `.default` layer without crashing or silently returning empty.
+    const configWithWrapper = `
+const defineConfig = (cfg) => cfg;
+export default defineConfig({
+  engine: { maxEntities: 1000, targetFPS: 60 },
+  modules: [],
+});
+`;
+    writeConfig(tmpDir, configWithWrapper, 'gwen.config.ts');
+    const result = await prepare({ projectDir: tmpDir });
+    expect(result.success).toBe(true);
+    expect(result.files.length).toBeGreaterThan(0);
+  });
+
+  it('reports a clear error when a module fails to load', async () => {
+    const configWithBadModule = `
+export default {
+  engine: { maxEntities: 1000, targetFPS: 60 },
+  modules: ['@gwenjs/module-that-does-not-exist'],
+};
+`;
+    writeConfig(tmpDir, configWithBadModule, 'gwen.config.ts');
+    const result = await prepare({ projectDir: tmpDir });
+    expect(result.success).toBe(false);
+    expect(result.errors[0]).toMatch(/@gwenjs\/module-that-does-not-exist/);
+  });
 });

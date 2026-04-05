@@ -1,16 +1,16 @@
 /**
- * Configuration loader using C12 and @gwenjs/schema.
+ * Configuration loader using @gwenjs/app/resolve and @gwenjs/schema.
  */
 
-import { loadConfig } from 'c12';
 import path from 'node:path';
-import { existsSync } from 'node:fs';
 import {
   assertModuleFirstInput,
   resolveConfig,
   type GwenConfigInput,
   type GwenOptions,
 } from '@gwenjs/schema';
+import { loadRawGwenConfig, GwenConfigLoadError } from '@gwenjs/app/resolve';
+import { loadConfig } from 'c12';
 import { logger } from '../utils/logger.js';
 import { CONFIG_FILE_NAMES } from '../utils/constants.js';
 
@@ -36,6 +36,9 @@ export interface LoadConfigOptions {
 /**
  * Load and resolve GWEN configuration.
  *
+ * Uses {@link loadRawGwenConfig} from `@gwenjs/app/resolve` to correctly
+ * handle CJS/ESM interop when the jiti-register hook is active (RFC-011).
+ *
  * @param options - Loading options or cwd path.
  * @returns Resolved configuration and absolute config path.
  */
@@ -46,26 +49,22 @@ export async function loadGwenConfig(
 
   logger.debug('Loading config from:', cwd);
 
-  const { config, configFile } = await loadConfig<GwenConfigInput>({
-    name: 'gwen',
-    cwd,
-    packageJson: false,
-    defaults: {},
-  });
+  let rawConfig: GwenConfigInput;
+  let configPath: string;
 
-  if (!configFile) {
-    throw new Error(`Config file not found. Expected one of: ${CONFIG_FILE_NAMES.join(', ')}`);
+  try {
+    const { config, configFile } = await loadRawGwenConfig(cwd);
+    rawConfig = config as GwenConfigInput;
+    configPath = path.isAbsolute(configFile) ? configFile : path.resolve(cwd, configFile);
+  } catch (error: unknown) {
+    if (error instanceof GwenConfigLoadError) {
+      throw new Error(`Config file not found. Expected one of: ${CONFIG_FILE_NAMES.join(', ')}`);
+    }
+    throw error;
   }
 
-  const absolutePath = path.isAbsolute(configFile) ? configFile : path.resolve(cwd, configFile);
+  logger.debug(`[loadGwenConfig] Found config file: ${configPath}`);
 
-  if (!existsSync(absolutePath)) {
-    throw new Error(`Config file found by C12 but does not exist on disk: ${absolutePath}`);
-  }
-
-  logger.debug(`[loadGwenConfig] Found config file: ${absolutePath}`);
-
-  const rawConfig = (config ?? {}) as GwenConfigInput;
   assertModuleFirstInput(rawConfig);
   const resolved = resolveConfig(rawConfig);
   resolved.rootDir = cwd;
@@ -73,7 +72,7 @@ export async function loadGwenConfig(
 
   return {
     config: resolved,
-    configPath: absolutePath,
+    configPath,
   };
 }
 

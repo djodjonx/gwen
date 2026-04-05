@@ -6,3 +6,6 @@ export { DebugPlugin } from './plugin/index';
 // Side-effect: augments GwenProvides with 'debug' key, enabling typed provide/inject.
 export * from './augment';
 export { useDebug } from './composables';
+
+// Re-export module definition so 'modules: ["@gwenjs/debug"]' works in gwen.config.ts
+export { default } from './module';

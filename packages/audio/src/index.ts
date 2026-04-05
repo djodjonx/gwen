@@ -223,3 +223,6 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useAudio } from './composables.js';
+
+// Re-export module definition so 'modules: ["@gwenjs/audio"]' works in gwen.config.ts
+export { default } from './module.js';

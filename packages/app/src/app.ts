@@ -125,7 +125,19 @@ export class GwenApp {
         ? entry
         : [entry, {} as Record<string, unknown>];
 
-      const mod: GwenModule = moduleLoader ? await moduleLoader(name) : await loadModule(name);
+      let mod: GwenModule;
+      try {
+        mod = moduleLoader ? await moduleLoader(name) : await loadModule(name);
+      } catch (cause) {
+        const hint =
+          cause instanceof Error && cause.message.includes('Cannot find package')
+            ? ` Hint: run 'gwen add ${name}' to install it.`
+            : '';
+        throw new Error(
+          `[gwen] Failed to load module "${name}": ${cause instanceof Error ? cause.message : String(cause)}.${hint}`,
+          { cause },
+        );
+      }
 
       // Deep-merge user options with module defaults (user values take precedence).
       const options = mergeDefaults(
@@ -136,7 +148,14 @@ export class GwenApp {
       const kit = this._createKit(config);
 
       await this.buildHooks.callHook('module:before', mod);
-      await mod.setup(options as Record<string, unknown>, kit);
+      try {
+        await mod.setup(options as Record<string, unknown>, kit);
+      } catch (cause) {
+        throw new Error(
+          `[gwen] Module "${name}" setup() threw: ${cause instanceof Error ? cause.message : String(cause)}`,
+          { cause },
+        );
+      }
       await this.buildHooks.callHook('module:done', mod);
     }
 

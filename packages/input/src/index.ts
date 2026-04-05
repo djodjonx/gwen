@@ -30,3 +30,6 @@ export type { InputPluginServices, InputPluginConfig } from './plugin/index';
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment';
 export { useKeyboard, useMouse, useGamepad, useInputMapper } from './composables';
+
+// Re-export module definition so 'modules: ["@gwenjs/input"]' works in gwen.config.ts
+export { default } from './module';

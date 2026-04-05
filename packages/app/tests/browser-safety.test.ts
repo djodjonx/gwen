@@ -70,16 +70,34 @@ describe('src/index.ts — browser-safe entry point', () => {
 describe('src/config.ts — Node.js only (must stay out of browser bundle)', () => {
   const src = readSrc('config.ts');
 
-  it('imports c12 (this is correct — it is Node.js only)', () => {
-    expect(src).toMatch(/from ['"]c12['"]/);
-  });
-
   it('does NOT export defineConfig (moved to types.ts)', () => {
     expect(src).not.toContain('export function defineConfig');
   });
 
   it('imports types from ./types, not re-defining them', () => {
     expect(src).toMatch(/from ['"]\.\/types['"]/);
+  });
+});
+
+// ─── config-loader.ts ─────────────────────────────────────────────────────────
+
+describe('src/config-loader.ts — Node.js only (contains c12 interop)', () => {
+  const src = readSrc('config-loader.ts');
+
+  it('imports c12 (this is correct — it is Node.js only)', () => {
+    expect(src).toMatch(/from ['"]c12['"]/);
+  });
+
+  it('imports node:fs (Node.js only, correct)', () => {
+    expect(src).toMatch(/from ['"]node:fs['"]/);
+  });
+
+  it('exports loadRawGwenConfig', () => {
+    expect(src).toContain('export async function loadRawGwenConfig');
+  });
+
+  it('exports GwenConfigLoadError', () => {
+    expect(src).toContain('export class GwenConfigLoadError');
   });
 });
 

@@ -10,7 +10,7 @@
  */
 
 import { defineGwenModule, definePluginTypes } from '@gwenjs/kit';
-import { DebugPlugin } from './index';
+import { DebugPlugin } from './plugin/index';
 import type { DebugPluginConfig } from './types';
 
 /**

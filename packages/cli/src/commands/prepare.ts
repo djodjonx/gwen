@@ -33,9 +33,14 @@ export default defineCommand({
 
     logger.debug('Starting prepare command');
 
+    if (args.strict) {
+      logger.warn(
+        '--strict is deprecated: hard-fail on module errors is now the default behavior.',
+      );
+    }
+
     const result = await corePrepare({
       verbose: args.verbose as boolean,
-      strict: args.strict as boolean,
     });
 
     if (!result.success) {

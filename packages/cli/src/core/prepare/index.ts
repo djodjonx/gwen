@@ -12,8 +12,10 @@
 import fs from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { logger, setLogLevel } from '../../utils/logger.js';
 import { GwenApp, resolveGwenConfig } from '@gwenjs/app/resolve';
+import type { GwenModule } from '@gwenjs/kit';
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -24,7 +26,7 @@ export interface PrepareOptions {
   projectDir?: string;
   /** Enable detailed logging output */
   verbose?: boolean;
-  /** Fail on validation errors (useful for CI) */
+  /** @deprecated No-op — hard-fail on module errors is now always the default. */
   strict?: boolean;
 }
 
@@ -46,31 +48,12 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   if (options.verbose) {
     setLogLevel({ verbose: true });
   }
-  if (options.strict) {
-    logger.warn(
-      '--strict has no effect in the module-first pipeline and will be removed in a future release.',
-    );
-  }
+
   const result: PrepareResult = { success: false, gwenDir, files: [], errors: [] };
 
   // 1. Resolve config
   let config: Awaited<ReturnType<typeof resolveGwenConfig>>;
   try {
-    const configFile = [
-      'gwen.config.ts',
-      'gwen.config.js',
-      'gwen.config.mjs',
-      'gwen.config.cjs',
-    ].find((f) => existsSync(path.join(projectDir, f)));
-    if (!configFile) {
-      result.errors.push(
-        `No config file found in ${projectDir} (expected gwen.config.ts/.js/.mjs/.cjs)`,
-      );
-      return result;
-    }
-    // resolveGwenConfig re-discovers the config via c12 using the same search
-    // order. The configFile guard above ensures at least one candidate exists,
-    // making the dual-discovery safe.
     config = await resolveGwenConfig(projectDir);
   } catch (error) {
     result.errors.push(`Config error: ${getErrorMessage(error)}`);
@@ -80,9 +63,24 @@ export async function prepare(options: PrepareOptions = {}): Promise<PrepareResu
   logger.debug(`Output: ${gwenDir}`);
 
   // 2. Run module setup + write .gwen/
+  // Use jiti to load modules from the project directory. This avoids two problems:
+  //   a) jiti (in the CLI's bin.js monorepo mode) transpiles import() to require(),
+  //      which fails for packages that only have "import" in their exports conditions.
+  //   b) Without an explicit base, Node.js resolves specifiers from @gwenjs/app's
+  //      location, not the project's node_modules.
   try {
+    const { createJiti } = await import('jiti');
+    const jiti = createJiti(pathToFileURL(path.join(projectDir, '__placeholder__')).href, {
+      interopDefault: true,
+    });
+    const moduleLoader = async (name: string): Promise<GwenModule> => {
+      const raw = (await jiti.import(name)) as { default?: unknown } & Record<string, unknown>;
+      const mod = (raw?.default ?? raw) as GwenModule;
+      return mod;
+    };
+
     const app = new GwenApp();
-    await app.setupModules(config);
+    await app.setupModules(config, moduleLoader);
     await app.prepare(projectDir);
   } catch (error) {
     result.errors.push(`Module setup error: ${getErrorMessage(error)}`);

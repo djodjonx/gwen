@@ -5,10 +5,10 @@
  * This file imports c12 and must only be used in Node.js contexts.
  */
 
-import { loadConfig } from 'c12';
 import { defu } from 'defu';
 
 import type { GwenUserConfig, GwenModuleEntry, ResolvedGwenConfig } from './types';
+import { loadRawGwenConfig } from './config-loader';
 
 // Re-export all browser-safe types so CLI code can import from a single place
 export type {
@@ -58,11 +58,7 @@ export function resolveConfig(config: GwenUserConfig): ResolvedGwenConfig {
  * ```
  */
 export async function resolveGwenConfig(rootDir?: string): Promise<ResolvedGwenConfig> {
-  const { config: userConfig = {} } = await loadConfig<GwenUserConfig>({
-    name: 'gwen',
-    cwd: rootDir ?? process.cwd(),
-    dotenv: true,
-  });
+  const { config: userConfig } = await loadRawGwenConfig(rootDir ?? process.cwd());
 
   return defu(
     {
