@@ -9,7 +9,7 @@ export { createGwenHooks } from './hooks';
 export type { GwenHooks, GwenHookable } from './hooks';
 
 // RFC-001: New GwenEngine interface & createEngine() factory
-export { createEngine, GwenPluginNotFoundError } from './engine/gwen-engine';
+export { createEngine, GwenPluginNotFoundError, CoreErrorCodes } from './engine/gwen-engine';
 export type {
   GwenEngine,
   // GwenPlugin is the RFC-001 interface (setup/teardown) — the primary plugin contract.
@@ -22,11 +22,12 @@ export type {
   WasmModuleOptions,
   WasmRegionView,
   WasmRingBuffer,
+  EngineErrorBus,
 } from './engine/gwen-engine';
 export type { WasmMemoryRegion, WasmMemoryOptions, WasmChannelOptions } from './engine/gwen-engine';
 
 // RFC-003: Runtime hooks interface (augmentable)
-export type { GwenRuntimeHooks } from './engine/runtime-hooks';
+export type { GwenRuntimeHooks, EngineErrorPayload } from './engine/runtime-hooks';
 
 // RFC-005: Composable context system (unctx-backed)
 export { engineContext, useEngine, GwenContextError } from './context';

@@ -135,11 +135,23 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
       if (!context) throw new Error('[AudioPlugin] Plugin not initialized.');
 
       const p = fetch(url)
-        .then((r) => r.arrayBuffer())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+          return r.arrayBuffer();
+        })
         .then((buf) => context!.decodeAudioData(buf))
         .then((buffer) => {
           sounds.set(id, { buffer, nodes: [] });
-          pendingLoads.delete(id);
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[${AudioErrorCodes.PRELOAD_FAILED}] Failed to preload audio "${id}": ${msg}`,
+          );
+          throw err; // re-throw so callers can also catch
+        })
+        .finally(() => {
+          pendingLoads.delete(id); // always clean up so retry is possible
         });
       pendingLoads.set(id, p);
       return p;
@@ -224,6 +236,7 @@ export const AudioPlugin = definePlugin((config: AudioPluginConfig = {}) => {
 // ─── Module, composables & type augmentations ─────────────────────────────────
 export * from './augment.js';
 export { useAudio } from './composables.js';
+export { AudioErrorCodes } from './errors/codes.js';
 
 // Re-export module definition so 'modules: ["@gwenjs/audio"]' works in gwen.config.ts
 export { default } from './module.js';

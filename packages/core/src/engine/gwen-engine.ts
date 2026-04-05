@@ -22,7 +22,7 @@
  */
 
 import { createHooks, type Hookable } from 'hookable';
-import type { GwenRuntimeHooks } from './runtime-hooks.js';
+import type { GwenRuntimeHooks, EngineErrorPayload } from './runtime-hooks.js';
 import { engineContext } from '../context.js';
 import { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs.js';
@@ -35,6 +35,7 @@ export type {
   WasmChannelOptions,
 } from './wasm-module-handle.js';
 export { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
+export type { EngineErrorPayload } from './runtime-hooks.js';
 
 // #region Types, interfaces & error classes
 
