@@ -1078,6 +1078,31 @@ impl PhysicsWorld3D {
     /// # Panics
     /// Panics in debug builds if `positions_flat.len() < entity_indices.len() * 3`.
     #[allow(clippy::too_many_arguments)]
+    /// Add multiple static box colliders in one call (bulk operation).
+    ///
+    /// Creates N fixed rigid bodies with cuboid colliders, one per entity index.
+    /// This avoids N WASM round-trips for a single batch of static scenery.
+    ///
+    /// # Arguments
+    /// * `entity_indices` — array of entity indices to attach bodies to.
+    /// * `positions_flat` — flat array of `[x, y, z, x, y, z, ...]` coordinates (length must be ≥ n*3).
+    /// * `half_extents_flat` — either 3 elements `[hx, hy, hz]` (uniform, applied to all),
+    ///   or n*3 elements `[hx₀, hy₀, hz₀, hx₁, hy₁, hz₁, ...]` (per-entity).
+    /// * `friction` — friction coefficient for all bodies.
+    /// * `restitution` — restitution coefficient for all bodies.
+    /// * `layer_bits` — collision layer bits for all bodies.
+    /// * `mask_bits` — collision mask bits for all bodies.
+    ///
+    /// # Returns
+    /// Number of bodies successfully added. If input buffers are malformed
+    /// (too short), returns 0 and adds no bodies. Partial success is not possible —
+    /// either all N bodies are added or none.
+    ///
+    /// # Bounds Checking
+    /// Returns 0 (without adding anything) if:
+    /// - `entity_indices.is_empty()` (n=0)
+    /// - `positions_flat.len() < n * 3` (positions buffer too short)
+    /// - `!uniform_extents && half_extents_flat.len() < n * 3` (extents buffer too short for per-entity mode)
     pub fn bulk_add_static_boxes(
         &mut self,
         entity_indices: &[u32],
@@ -1089,10 +1114,24 @@ impl PhysicsWorld3D {
         mask_bits: u32,
     ) -> u32 {
         let n = entity_indices.len();
+        
+        // Return 0 early on malformed input — never panic
         if n == 0 {
             return 0;
         }
+        
+        // Validate positions buffer length
+        if positions_flat.len() < n * 3 {
+            return 0;
+        }
+        
         let uniform_extents = half_extents_flat.len() == 3;
+        
+        // Validate half_extents buffer length
+        if !uniform_extents && half_extents_flat.len() < n * 3 {
+            return 0;
+        }
+        
         let groups = Self::make_interaction_groups(layer_bits, mask_bits);
         let mut count = 0u32;
 
@@ -2486,6 +2525,52 @@ mod tests {
             0.5, 0.0, u32::MAX, u32::MAX,
         );
         assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_wrong_positions_buffer_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[10, 11, 12];
+        // Positions buffer too short: 6 floats instead of 9 (3 boxes × 3 coords)
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5]; // uniform
+        let n = world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        // Should return 0 (no bodies added), not panic
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_wrong_extents_buffer_returns_zero() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[20, 21];
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        // Per-entity extents but buffer too short: 4 floats instead of 6 (2 boxes × 3 coords)
+        // Length != 3, so treated as per-entity mode, but too short
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5, 0.5];
+        let n = world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        // Should return 0, not panic
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn test_physics3d_bulk_add_static_boxes_correct_buffer_succeeds() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let indices: &[u32] = &[40, 41, 42];
+        // Correct position buffer: 9 floats for 3 boxes
+        let positions: &[f32] = &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0];
+        let half_extents: &[f32] = &[0.5, 0.5, 0.5]; // uniform
+        let n = world.bulk_add_static_boxes(
+            indices, positions, half_extents,
+            0.5, 0.0, u32::MAX, u32::MAX,
+        );
+        // Should succeed and add 3 bodies
+        assert_eq!(n, 3);
     }
 
     // ── add_compound_collider ─────────────────────────────────────────────────
