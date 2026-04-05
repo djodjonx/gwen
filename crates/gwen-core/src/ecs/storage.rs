@@ -6,6 +6,7 @@ use crate::ecs::archetype::{Archetype, ArchetypeId};
 use crate::ecs::archetype_graph::ArchetypeGraph;
 use crate::ecs::component::{ComponentRegistry, ComponentTypeId};
 use crate::ecs::bitset::BitSet128;
+use crate::transform::TRANSFORM_SAB_TYPE_ID;
 use std::collections::HashMap;
 
 /// Result of a component modification that might cause archetype migration.

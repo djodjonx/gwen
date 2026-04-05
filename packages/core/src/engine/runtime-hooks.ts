@@ -1,6 +1,27 @@
 import type { EntityId } from './engine-api.js';
 
 /**
+ * Payload emitted with the `engine:error` hook when the frame loop catches an error.
+ *
+ * @example
+ * ```typescript
+ * engine.hooks.hook('engine:error', (payload) => {
+ *   console.error(`[${payload.code}] ${payload.message}`, payload.cause)
+ * })
+ * ```
+ */
+export interface EngineErrorPayload {
+  /** Error code identifying the failure (e.g., `CORE:FRAME_LOOP_ERROR`). */
+  readonly code: string;
+  /** Human-readable message describing the error. */
+  readonly message: string;
+  /** The original thrown value, if any. */
+  readonly cause?: unknown;
+  /** Frame counter at the time of the error. */
+  readonly frame?: number;
+}
+
+/**
  * Base runtime hook map for the GWEN engine.
  *
  * Extended by plugin packages via TypeScript declaration merging.
@@ -32,6 +53,8 @@ export interface GwenRuntimeHooks {
   'entity:spawn': (id: EntityId) => void;
   /** Fired when an entity is destroyed. */
   'entity:destroy': (id: EntityId) => void;
+  /** Fired when the frame loop catches an unhandled error. */
+  'engine:error': (payload: EngineErrorPayload) => void;
 
   /**
    * Fired to trigger plugin-specific setup when an entity is created from a

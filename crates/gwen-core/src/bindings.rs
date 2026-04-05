@@ -13,7 +13,7 @@ use crate::ecs::entity::{EntityId, EntityManager};
 use crate::ecs::query::{QueryId, QuerySystem};
 use crate::ecs::storage::ArchetypeStorage;
 use crate::gameloop::GameLoop;
-use crate::transform::{Transform, TransformSystem};
+use crate::transform::{Transform, TransformSystem, TRANSFORM_SAB_TYPE_ID};
 use crate::transform_math::Vec2;
 use wasm_bindgen::prelude::*;
 
@@ -23,7 +23,6 @@ use crate::physics2d::{BodyOptions, BodyType, ColliderOptions, PhysicsQualityPre
 #[cfg(feature = "physics3d")]
 use crate::physics3d::PhysicsWorld3D;
 
-const TRANSFORM_SAB_TYPE_ID: u32 = u32::MAX - 1;
 const PHYS_FLAG: u32 = 0b01; // bit 0 — physics active
 use crate::transform::TRANSFORM_STRIDE;
 /// Local alias so all buffer arithmetic below reads as `STRIDE` unchanged.

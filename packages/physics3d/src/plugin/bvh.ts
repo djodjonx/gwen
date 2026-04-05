@@ -1,5 +1,7 @@
 // ─── BVH fetch cache (module-level — shared across plugin instances) ────────────
 
+import { Physics3DErrorCodes } from '../errors/codes';
+
 /**
  * Cache mapping BVH asset URL to its in-flight or resolved fetch Promise.
  * Deduplicates concurrent fetches for the same URL across multiple `useMeshCollider`
@@ -58,9 +60,13 @@ let _bvhWorker: Worker | null = null;
 let _bvhWorkerNextId = 0;
 
 /** Pending BVH worker callbacks keyed by job id. */
-const _bvhWorkerCallbacks = new Map<
+export const _bvhWorkerCallbacks = new Map<
   number,
-  { resolve: (bytes: Uint8Array) => void; reject: (err: unknown) => void }
+  {
+    resolve: (bytes: Uint8Array) => void;
+    reject: (err: unknown) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }
 >();
 
 /** Get (or lazily create) the module-level BVH worker. */
@@ -72,6 +78,7 @@ export function getBvhWorker(): Worker {
     }: MessageEvent<{ id: number; bvhBytes: Uint8Array | null; error: string | null }>) => {
       const cb = _bvhWorkerCallbacks.get(data.id);
       if (!cb) return;
+      clearTimeout(cb.timeoutId);
       _bvhWorkerCallbacks.delete(data.id);
       if (data.error || !data.bvhBytes) {
         cb.reject(new Error(data.error ?? '[GWEN:Physics3D] BVH worker returned empty result'));
@@ -83,10 +90,50 @@ export function getBvhWorker(): Worker {
   return _bvhWorker;
 }
 
+/** Get the next job ID for a BVH worker job. */
+export function getNextBvhJobId(): number {
+  return _bvhWorkerNextId++;
+}
+
+/**
+ * Register a custom callback for a BVH job with automatic timeout handling.
+ *
+ * @param id - Job ID (from getNextBvhJobId)
+ * @param resolve - Callback when BVH worker succeeds
+ * @param reject - Callback when BVH worker fails or times out
+ * @param timeoutMs - Timeout in milliseconds (default: 30s)
+ *
+ * @internal
+ */
+export function registerBvhCallback(
+  id: number,
+  resolve: (bytes: Uint8Array) => void,
+  reject: (err: unknown) => void,
+  timeoutMs: number = 30_000,
+): void {
+  const timeoutId = setTimeout(() => {
+    _bvhWorkerCallbacks.delete(id);
+    reject(
+      new Error(
+        `[${Physics3DErrorCodes.BVH_WORKER_TIMEOUT}] BVH worker did not respond within ${timeoutMs}ms`,
+      ),
+    );
+  }, timeoutMs);
+  _bvhWorkerCallbacks.set(id, { resolve, reject, timeoutId });
+}
+
 export function queueBvhJob(vertices: Float32Array, indices: Uint32Array): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
-    const id = _bvhWorkerNextId++;
-    _bvhWorkerCallbacks.set(id, { resolve, reject });
+    const id = getNextBvhJobId();
+    const timeoutId = setTimeout(() => {
+      _bvhWorkerCallbacks.delete(id);
+      reject(
+        new Error(
+          `[${Physics3DErrorCodes.BVH_WORKER_TIMEOUT}] BVH worker did not respond within 30s`,
+        ),
+      );
+    }, 30_000);
+    _bvhWorkerCallbacks.set(id, { resolve, reject, timeoutId });
     getBvhWorker().postMessage({ id, vertices, indices });
   });
 }

@@ -22,6 +22,7 @@ import { definePlugin } from '@gwenjs/kit';
 import type { GwenEngine } from '@gwenjs/core';
 // Side-effect: augments GwenProvides with 'audio' key, enabling typed provide/inject.
 import './augment.js';
+import { AudioErrorCodes } from './errors/codes.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

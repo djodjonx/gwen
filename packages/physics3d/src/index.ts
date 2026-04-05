@@ -16,6 +16,8 @@ export type { PreloadedBvhHandle } from './plugin/bvh';
 export { _clearBvhCache, preloadMeshCollider } from './plugin/bvh';
 export { EVENT_STRIDE_3D, MAX_EVENTS_3D, COLLIDER_ID_ABSENT } from './plugin/constants';
 export { ContactRingBuffer3D, CONTACT_EVENT_FLOATS, RING_CAPACITY_3D } from './plugin/ring-buffer';
+export { Physics3DErrorCodes } from './errors/codes';
+export type { Physics3DErrorCode } from './errors/codes';
 
 export type {
   Physics3DAPI,
