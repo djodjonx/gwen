@@ -16,7 +16,6 @@ import {
   mat3Equals,
 } from '../src/mat3.js';
 import { vec3 } from '../src/vec3.js';
-import { TAU, PI } from '../src/scalar.js';
 
 describe('mat3 constructors', () => {
   it('mat3 creates matrix from 9 values', () => {

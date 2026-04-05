@@ -41,7 +41,7 @@ export type TweenableValue = number | Vec2 | Vec3 | Color;
  * };
  * ```
  */
-export interface TweenOptions<T extends TweenableValue> {
+export interface TweenOptions<_T extends TweenableValue> {
   /**
    * Duration of the tween in seconds.
    * Must be a positive number. Required.

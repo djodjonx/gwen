@@ -22,8 +22,8 @@ import {
   mat4LookAt,
   mat4Equals,
 } from '../src/mat4.js';
-import { vec3, vec3Zero, vec3Up, vec3Right, vec3Forward } from '../src/vec3.js';
-import { vec4, vec4Point, vec4Dir } from '../src/vec4.js';
+import { vec3, vec3Zero } from '../src/vec3.js';
+import { vec4 } from '../src/vec4.js';
 import { quatIdentity, quatFromAxisAngle } from '../src/quat.js';
 
 describe('mat4 constructors', () => {

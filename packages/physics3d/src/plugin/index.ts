@@ -9,9 +9,6 @@ import type {
   Physics3DBodyState,
   Physics3DConfig,
   Physics3DEntityId,
-  Physics3DQuat,
-  Physics3DVec3,
-  Physics3DBodyKind,
   Physics3DColliderOptions,
   Physics3DCollisionContact,
   Physics3DSensorState,
@@ -20,8 +17,6 @@ import type {
   BulkStaticBoxesOptions,
   BulkStaticBoxesResult,
 } from '../types';
-
-import { PHYSICS3D_MATERIAL_PRESETS } from '../types';
 
 import {
   normalizePhysics3DConfig,
@@ -66,7 +61,6 @@ import {
   resolveColliderMaterial,
   computeColliderAABB,
   aabbOverlap,
-  type LocalAABB,
 } from './physics3d-utils';
 
 // ─── Plugin implementation ──────────────────────────────────────────────────────

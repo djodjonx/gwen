@@ -17,12 +17,7 @@ import {
   aabbOverlap,
 } from '../src/plugin/physics3d-utils';
 
-import type {
-  Physics3DVec3,
-  Physics3DQuat,
-  Physics3DBodyState,
-  Physics3DColliderOptions,
-} from '../src/types';
+import type { Physics3DVec3, Physics3DBodyState, Physics3DColliderOptions } from '../src/types';
 
 // ─── vec3() ────────────────────────────────────────────────────────────────
 

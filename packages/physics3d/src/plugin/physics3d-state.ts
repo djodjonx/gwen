@@ -4,7 +4,7 @@
  */
 
 import type { Physics3DWasmBridge, Physics3DBridgeRuntime } from './bridge';
-import type { GwenEngine, EntityId } from '@gwenjs/core';
+import type { GwenEngine } from '@gwenjs/core';
 import type {
   Physics3DBodyHandle,
   Physics3DBodyState,
