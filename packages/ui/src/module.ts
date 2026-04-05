@@ -25,6 +25,7 @@ export default defineGwenModule({
   async setup(_options, kit) {
     // Lazy import breaks the index.ts ↔ module.ts circular dependency.
     const { HtmlUIPlugin } = await import('./index.js');
+    kit.addPlugin(HtmlUIPlugin());
 
     kit.addAutoImports([{ name: 'useHtmlUI', from: '@gwenjs/ui' }]);
 
