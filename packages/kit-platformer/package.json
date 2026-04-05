@@ -25,7 +25,6 @@
     "lint": "oxlint src"
   },
   "devDependencies": {
-    "@gwenjs/cli": "workspace:*",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vite-plugin-dts": "^4.5.4",
