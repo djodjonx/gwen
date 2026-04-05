@@ -16,8 +16,8 @@
 
 import type { EntityId } from '@gwenjs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { SpriteAnimRuntime } from '../src/runtime';
-import type { SpriteAnimImageLoader } from '../src/runtime';
+import { SpriteAnimRuntime } from '../src/plugin/runtime';
+import type { SpriteAnimImageLoader } from '../src/plugin/runtime';
 import type { SpriteAnimUIExtension } from '../src/types';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────

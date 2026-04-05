@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { EntityId } from '@gwenjs/core';
-import { SpriteAnimRuntime } from '../src/runtime';
+import { SpriteAnimRuntime } from '../src/plugin/runtime';
 import type { SpriteAnimUIExtension } from '../src/types';
 
 // ── MockImage so atlas "loads" synchronously ──────────────────────────────────
