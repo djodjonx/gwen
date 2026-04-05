@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Canvas2DRenderer } from '../src/renderer';
-import { ShapeRenderer } from '../src/shapes';
-import type { RendererService } from '../src/renderer';
+import { Canvas2DRenderer } from '../src/plugin/renderer';
+import { ShapeRenderer } from '../src/plugin/shapes';
+import type { RendererService } from '../src/plugin/renderer';
 import type { GwenEngine } from '@gwenjs/core';
 
 // ── Canvas mock ──────────────────────────────────────────────────────────
