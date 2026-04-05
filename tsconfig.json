@@ -13,7 +13,6 @@
     { "path": "packages/debug" },
     { "path": "packages/input" },
     { "path": "packages/physics2d" },
-    { "path": "packages/kit-platformer" },
     { "path": "packages/physics3d" },
     { "path": "packages/r3f" },
     { "path": "packages/renderer-canvas2d" },

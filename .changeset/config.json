@@ -12,7 +12,6 @@
       "@gwenjs/debug",
       "@gwenjs/input",
       "@gwenjs/kit",
-      "@gwenjs/kit-platformer",
       "@gwenjs/math",
       "@gwenjs/physics2d",
       "@gwenjs/physics3d",
