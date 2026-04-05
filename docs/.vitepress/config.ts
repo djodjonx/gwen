@@ -14,7 +14,7 @@ export default defineConfig({
       { text: 'API', link: '/api/overview' },
       { text: 'Plugins', link: '/plugins/index' },
       { text: 'Kit', link: '/kit/overview' },
-      { text: 'GitHub', link: 'https://github.com/djodjonx/gwen' },
+      { text: 'GitHub', link: 'https://github.com/gwenjs/gwen' },
     ],
 
     sidebar: [
@@ -120,14 +120,14 @@ export default defineConfig({
       },
     ],
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/djodjonx/gwen' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/gwenjs/gwen' }],
 
     search: {
       provider: 'local',
     },
 
     editLink: {
-      pattern: 'https://github.com/djodjonx/gwen/edit/gwen-v2-alpha/docs/:path',
+      pattern: 'https://github.com/gwenjs/gwen/edit/gwen-v2-alpha/docs/:path',
       text: 'Edit this page on GitHub',
     },
 

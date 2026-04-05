@@ -112,7 +112,7 @@ export default defineConfig({
 
 ### Package naming
 
-All published packages use the `@gwenjs/*` scope (not `@djodjonx/*` — that scope appears in older docs but the actual packages use `@gwenengine`).
+All published packages use the `@gwenjs/*` scope (not `@gwenjs/*` — that scope appears in older docs but the actual packages use `@gwenengine`).
 
 ### TypeScript packages use `src/index.ts` as the live entry point during development
 

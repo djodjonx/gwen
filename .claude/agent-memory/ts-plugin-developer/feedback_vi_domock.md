@@ -8,7 +8,7 @@ type: feedback
 
 **Why:** Vitest hoists `vi.mock` calls before module imports. `vi.doMock` only affects future dynamic imports, not the static import already at the top of the file.
 
-**How to apply:** When a test suite already has a top-level `vi.mock` for `@djodjonx/gwen-engine-core`, and a sub-test needs a different bridge variant (e.g. local mode instead of WASM mode), use `mockReturnValueOnce` on the existing mock object:
+**How to apply:** When a test suite already has a top-level `vi.mock` for `@gwenjs/gwen-engine-core`, and a sub-test needs a different bridge variant (e.g. local mode instead of WASM mode), use `mockReturnValueOnce` on the existing mock object:
 
 ```ts
 mockBridge.getPhysicsBridge.mockReturnValueOnce({

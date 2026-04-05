@@ -1,8 +1,8 @@
 # GWEN (Game Web Engine)
 
-[![CI Status](https://github.com/djodjonx/gwen/workflows/CI/badge.svg)](https://github.com/djodjonx/gwen/actions)
-[![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@djodjonx/gwen-engine-core)
-[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue)](https://djodjonx.github.io/gwen/)
+[![CI Status](https://github.com/gwenjs/gwen/workflows/CI/badge.svg)](https://github.com/gwenjs/gwen/actions)
+[![npm version](https://badge.fury.io/js/%40gwen%2Fengine-core.svg)](https://www.npmjs.com/package/@gwenjs/gwen-engine-core)
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue)](https://gwenjs.github.io/gwen/)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue)](https://www.typescriptlang.org/)
 
@@ -16,7 +16,7 @@ GWEN helps you build games with a clear structure:
 - prefabs for reusable entities
 - UI modules for menus/HUD
 
-[Quick Start](#quick-start) · [Documentation](https://djodjonx.github.io/gwen/) · [Project Structure](#project-structure) · [CLI](#cli)
+[Quick Start](#quick-start) · [Documentation](https://gwenjs.github.io/gwen/) · [Project Structure](#project-structure) · [CLI](#cli)
 
 ---
 
@@ -35,7 +35,7 @@ GWEN helps you build games with a clear structure:
 ### 1) Scaffold a game project (recommended)
 
 ```bash
-pnpm create@djodjonx/gwen-app my-game
+pnpm create@gwenjs/gwen-app my-game
 cd my-game
 pnpm dev
 ```
@@ -61,7 +61,7 @@ GWEN ships with a CLI designed around the same workflow as the playground.
 
 ```bash
 # Create project
-pnpm create@djodjonx/gwen-app my-game
+pnpm create@gwenjs/gwen-app my-game
 
 # Development
 gwen dev
@@ -110,10 +110,10 @@ This structure is intentional: it keeps gameplay code discoverable as the projec
 Example config shape:
 
 ```ts
-import { defineConfig } from '@djodjonx/gwen-kit';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
-import { AudioPlugin } from '@djodjonx/gwen-plugin-audio';
-import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
+import { defineConfig } from '@gwenjs/gwen-kit';
+import { InputPlugin } from '@gwenjs/gwen-plugin-input';
+import { AudioPlugin } from '@gwenjs/gwen-plugin-audio';
+import { Canvas2DRenderer } from '@gwenjs/gwen-renderer-canvas2d';
 
 export default defineConfig({
   engine: { maxEntities: 2000, targetFPS: 60, debug: false },
@@ -141,7 +141,7 @@ For technical details, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Documentation
 
-**Full Documentation:** [https://djodjonx.github.io/gwen/](https://djodjonx.github.io/gwen/)
+**Full Documentation:** [https://gwenjs.github.io/gwen/](https://gwenjs.github.io/gwen/)
 
 Reference files:
 
@@ -175,8 +175,8 @@ See [`docs/QUICK_RELEASE.md`](docs/QUICK_RELEASE.md) for complete workflow with 
 
 We welcome issues, ideas, and PRs.
 
-- Report bugs: https://github.com/djodjonx/gwen/issues
-- Discuss features: https://github.com/djodjonx/gwen/discussions
+- Report bugs: https://github.com/gwenjs/gwen/issues
+- Discuss features: https://github.com/gwenjs/gwen/discussions
 - Read contribution guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---

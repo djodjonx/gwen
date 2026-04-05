@@ -43,7 +43,7 @@ security@gwen-engine.dev
 1. **Keep GWEN Updated**
 
    ```bash
-   npm update@djodjonx/gwen-engine-core
+   npm update@gwenjs/gwen-engine-core
    ```
 
 2. **Use HTTPS in Production**
@@ -174,7 +174,7 @@ After coordinated disclosure:
 
 **Maintainers:**
 
-- Jonathan Moutier - [@djodjonx](https://github.com/djodjonx)
+- Jonathan Moutier - [@gwenjs](https://github.com/gwenjs)
 
 ---
 

@@ -4,7 +4,7 @@ This document outlines the release process for GWEN.
 
 ## Prerequisites
 
-- Maintainer access to npm (scope `@djodjonx`)
+- Maintainer access to npm (scope `@gwenjs`)
 - Node.js 20+
 - pnpm 9+
 - Rust toolchain with `wasm32-unknown-unknown` target
@@ -30,7 +30,7 @@ Our GitHub Action handles the entire process when changes are merged to `main`.
    - Build all WASM crates.
    - Build all TypeScript packages.
    - Run verification scripts.
-   - Publish to npm under the `@djodjonx` scope.
+   - Publish to npm under the `@gwenjs` scope.
 
 ### 2. Manual Release (Emergency/Local)
 
@@ -90,4 +90,4 @@ pnpm changeset
 
 **WASM Artifacts:** Packages are distributed with their WASM binaries encapsulated. Users do not need Rust installed to use GWEN, but **maintainers** must have it to build the release.
 
-**Scope:** All packages are published under the `@djodjonx` scope (e.g., `@djodjonx/gwen-engine-core`).
+**Scope:** All packages are published under the `@gwenjs` scope (e.g., `@gwenjs/gwen-engine-core`).

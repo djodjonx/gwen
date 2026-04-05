@@ -47,7 +47,7 @@ GlobalStringPoolManager
 ### Basic Usage (Scene-Scoped Strings)
 
 ```typescript
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenjs/gwen-engine-core';
 
 // Default: strings are scene-scoped
 export const Enemy = defineComponent({
@@ -72,7 +72,7 @@ api.addComponent(id, Enemy, {
 ### Persistent Strings (Cross-Scene Data)
 
 ```typescript
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenjs/gwen-engine-core';
 
 // Player save data that survives scene transitions
 export const PlayerSave = defineComponent({
@@ -188,7 +188,7 @@ const Enemy = defineComponent({
 ### Debugging Pool Size
 
 ```typescript
-import { GlobalStringPoolManager } from '@djodjonx/gwen-engine-core';
+import { GlobalStringPoolManager } from '@gwenjs/gwen-engine-core';
 
 // Get debug statistics
 const stats = GlobalStringPoolManager.getDebugStats();
@@ -203,7 +203,7 @@ console.log(`Persistent pool: ${stats.persistentPoolSize} strings`);
 ### Legacy API (Backward Compatibility)
 
 ```typescript
-import { GlobalStringPool } from '@djodjonx/gwen-engine-core';
+import { GlobalStringPool } from '@gwenjs/gwen-engine-core';
 
 // Legacy API — delegates to scene pool
 const id = GlobalStringPool.intern('string');

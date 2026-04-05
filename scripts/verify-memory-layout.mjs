@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TS_FILE = join(__dirname, '../packages/@djodjonx/engine-core/src/wasm/shared-memory.ts');
+const TS_FILE = join(__dirname, '../packages/@gwenjs/engine-core/src/wasm/shared-memory.ts');
 
 /** Canonical values derived from the Rust struct layout (single source of truth). */
 const EXPECTED = {

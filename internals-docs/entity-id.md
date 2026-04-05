@@ -24,7 +24,7 @@
 ### Primary Constructor
 
 ```typescript
-import { createEntityId } from '@djodjonx/gwen-engine-core';
+import { createEntityId } from '@gwenjs/gwen-engine-core';
 
 // Low-level: direct creation
 const id = createEntityId(index, generation);
@@ -36,7 +36,7 @@ const id = engine.createEntity();
 ### Backward Compatibility
 
 ```typescript
-import { packId } from '@djodjonx/gwen-engine-core';
+import { packId } from '@gwenjs/gwen-engine-core';
 
 // Deprecated but still works
 const id = packId({ index: 5, generation: 100 });
@@ -49,7 +49,7 @@ const id = packId({ index: 5, generation: 100 });
 ### Accessing Components
 
 ```typescript
-import { type EntityId } from '@djodjonx/gwen-engine-core';
+import { type EntityId } from '@gwenjs/gwen-engine-core';
 
 function mySystem(engine: Engine, entities: EntityId[]): void {
   for (const id of entities) {
@@ -67,7 +67,7 @@ function mySystem(engine: Engine, entities: EntityId[]): void {
 ### Comparing EntityIds
 
 ```typescript
-import { entityIdEqual } from '@djodjonx/gwen-engine-core';
+import { entityIdEqual } from '@gwenjs/gwen-engine-core';
 
 if (entityIdEqual(id1, id2)) {
   // Same entity
@@ -82,7 +82,7 @@ if (id1 === id2) {
 ### Using in Maps/Sets
 
 ```typescript
-import { type EntityId } from '@djodjonx/gwen-engine-core';
+import { type EntityId } from '@gwenjs/gwen-engine-core';
 
 // Native Map support (no stringify needed!)
 const componentMap = new Map<EntityId, MyComponent>();
@@ -101,7 +101,7 @@ activeEntities.add(id);
 ### String Representation
 
 ```typescript
-import { entityIdToString, entityIdFromString } from '@djodjonx/gwen-engine-core';
+import { entityIdToString, entityIdFromString } from '@gwenjs/gwen-engine-core';
 
 // Serialize to string
 const str = entityIdToString(id); // "5:100"
@@ -157,7 +157,7 @@ Example: EntityId(index=5, generation=100)
 ### Unpacking
 
 ```typescript
-import { unpackEntityId } from '@djodjonx/gwen-engine-core';
+import { unpackEntityId } from '@gwenjs/gwen-engine-core';
 
 const { index, generation } = unpackEntityId(id);
 // index: 5
@@ -254,7 +254,7 @@ const restored = entityIdFromString(json.entityId);
 ### Complete System Example
 
 ```typescript
-import { type EntityId, createEntityId, entityIdEqual } from '@djodjonx/gwen-engine-core';
+import { type EntityId, createEntityId, entityIdEqual } from '@gwenjs/gwen-engine-core';
 
 function bulletSystem(engine: Engine, entities: EntityId[]): void {
   for (const id of entities) {

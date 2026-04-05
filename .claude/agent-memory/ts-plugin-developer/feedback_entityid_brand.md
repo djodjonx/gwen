@@ -11,7 +11,7 @@ type: feedback
 **How to apply:** In test files, cast with `as unknown as EntityId`:
 
 ```ts
-import type { EntityId } from '@djodjonx/gwen-engine-core';
+import type { EntityId } from '@gwenjs/gwen-engine-core';
 const e1 = 1n as unknown as EntityId;
 ```
 

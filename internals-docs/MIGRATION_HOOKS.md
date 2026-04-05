@@ -149,7 +149,7 @@ engine.on('start', () => {
 
 ```typescript
 // auth-plugin.ts
-import { defineSystem } from '@djodjonx/gwen-engine-core';
+import { defineSystem } from '@gwenjs/gwen-engine-core';
 
 export const AuthPlugin = defineSystem({
   name: 'AuthPlugin',

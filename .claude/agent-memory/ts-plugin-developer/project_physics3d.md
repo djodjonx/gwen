@@ -4,7 +4,7 @@ description: The plugin-physics3d package was already feature-complete before th
 type: project
 ---
 
-The `packages/@djodjonx/plugin-physics3d` plugin was already fully implemented before the task arrived. All source files (`index.ts`, `types.ts`, `config.ts`, `systems.ts`, helper files) were present and correct.
+The `packages/@gwenjs/plugin-physics3d` plugin was already fully implemented before the task arrived. All source files (`index.ts`, `types.ts`, `config.ts`, `systems.ts`, helper files) were present and correct.
 
 **Why:** The gwen-v2-alpha branch had already been built out with the 3D plugin.
 

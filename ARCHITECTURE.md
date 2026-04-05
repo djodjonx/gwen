@@ -25,7 +25,7 @@ The architecture rests on a strict separation of concerns:
 
 ## 2. Technological Foundations
 
-1. **Rust/WASM**: Native performance in the browser. Compiled via `wasm-pack` in CI. The `gwen_core_bg.wasm` artifact is pre-compiled and embedded in `@djodjonx/gwen-engine-core/wasm/`.
+1. **Rust/WASM**: Native performance in the browser. Compiled via `wasm-pack` in CI. The `gwen_core_bg.wasm` artifact is pre-compiled and embedded in `@gwenjs/gwen-engine-core/wasm/`.
 2. **ECS (Entity Component System)**: Data is not OOP objects but flat arrays (`ComponentStorage` SoA). Zero copy, zero GC, maximum speed.
 3. **Independent WASM modules + SharedArrayBuffer**: `gwen-core` and WASM plugins are **separate** `.wasm` modules communicating via a shared memory buffer. Zero copy, zero marshalling, two independently deployable modules.
 4. **TS plugin as glue**: The TypeScript plugin of a WASM plugin is not a "wrapper that translates" — it initializes shared memory and orchestrates calls between WASM modules. The simulation logic stays 100% in Rust.
@@ -41,14 +41,14 @@ Compiling `gwen-core + physics2d` into **a single `.wasm`** is technically possi
 ### The chosen model: two `.wasm` + SharedArrayBuffer
 
 ```
-@djodjonx/gwen-engine-core/wasm/
+@gwenjs/gwen-engine-core/wasm/
   gwen_core_bg.wasm        ← ECS, Transform, GameLoop
 
-@djodjonx/gwen-plugin-physics2d/wasm/
+@gwenjs/gwen-plugin-physics2d/wasm/
   gwen_physics2d_bg.wasm   ← Rapier2D, RigidBody, Collider
 ```
 
-The two modules share the **same linear memory** via `SharedArrayBuffer`. The TypeScript plugin (`@djodjonx/gwen-plugin-physics2d`) acts as **initialization glue**: it mounts the shared memory, wires WASM imports/exports, and exposes a clean API to the `WasmBridge`.
+The two modules share the **same linear memory** via `SharedArrayBuffer`. The TypeScript plugin (`@gwenjs/gwen-plugin-physics2d`) acts as **initialization glue**: it mounts the shared memory, wires WASM imports/exports, and exposes a clean API to the `WasmBridge`.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -87,10 +87,10 @@ User project entry point — the **Composition Root**.
 
 ```typescript
 // gwen.config.ts (User Project)
-import { defineConfig } from '@djodjonx/gwen-cli';
-import { physics2D } from '@djodjonx/gwen-plugin-physics2d'; // npm install@djodjonx/gwen-plugin-physics2d
-import { Canvas2DRenderer } from '@djodjonx/gwen-renderer-canvas2d';
-import { InputPlugin } from '@djodjonx/gwen-plugin-input';
+import { defineConfig } from '@gwenjs/gwen-cli';
+import { physics2D } from '@gwenjs/gwen-plugin-physics2d'; // npm install@gwenjs/gwen-plugin-physics2d
+import { Canvas2DRenderer } from '@gwenjs/gwen-renderer-canvas2d';
+import { InputPlugin } from '@gwenjs/gwen-plugin-input';
 
 export default defineConfig({
   core: {
@@ -147,13 +147,13 @@ impl Physics2DPlugin {
 }
 ```
 
-### B. The TypeScript package (`packages/@djodjonx/gwen-plugin-physics2d/`)
+### B. The TypeScript package (`packages/@gwenjs/gwen-plugin-physics2d/`)
 
 This is the **glue** — initializes shared memory, loads the `.wasm`, registers methods in the `WasmBridge`. Contains **zero simulation logic**.
 
 ```typescript
-// packages/@djodjonx/gwen-plugin-physics2d/src/index.ts
-import { GwenWasmPlugin, WasmBridge } from '@djodjonx/gwen-engine-core';
+// packages/@gwenjs/gwen-plugin-physics2d/src/index.ts
+import { GwenWasmPlugin, WasmBridge } from '@gwenjs/gwen-engine-core';
 
 export class Physics2DPlugin implements GwenWasmPlugin {
   readonly name = 'Physics2D';
@@ -189,7 +189,7 @@ Pure TS plugins implement `GwenPlugin` and use the **Query System** via `EngineA
 
 ```typescript
 // src/systems/PlayerController.ts
-import { GwenPlugin, EngineAPI } from '@djodjonx/gwen-engine-core';
+import { GwenPlugin, EngineAPI } from '@gwenjs/gwen-engine-core';
 
 export class PlayerController implements GwenPlugin {
   readonly name = 'PlayerController';
@@ -256,7 +256,7 @@ Engine.tick(delta)        → WasmBridge → Rust GameLoop
 Engine.physics_step()     → Physics2DPlugin.onStep() → Rust Rapier2D (SharedArrayBuffer)
 ```
 
-**EntityId 64-bit**: `(BigInt(generation) << 32n) | BigInt(index)` — 32-bit index + 32-bit generation, `bigint` format aligned Rust/TS, zero conversion. Use `createEntityId(index, generation)` / `unpackEntityId(id)` from `@djodjonx/gwen-engine-core`.
+**EntityId 64-bit**: `(BigInt(generation) << 32n) | BigInt(index)` — 32-bit index + 32-bit generation, `bigint` format aligned Rust/TS, zero conversion. Use `createEntityId(index, generation)` / `unpackEntityId(id)` from `@gwenjs/gwen-engine-core`.
 
 **Binary serialization**: `computeSchemaLayout()` generates compiled `serialize`/`deserialize` from `defineComponent()`. Global 1 KB scratchpad — zero allocation per frame.
 
@@ -266,7 +266,7 @@ Engine.physics_step()     → Physics2DPlugin.onStep() → Rust Rapier2D (Shared
 
 ```typescript
 // src/components/Velocity.comp.ts
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenjs/gwen-engine-core';
 
 export const Velocity = defineComponent({
   name: 'Velocity',
@@ -367,7 +367,7 @@ gwen/
 │           └── bindings.rs             ← wasm-bindgen exports (Physics2DPlugin)
 │
 ├── packages/
-│   └──@djodjonx/gwen-
+│   └──@gwenjs/gwen-
 │       ├── engine-core/                ← TS Orchestrator (Engine, WasmBridge…)
 │       │   └── wasm/                   ← gwen_core_bg.wasm pre-compiled (CI)
 │       ├── cli/                        ← gwen dev/build/prepare
@@ -395,7 +395,7 @@ gwen/
 npm create gwen-app my-game
 
 # Add physics — simple npm install
-npm install@djodjonx/gwen-plugin-physics2d
+npm install@gwenjs/gwen-plugin-physics2d
 
 # Development
 gwen dev     # Vite HMR + WASM served from node_modules

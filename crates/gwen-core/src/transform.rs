@@ -3,7 +3,7 @@
 // ── Shared memory layout constants (single source of truth for TS ↔ Rust) ────
 //
 // These values MUST match the TypeScript constants in:
-//   packages/@djodjonx/engine-core/src/wasm/shared-memory.ts
+//   packages/@gwenjs/engine-core/src/wasm/shared-memory.ts
 //
 // Run `node scripts/verify-memory-layout.mjs` to verify consistency.
 

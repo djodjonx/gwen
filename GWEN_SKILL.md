@@ -20,7 +20,7 @@ Gwen follows a strict "Convention over Configuration" approach:
 Components are pure data structures.
 
 ```typescript
-import { defineComponent, Types } from '@djodjonx/gwen-engine-core';
+import { defineComponent, Types } from '@gwenjs/gwen-engine-core';
 
 export const Position = defineComponent({
   name: 'position',
