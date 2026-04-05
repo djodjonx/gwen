@@ -264,7 +264,10 @@ describe('AudioPlugin', () => {
   describe('preload (async)', () => {
     it('should preload sound from URL', async () => {
       (globalThis as any).fetch = vi.fn(() =>
-        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+        Promise.resolve({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+        }),
       );
 
       const plugin = new AudioPlugin();
@@ -279,7 +282,10 @@ describe('AudioPlugin', () => {
 
     it('should not double-load the same sound', async () => {
       (globalThis as any).fetch = vi.fn(() =>
-        Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+        Promise.resolve({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+        }),
       );
 
       const plugin = new AudioPlugin();

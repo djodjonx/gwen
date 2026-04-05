@@ -1860,7 +1860,14 @@ class WasmBridgeImpl implements WasmBridge {
   // ── Shared memory ────────────────────────────────────────────────────────
 
   allocSharedBuffer(byteLength: number): number {
-    return requireWasm().alloc_shared_buffer(byteLength);
+    const ptr = requireWasm().alloc_shared_buffer(byteLength);
+    if (ptr === 0) {
+      throw new Error(
+        `[GwenBridge] alloc_shared_buffer failed: requested ${byteLength} bytes. ` +
+          `This is either an OOM condition or a zero-size request.`,
+      );
+    }
+    return ptr;
   }
 
   syncTransformsToBuffer(ptr: number, maxEntities: number): void {

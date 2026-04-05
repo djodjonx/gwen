@@ -758,13 +758,31 @@ impl Engine {
     /// # Safety
     /// The returned pointer is valid for the lifetime of the WASM module.
     /// TypeScript must not access it after the engine is destroyed.
+    /// Allocates a zeroed buffer of `byte_length` bytes with 8-byte alignment.
+    ///
+    /// # Arguments
+    /// * `byte_length` — number of bytes to allocate. Must be > 0.
+    ///
+    /// # Returns
+    /// The pointer as `usize`, or **0** on failure (zero-size request or OOM).
+    /// The TypeScript caller must check for 0 before using the pointer.
+    ///
+    /// # Safety & Error Handling
+    /// - If `byte_length == 0`, returns 0 immediately without allocating.
+    /// - If layout construction fails, returns 0.
+    /// - If allocation fails (OOM), returns 0 instead of panicking.
+    /// - Callers must check the return value for 0 and handle gracefully.
     pub fn alloc_shared_buffer(&mut self, byte_length: usize) -> usize {
-        let layout = std::alloc::Layout::from_size_align(byte_length, 8)
-            .expect("alloc_shared_buffer: invalid layout");
-        // SAFETY: layout has non-zero size (caller must pass > 0) and is 8-byte aligned
+        if byte_length == 0 {
+            return 0;
+        }
+        let Ok(layout) = std::alloc::Layout::from_size_align(byte_length, 8) else {
+            return 0;
+        };
+        // SAFETY: layout has non-zero size and valid alignment.
         let ptr = unsafe { std::alloc::alloc_zeroed(layout) };
         if ptr.is_null() {
-            panic!("alloc_shared_buffer: allocation failed (OOM)");
+            return 0; // OOM — caller must handle gracefully
         }
         ptr as usize
     }
