@@ -41,7 +41,6 @@ export type TweenableValue = number | Vec2 | Vec3 | Color;
  * };
  * ```
  */
-// eslint-disable-next-line no-unused-vars
 export interface TweenOptions<T extends TweenableValue> {
   /**
    * Duration of the tween in seconds.

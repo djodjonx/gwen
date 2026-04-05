@@ -26,6 +26,7 @@ import type { GwenRuntimeHooks, EngineErrorPayload } from './runtime-hooks.js';
 import { engineContext } from '../context.js';
 import { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs.js';
+import { getWasmBridge } from './wasm-bridge.js';
 import type { EntityId } from './engine-api.js';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema.js';
 import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
@@ -124,6 +125,49 @@ export interface WasmModuleHandle<Exports extends WebAssembly.Exports = WebAssem
    * @returns A {@link WasmRingBuffer} for TS↔WASM message passing.
    */
   channel(channelName: string): WasmRingBuffer;
+}
+
+// ─── Internal bridge interfaces ──────────────────────────────────────────────
+
+/**
+ * Minimal bridge surface needed by scene placement composables.
+ * Exposes only the transform methods required by {@link placeActor}, {@link placeGroup},
+ * {@link placePrefab}, and {@link useLayout}.
+ *
+ * @internal — for use by scene composables only (place.ts, use-layout.ts)
+ *
+ * @remarks
+ * This interface is intentionally minimal to decouple scene composables from the full
+ * {@link WasmBridge} surface. Use {@link GwenEngine._getPlacementBridge} to access.
+ */
+export interface PlacementBridge {
+  /**
+   * Attach a transform component to an entity (position, rotation, scale).
+   * Must be called before any other transform operations on this entity.
+   */
+  add_entity_transform?(
+    index: number,
+    x: number,
+    y: number,
+    rotation: number,
+    scale_x: number,
+    scale_y: number,
+  ): void;
+
+  /**
+   * Set the parent of `child_index` to `parent_index`.
+   * Pass `parent_index = 0xFFFFFFFF` (`2^32 - 1`) to detach from any parent.
+   */
+  set_entity_parent?(child_index: number, parent_index: number, keep_world_pos: boolean): void;
+
+  /** Set an entity's local position. */
+  set_entity_local_position?(index: number, x: number, y: number): void;
+
+  /**
+   * Destroy multiple entities by slot index in a single WASM call.
+   * Also removes their transforms.
+   */
+  bulk_destroy?(indices: Uint32Array): void;
 }
 
 // ─── Public interfaces ───────────────────────────────────────────────────────
@@ -508,6 +552,15 @@ export interface GwenEngine {
    * @returns A live iterable of {@link EntityAccessor} objects.
    */
   createLiveQuery<T extends ComponentDef>(components: T[]): LiveQuery<EntityAccessor>;
+
+  // ─── Internal WASM bridge accessors ───────────────────────────────────────
+
+  /**
+   * @internal — Get a typed accessor for placement-related WASM bridge methods.
+   * Reserved for scene composables (place.ts, use-layout.ts). Do not use elsewhere.
+   * @returns A {@link PlacementBridge} exposing only transform methods.
+   */
+  _getPlacementBridge(): PlacementBridge;
 
   // ─── Hooks ──────────────────────────────────────────────────────────────
   /** Typed hookable lifecycle instance. */
@@ -1121,6 +1174,20 @@ class GwenEngineImpl implements GwenEngine {
         };
       },
     };
+  }
+
+  // ─── Internal WASM bridge accessors ───────────────────────────────────────
+
+  _getPlacementBridge(): PlacementBridge {
+    // Return a graceful object that doesn't throw if WASM is uninitialized.
+    // All methods are optional and use optional chaining at call sites.
+    try {
+      return getWasmBridge().engine() as unknown as PlacementBridge;
+    } catch {
+      // If WASM is not initialized, return an empty object.
+      // Call sites use optional chaining (?.) so undefined methods silently fail.
+      return {};
+    }
   }
 
   // ─── Stats ────────────────────────────────────────────────────────────────

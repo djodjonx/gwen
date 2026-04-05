@@ -55,17 +55,19 @@ import {
   registerBvhCallback,
 } from './bvh';
 
-// ─── Utility functions (module-private) ────────────────────────────────────────
-
-/** Construct a fully-initialized Physics3DVec3 from a partial override. */
-function vec3(v?: Partial<Physics3DVec3>): Physics3DVec3 {
-  return { x: v?.x ?? 0, y: v?.y ?? 0, z: v?.z ?? 0 };
-}
-
-/** Construct a fully-initialized Physics3DQuat from a partial override. */
-function quat(v?: Partial<Physics3DQuat>): Physics3DQuat {
-  return { x: v?.x ?? 0, y: v?.y ?? 0, z: v?.z ?? 0, w: v?.w ?? 1 };
-}
+import {
+  vec3,
+  quat,
+  toEntityIndex,
+  kindFromU8,
+  kindToU8,
+  parseBodyState,
+  cloneState,
+  resolveColliderMaterial,
+  computeColliderAABB,
+  aabbOverlap,
+  type LocalAABB,
+} from './physics3d-utils';
 
 // ─── Plugin implementation ──────────────────────────────────────────────────────
 
@@ -134,61 +136,6 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   let lastFrameEventCount = 0;
 
   // ─── Utility helpers ─────────────────────────────────────────────────────────
-
-  /** Convert a Physics3DEntityId to the u32 entity slot index used by WASM and as Map key. */
-  const toEntityIndex = (entityId: Physics3DEntityId): number => {
-    if (typeof entityId === 'bigint') return Number(entityId & 0xffffffffn);
-    if (typeof entityId === 'number') return entityId;
-    return parseInt(entityId as string, 10);
-  };
-
-  /** Map WASM kind u8 (0=Fixed, 1=Dynamic, 2=Kinematic, 255=sentinel) to TS string. */
-  const kindFromU8 = (k: number): Physics3DBodyKind => {
-    if (k === 0) return 'fixed';
-    if (k === 2) return 'kinematic';
-    return 'dynamic';
-  };
-
-  /** Map TS kind string to WASM u8 (0=Fixed, 1=Dynamic, 2=Kinematic). */
-  const kindToU8 = (k: Physics3DBodyKind): number => {
-    if (k === 'fixed') return 0;
-    if (k === 'kinematic') return 2;
-    return 1;
-  };
-
-  /** Parse a 13-element Float32Array from physics3d_get_body_state into a Physics3DBodyState. */
-  const parseBodyState = (arr: Float32Array): Physics3DBodyState => ({
-    position: { x: arr[0] ?? 0, y: arr[1] ?? 0, z: arr[2] ?? 0 },
-    rotation: { x: arr[3] ?? 0, y: arr[4] ?? 0, z: arr[5] ?? 0, w: arr[6] ?? 1 },
-    linearVelocity: { x: arr[7] ?? 0, y: arr[8] ?? 0, z: arr[9] ?? 0 },
-    angularVelocity: { x: arr[10] ?? 0, y: arr[11] ?? 0, z: arr[12] ?? 0 },
-  });
-
-  /** Deep-clone a Physics3DBodyState so snapshots are not aliased. */
-  const cloneState = (s: Physics3DBodyState): Physics3DBodyState => ({
-    position: { ...s.position },
-    rotation: { ...s.rotation },
-    linearVelocity: { ...s.linearVelocity },
-    angularVelocity: { ...s.angularVelocity },
-  });
-
-  /**
-   * Resolve material preset defaults into explicit collider values.
-   * Explicit options always win over the preset.
-   */
-  const resolveColliderMaterial = (
-    options: Physics3DColliderOptions,
-  ): { friction: number; restitution: number; density: number } => {
-    const preset = options.materialPreset
-      ? PHYSICS3D_MATERIAL_PRESETS[options.materialPreset]
-      : PHYSICS3D_MATERIAL_PRESETS.default;
-
-    return {
-      friction: options.friction ?? preset.friction,
-      restitution: options.restitution ?? preset.restitution,
-      density: options.density ?? preset.density,
-    };
-  };
 
   /** Generate the next stable collider id for an entity. */
   const nextColliderIdForEntity = (entityId: Physics3DEntityId): number => {
@@ -297,67 +244,6 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   };
 
   // ─── AABB collision detection (local mode) ────────────────────────────────────
-
-  /** World-space AABB min/max corners for overlap testing. */
-  type LocalAABB = {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-    minZ: number;
-    maxZ: number;
-  };
-
-  /**
-   * Compute a world-space AABB for a single collider given its body's position.
-   * Collider offsets are applied before expanding by the shape half-extents.
-   */
-  const computeColliderAABB = (pos: Physics3DVec3, col: Physics3DColliderOptions): LocalAABB => {
-    const cx = pos.x + (col.offsetX ?? 0);
-    const cy = pos.y + (col.offsetY ?? 0);
-    const cz = pos.z + (col.offsetZ ?? 0);
-    const shape = col.shape;
-    let hx: number;
-    let hy: number;
-    let hz: number;
-    if (shape.type === 'box') {
-      hx = shape.halfX;
-      hy = shape.halfY;
-      hz = shape.halfZ;
-    } else if (shape.type === 'sphere') {
-      hx = shape.radius;
-      hy = shape.radius;
-      hz = shape.radius;
-    } else if (shape.type === 'capsule') {
-      // capsule: radius in X/Z, radius + halfHeight in Y
-      hx = shape.radius;
-      hy = shape.radius + shape.halfHeight;
-      hz = shape.radius;
-    } else {
-      // mesh/convex: use a unit AABB as a conservative placeholder
-      // (exact AABB computation requires iterating vertices, deferred to WASM)
-      hx = 1;
-      hy = 1;
-      hz = 1;
-    }
-    return {
-      minX: cx - hx,
-      maxX: cx + hx,
-      minY: cy - hy,
-      maxY: cy + hy,
-      minZ: cz - hz,
-      maxZ: cz + hz,
-    };
-  };
-
-  /** Returns `true` when two AABBs overlap on all three axes (inclusive). */
-  const aabbOverlap = (a: LocalAABB, b: LocalAABB): boolean =>
-    a.minX <= b.maxX &&
-    a.maxX >= b.minX &&
-    a.minY <= b.maxY &&
-    a.maxY >= b.minY &&
-    a.minZ <= b.maxZ &&
-    a.maxZ >= b.minZ;
 
   /**
    * Axis-Aligned Bounding Box collision pair detection.
@@ -809,8 +695,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   const shapeSpecToColliderOptions = (
     shape: CompoundShapeSpec,
     colliderId: number,
-    layers: string[] | undefined,
-    mask: string[] | undefined,
+    layers: (string | number)[] | undefined,
+    mask: (string | number)[] | undefined,
   ): Physics3DColliderOptions => {
     const common = {
       colliderId,

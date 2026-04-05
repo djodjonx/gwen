@@ -23,6 +23,7 @@ export type {
   WasmRegionView,
   WasmRingBuffer,
   EngineErrorBus,
+  PlacementBridge,
 } from './engine/gwen-engine';
 export type { WasmMemoryRegion, WasmMemoryOptions, WasmChannelOptions } from './engine/gwen-engine';
 

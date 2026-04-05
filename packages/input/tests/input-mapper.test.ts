@@ -12,8 +12,7 @@ import { KeyboardInput } from '../src/plugin/keyboard';
 import { GamepadInput } from '../src/plugin/gamepad';
 import { BindingType, InputType } from '../src/plugin/mapping/types';
 import type { InputMapConfig } from '../src/plugin/mapping/types';
-
-// ── Shared config fixture ─────────────────────────────────────────────────────
+import { pressKey, releaseKey } from './helpers';
 
 const jumpConfig: InputMapConfig = {
   name: 'test',
@@ -42,14 +41,6 @@ const jumpConfig: InputMapConfig = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function pressKey(code: string): void {
-  window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
-}
-
-function releaseKey(code: string): void {
-  window.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true }));
-}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -86,16 +86,16 @@ export interface Physics3DColliderOptions {
    */
   density?: number;
   /**
-   * Named collision layers this collider belongs to.
-   * Resolved to a bitmask via the layer registry.
+   * Named collision layers this collider belongs to, or numeric bitmask values.
+   * Named layers are resolved via the layer registry; numbers are used directly.
    * `undefined` defaults to all-layers (0xFFFFFFFF).
    */
-  layers?: string[];
+  layers?: (string | number)[];
   /**
-   * Named layers this collider collides with.
+   * Named layers this collider collides with, or numeric bitmask values.
    * `undefined` defaults to all-layers (0xFFFFFFFF).
    */
-  mask?: string[];
+  mask?: (string | number)[];
   /**
    * Stable numeric collider id propagated to collision events and sensor state.
    * Defaults to the collider's array index when omitted.
@@ -268,10 +268,10 @@ export type CompoundShapeSpec =
 export interface CompoundColliderOptions3D {
   /** Ordered list of primitive shapes to attach to the body. */
   shapes: CompoundShapeSpec[];
-  /** Collision layer membership (named layers, resolved to bitmask). */
-  layers?: string[];
+  /** Collision layer membership (named layers or numeric bitmask values). */
+  layers?: (string | number)[];
   /** Collision filter — which layers this body collides with. */
-  mask?: string[];
+  mask?: (string | number)[];
 }
 
 /**

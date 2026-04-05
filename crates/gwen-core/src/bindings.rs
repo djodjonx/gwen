@@ -111,7 +111,9 @@ impl Engine {
         }
     }
 
-    // === Entity API ===
+    // ─── Constructor ──────────────────────────────────────────────────────────
+
+    // ─── Entity lifecycle ─────────────────────────────────────────────────────
 
     /// Create a new entity. Returns a `JsEntityId` with both `index` and
     /// `generation` – keep the whole object, not just the index.
@@ -146,7 +148,7 @@ impl Engine {
             .is_alive(EntityId::from_parts(index, generation))
     }
 
-    // === Component API ===
+    // ─── Component registry ───────────────────────────────────────────────────
 
     /// Register a new component type and return a unique numeric type ID.
     ///
@@ -254,7 +256,7 @@ impl Engine {
             .unwrap_or_default()
     }
 
-    // === Bulk Component API ===
+    // ─── Bulk component operations ────────────────────────────────────────────
 
     /// Reads component data for multiple entities in a single JS→WASM call.
     ///
@@ -425,7 +427,9 @@ impl Engine {
         }
     }
 
-    // === Query API ===
+    // ─── Component queries ────────────────────────────────────────────────────
+    // Note: query_entities(&mut self) and query_entities_to_buffer(&mut self)
+    // require &mut self because QuerySystem::query() mutates the query cache.
 
     /// Update the archetype of an entity after component changes.
     /// Pass the full list of component type IDs currently on the entity.
@@ -505,7 +509,7 @@ impl Engine {
         std::ptr::addr_of!(QUERY_RESULT_BUFFER) as *const u32
     }
 
-    // === Game Loop API ===
+    // ─── Game loop ────────────────────────────────────────────────────────────
 
     /// Update game loop (call every frame with delta in milliseconds)
     pub fn tick(&mut self, delta_ms: f32) {
@@ -544,7 +548,7 @@ impl Engine {
         self.gameloop.reset_frame();
     }
 
-    // === Transform API ===
+    // ─── Transforms ───────────────────────────────────────────────────────────
 
     /// Register a transform for the given entity. Must be called after `create_entity`.
     ///
@@ -738,7 +742,7 @@ impl Engine {
         self.transform_system.update();
     }
 
-    // === Shared Memory API (WASM Plugin Bridge) ===
+    // ─── Shared memory buffers (plugin bridge) ────────────────────────────────
 
     /// Allocates `byte_length` bytes in the WASM linear memory and returns
     /// the raw pointer (as usize) to that region.
@@ -899,7 +903,7 @@ impl Engine {
         self.dirty_transforms.len() as u32
     }
 
-    // === Physics API ===
+    // ─── Physics 2D — World lifecycle ─────────────────────────────────────────
 
     #[cfg(feature = "physics2d")]
     pub fn physics_init(&mut self, grav_x: f32, grav_y: f32, _max_entities: u32) {
@@ -930,6 +934,8 @@ impl Engine {
     pub fn physics_set_global_ccd_enabled(&mut self, _enabled: u32) {
         // CCD logic handled in the world
     }
+
+    // ─── Physics 2D — Body management ─────────────────────────────────────────
 
     #[cfg(feature = "physics2d")]
     pub fn physics_add_rigid_body(
@@ -974,6 +980,8 @@ impl Engine {
             world.remove_rigid_body(slot);
         }
     }
+
+    // ─── Physics 2D — Collider management ──────────────────────────────────────
 
     #[cfg(feature = "physics2d")]
     pub fn physics_add_box_collider(
@@ -1069,6 +1077,8 @@ impl Engine {
         vec![0, 0]
     }
 
+    // ─── Physics 2D — Events & state ──────────────────────────────────────────
+
     /// Set the next kinematic position (with angle) of a 2D body.
     ///
     /// # Parameters
@@ -1133,7 +1143,7 @@ impl Engine {
         crate::physics2d::events::get_collision_event_count() as u32
     }
 
-    // === Pathfinding API ===
+    // ─── Pathfinding (2D) ──────────────────────────────────────────────────────
 
     #[cfg(feature = "physics2d")]
     pub fn path_find_2d(&mut self, from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> u32 {
@@ -1145,7 +1155,7 @@ impl Engine {
         crate::physics2d::pathfinding::get_path_buffer_ptr() as *const f32
     }
 
-    // === Physics3D API ===
+    // ─── Physics 3D — World lifecycle ─────────────────────────────────────────
 
     #[cfg(feature = "physics3d")]
     pub fn physics3d_init(&mut self, gx: f32, gy: f32, gz: f32, _max_entities: u32) {
@@ -1188,6 +1198,8 @@ impl Engine {
             false
         }
     }
+
+    // ─── Physics 3D — Body management ─────────────────────────────────────────
 
     /// Remove the 3D rigid body registered for the given entity index.
     ///
@@ -1372,6 +1384,8 @@ impl Engine {
             false
         }
     }
+
+    // ─── Physics 3D — Collider management ──────────────────────────────────────
 
     /// Attach an axis-aligned box collider to a 3D body.
     ///
@@ -2071,6 +2085,8 @@ impl Engine {
         }
     }
 
+    // ─── Physics 3D — Getters (read-only) ─────────────────────────────────────
+
     /// Return the sensor state for a 3D collider as a packed `u64`.
     ///
     /// Bit layout: `bits 0–31 = contact_count (u32)`, `bit 32 = is_active (bool)`.
@@ -2166,6 +2182,8 @@ impl Engine {
         }
     }
 
+    // ─── Physics 3D — Events ─────────────────────────────────────────────────
+
     /// Return the number of 3D collision events written since the last step.
     ///
     /// Returns `0` if the world is not initialised.
@@ -2191,7 +2209,7 @@ impl Engine {
         }
     }
 
-    // === Engine Stats ===
+    // ─── Engine stats ─────────────────────────────────────────────────────────
 
     /// Get engine statistics as JSON string
     pub fn stats(&self) -> String {
@@ -2203,7 +2221,7 @@ impl Engine {
         )
     }
 
-    // === Bulk Query-Read API (Tier 1) ===
+    // ─── Bulk query-read API (Tier 1) ─────────────────────────────────────────
 
     /// Query entities that have ALL given component types and bulk-read one component type.
     ///
@@ -2292,7 +2310,7 @@ impl Engine {
         self.set_components_bulk(slots, gens, write_type_id, data);
     }
 
-    // === Bulk Physics2D API (Tier 2) ===
+    // ─── Bulk physics 2D API (Tier 2) ─────────────────────────────────────────
 
     /// Bulk-sync Rapier physics2D → ECS transforms.
     ///
@@ -2359,7 +2377,7 @@ impl Engine {
         );
     }
 
-    // === Bulk Physics3D API (Tier 3) ===
+    // ─── Bulk physics 3D API (Tier 3) ─────────────────────────────────────────
 
     /// Bulk-sync Rapier3D → ECS Transform3D (7×f32 = 28 bytes per entity).
     ///
@@ -2426,7 +2444,7 @@ impl Engine {
         );
     }
 
-    // === Bulk Entity Operations ===
+    // ─── Bulk entity operations ────────────────────────────────────────────────
 
     /// Destroy multiple entities in a single call.
     ///

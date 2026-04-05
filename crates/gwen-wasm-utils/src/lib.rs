@@ -8,3 +8,9 @@
 pub mod buffer;
 pub mod debug;
 pub mod ring;
+
+#[cfg(test)]
+mod buffer_tests;
+
+#[cfg(test)]
+mod ring_tests;

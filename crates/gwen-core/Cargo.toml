@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 wasm-bindgen = "0.2.87"
 js-sys = "0.3.64"
-web-sys = { version = "0.3.64", features = ["Window", "Document"] }
+web-sys = { version = "0.3.64", features = ["Window", "Document", "console"] }
 bytemuck = { version = "1", features = ["derive"] }
 
 # Physics — 2D (Rapier2D)
@@ -32,12 +32,34 @@ gltf = { version = "1.4", default-features = false, features = ["utils", "names"
 pathfinding = { version = "4.3", optional = true }
 
 [features]
-default = []
+# ─── Physics feature flags ────────────────────────────────────────────────────
+#
+# IMPORTANT: `physics2d` and `physics3d` are MUTUALLY EXCLUSIVE.
+# Enabling both at the same time will produce a compile-time error (see lib.rs).
+#
+# Exactly ONE of the following must be selected per WASM build variant:
+#   - (neither)     → gwen-core-light.wasm   — ECS + transforms only
+#   - physics2d     → gwen-core-physics2d.wasm — ECS + Rapier2D + pathfinding
+#   - physics3d     → gwen-core-physics3d.wasm — ECS + Rapier3D + pathfinding
+#
+# The `build-tools` feature adds BVH mesh pre-baking (Vite plugin / CLI use).
+# It requires `physics3d` to be enabled and is NEVER included in runtime WASM.
+
+## Enables 2D physics via Rapier2D. Mutually exclusive with `physics3d`.
 physics2d = ["dep:rapier2d", "pathfinding-2d"]
+
+## Enables 3D physics via Rapier3D. Mutually exclusive with `physics2d`.
 physics3d = ["dep:rapier3d", "pathfinding-3d", "dep:bincode", "rapier3d/serde-serialize"]
+
+## Adds build-time BVH mesh pre-baking tools. Requires `physics3d`.
+## Never enable in a runtime WASM build — only used in the Vite plugin / CLI.
 build-tools = ["dep:gltf", "physics3d"]
+
+# Internal features — not for direct use
 pathfinding-2d = ["dep:pathfinding"]
 pathfinding-3d = ["dep:pathfinding"]
+
+default = []
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

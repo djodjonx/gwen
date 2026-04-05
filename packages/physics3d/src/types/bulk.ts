@@ -20,10 +20,10 @@ export interface BulkStaticBoxesOptions {
   friction?: number;
   /** Bounciness coefficient in [0, 1]. @default 0.0 */
   restitution?: number;
-  /** Named collision layers each box belongs to. Resolved to bitmask. */
-  layers?: string[];
-  /** Named layers each box collides with. Resolved to bitmask. */
-  mask?: string[];
+  /** Named collision layers each box belongs to, or numeric bitmask values. */
+  layers?: (string | number)[];
+  /** Named layers each box collides with, or numeric bitmask values. */
+  mask?: (string | number)[];
 }
 
 /**

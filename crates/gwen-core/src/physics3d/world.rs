@@ -43,10 +43,56 @@ use crate::physics3d::events::{
     get_collision_events_ptr_3d, get_collision_event_count_3d,
 };
 
+// ─── Debug logging macros ─────────────────────────────────────────────────────
+
+/// Log a debug warning message to the browser console.
+/// Active only in debug builds AND in WASM context; zero cost in release or native tests.
+#[cfg(all(debug_assertions, target_arch = "wasm32"))]
+macro_rules! debug_warn {
+    ($($arg:tt)*) => {{
+        let msg = format!("[gwen-physics3d] {}", format!($($arg)*));
+        web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(&msg));
+    }};
+}
+
+/// Disabled in release builds or non-WASM contexts — compiles to nothing.
+#[cfg(not(all(debug_assertions, target_arch = "wasm32")))]
+macro_rules! debug_warn {
+    ($($arg:tt)*) => {};
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /// Sentinel value stored in `user_data` when a collider has no explicit ID.
 const COLLIDER_ID_ABSENT: u32 = u32::MAX;
+
+// ─── Collider parameters ──────────────────────────────────────────────────────
+
+/// Common configuration shared by every collider variant.
+///
+/// Groups the 9 parameters that appear in every `add_*_collider` method
+/// to reduce repetition and avoid the `too_many_arguments` clippy lint.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ColliderParams {
+    /// Local X-axis offset from body origin (metres).
+    pub offset_x: f32,
+    /// Local Y-axis offset from body origin (metres).
+    pub offset_y: f32,
+    /// Local Z-axis offset from body origin (metres).
+    pub offset_z: f32,
+    /// If `true`, this collider generates events but exerts no physical force.
+    pub is_sensor: bool,
+    /// Surface friction coefficient (≥ 0).
+    pub friction: f32,
+    /// Bounciness in [0, 1].
+    pub restitution: f32,
+    /// Collision layer membership bitmask.
+    pub layer_bits: u32,
+    /// Collision filter mask bitmask.
+    pub mask_bits: u32,
+    /// Application-defined stable collider ID (used in events and as a map key).
+    pub collider_id: u32,
+}
 
 // ─── user_data packing ────────────────────────────────────────────────────────
 
@@ -466,6 +512,7 @@ impl PhysicsWorld3D {
         angular_damping: f32,
     ) -> bool {
         if self.entity_handles.contains_key(&entity_index) {
+            debug_warn!("add_body(entity={}): body already registered — ignoring duplicate registration", entity_index);
             return false;
         }
 
@@ -553,29 +600,22 @@ impl PhysicsWorld3D {
     fn insert_collider(
         &mut self,
         entity_index: u32,
-        collider_id: u32,
-        offset_x: f32,
-        offset_y: f32,
-        offset_z: f32,
-        is_sensor: bool,
-        friction: f32,
-        restitution: f32,
-        layer_bits: u32,
-        mask_bits: u32,
+        params: ColliderParams,
         builder: ColliderBuilder,
     ) -> bool {
         let Some(&body_handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("insert_collider(entity={}, collider={}): no registered body — call add_body() first", entity_index, params.collider_id);
             return false;
         };
 
-        let groups = Self::make_interaction_groups(layer_bits, mask_bits);
+        let groups = Self::make_interaction_groups(params.layer_bits, params.mask_bits);
         let collider = builder
-            .translation(vector![offset_x, offset_y, offset_z])
-            .sensor(is_sensor)
-            .friction(friction)
-            .restitution(restitution)
+            .translation(vector![params.offset_x, params.offset_y, params.offset_z])
+            .sensor(params.is_sensor)
+            .friction(params.friction)
+            .restitution(params.restitution)
             .collision_groups(groups)
-            .user_data(pack_user_data(entity_index, collider_id))
+            .user_data(pack_user_data(entity_index, params.collider_id))
             .active_events(ActiveEvents::COLLISION_EVENTS)
             .build();
 
@@ -584,7 +624,7 @@ impl PhysicsWorld3D {
             body_handle,
             &mut self.rigid_body_set,
         );
-        self.collider_handles.insert((entity_index, collider_id), ch);
+        self.collider_handles.insert((entity_index, params.collider_id), ch);
         true
     }
 
@@ -603,7 +643,6 @@ impl PhysicsWorld3D {
     ///
     /// # Returns
     /// `true` on success, `false` if the entity has no registered body.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_box_collider(
         &mut self,
         entity_index: u32,
@@ -621,9 +660,7 @@ impl PhysicsWorld3D {
         collider_id: u32,
     ) -> bool {
         let builder = ColliderBuilder::cuboid(half_x, half_y, half_z);
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -632,8 +669,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Attach a sphere collider to the rigid body of an entity.
@@ -651,7 +689,6 @@ impl PhysicsWorld3D {
     ///
     /// # Returns
     /// `true` on success, `false` if the entity has no registered body.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_sphere_collider(
         &mut self,
         entity_index: u32,
@@ -667,9 +704,7 @@ impl PhysicsWorld3D {
         collider_id: u32,
     ) -> bool {
         let builder = ColliderBuilder::ball(radius);
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -678,8 +713,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Attach a vertical capsule collider to the rigid body of an entity.
@@ -701,7 +737,6 @@ impl PhysicsWorld3D {
     ///
     /// # Returns
     /// `true` on success, `false` if the entity has no registered body.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_capsule_collider(
         &mut self,
         entity_index: u32,
@@ -718,9 +753,7 @@ impl PhysicsWorld3D {
         collider_id: u32,
     ) -> bool {
         let builder = ColliderBuilder::capsule_y(half_height, radius);
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -729,8 +762,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Attach a heightfield collider to a static body.
@@ -754,7 +788,6 @@ impl PhysicsWorld3D {
     ///
     /// # Returns
     /// `true` on success, `false` if the entity has no body or input is invalid.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_heightfield_collider(
         &mut self,
         entity_index: u32,
@@ -779,10 +812,18 @@ impl PhysicsWorld3D {
             matrix,
             vector![scale_x, scale_y, scale_z],
         );
-        self.insert_collider(
-            entity_index, collider_id, 0.0, 0.0, 0.0,
-            false, friction, restitution, layer_bits, mask_bits, builder,
-        )
+        let params = ColliderParams {
+            offset_x: 0.0,
+            offset_y: 0.0,
+            offset_z: 0.0,
+            is_sensor: false,
+            friction,
+            restitution,
+            layer_bits,
+            mask_bits,
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Replace the height data of an existing heightfield collider.
@@ -830,7 +871,6 @@ impl PhysicsWorld3D {
     /// `indices_flat` must be a multiple of 3 u32s (`[a0,b0,c0, ...]`).
     ///
     /// Returns `false` when the entity has no registered body, or either slice is empty.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_mesh_collider(
         &mut self,
         entity_index: u32,
@@ -858,9 +898,7 @@ impl PhysicsWorld3D {
             return false;
         }
         let builder = ColliderBuilder::trimesh(verts, idxs);
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -869,8 +907,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Rebuild an existing mesh collider with new geometry.
@@ -945,7 +984,6 @@ impl PhysicsWorld3D {
     /// function falls back to a unit sphere (`ball(0.5)`) rather than failing.
     ///
     /// Returns `false` when the entity has no registered body or the vertex slice is empty.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_convex_collider(
         &mut self,
         entity_index: u32,
@@ -971,15 +1009,19 @@ impl PhysicsWorld3D {
         let builder = if verts.len() < 4 {
             // parry3d panics on IncompleteInput when fewer than 4 points are
             // provided; use the ball fallback directly rather than letting it panic.
+            debug_warn!("add_convex_collider(entity={}): only {} vertices — degenerate input, falling back to unit sphere", entity_index, verts.len());
             ColliderBuilder::ball(0.5)
         } else {
-            ColliderBuilder::convex_hull(&verts)
-                .unwrap_or_else(|| ColliderBuilder::ball(0.5))
+            match ColliderBuilder::convex_hull(&verts) {
+                Some(b) => b,
+                None => {
+                    debug_warn!("add_convex_collider(entity={}): Rapier convex hull failed on {} vertices, falling back to unit sphere", entity_index, verts.len());
+                    ColliderBuilder::ball(0.5)
+                }
+            }
         }
         .density(density);
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -988,8 +1030,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Load a pre-baked BVH buffer as a trimesh collider.
@@ -1016,7 +1059,6 @@ impl PhysicsWorld3D {
     /// # Returns
     /// `true` on success, `false` if `bvh_bytes` is too short, the magic header
     /// is wrong, bincode decoding fails, or the entity has no registered body.
-    #[allow(clippy::too_many_arguments)]
     pub fn load_bvh_collider(
         &mut self,
         entity_index: u32,
@@ -1033,9 +1075,11 @@ impl PhysicsWorld3D {
     ) -> bool {
         use rapier3d::geometry::TriMesh;
         if bvh_bytes.len() < 8 {
+            debug_warn!("load_bvh_collider(entity={}): buffer too short ({} bytes, need ≥ 8)", entity_index, bvh_bytes.len());
             return false;
         }
         if &bvh_bytes[0..4] != b"GBVH" {
+            debug_warn!("load_bvh_collider(entity={}): invalid magic header, expected 'GBVH'", entity_index);
             return false;
         }
         let payload = &bvh_bytes[8..];
@@ -1043,12 +1087,13 @@ impl PhysicsWorld3D {
             bincode::serde::decode_from_slice(payload, bincode::config::standard());
         let trimesh = match result {
             Ok((t, _)) => t,
-            Err(_) => return false,
+            Err(_e) => {
+                debug_warn!("load_bvh_collider(entity={}): bincode decode failed — {:?}", entity_index, _e);
+                return false;
+            }
         };
         let builder = ColliderBuilder::new(rapier3d::geometry::SharedShape::new(trimesh));
-        self.insert_collider(
-            entity_index,
-            collider_id,
+        let params = ColliderParams {
             offset_x,
             offset_y,
             offset_z,
@@ -1057,8 +1102,9 @@ impl PhysicsWorld3D {
             restitution,
             layer_bits,
             mask_bits,
-            builder,
-        )
+            collider_id,
+        };
+        self.insert_collider(entity_index, params, builder)
     }
 
     /// Bulk-create N static rigid bodies with box colliders in a single call.
@@ -1225,15 +1271,17 @@ impl PhysicsWorld3D {
 
             if self.insert_collider(
                 entity_index,
-                collider_id,
-                ox,
-                oy,
-                oz,
-                is_sensor,
-                friction,
-                restitution,
-                layer_bits,
-                mask_bits,
+                ColliderParams {
+                    offset_x: ox,
+                    offset_y: oy,
+                    offset_z: oz,
+                    is_sensor,
+                    friction,
+                    restitution,
+                    layer_bits,
+                    mask_bits,
+                    collider_id,
+                },
                 builder,
             ) {
                 count += 1;
@@ -1475,9 +1523,11 @@ impl PhysicsWorld3D {
         az: f32,
     ) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_body_state(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_body_state(entity={}): body handle became invalid", entity_index);
             return false;
         };
 
@@ -1527,9 +1577,11 @@ impl PhysicsWorld3D {
         vz: f32,
     ) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_linear_velocity(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_linear_velocity(entity={}): body handle became invalid", entity_index);
             return false;
         };
         body.set_linvel(vector![vx, vy, vz], true);
@@ -1574,9 +1626,11 @@ impl PhysicsWorld3D {
         az: f32,
     ) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_angular_velocity(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_angular_velocity(entity={}): body handle became invalid", entity_index);
             return false;
         };
         body.set_angvel(vector![ax, ay, az], true);
@@ -1604,9 +1658,11 @@ impl PhysicsWorld3D {
         iz: f32,
     ) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("apply_impulse(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("apply_impulse(entity={}): body handle became invalid", entity_index);
             return false;
         };
         body.apply_impulse(vector![ix, iy, iz], true);
@@ -1632,9 +1688,11 @@ impl PhysicsWorld3D {
         az: f32,
     ) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("apply_angular_impulse(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("apply_angular_impulse(entity={}): body handle became invalid", entity_index);
             return false;
         };
         body.apply_torque_impulse(vector![ax, ay, az], true);
@@ -1674,9 +1732,11 @@ impl PhysicsWorld3D {
     /// `true` on success, `false` if the entity has no registered body.
     pub fn set_body_kind(&mut self, entity_index: u32, kind: u8) -> bool {
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_body_kind(entity={}): no registered body", entity_index);
             return false;
         };
         let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_body_kind(entity={}): body handle became invalid", entity_index);
             return false;
         };
         body.set_body_type(kind_to_body_type(kind), true);

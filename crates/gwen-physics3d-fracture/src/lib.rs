@@ -29,6 +29,44 @@ use wasm_bindgen::prelude::*;
 
 // ─── Public WASM API ─────────────────────────────────────────────────────────
 
+/// Core fracture logic without WASM-bindgen overhead.
+///
+/// This function wraps the core Voronoi fracture algorithm to allow deterministic
+/// testing without WASM boundary crossing. It is used internally by [`voronoi_fracture`]
+/// and can also be called directly in Rust tests.
+///
+/// # Arguments
+/// * `vertices_flat` — Source mesh vertex positions `[x0,y0,z0, x1,y1,z1, ...]`.
+/// * `indices_flat`  — Source mesh triangle indices `[a0,b0,c0, ...]`.
+/// * `impact_x/y/z` — Impact point in local mesh space. Used as the first Voronoi site.
+/// * `shard_count`  — Number of desired shards (1–64 recommended; clamped to 1 minimum).
+/// * `seed`         — LCG random seed for reproducible fracture patterns.
+///
+/// # Returns
+/// A flat `f32` buffer encoding all non-empty shards (see module-level docs for layout).
+/// Returns an empty `vec![]` if `vertices_flat` or `indices_flat` is empty.
+pub(crate) fn voronoi_fracture_core(
+    vertices_flat: &[f32],
+    indices_flat: &[u32],
+    impact_x: f32,
+    impact_y: f32,
+    impact_z: f32,
+    shard_count: u32,
+    seed: u32,
+) -> Vec<f32> {
+    if vertices_flat.is_empty() || indices_flat.is_empty() {
+        return vec![];
+    }
+    let shard_count = shard_count.max(1) as usize;
+
+    let verts = parse_vertices(vertices_flat);
+    let tris = parse_triangles(indices_flat);
+
+    let sites = generate_sites(impact_x, impact_y, impact_z, shard_count, seed, &verts);
+    let buckets = assign_triangles(&verts, &tris, &sites, shard_count);
+    encode_output(&verts, &buckets, shard_count)
+}
+
 /// Fracture a triangle mesh into `shard_count` pieces using Voronoi site assignment.
 ///
 /// # Arguments
@@ -53,17 +91,7 @@ pub fn voronoi_fracture(
     shard_count: u32,
     seed: u32,
 ) -> Vec<f32> {
-    if vertices_flat.is_empty() || indices_flat.is_empty() {
-        return vec![];
-    }
-    let shard_count = shard_count.max(1) as usize;
-
-    let verts = parse_vertices(vertices_flat);
-    let tris = parse_triangles(indices_flat);
-
-    let sites = generate_sites(impact_x, impact_y, impact_z, shard_count, seed, &verts);
-    let buckets = assign_triangles(&verts, &tris, &sites, shard_count);
-    encode_output(&verts, &buckets, shard_count)
+    voronoi_fracture_core(vertices_flat, indices_flat, impact_x, impact_y, impact_z, shard_count, seed)
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -177,3 +205,9 @@ fn encode_output(verts: &[[f32; 3]], buckets: &[Vec<[u32; 3]>], shard_count: usi
     }
     out
 }
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod fracture_tests;
+

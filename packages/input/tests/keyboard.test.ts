@@ -8,22 +8,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { KeyboardInput } from '../src/plugin/keyboard';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Simulate a keydown event on the target (or window if none given).
- */
-function fireKeyDown(code: string, target: EventTarget = window): void {
-  target.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
-}
-
-/**
- * Simulate a keyup event on the target (or window if none given).
- */
-function fireKeyUp(code: string, target: EventTarget = window): void {
-  target.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true }));
-}
+import { fireKeyDown, fireKeyUp } from './helpers';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

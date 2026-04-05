@@ -7,9 +7,9 @@
 
 // ─── Plugin exports ─────────────────────────────────────────────────────────
 export { Physics2DPlugin, Physics2D, physics2D } from './plugin/index';
-export { ShapeComponent } from './plugin/shape-component';
-export type { ShapeData } from './plugin/shape-component';
-export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './plugin/ring-buffer';
+export { ShapeComponent } from './shape-component';
+export type { ShapeData } from './shape-component';
+export { ContactRingBuffer, CONTACT_EVENT_BYTES, RING_CAPACITY } from './ring-buffer';
 
 // ─── Module, composables & type augmentations ───────────────────────────────
 export * from './augment';

@@ -23,7 +23,8 @@
  */
 
 import { useEngine } from '../context.js';
-import type { PlaceHandle } from './types.js';
+import type { PlaceHandle, ActorDefinition } from './types.js';
+import type { PrefabDefinition } from '../define-prefab.js';
 
 // ─── Layout context ───────────────────────────────────────────────────────────
 
@@ -120,8 +121,7 @@ export function placeGroup(options: Omit<PlaceOptions, 'props'> = {}): PlaceHand
   }
 
   const engine = useEngine();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bridge = (engine as any)._bridge;
+  const bridge = engine._getPlacementBridge();
   const entityId = engine.createEntity();
   applyTransform(bridge, entityId as unknown as bigint, options);
   _register(entityId as unknown as bigint);
@@ -156,8 +156,7 @@ export function placeGroup(options: Omit<PlaceOptions, 'props'> = {}): PlaceHand
  * ```
  */
 export function placeActor<Props, API>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actorDef: any,
+  actorDef: ActorDefinition<Props, API>,
   options: PlaceOptions<Props> = {},
 ): PlaceHandle<API> {
   if (!_isInLayoutContext()) {
@@ -168,8 +167,7 @@ export function placeActor<Props, API>(
   }
 
   const entityId = actorDef._plugin.spawn(options.props) as unknown as bigint;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bridge = (useEngine() as any)._bridge;
+  const bridge = useEngine()._getPlacementBridge();
   applyTransform(bridge, entityId, options);
   _register(entityId);
 
@@ -205,8 +203,7 @@ export function placeActor<Props, API>(
  * ```
  */
 export function placePrefab(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  prefabDef: any,
+  prefabDef: PrefabDefinition,
   options: PlaceOptions<Record<string, unknown>> = {},
 ): PlaceHandle<void> {
   if (!_isInLayoutContext()) {
@@ -217,8 +214,7 @@ export function placePrefab(
   }
 
   const engine = useEngine();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bridge = (engine as any)._bridge;
+  const bridge = engine._getPlacementBridge();
   const id = engine.createEntity();
 
   for (const { def, defaults } of prefabDef.components ?? []) {
