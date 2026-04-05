@@ -248,6 +248,9 @@ importers:
         specifier: workspace:*
         version: link:../schema
     devDependencies:
+      '@gwenjs/app':
+        specifier: workspace:*
+        version: link:../app
       typescript:
         specifier: ^6.0.2
         version: 6.0.2
