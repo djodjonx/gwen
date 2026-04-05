@@ -168,6 +168,8 @@ export const CoreErrorCodes = {
   FRAME_LOOP_ERROR: 'CORE:FRAME_LOOP_ERROR',
   PLUGIN_SETUP_ERROR: 'CORE:PLUGIN_SETUP_ERROR',
   WASM_LOAD_ERROR: 'CORE:WASM_LOAD_ERROR',
+  WASM_TIMEOUT: 'CORE:WASM_TIMEOUT',
+  WASM_PANIC: 'CORE:WASM_PANIC',
 } as const;
 
 export interface GwenEngineOptions {
@@ -772,6 +774,15 @@ class GwenEngineImpl implements GwenEngine {
     // Own the RAF loop — call _runFrame each animation frame.
     const loop = async (now: number) => {
       if (!this._running) return;
+
+      // Throttle to targetFPS: skip frame if minimum interval hasn't elapsed.
+      // Use a 0.5ms tolerance to account for RAF timing jitter.
+      const frameBudgetMs = 1000 / this.targetFPS;
+      if (now - this._lastFrameTime < frameBudgetMs - 0.5) {
+        this._rafHandle = requestAnimationFrame(loop);
+        return;
+      }
+
       const rawDt = now - this._lastFrameTime;
       const dt = Math.min(rawDt, this.maxDeltaSeconds * 1000);
       this._lastFrameTime = now;

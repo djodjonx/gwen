@@ -1074,7 +1074,29 @@ export async function initWasm(
   _initPromise = (async () => {
     const glue = await loadWasmGlue(resolvedJsUrl);
 
-    const wasmInput = resolvedWasmUrl ? await fetch(resolvedWasmUrl) : undefined;
+    const _fetchController = new AbortController();
+    const _fetchTimeoutId = setTimeout(() => _fetchController.abort(), 10_000);
+
+    let wasmInput: Response | undefined;
+    try {
+      if (resolvedWasmUrl) {
+        wasmInput = await fetch(resolvedWasmUrl, { signal: _fetchController.signal });
+        if (!wasmInput.ok) {
+          throw new Error(
+            `[GWEN] WASM fetch failed with HTTP ${wasmInput.status} ${wasmInput.statusText}`,
+          );
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(
+          `[CORE:WASM_TIMEOUT] initWasm() timed out after 10s waiting for WASM binary.`,
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(_fetchTimeoutId);
+    }
 
     if (typeof glue.default === 'function') {
       // glue.default() returns the raw WASM instance exports (including memory)
@@ -1094,11 +1116,17 @@ export async function initWasm(
     _wasmEngine = new glue.Engine(maxEntities);
 
     if (variant === 'physics2d') {
-      console.log('[GWEN] WASM core loaded — Physics2D variant active');
+      if (import.meta.env?.DEV) {
+        console.log('[GWEN] WASM core loaded — Physics2D variant active');
+      }
     } else if (variant === 'physics3d') {
-      console.log('[GWEN] WASM core loaded — Physics3D variant active');
+      if (import.meta.env?.DEV) {
+        console.log('[GWEN] WASM core loaded — Physics3D variant active');
+      }
     } else {
-      console.log('[GWEN] WASM core loaded — Light variant active');
+      if (import.meta.env?.DEV) {
+        console.log('[GWEN] WASM core loaded — Light variant active');
+      }
     }
   })().catch((err) => {
     _initPromise = null;
