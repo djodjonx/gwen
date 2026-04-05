@@ -132,6 +132,44 @@ export interface WasmModuleHandle<Exports extends WebAssembly.Exports = WebAssem
  * Configuration options for {@link createEngine}.
  * All fields are optional — unspecified fields fall back to engine defaults.
  */
+/**
+ * Minimal error bus interface required by the engine.
+ *
+ * Intentionally kept small to avoid a circular dependency with `@gwenjs/kit`.
+ * The `GwenErrorBus` class in `@gwenjs/kit` satisfies this interface.
+ *
+ * @example
+ * ```typescript
+ * import { createErrorBus } from '@gwenjs/kit'
+ * const engine = await createEngine({ errorBus: createErrorBus() })
+ * ```
+ */
+export interface EngineErrorBus {
+  /**
+   * Emit a structured error event.
+   * Matches the signature of `GwenErrorBus.emit()` in `@gwenjs/kit`.
+   */
+  emit(event: {
+    level: 'fatal' | 'error' | 'warning' | 'info' | 'verbose';
+    code: string;
+    message: string;
+    source?: string;
+    error?: unknown;
+    context?: Record<string, unknown>;
+  }): void;
+  /** Register a callback to invoke before a fatal error is thrown. */
+  onFatal(cb: () => void): void;
+  /** Install global `window.onerror` / `unhandledrejection` handlers. */
+  install?(): void;
+}
+
+/** Error codes emitted by the GWEN core engine. */
+export const CoreErrorCodes = {
+  FRAME_LOOP_ERROR: 'CORE:FRAME_LOOP_ERROR',
+  PLUGIN_SETUP_ERROR: 'CORE:PLUGIN_SETUP_ERROR',
+  WASM_LOAD_ERROR: 'CORE:WASM_LOAD_ERROR',
+} as const;
+
 export interface GwenEngineOptions {
   /**
    * Maximum number of simultaneously alive entities.
@@ -158,6 +196,14 @@ export interface GwenEngineOptions {
    * @default 'light'
    */
   variant?: 'light' | 'physics2d' | 'physics3d';
+
+  /**
+   * Optional error bus instance. When provided the engine emits all internal
+   * errors through it and calls `engine.stop()` on fatal errors.
+   *
+   * Create one with `createErrorBus()` from `@gwenjs/kit`.
+   */
+  errorBus?: EngineErrorBus;
 }
 
 /**
@@ -174,8 +220,10 @@ export interface GwenEngineOptions {
  * }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface GwenProvides {}
+export interface GwenProvides {
+  /** The engine-level error bus. Inject via `engine.inject('errors')`. */
+  errors: EngineErrorBus;
+}
 
 /**
  * Options object accepted by the {@link GwenPluginNotFoundError} constructor.
@@ -539,6 +587,8 @@ class GwenEngineImpl implements GwenEngine {
   private _running = false;
   private _rafHandle = 0;
   private _lastFrameTime = 0;
+  /** Error bus wired at construction time via `GwenEngineOptions.errorBus`. @internal */
+  private readonly _errorBus: EngineErrorBus | null = null;
 
   // ─── WASM module registry (RFC-008) ───────────────────────────────────────
   /**
@@ -603,6 +653,23 @@ class GwenEngineImpl implements GwenEngine {
     this._entityManager = new EntityManager(this.maxEntities);
     this._componentRegistry = new ComponentRegistry();
     this._queryEngine = new QueryEngine();
+
+    if (opts.errorBus) {
+      this._errorBus = opts.errorBus;
+      // Register as 'errors' service so plugins can inject it.
+      this._services.set('errors', opts.errorBus);
+      // Stop the engine gracefully before a fatal error is thrown.
+      opts.errorBus.onFatal(() => {
+        this.stop().catch(() => {});
+      });
+      // Install global window.onerror / unhandledrejection in production.
+      if (
+        typeof globalThis !== 'undefined' &&
+        typeof (globalThis as Record<string, unknown>)['window'] !== 'undefined'
+      ) {
+        opts.errorBus.install?.();
+      }
+    }
   }
 
   // ─── Plugin runner ────────────────────────────────────────────────────────
@@ -711,6 +778,22 @@ class GwenEngineImpl implements GwenEngine {
       this._deltaTime = dt;
       try {
         await this._runFrame(dt);
+      } catch (err) {
+        const payload: EngineErrorPayload = {
+          code: CoreErrorCodes.FRAME_LOOP_ERROR,
+          message: err instanceof Error ? err.message : String(err),
+          cause: err,
+          frame: this._frameCountOwn,
+        };
+        await this.hooks.callHook('engine:error', payload);
+        this._errorBus?.emit({
+          level: 'error',
+          code: CoreErrorCodes.FRAME_LOOP_ERROR,
+          message: payload.message,
+          source: '@gwenjs/core',
+          error: err,
+          context: { frame: this._frameCountOwn },
+        });
       } finally {
         if (this._running) this._rafHandle = requestAnimationFrame(loop);
       }
@@ -741,6 +824,7 @@ class GwenEngineImpl implements GwenEngine {
    * ```
    */
   async startExternal(): Promise<void> {
+    this._running = true;
     await this.hooks.callHook('engine:init');
     await this.hooks.callHook('engine:start');
     // Intentionally skip RAF — the caller drives the loop via advance().
@@ -756,6 +840,22 @@ class GwenEngineImpl implements GwenEngine {
     this._deltaTime = cappedDt;
     try {
       await this._runFrame(cappedDt);
+    } catch (err) {
+      const payload: EngineErrorPayload = {
+        code: CoreErrorCodes.FRAME_LOOP_ERROR,
+        message: err instanceof Error ? err.message : String(err),
+        cause: err,
+        frame: this._frameCountOwn,
+      };
+      await this.hooks.callHook('engine:error', payload);
+      this._errorBus?.emit({
+        level: 'error',
+        code: CoreErrorCodes.FRAME_LOOP_ERROR,
+        message: payload.message,
+        source: '@gwenjs/core',
+        error: err,
+        context: { frame: this._frameCountOwn },
+      });
     } finally {
       this._advancing = false;
     }
