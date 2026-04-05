@@ -7,11 +7,11 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InputMapper } from '../src/mapping/InputMapper';
-import { KeyboardInput } from '../src/keyboard';
-import { GamepadInput } from '../src/gamepad';
-import { BindingType, InputType } from '../src/mapping/types';
-import type { InputMapConfig } from '../src/mapping/types';
+import { InputMapper } from '../src/plugin/mapping/InputMapper';
+import { KeyboardInput } from '../src/plugin/keyboard';
+import { GamepadInput } from '../src/plugin/gamepad';
+import { BindingType, InputType } from '../src/plugin/mapping/types';
+import type { InputMapConfig } from '../src/plugin/mapping/types';
 
 // ── Shared config fixture ─────────────────────────────────────────────────────
 

@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { KeyboardInput } from '../src/keyboard';
-import { MouseInput } from '../src/mouse';
-import { GamepadInput } from '../src/gamepad';
+import { KeyboardInput } from '../src/plugin/keyboard';
+import { MouseInput } from '../src/plugin/mouse';
+import { GamepadInput } from '../src/plugin/gamepad';
 import { InputPlugin } from '../src/index';
 import type { GwenEngine } from '@gwenjs/core';
 

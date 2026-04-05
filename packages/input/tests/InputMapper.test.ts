@@ -1,9 +1,9 @@
 // packages/@gwenjs/plugin-input/tests/InputMapper.test.ts
 import { describe, it, expect } from 'vitest';
-import { InputMapper } from '../src/mapping/InputMapper.js';
+import { InputMapper } from '../src/plugin/mapping/InputMapper.js';
 import { Keys } from '../src/constants/keys.js';
 import { GamepadButtons } from '../src/constants/gamepad.js';
-import { BindingType, InputType } from '../src/mapping/types.js';
+import { BindingType, InputType } from '../src/plugin/mapping/types.js';
 
 const makeKeyboard = (pressed: string[] = [], justPressed: string[] = []) => ({
   isPressed: (k: string) => pressed.includes(k),

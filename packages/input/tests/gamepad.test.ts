@@ -1,6 +1,6 @@
 // packages/@gwenjs/plugin-input/tests/gamepad.test.ts
 import { describe, it, expect } from 'vitest';
-import { GamepadInput } from '../src/gamepad.js';
+import { GamepadInput } from '../src/plugin/gamepad.js';
 
 const makeGamepadState = (buttons: boolean[]): Gamepad =>
   ({

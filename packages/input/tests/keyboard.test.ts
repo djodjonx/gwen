@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { KeyboardInput } from '../src/keyboard';
+import { KeyboardInput } from '../src/plugin/keyboard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
