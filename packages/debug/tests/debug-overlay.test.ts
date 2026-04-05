@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FpsTracker } from '../src/fps-tracker';
-import { DebugOverlay } from '../src/overlay';
+import { FpsTracker } from '../src/plugin/fps-tracker';
+import { DebugOverlay } from '../src/plugin/overlay';
 import type { DebugMetrics } from '../src/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

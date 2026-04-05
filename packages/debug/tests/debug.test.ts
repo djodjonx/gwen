@@ -2,7 +2,7 @@
  * Tests — DebugPlugin + FpsTracker
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FpsTracker } from '../src/fps-tracker';
+import { FpsTracker } from '../src/plugin/fps-tracker';
 import { DebugPlugin } from '../src/index';
 import type { GwenEngine } from '@gwenjs/core';
 
