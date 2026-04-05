@@ -77,20 +77,24 @@ export function buildLayerRegistry(layers: string[]): Map<string, number> {
  * @throws Error if a layer name is not declared in the registry.
  */
 export function resolveLayerBits(
-  names: string[] | undefined,
+  names: (string | number)[] | undefined,
   registry: Map<string, number>,
 ): number {
   if (!names || names.length === 0) return 0xffffffff;
   const declared = [...registry.keys()];
   let mask = 0;
   for (const name of names) {
-    const bit = registry.get(name);
-    if (bit === undefined) {
-      throw new Error(
-        `[GWEN:Physics3D] Unknown layer "${name}". Declared layers: [${declared.join(', ')}]`,
-      );
+    if (typeof name === 'number') {
+      mask |= name;
+    } else {
+      const bit = registry.get(name);
+      if (bit === undefined) {
+        throw new Error(
+          `[GWEN:Physics3D] Unknown layer "${name}". Declared layers: [${declared.join(', ')}]`,
+        );
+      }
+      mask |= bit;
     }
-    mask |= bit;
   }
   return mask >>> 0; // ensure unsigned 32-bit
 }

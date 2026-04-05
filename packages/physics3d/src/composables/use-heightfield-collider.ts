@@ -31,10 +31,10 @@ export interface HeightfieldColliderOptions {
   friction?: number;
   /** Bounciness [0, 1]. @default 0 */
   restitution?: number;
-  /** Named collision layers this collider belongs to (resolved via layer registry). */
-  layers?: string[];
-  /** Named layers this collider collides with (resolved via layer registry). */
-  mask?: string[];
+  /** Numeric collision layer bitmask (membership). */
+  layer?: number;
+  /** Numeric collision filter bitmask (which layers to collide with). */
+  mask?: number;
   /** Built-in material preset controlling friction and restitution. @default 'default' */
   material?: Physics3DMaterialPreset;
 }
@@ -103,8 +103,8 @@ export function useHeightfieldCollider(
     },
     friction: options.friction,
     restitution: options.restitution,
-    layers: options.layers,
-    mask: options.mask,
+    layers: options.layer !== undefined ? [options.layer] : undefined,
+    mask: options.mask !== undefined ? [options.mask] : undefined,
     materialPreset: options.material,
     colliderId,
   });

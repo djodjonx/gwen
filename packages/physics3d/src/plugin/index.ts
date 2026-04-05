@@ -812,8 +812,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   const shapeSpecToColliderOptions = (
     shape: CompoundShapeSpec,
     colliderId: number,
-    layers: string[] | undefined,
-    mask: string[] | undefined,
+    layers: (string | number)[] | undefined,
+    mask: (string | number)[] | undefined,
   ): Physics3DColliderOptions => {
     const common = {
       colliderId,

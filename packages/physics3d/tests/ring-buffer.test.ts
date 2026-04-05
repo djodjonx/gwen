@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { ContactRingBuffer3D, CONTACT_EVENT_FLOATS, RING_CAPACITY_3D } from '../src/ring-buffer.js';
+import {
+  ContactRingBuffer3D,
+  CONTACT_EVENT_FLOATS,
+  RING_CAPACITY_3D,
+} from '../src/plugin/ring-buffer.js';
 
 describe('ContactRingBuffer3D', () => {
   it('exports the correct constants', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ContactRingBuffer3D } from '../src/ring-buffer.js';
+import { ContactRingBuffer3D } from '../src/plugin/ring-buffer.js';
 
 // ─── Mocks for dynamic body perf test ─────────────────────────────────────
 
