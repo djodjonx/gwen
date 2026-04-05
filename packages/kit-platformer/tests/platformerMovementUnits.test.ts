@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { PlatformerMovementSystem } from '../src/systems/PlatformerMovementSystem.js';
 import { PlatformerController } from '../src/components/PlatformerController.js';
 import { PlatformerIntent } from '../src/components/PlatformerIntent.js';
-import { toPhysicsScalar, DEFAULT_PIXELS_PER_METER } from '../src/units.js';
+import { toPhysicsScalar, DEFAULT_PIXELS_PER_METER } from '../src/plugin/units.js';
 
 // ─── V2 engine mock helper ────────────────────────────────────────────────────
 

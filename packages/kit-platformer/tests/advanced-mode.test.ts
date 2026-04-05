@@ -1,7 +1,7 @@
 // packages/@gwenjs/kit-platformer/tests/advanced-mode.test.ts
 import { describe, it, expect, vi } from 'vitest';
 import { createPlayerPrefab } from '../src/prefabs/player.js';
-import { PlatformerKitPlugin } from '../src/plugin.js';
+import { PlatformerKitPlugin } from '../src/plugin/index.js';
 import { Position } from '../src/components/StandardComponents.js';
 import { defineComponent, Types } from '@gwenjs/core';
 
