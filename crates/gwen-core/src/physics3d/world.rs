@@ -30,9 +30,11 @@
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 
+use rapier3d::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};
 use rapier3d::dynamics::RigidBodyHandle;
 use rapier3d::geometry::{ColliderHandle, Group, InteractionGroups};
-use rapier3d::na::{Quaternion, Translation3, UnitQuaternion};
+use rapier3d::na::{Quaternion, Translation3, Unit, UnitQuaternion};
+use rapier3d::parry::query::ShapeCastOptions;
 use rapier3d::prelude::*;
 
 use crate::physics3d::components::{
@@ -221,6 +223,9 @@ pub struct PhysicsWorld3D {
     impulse_joint_set: ImpulseJointSet,
     multibody_joint_set: MultibodyJointSet,
     ccd_solver: CCDSolver,
+    /// Spatial query acceleration structure (BVH over all colliders).
+    /// Updated after every [`step`] call.
+    query_pipeline: QueryPipeline,
     /// Mapping from ECS entity index → Rapier handle.
     entity_handles: HashMap<u32, RigidBodyHandle>,
     /// Mapping from `(entity_index, collider_id)` → [`ColliderHandle`].
@@ -235,6 +240,17 @@ pub struct PhysicsWorld3D {
     coalesce_events: bool,
     /// Current quality preset (cached to allow re-applying after init).
     quality_preset: PhysicsQualityPreset3D,
+    /// Monotonically increasing counter used to assign stable integer IDs to joints.
+    next_joint_id: u32,
+    /// Mapping from stable joint ID (u32) to Rapier ImpulseJointHandle.
+    joint_handles: HashMap<u32, ImpulseJointHandle>,
+    /// Mapping from ECS entity index → [`KinematicCharacterController`] instance
+    /// paired with the `apply_impulses_to_dynamic` flag.
+    ///
+    /// Populated by [`add_character_controller`] and cleared by
+    /// [`remove_character_controller`]. One controller per entity is supported;
+    /// inserting a second controller for the same entity replaces the first.
+    cc_controllers: HashMap<u32, (KinematicCharacterController, bool)>,
 }
 
 // ─── Shape type constants for the compound batch buffer ─────────────────────
@@ -262,11 +278,15 @@ impl PhysicsWorld3D {
             impulse_joint_set: ImpulseJointSet::new(),
             multibody_joint_set: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
+            query_pipeline: QueryPipeline::new(),
             entity_handles: HashMap::new(),
             collider_handles: HashMap::new(),
             sensor_states: HashMap::new(),
             coalesce_events: false,
             quality_preset: PhysicsQualityPreset3D::Medium,
+            next_joint_id: 0,
+            joint_handles: HashMap::new(),
+            cc_controllers: HashMap::new(),
         };
         // Apply the default quality preset so solver parameters are consistent.
         world.apply_quality_config(quality_solver_config_3d(PhysicsQualityPreset3D::Medium));
@@ -352,6 +372,10 @@ impl PhysicsWorld3D {
         // populated by EventCollector3D.  We read back the ring buffer here so
         // we don't need a second event channel.
         self.update_sensor_states_from_events();
+
+        // Rebuild the spatial query BVH so castRay / castShape / overlapShape
+        // / projectPoint reflect the new collider positions this frame.
+        self.query_pipeline.update(&self.collider_set);
     }
 
     /// Scan the current ring buffer and update `sensor_states` for any sensor
@@ -553,6 +577,17 @@ impl PhysicsWorld3D {
             // Drop any sensor state for this entity.
             self.sensor_states
                 .retain(|&(eidx, _), _| eidx != entity_index);
+
+            // Remove all joints whose handle references this body.
+            // Rapier auto-removes attached joints when a body is removed, so we only
+            // need to clean the local map.
+            self.joint_handles.retain(|_, &mut jh| {
+                if let Some(joint) = self.impulse_joint_set.get(jh) {
+                    joint.body1 != handle && joint.body2 != handle
+                } else {
+                    false
+                }
+            });
 
             self.rigid_body_set.remove(
                 handle,
@@ -1958,6 +1993,497 @@ impl PhysicsWorld3D {
         }
     }
 
+    // ── RFC-07: Spatial queries ───────────────────────────────────────────────
+
+    /// Build a Rapier [`SharedShape`] from a compact 4-value encoding.
+    ///
+    /// Encoding (matches TypeScript `encodeShape`):
+    /// - `0` — Box: `[0, half_x, half_y, half_z]`
+    /// - `1` — Ball: `[1, radius, _, _]`
+    /// - `2` — Capsule (Y-axis): `[2, radius, half_height, _]`
+    ///
+    /// Returns a unit-sphere as fallback for unknown shape types.
+    fn decode_shape(shape_type: u32, p0: f32, p1: f32, p2: f32) -> SharedShape {
+        match shape_type {
+            0 => SharedShape::cuboid(p0, p1, p2),
+            1 => SharedShape::ball(p0),
+            2 => SharedShape::capsule_y(p1, p0),
+            _ => SharedShape::ball(0.5),
+        }
+    }
+
+    /// Build a [`QueryFilter`] from layer/mask bitmasks.
+    ///
+    /// An [`InteractionGroups`] is used so that only colliders whose membership
+    /// bits overlap the filter mask are considered.
+    fn make_query_filter(layers: u32, mask: u32) -> QueryFilter<'static> {
+        QueryFilter::new().groups(InteractionGroups::new(
+            Group::from_bits_truncate(layers),
+            Group::from_bits_truncate(mask),
+        ))
+    }
+
+    /// Cast a ray and return the first hit.
+    ///
+    /// # Arguments
+    /// * `ox/oy/oz`  — Ray origin (world space).
+    /// * `dx/dy/dz`  — Ray direction (need not be normalised).
+    /// * `max_dist`  — Maximum travel distance.
+    /// * `layers`    — Collision layer bitmask (membership).
+    /// * `mask`      — Collision filter bitmask.
+    /// * `solid`     — If `true`, hitting the interior of a solid shape counts.
+    ///
+    /// # Returns
+    /// A `Vec<f32>` of 9 elements on hit, or a single `[0.0]` on miss:
+    /// `[hit(1.0), entity_index, distance, nx, ny, nz, px, py, pz]`
+    pub fn cast_ray(
+        &self,
+        ox: f32, oy: f32, oz: f32,
+        dx: f32, dy: f32, dz: f32,
+        max_dist: f32, layers: u32, mask: u32, solid: bool,
+    ) -> Vec<f32> {
+        let ray = Ray::new(point![ox, oy, oz], vector![dx, dy, dz]);
+        let filter = Self::make_query_filter(layers, mask);
+        let Some((ch, intersection)) = self.query_pipeline.cast_ray_and_get_normal(
+            &self.rigid_body_set, &self.collider_set,
+            &ray, max_dist, solid, filter,
+        ) else {
+            return vec![0.0];
+        };
+        let entity_index = self
+            .collider_set
+            .get(ch)
+            .map(|c| unpack_user_data(c.user_data).0)
+            .unwrap_or(u32::MAX);
+        let hit_point = ray.point_at(intersection.time_of_impact);
+        vec![
+            1.0,
+            entity_index as f32,
+            intersection.time_of_impact,
+            intersection.normal.x,
+            intersection.normal.y,
+            intersection.normal.z,
+            hit_point.x,
+            hit_point.y,
+            hit_point.z,
+        ]
+    }
+
+    /// Cast a shape along a direction and return the first collision.
+    ///
+    /// # Arguments
+    /// * `pos_x/y/z`       — Shape origin.
+    /// * `rot_x/y/z/w`     — Shape orientation (unit quaternion).
+    /// * `dir_x/y/z`       — Cast direction.
+    /// * `shape_type`      — Shape encoding type (0=box, 1=ball, 2=capsule).
+    /// * `p0/p1/p2`        — Shape parameters.
+    /// * `max_dist`        — Maximum travel distance.
+    /// * `layers` / `mask` — Collision filter.
+    ///
+    /// # Returns
+    /// 15 floats on hit:
+    /// `[hit, entity, toi, nx,ny,nz, w1x,w1y,w1z, w1x,w1y,w1z, w2x,w2y,w2z]`
+    /// Single `[0.0]` on miss.
+    pub fn cast_shape(
+        &self,
+        pos_x: f32, pos_y: f32, pos_z: f32,
+        rot_x: f32, rot_y: f32, rot_z: f32, rot_w: f32,
+        dir_x: f32, dir_y: f32, dir_z: f32,
+        shape_type: u32, p0: f32, p1: f32, p2: f32,
+        max_dist: f32, layers: u32, mask: u32,
+    ) -> Vec<f32> {
+        let shape = Self::decode_shape(shape_type, p0, p1, p2);
+        let iso = Isometry::from_parts(
+            Translation3::new(pos_x, pos_y, pos_z),
+            UnitQuaternion::from_quaternion(Quaternion::new(rot_w, rot_x, rot_y, rot_z)),
+        );
+        let dir = vector![dir_x, dir_y, dir_z];
+        let filter = Self::make_query_filter(layers, mask);
+        let opts = ShapeCastOptions {
+            max_time_of_impact: max_dist,
+            stop_at_penetration: true,
+            ..ShapeCastOptions::default()
+        };
+        let Some((ch, hit)) = self.query_pipeline.cast_shape(
+            &self.rigid_body_set, &self.collider_set,
+            &iso, &dir, shape.as_ref(), opts, filter,
+        ) else {
+            return vec![0.0];
+        };
+        let entity_index = self
+            .collider_set
+            .get(ch)
+            .map(|c| unpack_user_data(c.user_data).0)
+            .unwrap_or(u32::MAX);
+        vec![
+            1.0,
+            entity_index as f32,
+            hit.time_of_impact,
+            hit.normal1.x, hit.normal1.y, hit.normal1.z,
+            hit.witness1.x, hit.witness1.y, hit.witness1.z,
+            hit.witness1.x, hit.witness1.y, hit.witness1.z,
+            hit.witness2.x, hit.witness2.y, hit.witness2.z,
+        ]
+    }
+
+    /// Find all colliders overlapping a shape, writing entity indices to a WASM memory pointer.
+    ///
+    /// # Arguments
+    /// * `pos_x/y/z`   — Shape origin.
+    /// * `rot_x/y/z/w` — Shape orientation (unit quaternion).
+    /// * `shape_type` / `p0/p1/p2` — Shape encoding.
+    /// * `layers` / `mask` — Collision filter.
+    /// * `out_ptr`     — WASM linear-memory pointer to write `u32` entity indices.
+    /// * `max_results` — Maximum number of results to write.
+    ///
+    /// # Returns
+    /// Number of overlapping entities written to `out_ptr`.
+    ///
+    /// # Safety
+    /// `out_ptr` must point to at least `max_results * 4` bytes of valid WASM
+    /// linear memory. This is guaranteed by the TypeScript layer which allocates
+    /// the scratch buffer before calling this function.
+    pub fn overlap_shape(
+        &self,
+        pos_x: f32, pos_y: f32, pos_z: f32,
+        rot_x: f32, rot_y: f32, rot_z: f32, rot_w: f32,
+        shape_type: u32, p0: f32, p1: f32, p2: f32,
+        layers: u32, mask: u32,
+        out_ptr: u32, max_results: u32,
+    ) -> u32 {
+        let shape = Self::decode_shape(shape_type, p0, p1, p2);
+        let iso = Isometry::from_parts(
+            Translation3::new(pos_x, pos_y, pos_z),
+            UnitQuaternion::from_quaternion(Quaternion::new(rot_w, rot_x, rot_y, rot_z)),
+        );
+        let filter = Self::make_query_filter(layers, mask);
+        let mut count: u32 = 0;
+        // SAFETY: caller guarantees out_ptr points to max_results * 4 bytes of
+        // valid writable memory. In WASM this is linear memory allocated by the
+        // TypeScript layer; in native tests a stack/heap buffer is passed directly.
+        let out_slice = unsafe {
+            std::slice::from_raw_parts_mut(out_ptr as *mut u32, max_results as usize)
+        };
+        self.query_pipeline.intersections_with_shape(
+            &self.rigid_body_set, &self.collider_set,
+            &iso, shape.as_ref(), filter,
+            |ch| {
+                if count >= max_results {
+                    return false;
+                }
+                let entity_index = self
+                    .collider_set
+                    .get(ch)
+                    .map(|c| unpack_user_data(c.user_data).0)
+                    .unwrap_or(u32::MAX);
+                out_slice[count as usize] = entity_index;
+                count += 1;
+                true
+            },
+        );
+        count
+    }
+
+    /// Project a world-space point onto the nearest collider.
+    ///
+    /// # Arguments
+    /// * `px/py/pz`        — Point to project.
+    /// * `layers` / `mask` — Collision filter.
+    /// * `solid`           — If `true`, points inside solid shapes project to themselves.
+    ///
+    /// # Returns
+    /// 6 floats on hit: `[hit(1.0), entity_index, proj_x, proj_y, proj_z, is_inside(0/1)]`
+    /// Single `[0.0]` on miss.
+    pub fn project_point(
+        &self,
+        px: f32, py: f32, pz: f32,
+        layers: u32, mask: u32, solid: bool,
+    ) -> Vec<f32> {
+        let filter = Self::make_query_filter(layers, mask);
+        let Some((ch, proj)) = self.query_pipeline.project_point(
+            &self.rigid_body_set, &self.collider_set,
+            &point![px, py, pz], solid, filter,
+        ) else {
+            return vec![0.0];
+        };
+        let entity_index = self
+            .collider_set
+            .get(ch)
+            .map(|c| unpack_user_data(c.user_data).0)
+            .unwrap_or(u32::MAX);
+        vec![
+            1.0,
+            entity_index as f32,
+            proj.point.x,
+            proj.point.y,
+            proj.point.z,
+            if proj.is_inside { 1.0 } else { 0.0 },
+        ]
+    }
+
+    // ── RFC-08: Joints ───────────────────────────────────────────────────────────
+
+    /// Allocate a new stable joint ID and store the handle.
+    fn register_joint(&mut self, handle: ImpulseJointHandle) -> u32 {
+        let id = self.next_joint_id;
+        self.next_joint_id = self.next_joint_id.wrapping_add(1);
+        self.joint_handles.insert(id, handle);
+        id
+    }
+
+    /// Attach two bodies with a fixed (weld) joint at the given anchor points.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices of the two bodies.
+    /// * `ax/ay/az` — Anchor point on body A in body-A local space.
+    /// * `bx/by/bz` — Anchor point on body B in body-B local space.
+    ///
+    /// # Returns
+    /// Stable joint ID (u32) on success, `u32::MAX` if either entity has no body.
+    pub fn add_fixed_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+    ) -> u32 {
+        let (Some(&ha), Some(&hb)) = (
+            self.entity_handles.get(&entity_a),
+            self.entity_handles.get(&entity_b),
+        ) else {
+            debug_warn!("add_fixed_joint: entity {} or {} has no registered body", entity_a, entity_b);
+            return u32::MAX;
+        };
+        let joint = FixedJointBuilder::new()
+            .local_anchor1(point![ax, ay, az])
+            .local_anchor2(point![bx, by, bz])
+            .build();
+        let handle = self.impulse_joint_set.insert(ha, hb, joint, true);
+        self.register_joint(handle)
+    }
+
+    /// Attach two bodies with a revolute (hinge) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `axis_x/y/z` — Rotation axis in world space (will be normalised).
+    /// * `use_limits` — Enable angular limits.
+    /// * `limit_min` / `limit_max` — Angular limits in radians (only if `use_limits`).
+    ///
+    /// # Returns
+    /// Stable joint ID or `u32::MAX` on failure.
+    pub fn add_revolute_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        axis_x: f32, axis_y: f32, axis_z: f32,
+        use_limits: bool, limit_min: f32, limit_max: f32,
+    ) -> u32 {
+        let (Some(&ha), Some(&hb)) = (
+            self.entity_handles.get(&entity_a),
+            self.entity_handles.get(&entity_b),
+        ) else {
+            debug_warn!("add_revolute_joint: entity {} or {} has no registered body", entity_a, entity_b);
+            return u32::MAX;
+        };
+        let axis = Unit::try_new(vector![axis_x, axis_y, axis_z], 1e-6)
+            .unwrap_or_else(|| Unit::new_normalize(vector![0.0, 1.0, 0.0]));
+        let mut builder = RevoluteJointBuilder::new(axis)
+            .local_anchor1(point![ax, ay, az])
+            .local_anchor2(point![bx, by, bz]);
+        if use_limits {
+            builder = builder.limits([limit_min, limit_max]);
+        }
+        let handle = self.impulse_joint_set.insert(ha, hb, builder.build(), true);
+        self.register_joint(handle)
+    }
+
+    /// Attach two bodies with a prismatic (slider) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `axis_x/y/z` — Slide axis in world space (normalised).
+    /// * `use_limits` — Enable translation limits.
+    /// * `limit_min` / `limit_max` — Limits in metres.
+    ///
+    /// # Returns
+    /// Stable joint ID or `u32::MAX` on failure.
+    pub fn add_prismatic_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        axis_x: f32, axis_y: f32, axis_z: f32,
+        use_limits: bool, limit_min: f32, limit_max: f32,
+    ) -> u32 {
+        let (Some(&ha), Some(&hb)) = (
+            self.entity_handles.get(&entity_a),
+            self.entity_handles.get(&entity_b),
+        ) else {
+            debug_warn!("add_prismatic_joint: entity {} or {} has no registered body", entity_a, entity_b);
+            return u32::MAX;
+        };
+        let axis = Unit::try_new(vector![axis_x, axis_y, axis_z], 1e-6)
+            .unwrap_or_else(|| Unit::new_normalize(vector![1.0, 0.0, 0.0]));
+        let mut builder = PrismaticJointBuilder::new(axis)
+            .local_anchor1(point![ax, ay, az])
+            .local_anchor2(point![bx, by, bz]);
+        if use_limits {
+            builder = builder.limits([limit_min, limit_max]);
+        }
+        let handle = self.impulse_joint_set.insert(ha, hb, builder.build(), true);
+        self.register_joint(handle)
+    }
+
+    /// Attach two bodies with a ball (spherical) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    ///
+    /// # Returns
+    /// Stable joint ID or `u32::MAX` on failure.
+    pub fn add_ball_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+    ) -> u32 {
+        let (Some(&ha), Some(&hb)) = (
+            self.entity_handles.get(&entity_a),
+            self.entity_handles.get(&entity_b),
+        ) else {
+            debug_warn!("add_ball_joint: entity {} or {} has no registered body", entity_a, entity_b);
+            return u32::MAX;
+        };
+        let joint = SphericalJointBuilder::new()
+            .local_anchor1(point![ax, ay, az])
+            .local_anchor2(point![bx, by, bz])
+            .build();
+        let handle = self.impulse_joint_set.insert(ha, hb, joint, true);
+        self.register_joint(handle)
+    }
+
+    /// Attach two bodies with a spring joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `rest_length` — Natural length of the spring (metres).
+    /// * `stiffness`   — Spring constant (N/m).
+    /// * `damping`     — Damping coefficient (N·s/m).
+    ///
+    /// # Returns
+    /// Stable joint ID or `u32::MAX` on failure.
+    pub fn add_spring_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        rest_length: f32, stiffness: f32, damping: f32,
+    ) -> u32 {
+        let (Some(&ha), Some(&hb)) = (
+            self.entity_handles.get(&entity_a),
+            self.entity_handles.get(&entity_b),
+        ) else {
+            debug_warn!("add_spring_joint: entity {} or {} has no registered body", entity_a, entity_b);
+            return u32::MAX;
+        };
+        let joint = SpringJointBuilder::new(rest_length, stiffness, damping)
+            .local_anchor1(point![ax, ay, az])
+            .local_anchor2(point![bx, by, bz])
+            .build();
+        let handle = self.impulse_joint_set.insert(ha, hb, joint, true);
+        self.register_joint(handle)
+    }
+
+    /// Remove a joint by its stable ID.
+    ///
+    /// # Arguments
+    /// * `id` — Joint ID returned by `add_*_joint`.
+    ///
+    /// # Returns
+    /// `true` if the joint was found and removed, `false` otherwise.
+    pub fn remove_joint(&mut self, id: u32) -> bool {
+        if let Some(handle) = self.joint_handles.remove(&id) {
+            self.impulse_joint_set.remove(handle, true);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Set a motor velocity target on a joint's primary rotational axis (AngX).
+    ///
+    /// Applies to revolute and prismatic joints. For other joint types the call
+    /// is a no-op but still returns `true` if the joint ID is valid.
+    ///
+    /// # Arguments
+    /// * `id`        — Joint ID.
+    /// * `velocity`  — Target angular / linear velocity (rad/s or m/s).
+    /// * `max_force` — Maximum motor force / torque (N or N·m).
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    pub fn set_joint_motor_velocity(&mut self, id: u32, velocity: f32, max_force: f32) -> bool {
+        let Some(&handle) = self.joint_handles.get(&id) else {
+            return false;
+        };
+        let Some(joint) = self.impulse_joint_set.get_mut(handle) else {
+            return false;
+        };
+        joint.data.set_motor_velocity(JointAxis::AngX, velocity, max_force);
+        true
+    }
+
+    /// Set a motor position target on a joint's primary rotational axis (AngX).
+    ///
+    /// # Arguments
+    /// * `id`         — Joint ID.
+    /// * `target`     — Target angle / position (radians or metres).
+    /// * `stiffness`  — Spring stiffness (N·m/rad or N/m).
+    /// * `damping`    — Damping coefficient (N·m·s/rad or N·s/m).
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    pub fn set_joint_motor_position(
+        &mut self, id: u32, target: f32, stiffness: f32, damping: f32,
+    ) -> bool {
+        let Some(&handle) = self.joint_handles.get(&id) else {
+            return false;
+        };
+        let Some(joint) = self.impulse_joint_set.get_mut(handle) else {
+            return false;
+        };
+        joint.data.set_motor_position(JointAxis::AngX, target, stiffness, damping);
+        true
+    }
+
+    /// Enable or disable a joint (controls whether it generates contact forces).
+    ///
+    /// # Arguments
+    /// * `id`      — Joint ID.
+    /// * `enabled` — `true` to enable, `false` to disable.
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    pub fn set_joint_enabled(&mut self, id: u32, enabled: bool) -> bool {
+        let Some(&handle) = self.joint_handles.get(&id) else {
+            return false;
+        };
+        let Some(joint) = self.impulse_joint_set.get_mut(handle) else {
+            return false;
+        };
+        joint.data.set_enabled(enabled);
+        true
+    }
+
     // ── Body kind ─────────────────────────────────────────────────────────────
 
     /// Return the body kind discriminant for an entity.
@@ -2000,6 +2526,179 @@ impl PhysicsWorld3D {
         };
         body.set_body_type(kind_to_body_type(kind), true);
         true
+    }
+
+    // ── RFC-09D: Character Controller ─────────────────────────────────────────
+
+    /// Registers a [`KinematicCharacterController`] for the body at `entity_index`.
+    ///
+    /// The controller is configured from the supplied parameters and stored
+    /// internally. Call [`character_controller_move`] every frame to drive the
+    /// character, and [`remove_character_controller`] when the entity is
+    /// destroyed.
+    ///
+    /// Inserting a second controller for the same entity replaces the first.
+    ///
+    /// # Arguments
+    /// * `entity_index`           — ECS entity slot index.  The entity must already
+    ///                              have a registered rigid body.
+    /// * `step_height`            — Maximum height (metres) the controller can step
+    ///                              up onto. Pass `0.0` to disable auto-stepping.
+    /// * `slope_limit`            — Maximum climbable slope angle in **degrees**.
+    ///                              Slopes steeper than this are treated as walls.
+    /// * `skin_width`             — Separation (metres) kept between the character
+    ///                              shape and surfaces (`cc.offset`).
+    /// * `snap_to_ground`         — Distance (metres) to snap the character to the
+    ///                              ground when descending ramps.  Pass `0.0` to
+    ///                              disable snapping.
+    /// * `slide_on_steep_slopes`  — When `true` the character slides along steep
+    ///                              surfaces instead of being stopped by them.
+    /// * `apply_impulses_to_dynamic` — When `true` the controller pushes dynamic
+    ///                              bodies it collides with.
+    ///
+    /// # Returns
+    /// The `entity_index` on success, or [`u32::MAX`] if the entity has no
+    /// registered rigid body.
+    pub fn add_character_controller(
+        &mut self,
+        entity_index: u32,
+        step_height: f32,
+        slope_limit: f32,
+        skin_width: f32,
+        snap_to_ground: f32,
+        slide_on_steep_slopes: bool,
+        apply_impulses_to_dynamic: bool,
+    ) -> u32 {
+        if !self.entity_handles.contains_key(&entity_index) {
+            debug_warn!("add_character_controller: unknown entity {}", entity_index);
+            return u32::MAX;
+        }
+        let mut cc = KinematicCharacterController::default();
+        cc.offset = CharacterLength::Absolute(skin_width);
+        cc.slide = slide_on_steep_slopes;
+        cc.snap_to_ground = if snap_to_ground > 0.0 {
+            Some(CharacterLength::Absolute(snap_to_ground))
+        } else {
+            None
+        };
+        cc.max_slope_climb_angle = slope_limit.to_radians();
+        cc.min_slope_slide_angle = slope_limit.to_radians();
+        // Note: impulse application to dynamic bodies is handled via
+        // `solve_character_collision_impulses` in `character_controller_move`
+        // rather than as a field (the field does not exist in rapier3d 0.22.0).
+        cc.autostep = if step_height > 0.0 {
+            Some(CharacterAutostep {
+                max_height: CharacterLength::Absolute(step_height),
+                min_width: CharacterLength::Absolute(0.1),
+                include_dynamic_bodies: false,
+            })
+        } else {
+            None
+        };
+        self.cc_controllers.insert(entity_index, (cc, apply_impulses_to_dynamic));
+        entity_index
+    }
+
+    /// Moves the character controller for `entity_index` by `(vx, vy, vz) * dt`,
+    /// resolving collisions against the scene.
+    ///
+    /// The resolved translation is applied to the body as a *kinematic
+    /// next-position* update via [`RigidBody::set_next_kinematic_position`].
+    /// The body must be `KinematicPositionBased` for Rapier to honour the
+    /// update; the call is a no-op for other body types (Rapier ignores
+    /// `set_next_kinematic_position` on dynamic bodies).
+    ///
+    /// The [`QueryPipeline`] must have been updated at least once (i.e.
+    /// [`step`] must have been called) before this method produces useful
+    /// collision results.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
+    /// * `dt`           — Simulation time-step (seconds).
+    pub fn character_controller_move(
+        &mut self,
+        entity_index: u32,
+        vx: f32,
+        vy: f32,
+        vz: f32,
+        dt: f32,
+    ) {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("character_controller_move: unknown entity {}", entity_index);
+            return;
+        };
+        let Some((cc, apply_impulses)) = self.cc_controllers.get(&entity_index) else {
+            debug_warn!("character_controller_move: no CC for entity {}", entity_index);
+            return;
+        };
+        let apply_impulses = *apply_impulses;
+        let Some(body) = self.rigid_body_set.get(handle) else {
+            return;
+        };
+        let position = *body.position();
+        let desired = Vector::new(vx * dt, vy * dt, vz * dt);
+
+        // Use the first collider attached to the body to determine the shape.
+        let Some(collider_handle) = body.colliders().first().copied() else {
+            debug_warn!("character_controller_move: entity {} has no collider", entity_index);
+            return;
+        };
+        let Some(collider) = self.collider_set.get(collider_handle) else {
+            return;
+        };
+        let shape = collider.shape();
+
+        // Exclude the character's own body from collision queries so the
+        // controller does not collide with itself.
+        let filter = QueryFilter::default().exclude_rigid_body(handle);
+
+        // Collect collisions for optional impulse application.
+        let mut collisions: Vec<rapier3d::control::CharacterCollision> = Vec::new();
+        let movement = cc.move_shape(
+            dt,
+            &self.rigid_body_set,
+            &self.collider_set,
+            &self.query_pipeline,
+            shape,
+            &position,
+            desired,
+            filter,
+            |c| collisions.push(c),
+        );
+
+        // Apply impulses to dynamic bodies if requested.
+        if apply_impulses && !collisions.is_empty() {
+            // character_mass: use 1.0 as a sensible default (mass not stored per-CC).
+            cc.solve_character_collision_impulses(
+                dt,
+                &mut self.rigid_body_set,
+                &self.collider_set,
+                &self.query_pipeline,
+                shape,
+                1.0,
+                &collisions,
+                filter,
+            );
+        }
+
+        // Write the resolved position back as a kinematic interpolation target.
+        let Some(body_mut) = self.rigid_body_set.get_mut(handle) else {
+            return;
+        };
+        let mut new_pos = *body_mut.position();
+        new_pos.translation.vector += movement.translation;
+        body_mut.set_next_kinematic_position(new_pos);
+    }
+
+    /// Removes the registered character controller for `entity_index`.
+    ///
+    /// This is a no-op if no controller is registered for the entity.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    pub fn remove_character_controller(&mut self, entity_index: u32) {
+        self.cc_controllers.remove(&entity_index);
     }
 }
 
@@ -3232,5 +3931,316 @@ mod tests {
     fn test_rfc09_is_body_sleeping_unknown_entity_returns_false() {
         let world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
         assert!(!world.is_body_sleeping(77));
+    }
+
+    // ── RFC-08: Joints ────────────────────────────────────────────────────────
+
+    fn make_two_body_world() -> (PhysicsWorld3D, u32, u32) {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        world.add_body(1, 1.0, 0.0, 0.0, 1, 1.0, 0.0, 0.0);
+        (world, 0, 1)
+    }
+
+    #[test]
+    fn test_rfc08_add_fixed_joint_returns_valid_id() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_fixed_joint(a, b, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert_ne!(id, u32::MAX, "add_fixed_joint should return a valid ID");
+    }
+
+    #[test]
+    fn test_rfc08_add_fixed_joint_missing_entity_returns_max() {
+        let (mut world, a, _) = make_two_body_world();
+        let id = world.add_fixed_joint(a, 99, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert_eq!(id, u32::MAX, "missing entity should yield u32::MAX");
+    }
+
+    #[test]
+    fn test_rfc08_add_revolute_joint_returns_valid_id() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_revolute_joint(
+            a, b,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            false, 0.0, 0.0,
+        );
+        assert_ne!(id, u32::MAX);
+    }
+
+    #[test]
+    fn test_rfc08_add_prismatic_joint_returns_valid_id() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_prismatic_joint(
+            a, b,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            false, 0.0, 0.0,
+        );
+        assert_ne!(id, u32::MAX);
+    }
+
+    #[test]
+    fn test_rfc08_add_ball_joint_returns_valid_id() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_ball_joint(a, b, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert_ne!(id, u32::MAX);
+    }
+
+    #[test]
+    fn test_rfc08_add_spring_joint_returns_valid_id() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_spring_joint(a, b, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 100.0, 1.0);
+        assert_ne!(id, u32::MAX);
+    }
+
+    #[test]
+    fn test_rfc08_remove_joint_returns_true() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_fixed_joint(a, b, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(world.remove_joint(id));
+    }
+
+    #[test]
+    fn test_rfc08_remove_joint_unknown_id_returns_false() {
+        let (mut world, _, _) = make_two_body_world();
+        assert!(!world.remove_joint(9999));
+    }
+
+    #[test]
+    fn test_rfc08_set_joint_motor_velocity_unknown_returns_false() {
+        let (mut world, _, _) = make_two_body_world();
+        assert!(!world.set_joint_motor_velocity(9999, 1.0, 100.0));
+    }
+
+    #[test]
+    fn test_rfc08_set_joint_enabled_false_then_re_enable() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_revolute_joint(
+            a, b,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            false, 0.0, 0.0,
+        );
+        assert!(world.set_joint_enabled(id, false));
+        assert!(world.set_joint_enabled(id, true));
+    }
+
+    #[test]
+    fn test_rfc08_remove_body_cleans_up_joint() {
+        let (mut world, a, b) = make_two_body_world();
+        let id = world.add_fixed_joint(a, b, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert_ne!(id, u32::MAX);
+        // Removing body A should evict the joint from the map.
+        assert!(world.remove_body(a));
+        // The joint handle is now stale; remove_joint should return false.
+        assert!(!world.remove_joint(id), "joint map should be cleaned up after remove_body");
+    }
+
+    // ── RFC-07: Spatial queries ───────────────────────────────────────────────
+
+    /// Helper: build a world with a fixed body and box collider at origin.
+    fn world_with_box_at_origin() -> PhysicsWorld3D {
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0); // Fixed
+        world.add_box_collider(
+            0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, 1,
+        );
+        world.step(1.0 / 60.0); // populates query_pipeline
+        world
+    }
+
+    #[test]
+    fn test_rfc07_cast_ray_hits_box_collider() {
+        let world = world_with_box_at_origin();
+        // Ray from (0, 5, 0) aimed downward at the box at origin.
+        let result = world.cast_ray(
+            0.0, 5.0, 0.0,
+            0.0, -1.0, 0.0,
+            20.0, 0xFFFF_FFFF, 0xFFFF_FFFF, true,
+        );
+        assert_eq!(result.len(), 9, "hit should produce 9 floats");
+        assert_eq!(result[0], 1.0, "hit flag should be 1.0");
+        assert_eq!(result[1], 0.0, "entity_index should be 0");
+        // Distance from y=5 to y=0.5 (top of box half=0.5) is 4.5
+        assert!((result[2] - 4.5).abs() < 1e-3, "toi should be ~4.5, got {}", result[2]);
+    }
+
+    #[test]
+    fn test_rfc07_cast_ray_misses_returns_zero() {
+        let world = world_with_box_at_origin();
+        // Ray aimed away from all bodies.
+        let result = world.cast_ray(
+            0.0, 5.0, 0.0,
+            0.0, 1.0, 0.0, // pointing upward, away from box
+            20.0, 0xFFFF_FFFF, 0xFFFF_FFFF, true,
+        );
+        assert_eq!(result, vec![0.0], "miss should return [0.0]");
+    }
+
+    #[test]
+    fn test_rfc07_cast_ray_no_query_pipeline_update_returns_miss() {
+        // Build a world but do NOT call step() — query_pipeline is empty.
+        let mut world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        world.add_body(0, 0.0, 0.0, 0.0, 0, 1.0, 0.0, 0.0);
+        world.add_box_collider(
+            0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0,
+            false, 0.5, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, 1,
+        );
+        // query_pipeline never updated → ray misses.
+        let result = world.cast_ray(
+            0.0, 5.0, 0.0,
+            0.0, -1.0, 0.0,
+            20.0, 0xFFFF_FFFF, 0xFFFF_FFFF, true,
+        );
+        assert_eq!(result, vec![0.0], "without step(), query_pipeline is empty → miss");
+    }
+
+    #[test]
+    fn test_rfc07_project_point_onto_box() {
+        let world = world_with_box_at_origin();
+        // Point just above the top face of the box (top face at y=0.5).
+        let result = world.project_point(0.0, 2.0, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, false);
+        assert_eq!(result.len(), 6, "hit should produce 6 floats");
+        assert_eq!(result[0], 1.0, "hit flag should be 1.0");
+        assert_eq!(result[1], 0.0, "entity_index should be 0");
+        // Projected y should be at top of box = 0.5
+        assert!((result[3] - 0.5).abs() < 1e-3, "projected y should be ~0.5, got {}", result[3]);
+        assert_eq!(result[5], 0.0, "point above box is not inside");
+    }
+
+    #[test]
+    fn test_rfc07_project_point_miss_empty_world() {
+        let world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        let result = world.project_point(0.0, 0.0, 0.0, 0xFFFF_FFFF, 0xFFFF_FFFF, false);
+        assert_eq!(result, vec![0.0], "empty world should miss");
+    }
+
+    #[test]
+    fn test_rfc07_cast_shape_hits_box() {
+        let world = world_with_box_at_origin();
+        // Cast a ball (r=0.1) from (0,5,0) downward toward the box at origin.
+        let result = world.cast_shape(
+            0.0, 5.0, 0.0,
+            0.0, 0.0, 0.0, 1.0, // identity rotation
+            0.0, -1.0, 0.0,     // direction
+            1, 0.1, 0.0, 0.0,   // ball, radius=0.1
+            20.0, 0xFFFF_FFFF, 0xFFFF_FFFF,
+        );
+        assert_eq!(result.len(), 15, "hit should produce 15 floats");
+        assert_eq!(result[0], 1.0, "hit flag should be 1.0");
+        assert_eq!(result[1], 0.0, "entity_index should be 0");
+        // toi: distance from y=5 to y=0.5+0.1=0.6 is 4.4
+        assert!(result[2] > 0.0, "toi should be positive, got {}", result[2]);
+    }
+
+    #[test]
+    fn test_rfc07_cast_shape_misses_empty_world() {
+        let world = PhysicsWorld3D::new(0.0, 0.0, 0.0);
+        let result = world.cast_shape(
+            0.0, 5.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, -1.0, 0.0,
+            1, 0.1, 0.0, 0.0,
+            20.0, 0xFFFF_FFFF, 0xFFFF_FFFF,
+        );
+        assert_eq!(result, vec![0.0], "empty world should miss");
+    }
+
+    #[test]
+    fn test_rfc07_overlap_shape_empty_world_returns_zero() {
+        let world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let mut buf = [0u32; 16];
+        let count = world.overlap_shape(
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+            1, 100.0, 0.0, 0.0,
+            0xFFFF_FFFF, 0xFFFF_FFFF,
+            buf.as_mut_ptr() as u32, 16,
+        );
+        assert_eq!(count, 0);
+    }
+
+    // ── RFC-09D: Character Controller ─────────────────────────────────────────
+
+    /// Build a minimal world with a kinematic body and a ball collider at the origin.
+    fn world_with_kinematic_body() -> PhysicsWorld3D {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let body = RigidBodyBuilder::kinematic_position_based().build();
+        let handle = world.rigid_body_set.insert(body);
+        world.entity_handles.insert(0, handle);
+        let collider = ColliderBuilder::ball(0.5).build();
+        world
+            .collider_set
+            .insert_with_parent(collider, handle, &mut world.rigid_body_set);
+        world
+    }
+
+    #[test]
+    fn test_rfc09d_add_character_controller_returns_entity_index() {
+        let mut world = world_with_kinematic_body();
+        let result = world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+        assert_eq!(result, 0, "should return the entity_index on success");
+    }
+
+    #[test]
+    fn test_rfc09d_add_character_controller_unknown_entity_returns_max() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // Entity 99 has no registered body.
+        let result = world.add_character_controller(99, 0.35, 45.0, 0.02, 0.2, true, true);
+        assert_eq!(result, u32::MAX, "unknown entity should return u32::MAX");
+    }
+
+    #[test]
+    fn test_rfc09d_add_character_controller_stores_controller() {
+        let mut world = world_with_kinematic_body();
+        world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+        assert_eq!(world.cc_controllers.len(), 1, "one controller should be stored");
+    }
+
+    #[test]
+    fn test_rfc09d_remove_character_controller_cleans_up() {
+        let mut world = world_with_kinematic_body();
+        world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+        assert!(!world.cc_controllers.is_empty(), "controller should exist before removal");
+        world.remove_character_controller(0);
+        assert!(world.cc_controllers.is_empty(), "cc_controllers should be empty after removal");
+    }
+
+    #[test]
+    fn test_rfc09d_character_controller_move_unknown_entity_no_panic() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // Must not panic for an entity that was never registered.
+        world.character_controller_move(42, 0.0, -1.0, 0.0, 1.0 / 60.0);
+    }
+
+    #[test]
+    fn test_rfc09d_character_controller_move_applies_translation() {
+        let mut world = world_with_kinematic_body();
+        world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+
+        // Step once to populate the query pipeline.
+        world.step(1.0 / 60.0);
+
+        // Record initial y position.
+        let handle = *world.entity_handles.get(&0).unwrap();
+        let initial_y = world.rigid_body_set.get(handle).unwrap().position().translation.y;
+
+        // Move downward; the character should have a next-position applied.
+        world.character_controller_move(0, 0.0, -1.0, 0.0, 1.0 / 60.0);
+
+        // After set_next_kinematic_position the next position is stored but the
+        // current position updates on the following step.  We read the next
+        // position directly from the body's predicted position.
+        let body = world.rigid_body_set.get(handle).unwrap();
+        let next_y = body.next_position().translation.y;
+        assert!(
+            next_y < initial_y,
+            "next_y ({next_y}) should be below initial_y ({initial_y}) after downward move"
+        );
     }
 }

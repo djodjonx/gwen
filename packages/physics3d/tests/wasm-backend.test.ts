@@ -79,6 +79,17 @@ const physics3dLockRotations = vi.fn();
 const physics3dSetBodySleeping = vi.fn();
 const physics3dIsBodySleeping = vi.fn().mockReturnValue(false);
 const physics3dWakeAll = vi.fn();
+
+// Group B — RFC-08: Joints
+const physics3dAddFixedJoint = vi.fn().mockReturnValue(1);
+const physics3dAddRevoluteJoint = vi.fn().mockReturnValue(2);
+const physics3dAddPrismaticJoint = vi.fn().mockReturnValue(3);
+const physics3dAddBallJoint = vi.fn().mockReturnValue(4);
+const physics3dAddSpringJoint = vi.fn().mockReturnValue(5);
+const physics3dRemoveJoint = vi.fn();
+const physics3dSetJointMotorVelocity = vi.fn();
+const physics3dSetJointMotorPosition = vi.fn();
+const physics3dSetJointEnabled = vi.fn();
 const physics3dGetBodyKind = vi.fn((idx: number) => wasmKind.get(idx) ?? 1);
 const physics3dSetBodyKind = vi.fn((idx: number, kind: number) => {
   wasmKind.set(idx, kind);
@@ -88,8 +99,23 @@ const physics3dAddBoxCollider = vi.fn().mockReturnValue(true);
 const physics3dAddMeshCollider = vi.fn().mockReturnValue(true);
 const physics3dAddConvexCollider = vi.fn().mockReturnValue(true);
 
+// Group C — RFC-07: Spatial queries
+const physics3dCastRay = vi.fn();
+const physics3dCastShape = vi.fn();
+const physics3dOverlapShape = vi.fn().mockReturnValue(0);
+const physics3dProjectPoint = vi.fn();
+
+// Group D — RFC-09: Character Controller
+const physics3dAddCharacterController = vi.fn().mockReturnValue(0); // slot 0
+const physics3dCharacterControllerMove = vi.fn();
+const physics3dRemoveCharacterController = vi.fn();
+
 const mockBridge = {
   variant: 'physics3d' as const,
+  getLinearMemory: vi.fn(() => ({
+    buffer: new SharedArrayBuffer(65536),
+    byteLength: 65536,
+  })),
   getPhysicsBridge: vi.fn(() => ({
     physics3d_init: physics3dInit,
     physics3d_step: physics3dStep,
@@ -118,6 +144,22 @@ const mockBridge = {
     physics3d_set_body_sleeping: physics3dSetBodySleeping,
     physics3d_is_body_sleeping: physics3dIsBodySleeping,
     physics3d_wake_all: physics3dWakeAll,
+    physics3d_cast_ray: physics3dCastRay,
+    physics3d_cast_shape: physics3dCastShape,
+    physics3d_overlap_shape: physics3dOverlapShape,
+    physics3d_project_point: physics3dProjectPoint,
+    physics3d_add_character_controller: physics3dAddCharacterController,
+    physics3d_character_controller_move: physics3dCharacterControllerMove,
+    physics3d_remove_character_controller: physics3dRemoveCharacterController,
+    physics3d_add_fixed_joint: physics3dAddFixedJoint,
+    physics3d_add_revolute_joint: physics3dAddRevoluteJoint,
+    physics3d_add_prismatic_joint: physics3dAddPrismaticJoint,
+    physics3d_add_ball_joint: physics3dAddBallJoint,
+    physics3d_add_spring_joint: physics3dAddSpringJoint,
+    physics3d_remove_joint: physics3dRemoveJoint,
+    physics3d_set_joint_motor_velocity: physics3dSetJointMotorVelocity,
+    physics3d_set_joint_motor_position: physics3dSetJointMotorPosition,
+    physics3d_set_joint_enabled: physics3dSetJointEnabled,
   })),
 };
 
@@ -522,5 +564,649 @@ describe('Group A — RFC-09: forces, gravity, locks, sleep', () => {
     // it still delegates the call to the WASM layer without throwing.
     expect(() => service.addForce(999, { x: 1, y: 2, z: 3 })).not.toThrow();
     expect(physics3dAddForce).toHaveBeenCalledWith(999, 1, 2, 3);
+  });
+});
+
+/**
+ * Group B — RFC-08: Joint API delegation tests.
+ *
+ * Verifies that every joint factory and control method delegates to the
+ * correct WASM bridge export with the right argument order and values.
+ * All tests use isolated mock state and a two-body setup.
+ */
+describe('Group B — RFC-08: joints', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    wasmBodyState.clear();
+    wasmLinVel.clear();
+    wasmAngVel.clear();
+    wasmKind.clear();
+    physics3dAddBody.mockReturnValue(true);
+    physics3dAddFixedJoint.mockReturnValue(1);
+    physics3dAddRevoluteJoint.mockReturnValue(2);
+    physics3dAddPrismaticJoint.mockReturnValue(3);
+    physics3dAddBallJoint.mockReturnValue(4);
+    physics3dAddSpringJoint.mockReturnValue(5);
+  });
+
+  /**
+   * Creates a plugin + engine + service and registers one body at the given entity index.
+   *
+   * @param entityId - Numeric entity index to register a body for.
+   * @returns Object containing the physics service and the entity id used.
+   */
+  function setupWithBody(entityId: number = 10) {
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
+    service.createBody(entityId);
+    return { service, entityId };
+  }
+
+  it('addFixedJoint delegates to physics3d_add_fixed_joint with both slots and anchors', () => {
+    const { service } = setupWithBody(10);
+    // Register a second body at slot 11
+    service.createBody(11);
+
+    const handle = service.addFixedJoint({
+      bodyA: 10,
+      bodyB: 11,
+      anchorA: { x: 1, y: 0, z: 0 },
+      anchorB: { x: -1, y: 0, z: 0 },
+    });
+
+    expect(physics3dAddFixedJoint).toHaveBeenCalledOnce();
+    expect(physics3dAddFixedJoint).toHaveBeenCalledWith(10, 11, 1, 0, 0, -1, 0, 0);
+    // Mock returns 1, which is the joint handle directly
+    expect(handle).toBe(1);
+  });
+
+  it('addRevoluteJoint delegates with axis and limits', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addRevoluteJoint({
+      bodyA: 10,
+      bodyB: 11,
+      axis: { x: 0, y: 1, z: 0 },
+      limits: [-1, 1],
+    });
+
+    expect(physics3dAddRevoluteJoint).toHaveBeenCalledOnce();
+    expect(physics3dAddRevoluteJoint).toHaveBeenCalledWith(
+      10,
+      11,
+      // anchorA default zeros
+      0,
+      0,
+      0,
+      // anchorB default zeros
+      0,
+      0,
+      0,
+      // axis
+      0,
+      1,
+      0,
+      // useLimits, limitMin, limitMax
+      true,
+      -1,
+      1,
+    );
+  });
+
+  it('addRevoluteJoint without limits passes useLimits=false and zero bounds', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addRevoluteJoint({ bodyA: 10, bodyB: 11 });
+
+    expect(physics3dAddRevoluteJoint).toHaveBeenCalledOnce();
+    const args = physics3dAddRevoluteJoint.mock.calls[0];
+    // useLimits is argument index 11, limitMin is 12, limitMax is 13
+    expect(args[11]).toBe(false);
+    expect(args[12]).toBe(0);
+    expect(args[13]).toBe(0);
+  });
+
+  it('addPrismaticJoint delegates with axis and limits', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addPrismaticJoint({
+      bodyA: 10,
+      bodyB: 11,
+      axis: { x: 1, y: 0, z: 0 },
+      limits: [0, 5],
+    });
+
+    expect(physics3dAddPrismaticJoint).toHaveBeenCalledOnce();
+    expect(physics3dAddPrismaticJoint).toHaveBeenCalledWith(
+      10,
+      11,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      true,
+      0,
+      5,
+    );
+  });
+
+  it('addBallJoint delegates with cone limit when coneAngle is provided', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addBallJoint({ bodyA: 10, bodyB: 11, coneAngle: Math.PI / 4 });
+
+    expect(physics3dAddBallJoint).toHaveBeenCalledOnce();
+    expect(physics3dAddBallJoint).toHaveBeenCalledWith(10, 11, 0, 0, 0, 0, 0, 0, true, Math.PI / 4);
+  });
+
+  it('addBallJoint without coneAngle passes useConeLimit=false and coneAngle=0', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addBallJoint({ bodyA: 10, bodyB: 11 });
+
+    expect(physics3dAddBallJoint).toHaveBeenCalledOnce();
+    const args = physics3dAddBallJoint.mock.calls[0];
+    // useConeLimit is argument index 8, coneAngle is 9
+    expect(args[8]).toBe(false);
+    expect(args[9]).toBe(0);
+  });
+
+  it('addSpringJoint delegates with restLength stiffness damping', () => {
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    service.addSpringJoint({
+      bodyA: 10,
+      bodyB: 11,
+      restLength: 2,
+      stiffness: 100,
+      damping: 10,
+    });
+
+    expect(physics3dAddSpringJoint).toHaveBeenCalledOnce();
+    expect(physics3dAddSpringJoint).toHaveBeenCalledWith(10, 11, 0, 0, 0, 0, 0, 0, 2, 100, 10);
+  });
+
+  it('addFixedJoint returns dummy handle (0xffffffff) when WASM returns 0xffffffff', () => {
+    physics3dAddFixedJoint.mockReturnValueOnce(0xffffffff);
+    const { service } = setupWithBody(10);
+    service.createBody(11);
+
+    const handle = service.addFixedJoint({ bodyA: 10, bodyB: 11 });
+
+    // When WASM signals an error via 0xffffffff, the plugin returns the dummy handle value
+    expect(handle).toBe(0xffffffff);
+  });
+
+  it('removeJoint delegates to physics3d_remove_joint with the joint id', () => {
+    const { service } = setupWithBody(10);
+
+    service.removeJoint(1);
+
+    expect(physics3dRemoveJoint).toHaveBeenCalledOnce();
+    expect(physics3dRemoveJoint).toHaveBeenCalledWith(1);
+  });
+
+  it('setJointMotorVelocity delegates to physics3d_set_joint_motor_velocity', () => {
+    const { service } = setupWithBody(10);
+
+    service.setJointMotorVelocity(1, 2.5, 100);
+
+    expect(physics3dSetJointMotorVelocity).toHaveBeenCalledOnce();
+    expect(physics3dSetJointMotorVelocity).toHaveBeenCalledWith(1, 2.5, 100);
+  });
+
+  it('setJointMotorPosition delegates to physics3d_set_joint_motor_position', () => {
+    const { service } = setupWithBody(10);
+
+    service.setJointMotorPosition(1, 0.5, 50, 5);
+
+    expect(physics3dSetJointMotorPosition).toHaveBeenCalledOnce();
+    expect(physics3dSetJointMotorPosition).toHaveBeenCalledWith(1, 0.5, 50, 5);
+  });
+
+  it('setJointEnabled delegates to physics3d_set_joint_enabled for both true and false', () => {
+    const { service } = setupWithBody(10);
+
+    service.setJointEnabled(1, false);
+    service.setJointEnabled(1, true);
+
+    expect(physics3dSetJointEnabled).toHaveBeenCalledTimes(2);
+    expect(physics3dSetJointEnabled).toHaveBeenNthCalledWith(1, 1, false);
+    expect(physics3dSetJointEnabled).toHaveBeenNthCalledWith(2, 1, true);
+  });
+});
+
+/**
+ * Group C — RFC-07: Spatial Queries (WASM backend mode).
+ *
+ * Tests cover `castRay`, `castShape`, `overlapShape`, and `projectPoint` on
+ * the Physics3D service when running in WASM backend mode. Each test mocks the
+ * underlying WASM bridge functions and verifies that the service correctly
+ * marshals arguments, parses the flat result arrays, and returns the typed
+ * domain objects (or `null` / `[]` on miss / unavailable paths).
+ */
+describe('Group C — RFC-07: spatial queries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    physics3dAddBody.mockReturnValue(true);
+    physics3dOverlapShape.mockReturnValue(0);
+  });
+
+  /**
+   * Creates a minimal plugin + engine + service instance for spatial-query
+   * testing. No body registration is required for these tests.
+   */
+  function setup() {
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const api = services.get('physics3d') as Physics3DAPI;
+    return { api };
+  }
+
+  // ─── castRay ─────────────────────────────────────────────────────────────
+
+  it('castRay returns null when WASM returns falsy', () => {
+    physics3dCastRay.mockReturnValue(undefined);
+    const { api } = setup();
+
+    const result = api.castRay({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
+
+    expect(result).toBeNull();
+  });
+
+  it('castRay returns null when result[0] === 0 (miss)', () => {
+    physics3dCastRay.mockReturnValue([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const { api } = setup();
+
+    const result = api.castRay({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
+
+    expect(result).toBeNull();
+  });
+
+  it('castRay returns RayHit with correct fields on hit', () => {
+    // [hit=1, entityIdx=5, dist=3.14, nx=0, ny=1, nz=0, px=0, py=5, pz=0]
+    physics3dCastRay.mockReturnValue([1, 5, 3.14, 0, 1, 0, 0, 5, 0]);
+    const { api } = setup();
+
+    const result = api.castRay({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
+
+    expect(result).not.toBeNull();
+    expect(result!.distance).toBeCloseTo(3.14);
+    expect(result!.normal).toEqual({ x: 0, y: 1, z: 0 });
+    expect(result!.point).toEqual({ x: 0, y: 5, z: 0 });
+    // entity is entityIndexToId(5) — bridgeRuntime has no getEntityGeneration, so BigInt(5)
+    expect(result!.entity).toBeDefined();
+  });
+
+  it('castRay passes solid=false as 0 in the last argument', () => {
+    physics3dCastRay.mockReturnValue([1, 0, 1, 0, 1, 0, 0, 1, 0]);
+    const { api } = setup();
+
+    api.castRay({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }, 50, { solid: false });
+
+    // args: ox, oy, oz, dx, dy, dz, maxDist, layers, mask, solid
+    expect(physics3dCastRay).toHaveBeenCalledWith(
+      0,
+      10,
+      0,
+      0,
+      -1,
+      0,
+      50,
+      expect.any(Number),
+      expect.any(Number),
+      0, // solid=false → 0
+    );
+  });
+
+  it('castRay uses default layers=0xffffffff and mask=0xffffffff when no opts given', () => {
+    physics3dCastRay.mockReturnValue(undefined);
+    const { api } = setup();
+
+    api.castRay({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
+
+    const args = physics3dCastRay.mock.calls[0]!;
+    expect(args[7]).toBe(0xffffffff);
+    expect(args[8]).toBe(0xffffffff);
+  });
+
+  // ─── castShape ───────────────────────────────────────────────────────────
+
+  it('castShape returns null when result[0] === 0 (miss)', () => {
+    physics3dCastShape.mockReturnValue(Array(15).fill(0));
+    const { api } = setup();
+
+    const result = api.castShape(
+      { x: 0, y: 5, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+      { x: 0, y: -1, z: 0 },
+      { type: 'box', halfX: 0.5, halfY: 0.5, halfZ: 0.5 },
+      20,
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('castShape returns ShapeHit with all fields on hit', () => {
+    // [hit=1, entityIdx=7, toi=2.5, nx=0, ny=1, nz=0, px=0, py=2, pz=0, waAx=0, waAy=2.1, waAz=0, waBx=0, waBy=1.9, waBz=0]
+    physics3dCastShape.mockReturnValue([1, 7, 2.5, 0, 1, 0, 0, 2, 0, 0, 2.1, 0, 0, 1.9, 0]);
+    const { api } = setup();
+
+    const result = api.castShape(
+      { x: 0, y: 5, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+      { x: 0, y: -1, z: 0 },
+      { type: 'box', halfX: 0.5, halfY: 0.5, halfZ: 0.5 },
+      20,
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.distance).toBeCloseTo(2.5);
+    expect(result!.normal).toEqual({ x: 0, y: 1, z: 0 });
+    expect(result!.point).toEqual({ x: 0, y: 2, z: 0 });
+    expect(result!.witnessA).toEqual({ x: 0, y: 2.1, z: 0 });
+    expect(result!.witnessB).toEqual({ x: 0, y: 1.9, z: 0 });
+    expect(result!.entity).toBeDefined();
+  });
+
+  it('castShape encodes box shape correctly (shapeType=0, halfX/Y/Z)', () => {
+    physics3dCastShape.mockReturnValue(undefined);
+    const { api } = setup();
+
+    api.castShape(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+      { x: 1, y: 0, z: 0 },
+      { type: 'box', halfX: 1, halfY: 2, halfZ: 3 },
+      10,
+    );
+
+    // args: px,py,pz, rx,ry,rz,rw, dx,dy,dz, shapeType, p0, p1, p2, maxDist, layers, mask
+    const args = physics3dCastShape.mock.calls[0]!;
+    expect(args[10]).toBe(0); // box type
+    expect(args[11]).toBe(1); // halfX
+    expect(args[12]).toBe(2); // halfY
+    expect(args[13]).toBe(3); // halfZ
+  });
+
+  it('castShape encodes sphere shape correctly (shapeType=1, radius)', () => {
+    physics3dCastShape.mockReturnValue(undefined);
+    const { api } = setup();
+
+    api.castShape(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+      { x: 1, y: 0, z: 0 },
+      { type: 'sphere', radius: 0.5 },
+      10,
+    );
+
+    const args = physics3dCastShape.mock.calls[0]!;
+    expect(args[10]).toBe(1); // sphere type
+    expect(args[11]).toBe(0.5); // radius
+    expect(args[12]).toBe(0);
+    expect(args[13]).toBe(0);
+  });
+
+  // ─── overlapShape ────────────────────────────────────────────────────────
+
+  it('overlapShape returns empty array when scratch buffer is unavailable (mock mode without overlapScratchPtr)', () => {
+    const { api } = setup();
+
+    // In WASM mock mode, bridgeRuntime.getLinearMemory() is mocked to return a
+    // buffer, but overlapScratchPtr is 0 (never initialised by real WASM init),
+    // so the guard `overlapScratchPtr === 0` triggers and the function returns [].
+    const result = api.overlapShape(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+      { type: 'sphere', radius: 1 },
+    );
+
+    expect(result).toEqual([]);
+    // physics3d_overlap_shape must NOT be called because scratch buffer is unavailable
+    expect(physics3dOverlapShape).not.toHaveBeenCalled();
+  });
+
+  // ─── projectPoint ────────────────────────────────────────────────────────
+
+  it('projectPoint returns null when result[0] === 0 (miss)', () => {
+    physics3dProjectPoint.mockReturnValue([0, 0, 0, 0, 0, 0]);
+    const { api } = setup();
+
+    const result = api.projectPoint({ x: 5, y: 5, z: 5 });
+
+    expect(result).toBeNull();
+  });
+
+  it('projectPoint returns PointProjection with correct fields on hit', () => {
+    // [hit=1, entityIdx=3, projX=1.0, projY=2.0, projZ=3.0, isInside=0]
+    physics3dProjectPoint.mockReturnValue([1, 3, 1.0, 2.0, 3.0, 0]);
+    const { api } = setup();
+
+    const result = api.projectPoint({ x: 0, y: 0, z: 0 });
+
+    expect(result).not.toBeNull();
+    expect(result!.point).toEqual({ x: 1.0, y: 2.0, z: 3.0 });
+    expect(result!.isInside).toBe(false);
+    expect(result!.entity).toBeDefined();
+  });
+
+  it('projectPoint sets isInside=true when result[5] !== 0', () => {
+    // [hit=1, entityIdx=3, projX=0, projY=0, projZ=0, isInside=1]
+    physics3dProjectPoint.mockReturnValue([1, 3, 0, 0, 0, 1]);
+    const { api } = setup();
+
+    const result = api.projectPoint({ x: 0, y: 0, z: 0 });
+
+    expect(result!.isInside).toBe(true);
+  });
+
+  it('projectPoint passes solid=false as 0 in the last argument', () => {
+    physics3dProjectPoint.mockReturnValue(undefined);
+    const { api } = setup();
+
+    api.projectPoint({ x: 1, y: 2, z: 3 }, { solid: false });
+
+    // args: px, py, pz, layers, mask, solid
+    const args = physics3dProjectPoint.mock.calls[0]!;
+    expect(args[5]).toBe(0); // solid=false → 0
+  });
+});
+
+/**
+ * Group D — RFC-09: CharacterController (WASM backend mode).
+ *
+ * Verifies that `addCharacterController`, `handle.move`, and
+ * `removeCharacterController` correctly delegate to the WASM bridge
+ * functions `physics3d_add_character_controller`,
+ * `physics3d_character_controller_move`, and
+ * `physics3d_remove_character_controller`.
+ *
+ * Because no real SharedArrayBuffer is set up in this mock environment,
+ * `isGrounded` always reads `false` and `groundNormal` always returns `null`.
+ */
+describe('Group D — RFC-09: character controller', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    physics3dAddBody.mockReturnValue(true);
+    physics3dAddCharacterController.mockReturnValue(0);
+  });
+
+  /**
+   * Creates a plugin + engine + service with a registered body at `entityId`.
+   *
+   * @param entityId - Raw entity index to register as a body before returning.
+   * @returns Object with the Physics3D API service and the entity id used.
+   */
+  function setupWithBody(entityId: number = 10) {
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const api = services.get('physics3d') as Physics3DAPI;
+    api.createBody(entityId);
+    return { api, entityId };
+  }
+
+  it('addCharacterController delegates to physics3d_add_character_controller with defaults', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    api.addCharacterController(entityId);
+
+    expect(physics3dAddCharacterController).toHaveBeenCalledWith(
+      10,
+      0.35,
+      45,
+      0.02,
+      0.2,
+      true,
+      true,
+    );
+  });
+
+  it('addCharacterController passes custom opts to WASM', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    api.addCharacterController(entityId, {
+      stepHeight: 0.5,
+      slopeLimit: 30,
+      skinWidth: 0.05,
+      snapToGround: 0.1,
+      slideOnSteepSlopes: false,
+      applyImpulsesToDynamic: false,
+    });
+
+    expect(physics3dAddCharacterController).toHaveBeenCalledWith(
+      10,
+      0.5,
+      30,
+      0.05,
+      0.1,
+      false,
+      false,
+    );
+  });
+
+  it('addCharacterController returns handle with isGrounded=false (no SAB in mock)', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    const handle = api.addCharacterController(entityId);
+
+    expect(handle.isGrounded).toBe(false);
+  });
+
+  it('addCharacterController returns handle with groundNormal=null (no SAB in mock)', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    const handle = api.addCharacterController(entityId);
+
+    expect(handle.groundNormal).toBeNull();
+  });
+
+  it('addCharacterController returns handle with groundEntity=null', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    const handle = api.addCharacterController(entityId);
+
+    expect(handle.groundEntity).toBeNull();
+  });
+
+  it('handle.move calls physics3d_character_controller_move with entityIndex, velocity components, and dt', () => {
+    const { api, entityId } = setupWithBody(10);
+    const handle = api.addCharacterController(entityId);
+
+    handle.move({ x: 0, y: -5, z: 0 }, 1 / 60);
+
+    expect(physics3dCharacterControllerMove).toHaveBeenCalledWith(10, 0, -5, 0, 1 / 60);
+  });
+
+  it('handle.move updates lastTranslation to velocity * dt', () => {
+    const { api, entityId } = setupWithBody(10);
+    const handle = api.addCharacterController(entityId);
+
+    handle.move({ x: 2, y: 0, z: 0 }, 0.5);
+
+    expect(handle.lastTranslation).toEqual({ x: 1, y: 0, z: 0 });
+  });
+
+  it('removeCharacterController delegates to physics3d_remove_character_controller', () => {
+    const { api, entityId } = setupWithBody(10);
+    api.addCharacterController(entityId);
+
+    api.removeCharacterController(entityId);
+
+    expect(physics3dRemoveCharacterController).toHaveBeenCalledWith(10);
+  });
+
+  it('addCharacterController called twice for same entity — second call updates ccRegistrations', () => {
+    const { api, entityId } = setupWithBody(10);
+
+    api.addCharacterController(entityId);
+    api.addCharacterController(entityId);
+
+    expect(physics3dAddCharacterController).toHaveBeenCalledTimes(2);
+  });
+
+  it('addCharacterController when WASM returns 0xffffffff — handle still created', () => {
+    physics3dAddCharacterController.mockReturnValueOnce(0xffffffff);
+    const { api, entityId } = setupWithBody(10);
+
+    const handle = api.addCharacterController(entityId);
+
+    expect(handle).toBeDefined();
+    expect(handle).not.toBeNull();
+    expect(physics3dAddCharacterController).toHaveBeenCalled();
+    // isGrounded is still false and groundNormal is still null because sabView.view is null
+    expect(handle.isGrounded).toBe(false);
+    expect(handle.groundNormal).toBeNull();
   });
 });

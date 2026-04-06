@@ -2257,6 +2257,389 @@ impl Engine {
         }
     }
 
+    // ─── Physics 3D — Spatial queries (RFC-07) ────────────────────────────────
+
+    /// Cast a ray and return the first hit.
+    ///
+    /// # Returns
+    /// 9 floats on hit `[1.0, entity, toi, nx, ny, nz, px, py, pz]`, or `[0.0]` on miss.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_cast_ray(
+        &self,
+        ox: f32, oy: f32, oz: f32,
+        dx: f32, dy: f32, dz: f32,
+        max_dist: f32, layers: u32, mask: u32, solid: bool,
+    ) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.cast_ray(ox, oy, oz, dx, dy, dz, max_dist, layers, mask, solid)
+        } else {
+            vec![0.0]
+        }
+    }
+
+    /// Cast a shape along a direction and return the first collision.
+    ///
+    /// # Returns
+    /// 15 floats on hit or `[0.0]` on miss. See [`PhysicsWorld3D::cast_shape`].
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_cast_shape(
+        &self,
+        pos_x: f32, pos_y: f32, pos_z: f32,
+        rot_x: f32, rot_y: f32, rot_z: f32, rot_w: f32,
+        dir_x: f32, dir_y: f32, dir_z: f32,
+        shape_type: u32, p0: f32, p1: f32, p2: f32,
+        max_dist: f32, layers: u32, mask: u32,
+    ) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.cast_shape(
+                pos_x, pos_y, pos_z,
+                rot_x, rot_y, rot_z, rot_w,
+                dir_x, dir_y, dir_z,
+                shape_type, p0, p1, p2,
+                max_dist, layers, mask,
+            )
+        } else {
+            vec![0.0]
+        }
+    }
+
+    /// Find all colliders overlapping a shape, writing entity indices to a WASM memory pointer.
+    ///
+    /// # Returns
+    /// Number of overlapping entities written to `out_ptr`.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_overlap_shape(
+        &self,
+        pos_x: f32, pos_y: f32, pos_z: f32,
+        rot_x: f32, rot_y: f32, rot_z: f32, rot_w: f32,
+        shape_type: u32, p0: f32, p1: f32, p2: f32,
+        layers: u32, mask: u32,
+        out_ptr: u32, max_results: u32,
+    ) -> u32 {
+        if let Some(ref world) = self.physics3d_world {
+            world.overlap_shape(
+                pos_x, pos_y, pos_z,
+                rot_x, rot_y, rot_z, rot_w,
+                shape_type, p0, p1, p2,
+                layers, mask,
+                out_ptr, max_results,
+            )
+        } else {
+            0
+        }
+    }
+
+    /// Project a world-space point onto the nearest collider.
+    ///
+    /// # Returns
+    /// 6 floats on hit `[1.0, entity, px, py, pz, is_inside]`, or `[0.0]` on miss.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_project_point(
+        &self,
+        px: f32, py: f32, pz: f32,
+        layers: u32, mask: u32, solid: bool,
+    ) -> Vec<f32> {
+        if let Some(ref world) = self.physics3d_world {
+            world.project_point(px, py, pz, layers, mask, solid)
+        } else {
+            vec![0.0]
+        }
+    }
+
+    // ─── Physics 3D — Character Controller (RFC-09D) ──────────────────────────
+
+    /// Registers a kinematic character controller for the body at `entity_index`.
+    ///
+    /// # Arguments
+    /// * `entity_index`              — ECS entity slot index.
+    /// * `step_height`               — Max step-up height in metres (`0.0` disables).
+    /// * `slope_limit`               — Max climbable slope in **degrees**.
+    /// * `skin_width`                — Surface separation offset in metres.
+    /// * `snap_to_ground`            — Ground-snap distance in metres (`0.0` disables).
+    /// * `slide_on_steep_slopes`     — Slide rather than stop on steep surfaces.
+    /// * `apply_impulses_to_dynamic` — Push dynamic bodies on contact.
+    ///
+    /// # Returns
+    /// The entity slot index on success, or [`u32::MAX`] if the entity has no body
+    /// or the physics world has not been initialised.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_character_controller(
+        &mut self,
+        entity_index: u32,
+        step_height: f32,
+        slope_limit: f32,
+        skin_width: f32,
+        snap_to_ground: f32,
+        slide_on_steep_slopes: bool,
+        apply_impulses_to_dynamic: bool,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_character_controller(
+                entity_index,
+                step_height,
+                slope_limit,
+                skin_width,
+                snap_to_ground,
+                slide_on_steep_slopes,
+                apply_impulses_to_dynamic,
+            )
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Moves the character controller for `entity_index` by desired velocity × dt.
+    ///
+    /// Collision resolution is handled internally; the resolved translation is
+    /// applied to the body as a kinematic next-position update.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
+    /// * `dt`           — Simulation time-step (seconds).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_character_controller_move(
+        &mut self,
+        entity_index: u32,
+        vx: f32,
+        vy: f32,
+        vz: f32,
+        dt: f32,
+    ) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.character_controller_move(entity_index, vx, vy, vz, dt);
+        }
+    }
+
+    /// Removes the character controller registered for `entity_index`.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_remove_character_controller(&mut self, entity_index: u32) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.remove_character_controller(entity_index);
+        }
+    }
+
+    // ─── Physics 3D — Joints (RFC-08) ─────────────────────────────────────────
+
+    /// Attach two bodies with a fixed (weld) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    ///
+    /// # Returns
+    /// Stable joint ID, or `u32::MAX` on failure.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_fixed_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_fixed_joint(entity_a, entity_b, ax, ay, az, bx, by, bz)
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Attach two bodies with a revolute (hinge) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `axis_x/y/z` — Rotation axis (world space, normalised internally).
+    /// * `use_limits` — Enable angular limits.
+    /// * `limit_min` / `limit_max` — Angular limits in radians.
+    ///
+    /// # Returns
+    /// Stable joint ID, or `u32::MAX` on failure.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_revolute_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        axis_x: f32, axis_y: f32, axis_z: f32,
+        use_limits: bool, limit_min: f32, limit_max: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_revolute_joint(
+                entity_a, entity_b,
+                ax, ay, az,
+                bx, by, bz,
+                axis_x, axis_y, axis_z,
+                use_limits, limit_min, limit_max,
+            )
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Attach two bodies with a prismatic (slider) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `axis_x/y/z` — Slide axis (world space, normalised internally).
+    /// * `use_limits` — Enable translation limits.
+    /// * `limit_min` / `limit_max` — Limits in metres.
+    ///
+    /// # Returns
+    /// Stable joint ID, or `u32::MAX` on failure.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_prismatic_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        axis_x: f32, axis_y: f32, axis_z: f32,
+        use_limits: bool, limit_min: f32, limit_max: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_prismatic_joint(
+                entity_a, entity_b,
+                ax, ay, az,
+                bx, by, bz,
+                axis_x, axis_y, axis_z,
+                use_limits, limit_min, limit_max,
+            )
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Attach two bodies with a ball (spherical) joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    ///
+    /// # Returns
+    /// Stable joint ID, or `u32::MAX` on failure.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_ball_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_ball_joint(entity_a, entity_b, ax, ay, az, bx, by, bz)
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Attach two bodies with a spring joint.
+    ///
+    /// # Arguments
+    /// * `entity_a` / `entity_b` — ECS entity slot indices.
+    /// * `ax/ay/az` — Anchor on body A (local space).
+    /// * `bx/by/bz` — Anchor on body B (local space).
+    /// * `rest_length` — Natural length of the spring (metres).
+    /// * `stiffness`   — Spring constant (N/m).
+    /// * `damping`     — Damping coefficient (N·s/m).
+    ///
+    /// # Returns
+    /// Stable joint ID, or `u32::MAX` on failure.
+    #[cfg(feature = "physics3d")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn physics3d_add_spring_joint(
+        &mut self,
+        entity_a: u32, entity_b: u32,
+        ax: f32, ay: f32, az: f32,
+        bx: f32, by: f32, bz: f32,
+        rest_length: f32, stiffness: f32, damping: f32,
+    ) -> u32 {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_spring_joint(entity_a, entity_b, ax, ay, az, bx, by, bz, rest_length, stiffness, damping)
+        } else {
+            u32::MAX
+        }
+    }
+
+    /// Remove a joint by its stable ID.
+    ///
+    /// # Arguments
+    /// * `id` — Joint ID returned by `physics3d_add_*_joint`.
+    ///
+    /// # Returns
+    /// `true` if the joint was found and removed, `false` otherwise.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_remove_joint(&mut self, id: u32) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.remove_joint(id)
+        } else {
+            false
+        }
+    }
+
+    /// Set a motor velocity target on a joint's primary axis (AngX).
+    ///
+    /// # Arguments
+    /// * `id`        — Joint ID.
+    /// * `velocity`  — Target angular / linear velocity (rad/s or m/s).
+    /// * `max_force` — Maximum motor force / torque (N or N·m).
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_joint_motor_velocity(&mut self, id: u32, velocity: f32, max_force: f32) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_joint_motor_velocity(id, velocity, max_force)
+        } else {
+            false
+        }
+    }
+
+    /// Set a motor position target on a joint's primary axis (AngX).
+    ///
+    /// # Arguments
+    /// * `id`        — Joint ID.
+    /// * `target`    — Target angle / position (radians or metres).
+    /// * `stiffness` — Spring stiffness (N·m/rad or N/m).
+    /// * `damping`   — Damping coefficient (N·m·s/rad or N·s/m).
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_joint_motor_position(
+        &mut self, id: u32, target: f32, stiffness: f32, damping: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_joint_motor_position(id, target, stiffness, damping)
+        } else {
+            false
+        }
+    }
+
+    /// Enable or disable a joint.
+    ///
+    /// # Arguments
+    /// * `id`      — Joint ID.
+    /// * `enabled` — `true` to enable, `false` to disable.
+    ///
+    /// # Returns
+    /// `true` if the joint exists, `false` otherwise.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_joint_enabled(&mut self, id: u32, enabled: bool) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_joint_enabled(id, enabled)
+        } else {
+            false
+        }
+    }
+
     // ─── Physics 3D — Getters (read-only) ─────────────────────────────────────
 
     /// Return the sensor state for a 3D collider as a packed `u64`.

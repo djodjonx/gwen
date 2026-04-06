@@ -53,3 +53,15 @@ export {
 } from './on-sensor';
 
 export { useBulkStaticBoxes } from './use-bulk-static-boxes';
+
+export { useRaycast } from './use-raycast';
+export type { UseRaycastHandle } from './use-raycast';
+
+export { useShapeCast } from './use-shape-cast';
+export type { UseShapeCastHandle } from './use-shape-cast';
+
+export { useOverlap } from './use-overlap';
+export type { UseOverlapHandle } from './use-overlap';
+
+export { useJoint } from './use-joint';
+export type { UseJointHandle, UseJointOpts } from './use-joint';
