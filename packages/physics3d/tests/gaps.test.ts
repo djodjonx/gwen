@@ -20,11 +20,18 @@ const physics3dRemoveBody = vi.fn().mockReturnValue(true);
 const physics3dLockRotations = vi.fn();
 const physics3dSetBodySolverIterations = vi.fn().mockReturnValue(true);
 const physics3dAddCharacterController = vi.fn().mockReturnValue(0); // slot 0
-const physics3dCharacterControllerMove = vi.fn();
+const physics3dCharacterControllerMove = vi.fn(); // void return
 const physics3dRemoveCharacterController = vi.fn();
+const physics3dGetCcSabPtr = vi.fn().mockReturnValue(0); // 0 = no SAB view by default
+const physics3dGetMaxCcEntities = vi.fn().mockReturnValue(32);
 const physics3dFindPath3d = vi.fn().mockReturnValue(0);
 const physics3dGetPathBufferPtr3d = vi.fn().mockReturnValue(0);
 const physics3dInitNavgrid3d = vi.fn();
+
+/** Byte offset for the CC SAB in tests that need it (must be > 0 and 4-aligned). */
+const CC_SAB_TEST_OFFSET = 4;
+/** Shared SAB for CC SAB tests — re-created per test. */
+let _ccTestSAB: SharedArrayBuffer = new SharedArrayBuffer(65536);
 
 const mockBridge = {
   variant: 'physics3d' as const,
@@ -44,6 +51,8 @@ const mockBridge = {
     physics3d_add_character_controller: physics3dAddCharacterController,
     physics3d_character_controller_move: physics3dCharacterControllerMove,
     physics3d_remove_character_controller: physics3dRemoveCharacterController,
+    physics3d_get_cc_sab_ptr: physics3dGetCcSabPtr,
+    physics3d_get_max_cc_entities: physics3dGetMaxCcEntities,
     physics3d_find_path_3d: physics3dFindPath3d,
     physics3d_get_path_buffer_ptr_3d: physics3dGetPathBufferPtr3d,
     physics3d_init_navgrid_3d: physics3dInitNavgrid3d,
@@ -112,6 +121,8 @@ function setupWasm(): { service: Physics3DAPI } {
     physics3d_add_character_controller: physics3dAddCharacterController,
     physics3d_character_controller_move: physics3dCharacterControllerMove,
     physics3d_remove_character_controller: physics3dRemoveCharacterController,
+    physics3d_get_cc_sab_ptr: physics3dGetCcSabPtr,
+    physics3d_get_max_cc_entities: physics3dGetMaxCcEntities,
     physics3d_find_path_3d: physics3dFindPath3d,
     physics3d_get_path_buffer_ptr_3d: physics3dGetPathBufferPtr3d,
     physics3d_init_navgrid_3d: physics3dInitNavgrid3d,
@@ -120,6 +131,41 @@ function setupWasm(): { service: Physics3DAPI } {
   const { engine, services } = makeEngine();
   plugin.setup(engine);
   return { service: services.get('physics3d') as Physics3DAPI };
+}
+
+/**
+ * Create a Physics3D service wired up with a CC SAB view.
+ * Returns the service and a Float32Array view over the CC SAB region so tests
+ * can pre-populate CC state (simulating what Rust would write per frame).
+ */
+function setupWasmWithCcSab(): { service: Physics3DAPI; ccView: Float32Array } {
+  _ccTestSAB = new SharedArrayBuffer(65536);
+  const ccView = new Float32Array(_ccTestSAB, CC_SAB_TEST_OFFSET, 32 * 5);
+  mockBridge.getLinearMemory.mockReturnValue({ buffer: _ccTestSAB, byteLength: 65536 });
+  physics3dGetCcSabPtr.mockReturnValue(CC_SAB_TEST_OFFSET);
+  physics3dGetMaxCcEntities.mockReturnValue(32);
+  mockBridge.getPhysicsBridge.mockReturnValue({
+    physics3d_init: physics3dInit,
+    physics3d_step: physics3dStep,
+    physics3d_add_body: physics3dAddBody,
+    physics3d_remove_body: physics3dRemoveBody,
+    physics3d_get_body_state: physics3dGetBodyState,
+    physics3d_set_body_state: physics3dSetBodyState,
+    physics3d_lock_rotations: physics3dLockRotations,
+    physics3d_set_body_solver_iterations: physics3dSetBodySolverIterations,
+    physics3d_add_character_controller: physics3dAddCharacterController,
+    physics3d_character_controller_move: physics3dCharacterControllerMove,
+    physics3d_remove_character_controller: physics3dRemoveCharacterController,
+    physics3d_get_cc_sab_ptr: physics3dGetCcSabPtr,
+    physics3d_get_max_cc_entities: physics3dGetMaxCcEntities,
+    physics3d_find_path_3d: physics3dFindPath3d,
+    physics3d_get_path_buffer_ptr_3d: physics3dGetPathBufferPtr3d,
+    physics3d_init_navgrid_3d: physics3dInitNavgrid3d,
+  });
+  const plugin = Physics3DPlugin();
+  const { engine, services } = makeEngine();
+  plugin.setup(engine);
+  return { service: services.get('physics3d') as Physics3DAPI, ccView };
 }
 
 /**
@@ -142,6 +188,12 @@ beforeEach(() => {
   physics3dAddBody.mockReturnValue(true);
   physics3dSetBodySolverIterations.mockReturnValue(true);
   physics3dAddCharacterController.mockReturnValue(0);
+  physics3dGetCcSabPtr.mockReturnValue(0); // no SAB view by default
+  physics3dGetMaxCcEntities.mockReturnValue(32);
+  mockBridge.getLinearMemory.mockReturnValue({
+    buffer: new SharedArrayBuffer(65536),
+    byteLength: 65536,
+  });
 });
 
 // ─── Gap 1: fixedRotation ─────────────────────────────────────────────────────
@@ -213,27 +265,30 @@ describe('Gap 2: per-body quality preset', () => {
   });
 });
 
-// ─── Gap 3: groundEntity from CC move return value ────────────────────────────
+// ─── Gap 3: CC SAB — read grounded state from WASM linear memory ─────────────
 
-describe('Gap 3: groundEntity from CharacterController move', () => {
-  /**
-   * Encode a u32 entity index as the float32 bit-pattern, matching what WASM returns.
-   */
-  function u32ToF32Bits(u: number): number {
-    const buf = new ArrayBuffer(4);
-    const view = new DataView(buf);
-    view.setUint32(0, u, true);
-    return view.getFloat32(0, true);
-  }
+/**
+ * Encode a u32 entity index as the float32 bit-pattern, matching what Rust writes
+ * to CC_STATE_BUFFER.
+ */
+function u32ToF32Bits(u: number): number {
+  const buf = new ArrayBuffer(4);
+  const view = new DataView(buf);
+  view.setUint32(0, u, true);
+  return view.getFloat32(0, true);
+}
 
-  it('parses isGrounded=true and groundNormal from move result', () => {
-    const { service } = setupWasm();
+describe('Gap 3: CharacterController CC SAB state reads', () => {
+  it('reads isGrounded=true and groundNormal from CC SAB slot 0', () => {
+    const { service, ccView } = setupWasmWithCcSab();
     service.createBody(30, { kind: 'dynamic' });
 
-    // WASM returns [grounded=1, nx=0, ny=1, nz=0, groundEntityBits=0xFFFFFFFF (none)]
-    physics3dCharacterControllerMove.mockReturnValue(
-      new Float32Array([1.0, 0.0, 1.0, 0.0, u32ToF32Bits(0xffffffff)]),
-    );
+    // Pre-populate SAB slot 0: grounded=1, nx=0, ny=1, nz=0, groundEntity=0xFFFFFFFF (none)
+    ccView[0] = 1.0; // grounded
+    ccView[1] = 0.0; // nx
+    ccView[2] = 1.0; // ny
+    ccView[3] = 0.0; // nz
+    ccView[4] = u32ToF32Bits(0xffffffff); // no ground entity
 
     const cc = service.addCharacterController(30 as unknown as import('@gwenjs/core').EntityId);
     cc.move({ x: 0, y: -5, z: 0 }, 1 / 60);
@@ -243,14 +298,16 @@ describe('Gap 3: groundEntity from CharacterController move', () => {
     expect(cc.groundEntity).toBeNull();
   });
 
-  it('parses groundEntity when WASM returns a valid entity index', () => {
-    const { service } = setupWasm();
+  it('reads groundEntity from CC SAB when grounded on a dynamic body', () => {
+    const { service, ccView } = setupWasmWithCcSab();
     service.createBody(31, { kind: 'dynamic' });
 
-    // Encode entity index 5 as f32 bit pattern
-    physics3dCharacterControllerMove.mockReturnValue(
-      new Float32Array([1.0, 0.0, 1.0, 0.0, u32ToF32Bits(5)]),
-    );
+    // Slot 0: grounded, entity index 5
+    ccView[0] = 1.0;
+    ccView[1] = 0.0;
+    ccView[2] = 1.0;
+    ccView[3] = 0.0;
+    ccView[4] = u32ToF32Bits(5);
 
     const cc = service.addCharacterController(31 as unknown as import('@gwenjs/core').EntityId);
     cc.move({ x: 0, y: -5, z: 0 }, 1 / 60);
@@ -261,14 +318,16 @@ describe('Gap 3: groundEntity from CharacterController move', () => {
     expect(Number(cc.groundEntity) & 0xffffffff).toBe(5);
   });
 
-  it('sets isGrounded=false and groundEntity=null when not grounded', () => {
-    const { service } = setupWasm();
+  it('reads isGrounded=false and clears groundEntity when SAB slot has grounded=0', () => {
+    const { service, ccView } = setupWasmWithCcSab();
     service.createBody(32, { kind: 'dynamic' });
 
-    // WASM returns [grounded=0, ...]
-    physics3dCharacterControllerMove.mockReturnValue(
-      new Float32Array([0.0, 0.0, 0.0, 0.0, u32ToF32Bits(0xffffffff)]),
-    );
+    // Slot 0: not grounded
+    ccView[0] = 0.0;
+    ccView[1] = 0.0;
+    ccView[2] = 1.0;
+    ccView[3] = 0.0;
+    ccView[4] = u32ToF32Bits(0xffffffff);
 
     const cc = service.addCharacterController(32 as unknown as import('@gwenjs/core').EntityId);
     cc.move({ x: 0, y: -5, z: 0 }, 1 / 60);
@@ -278,17 +337,71 @@ describe('Gap 3: groundEntity from CharacterController move', () => {
     expect(cc.groundEntity).toBeNull();
   });
 
-  it('falls back to SAB data when move returns undefined', () => {
+  it('defaults isGrounded=false when CC SAB view is null (ptr=0)', () => {
+    // Default setup: ptr=0 → ccSABView.view = null
     const { service } = setupWasm();
     service.createBody(33, { kind: 'dynamic' });
 
-    // WASM CC move returns undefined (old WASM build)
-    physics3dCharacterControllerMove.mockReturnValue(undefined);
-
     const cc = service.addCharacterController(33 as unknown as import('@gwenjs/core').EntityId);
-    // Should not throw — falls back to SAB view (both null since SAB view is null in test)
+    // Should not throw — SAB view is null so defaults to false
     expect(() => cc.move({ x: 0, y: -5, z: 0 }, 1 / 60)).not.toThrow();
     expect(cc.isGrounded).toBe(false);
+    expect(cc.groundNormal).toBeNull();
+    expect(cc.groundEntity).toBeNull();
+  });
+});
+
+// ─── CC SAB memory map ────────────────────────────────────────────────────────
+
+describe('CC SAB memory map', () => {
+  it('addCharacterController returns compact slot 0 for first CC', () => {
+    physics3dAddCharacterController.mockReturnValue(0);
+    const { service } = setupWasm();
+    service.createBody(40, { kind: 'dynamic' });
+    // The handle is returned; the slotIndex captured internally should be 0
+    const handle = service.addCharacterController(40 as unknown as import('@gwenjs/core').EntityId);
+    expect(handle).toBeDefined();
+    expect(typeof handle.isGrounded).toBe('boolean');
+    expect(typeof handle.move).toBe('function');
+  });
+
+  it('move() calls physics3d_character_controller_move with correct args', () => {
+    const { service } = setupWasm();
+    service.createBody(41, { kind: 'dynamic' });
+    const cc = service.addCharacterController(41 as unknown as import('@gwenjs/core').EntityId);
+    cc.move({ x: 1, y: -5, z: 2 }, 1 / 60);
+    expect(physics3dCharacterControllerMove).toHaveBeenCalledWith(41, 1, -5, 2, 1 / 60);
+  });
+
+  it('move() does not throw and isGrounded is boolean when SAB view is null', () => {
+    // ptr=0 → no SAB view
+    const { service } = setupWasm();
+    service.createBody(42, { kind: 'dynamic' });
+    const handle = service.addCharacterController(42 as unknown as import('@gwenjs/core').EntityId);
+    expect(() => handle.move({ x: 0, y: -5, z: 0 }, 1 / 60)).not.toThrow();
+    expect(typeof handle.isGrounded).toBe('boolean');
+  });
+
+  it('second CC gets slot 1 from the mock', () => {
+    physics3dAddCharacterController
+      .mockReturnValueOnce(0) // first call → slot 0
+      .mockReturnValueOnce(1); // second call → slot 1
+    const { service, ccView } = setupWasmWithCcSab();
+    service.createBody(43, { kind: 'dynamic' });
+    service.createBody(44, { kind: 'dynamic' });
+
+    // Slot 1 (index 5..9 in ccView): grounded
+    ccView[5] = 1.0; // grounded flag for slot 1
+    ccView[6] = 0.0;
+    ccView[7] = 1.0;
+    ccView[8] = 0.0;
+    ccView[9] = u32ToF32Bits(0xffffffff);
+
+    const _cc0 = service.addCharacterController(43 as unknown as import('@gwenjs/core').EntityId);
+    const cc1 = service.addCharacterController(44 as unknown as import('@gwenjs/core').EntityId);
+    cc1.move({ x: 0, y: -5, z: 0 }, 1 / 60);
+
+    expect(cc1.isGrounded).toBe(true);
   });
 });
 
