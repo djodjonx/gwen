@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { validateEngineConfig } from '../../src/engine/engine-config-validator';
-import { GwenConfigError } from '../../src/engine/config-error';
+import { validateEngineConfig } from '../../src/engine/engine-config-validator.js';
+import { GwenConfigError } from '../../src/engine/config-error.js';
 
 describe('GwenConfigError', () => {
   it('is an Error instance', () => {
@@ -159,6 +159,14 @@ describe('validateEngineConfig — maxDeltaSeconds', () => {
     it('throws on maxDeltaSeconds: 11 (exceeds upper bound)', () => {
       expect(() => validateEngineConfig({ maxDeltaSeconds: 11 })).toThrow(GwenConfigError);
     });
+
+    it('throws on maxDeltaSeconds: Infinity', () => {
+      expect(() => validateEngineConfig({ maxDeltaSeconds: Infinity })).toThrow(GwenConfigError);
+    });
+
+    it('throws on maxDeltaSeconds: NaN', () => {
+      expect(() => validateEngineConfig({ maxDeltaSeconds: NaN })).toThrow(GwenConfigError);
+    });
   });
 
   describe('valid values — must not throw', () => {
@@ -260,13 +268,10 @@ describe('validateEngineConfig — multiple field validation', () => {
     ).toThrow(GwenConfigError);
   });
 
-  it('does not warn if field is invalid (only throws)', () => {
+  it('does not warn when field is invalid (only throws)', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      validateEngineConfig({ maxEntities: 600_000 });
-    } catch {
-      // ignored
-    }
-    expect(warnSpy).toHaveBeenCalled();
+    expect(() => validateEngineConfig({ maxEntities: -1 })).toThrow(GwenConfigError);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
