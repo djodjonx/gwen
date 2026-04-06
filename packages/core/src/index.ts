@@ -123,6 +123,11 @@ export {
   FLAGS3D_OFFSET,
   SENTINEL,
 } from './wasm/shared-memory';
+export type { MemoryRegion } from './wasm/shared-memory';
+
+// WASM transform buffer host imports (RFC-GAP2 V1)
+export { buildTransformImports } from './wasm/transform-imports';
+export type { GwenTransformImports } from './wasm/transform-imports';
 
 // 3D Transform component + low-level buffer accessors
 export {
@@ -135,9 +140,6 @@ export {
   writeTransform3DRotation,
   writeTransform3DScale,
 } from './components/transform3d';
-export type { MemoryRegion } from './wasm/shared-memory';
-
-// String Pool — memory-efficient string storage for ECS
 export { GlobalStringPoolManager, StringPoolManager, StringPool } from './utils/string-pool';
 
 // Core variant detection

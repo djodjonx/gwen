@@ -15,7 +15,7 @@
  * safely cache the results once at module init. The WASM instance has exclusive
  * write access to the transform buffer; JS reads only for diagnostics/sync.
  */
-export interface GwenTransformImports {
+export interface GwenTransformImports extends WebAssembly.ModuleImports {
   /**
    * Returns the byte offset of the transform buffer in WASM linear memory.
    *
