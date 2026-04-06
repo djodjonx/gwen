@@ -25,6 +25,22 @@
 //!
 //! Also generates:
 //! - `pub extern "C" fn gwen_plugin_api_version() -> i32` — returns V
+//!
+//! ## Why a static buffer?
+//!
+//! WASM linear memory layout:
+//! ```text
+//! 0x0000 .. ~0xFFFF  shadow stack (grows down, managed by wasm-bindgen)
+//! ~0x10000 ..         data segment  ← static [u8; N] lives here
+//! after data segment  heap          (Box, Vec, managed by allocator)
+//! ```
+//!
+//! A `static mut [u8; N]` lives at a fixed address that is **never** touched
+//! by the allocator. Its address is a compile-time constant we export with
+//! `#[no_mangle]` so the TypeScript engine can read it before any Rust code runs.
+//!
+//! This is in contrast to `Vec::new()` or `Box::new()`, whose addresses come
+//! from the heap and are not known until runtime.
 
 /// Internal helper macro for ring-buffer channel generation.
 /// Used by `gwen_channel!()` to avoid duplication between versioned and unversioned forms.
@@ -35,14 +51,24 @@ macro_rules! __gwen_channel_inner {
         ::paste::paste! {
             #[allow(non_upper_case_globals)]
             /// Backing store for the ring-buffer channel.
+            ///
+            /// Lives in the WASM data segment. Size = `HEADER_BYTES + capacity * item_size`.
+            /// Never accessed directly — use [`gwen_wasm_utils::ring::RingWriter`] instead.
             static mut [<GWEN_CHANNEL_ $name:upper>]: [u8;
                 $crate::ring::HEADER_BYTES + $capacity * $item_size] =
                 [0u8; $crate::ring::HEADER_BYTES + $capacity * $item_size];
 
             #[no_mangle]
             #[allow(static_mut_refs)]
-            /// Returns the base address of the ring-buffer channel in WASM linear memory.
+            /// Returns the byte offset of this ring buffer in WASM linear memory.
+            ///
+            /// The GWEN TypeScript engine calls this function immediately after
+            /// instantiation to determine where to place the `WasmRingBuffer`.
+            /// The value is a stable compile-time address in the data segment.
             pub extern "C" fn [<gwen_ $name _ring_ptr>]() -> i32 {
+                // SAFETY: We only take the address — we never dereference it here.
+                // The static is zero-initialised and written exclusively through
+                // `RingWriter`, which bounds-checks every write.
                 unsafe { [<GWEN_CHANNEL_ $name:upper>].as_ptr() as i32 }
             }
 
@@ -91,7 +117,7 @@ macro_rules! gwen_channel {
         #[no_mangle]
         /// Returns the plugin API version.
         pub extern "C" fn gwen_plugin_api_version() -> i32 {
-            $version
+            $version as i32
         }
     };
 }
