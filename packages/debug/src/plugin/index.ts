@@ -53,11 +53,23 @@ function emptyMetrics(): DebugMetrics {
     maxFps: 0,
     jitter: 0,
     frameTimeMs: 0,
+    budgetMs: 16.667,
+    overBudget: false,
     frameCount: 0,
     entityCount: 0,
     memoryMB: undefined,
     isDropping: false,
     lastDropAt: 0,
+    phaseMs: {
+      tick: 0,
+      plugins: 0,
+      physics: 0,
+      wasm: 0,
+      update: 0,
+      render: 0,
+      afterTick: 0,
+      total: 0,
+    },
   };
 }
 
@@ -129,6 +141,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
 
       if (framesSinceUpdate >= updateInterval) {
         framesSinceUpdate = 0;
+        const stats = _engine.getStats();
         metrics = {
           fps: instant,
           rollingFps: tracker.rollingFps(),
@@ -136,6 +149,8 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
           maxFps: tracker.maxFps(),
           jitter: tracker.jitter(),
           frameTimeMs: dt * 1000,
+          budgetMs: stats.budgetMs,
+          overBudget: stats.overBudget,
           frameCount: _engine.frameCount,
           entityCount: (() => {
             try {
@@ -150,6 +165,7 @@ export const DebugPlugin = definePlugin((config: DebugPluginConfig = {}) => {
           })(),
           isDropping,
           lastDropAt: isDropping ? lastDropAt : metrics.lastDropAt,
+          phaseMs: stats.phaseMs,
         };
         overlay?.update(metrics);
       }

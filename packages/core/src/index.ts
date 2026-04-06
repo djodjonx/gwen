@@ -18,6 +18,7 @@ export type {
   GwenEngineOptions,
   GwenPluginNotFoundErrorOptions,
   EngineStats,
+  EngineFramePhaseMs,
   WasmModuleHandle,
   WasmModuleOptions,
   WasmRegionView,

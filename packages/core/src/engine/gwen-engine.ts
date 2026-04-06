@@ -353,12 +353,41 @@ export interface GwenPlugin {
 }
 
 /**
+ * Per-phase timing breakdown for a single frame (in milliseconds).
+ * Measured with `performance.now()` around each phase of `_runFrame`.
+ */
+export interface EngineFramePhaseMs {
+  /** Duration of the `engine:tick` hook. */
+  tick: number;
+  /** Combined duration of all plugin `onBeforeUpdate()` calls. */
+  plugins: number;
+  /** Duration of the built-in physics2d + physics3d step. */
+  physics: number;
+  /** Combined duration of all community WASM module steps. */
+  wasm: number;
+  /** Combined duration of all plugin `onUpdate()` calls. */
+  update: number;
+  /** Combined duration of all plugin `onAfterUpdate()` + `onRender()` calls. */
+  render: number;
+  /** Duration of the `engine:afterTick` hook. */
+  afterTick: number;
+  /** Total `_runFrame` duration (wall-clock, includes async overhead). */
+  total: number;
+}
+
+/**
  * Runtime statistics snapshot.
  */
 export interface EngineStats {
   fps: number;
   deltaTime: number;
   frameCount: number;
+  /** Per-phase timing for the most recent completed frame. */
+  phaseMs: EngineFramePhaseMs;
+  /** Frame time budget in ms derived from `targetFPS` (e.g. 16.67 ms at 60 FPS). */
+  budgetMs: number;
+  /** `true` if the last frame's total duration exceeded the budget. */
+  overBudget: boolean;
 }
 
 /**
@@ -659,7 +688,30 @@ class GwenEngineImpl implements GwenEngine {
     }
   >();
 
-  // ─── Frame stats (RFC-008) ────────────────────────────────────────────────
+  // ─── Frame scheduler ─────────────────────────────────────────────────────
+  /**
+   * Schedule the next animation frame.
+   * Uses `requestAnimationFrame` on the main thread; falls back to `setTimeout`
+   * in Web Worker contexts where RAF is unavailable.
+   */
+  private _scheduleFrame(cb: (time: number) => void): number {
+    if (typeof requestAnimationFrame !== 'undefined') {
+      return requestAnimationFrame(cb);
+    }
+    // Worker fallback: no visual sync, but keeps the loop running.
+    return setTimeout(() => cb(performance.now()), 0) as unknown as number;
+  }
+
+  /** Cancel a previously scheduled frame (RAF or setTimeout handle). */
+  private _cancelFrame(handle: number): void {
+    if (typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(handle);
+    } else {
+      clearTimeout(handle);
+    }
+  }
+
+  // ─── Frame stats ─────────────────────────────────────────────────────────
   /**
    * Frame counter driven exclusively by `_runFrame` calls.
    * @internal
@@ -667,6 +719,17 @@ class GwenEngineImpl implements GwenEngine {
   private _frameCountOwn = 0;
   /** Most recent FPS estimate: `1000 / dt` computed after each frame. @internal */
   private _fps = 0;
+  /** Per-phase timing for the most recently completed frame. @internal */
+  private _lastPhaseMs: EngineFramePhaseMs = {
+    tick: 0,
+    plugins: 0,
+    physics: 0,
+    wasm: 0,
+    update: 0,
+    render: 0,
+    afterTick: 0,
+    total: 0,
+  };
 
   // ─── Hooks ───────────────────────────────────────────────────────────────
   readonly hooks: Hookable<GwenRuntimeHooks> = createHooks<GwenRuntimeHooks>();
@@ -824,7 +887,7 @@ class GwenEngineImpl implements GwenEngine {
     await this.hooks.callHook('engine:init');
     await this.hooks.callHook('engine:start');
 
-    // Own the RAF loop — call _runFrame each animation frame.
+    // Drive the frame loop via _scheduleFrame (RAF on main thread, setTimeout in Workers).
     const loop = async (now: number) => {
       if (!this._running) return;
 
@@ -832,7 +895,7 @@ class GwenEngineImpl implements GwenEngine {
       // Use a 0.5ms tolerance to account for RAF timing jitter.
       const frameBudgetMs = 1000 / this.targetFPS;
       if (now - this._lastFrameTime < frameBudgetMs - 0.5) {
-        this._rafHandle = requestAnimationFrame(loop);
+        this._rafHandle = this._scheduleFrame(loop);
         return;
       }
 
@@ -859,16 +922,16 @@ class GwenEngineImpl implements GwenEngine {
           context: { frame: this._frameCountOwn },
         });
       } finally {
-        if (this._running) this._rafHandle = requestAnimationFrame(loop);
+        if (this._running) this._rafHandle = this._scheduleFrame(loop);
       }
     };
-    this._rafHandle = requestAnimationFrame(loop);
+    this._rafHandle = this._scheduleFrame(loop);
   }
 
   async stop(): Promise<void> {
     this._running = false;
     if (this._rafHandle) {
-      cancelAnimationFrame(this._rafHandle);
+      this._cancelFrame(this._rafHandle);
       this._rafHandle = 0;
     }
     await this.hooks.callHook('engine:stop');
@@ -974,7 +1037,7 @@ class GwenEngineImpl implements GwenEngine {
     const channelMap = new Map(
       (options.channels ?? []).map((c) => [
         c.name,
-        new WasmRingBuffer(memory ?? new WebAssembly.Memory({ initial: 1 }), c),
+        new WasmRingBuffer(memory ?? new WebAssembly.Memory({ initial: 1 }), c, instance.exports),
       ]),
     );
 
@@ -1204,10 +1267,14 @@ class GwenEngineImpl implements GwenEngine {
     return this._fps;
   }
   getStats(): EngineStats {
+    const budgetMs = 1000 / this.targetFPS;
     return {
       fps: this._fps,
       deltaTime: this._deltaTime,
       frameCount: this._frameCountOwn,
+      phaseMs: { ...this._lastPhaseMs },
+      budgetMs,
+      overBudget: this._lastPhaseMs.total > budgetMs,
     };
   }
 
@@ -1220,23 +1287,29 @@ class GwenEngineImpl implements GwenEngine {
     // The _advancing guard (set before _runFrame is called) prevents re-entrance,
     // so it is safe to use set/unset here instead of call() for async compatibility.
     engineContext.set(this, true);
+    const t0 = performance.now();
     try {
       // Phase 1 — engine:tick hook (fires before any plugin work)
+      const t1 = performance.now();
       await this.hooks.callHook('engine:tick', dt);
+      const t2 = performance.now();
 
       // Phase 2 — onBeforeUpdate (all plugins, registration order)
       for (const plugin of this._plugins) {
         plugin.onBeforeUpdate?.(dt);
       }
+      const t3 = performance.now();
 
       // Phase 3 — built-in physics step (Cas A: wasmBridge physics)
       if (this.wasmBridge.physics2d.enabled) this.wasmBridge.physics2d.step(dt);
       if (this.wasmBridge.physics3d.enabled) this.wasmBridge.physics3d.step(dt);
+      const t4 = performance.now();
 
       // Phase 4 — community WASM modules step (Cas B: user WASM, registration order)
       for (const entry of this._wasmModules.values()) {
         entry.step?.(entry.handle, dt);
       }
+      const t5 = performance.now();
 
       // Phase 5 — ECS query flush (dirty component marks resolved)
       // Handled internally by the WASM core; stub for future explicit flush API.
@@ -1245,6 +1318,7 @@ class GwenEngineImpl implements GwenEngine {
       for (const plugin of this._plugins) {
         plugin.onUpdate?.(dt);
       }
+      const t6 = performance.now();
 
       // Phase 7 — onAfterUpdate + onRender (all plugins, registration order)
       for (const plugin of this._plugins) {
@@ -1253,11 +1327,24 @@ class GwenEngineImpl implements GwenEngine {
       for (const plugin of this._plugins) {
         plugin.onRender?.();
       }
+      const t7 = performance.now();
 
       // Phase 8 — update stats, then fire engine:afterTick hook
       this._frameCountOwn++;
       this._fps = dt > 0 ? 1000 / dt : 0;
       await this.hooks.callHook('engine:afterTick', dt);
+      const t8 = performance.now();
+
+      this._lastPhaseMs = {
+        tick: t2 - t1,
+        plugins: t3 - t2,
+        physics: t4 - t3,
+        wasm: t5 - t4,
+        update: t6 - t5,
+        render: t7 - t6,
+        afterTick: t8 - t7,
+        total: t8 - t0,
+      };
     } finally {
       engineContext.unset();
     }

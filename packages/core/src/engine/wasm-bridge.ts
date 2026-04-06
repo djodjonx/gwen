@@ -999,8 +999,10 @@ const _typeIdViews = Array.from({ length: 17 }, (_, i) => _typeIdBuffer.subarray
  * resulting in an invalid URL.
  */
 const _pkgWasmBase: string | null = (() => {
-  if (typeof window !== 'undefined' && typeof location !== 'undefined') {
-    // Browser — artifacts always served from /wasm/ by Vite plugin
+  // `location` is available in both browser main thread and Web Workers (self.location).
+  // We no longer check `typeof window` so this also works in worker contexts.
+  if (typeof location !== 'undefined') {
+    // Browser / Worker — artifacts always served from /wasm/ by Vite plugin
     return `${location.origin}/wasm/`;
   }
   return null;
@@ -1167,43 +1169,54 @@ interface WasmGlueModule {
 }
 
 /**
- * Load a WASM ES glue module via a `<script type="module">` injected into the DOM.
- * Works around Vite's restriction on dynamic `import()` for files served from `/public`.
+ * Load a WASM ES glue module, with two code paths:
  *
- * The loaded module is cached on `window` under a deterministic key so repeated
+ * - **Main thread** (DOM available): injects a `<script type="module">` into the document
+ *   to work around Vite's restriction on dynamic `import()` for `/public` assets.
+ * - **Web Worker** (no DOM): falls back to a dynamic `import()` which is natively
+ *   supported in module workers (`new Worker(url, { type: 'module' })`).
+ *
+ * The loaded module is cached on `globalThis` under a deterministic key so repeated
  * calls for the same URL are free (no extra network round-trips).
  *
  * @param jsUrl Absolute or root-relative URL to the wasm-bindgen JS glue file.
- * @throws {Error} If called outside a browser environment (no `document`).
  */
 async function loadWasmGlue(jsUrl: string): Promise<WasmGlueModule> {
+  const key = `__gwenGlue_${jsUrl.replace(/\W/g, '_')}`;
+  const ctx = globalThis as Record<string, unknown>;
+
+  // Cache hit — same URL already loaded in this context.
+  if (ctx[key]) return ctx[key] as WasmGlueModule;
+
+  // Resolve to an absolute URL. `globalThis.location` is available in both
+  // the main thread (window.location) and module workers (self.location).
+  const base = (globalThis as { location?: { href: string } }).location?.href ?? jsUrl;
+  const absoluteUrl = new URL(jsUrl, base).href;
+
+  // ── Worker path: no DOM, use dynamic import() ─────────────────────────────
   if (typeof document === 'undefined') {
-    throw new Error('[GWEN] initWasm() requires a browser environment (no DOM detected).');
+    const glue = (await import(/* @vite-ignore */ absoluteUrl)) as WasmGlueModule;
+    ctx[key] = glue;
+    return glue;
   }
 
+  // ── Main thread path: script injection (preserves Vite /public compat) ────
   return new Promise<WasmGlueModule>((resolve, reject) => {
-    const key = `__gwenGlue_${jsUrl.replace(/\W/g, '_')}`;
-
-    if (window[key]) {
-      resolve(window[key] as WasmGlueModule);
-      return;
-    }
-
     const blob = new Blob(
       [
-        `import * as glue from '${new URL(jsUrl, location.href).href}';`,
-        `window['${key}'] = glue;`,
-        `window['${key}__resolve']?.();`,
+        `import * as glue from '${absoluteUrl}';`,
+        `globalThis['${key}'] = glue;`,
+        `globalThis['${key}__resolve']?.();`,
       ],
       { type: 'text/javascript' },
     );
 
     const blobUrl = URL.createObjectURL(blob);
 
-    window[`${key}__resolve`] = () => {
+    ctx[`${key}__resolve`] = () => {
       URL.revokeObjectURL(blobUrl);
       script.remove();
-      resolve(window[key] as WasmGlueModule);
+      resolve(ctx[key] as WasmGlueModule);
     };
 
     const script = document.createElement('script');

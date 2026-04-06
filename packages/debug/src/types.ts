@@ -2,6 +2,8 @@
  * Public types for the GWEN debug plugin.
  */
 
+import type { EngineFramePhaseMs } from '@gwenjs/core';
+
 // ── Exposed metrics ───────────────────────────────────────────────────────────
 
 /** Full snapshot of debug metrics for a frame. */
@@ -18,6 +20,10 @@ export interface DebugMetrics {
   jitter: number;
   /** Current frame duration in milliseconds */
   frameTimeMs: number;
+  /** Frame time budget in ms (1000 / targetFPS) */
+  budgetMs: number;
+  /** true if the last frame exceeded the time budget */
+  overBudget: boolean;
   /** Current frame number */
   frameCount: number;
   /** Number of active entities in the world */
@@ -28,6 +34,8 @@ export interface DebugMetrics {
   isDropping: boolean;
   /** Timestamp of the last detected drop (ms since epoch), or 0 */
   lastDropAt: number;
+  /** Per-phase timing breakdown for the most recent frame */
+  phaseMs: EngineFramePhaseMs;
 }
 
 // ── Configuration ─────────────────────────────────────────────────────────────
@@ -92,6 +100,16 @@ export interface DebugOverlayConfig {
    * @default '#ff4444'
    */
   colorDrop?: string;
+  /**
+   * Text colour for a phase that exceeds its share of the frame budget.
+   * @default '#ffaa00'
+   */
+  colorWarn?: string;
   /** Background opacity (0-1). @default 0.75 */
   backgroundOpacity?: number;
+  /**
+   * Show the per-phase timing breakdown section.
+   * @default false
+   */
+  showPhases?: boolean;
 }

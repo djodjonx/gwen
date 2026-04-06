@@ -35,6 +35,12 @@ export interface WasmChannelOptions {
   capacity: number;
   /** Size of one item in bytes. Must be a multiple of 4. */
   itemByteSize: number;
+  /**
+   * Optional explicit byte offset override. When omitted, the engine
+   * auto-detects the offset by calling `gwen_{name}_ring_ptr()` on the
+   * module exports. Falls back to 65536 if neither is available.
+   */
+  byteOffset?: number;
 }
 
 /**
@@ -162,11 +168,39 @@ export class WasmRingBuffer {
   private _head = 0;
   private _tail = 0;
 
-  constructor(memory: WebAssembly.Memory, opts: WasmChannelOptions) {
+  /**
+   * Constructs a ring buffer with auto-detected or explicit byte offset.
+   *
+   * The byteOffset is resolved using this priority chain:
+   * 1. `opts.byteOffset` — explicit override (highest priority)
+   * 2. `exports?.[`gwen_${opts.name}_ring_ptr`]` — auto-detection via exported function
+   * 3. `65536` — fallback to first 64 KiB page boundary (past shadow stack)
+   *
+   * @param memory - The WASM linear memory instance.
+   * @param opts - Channel configuration including name, capacity, and optional explicit offset.
+   * @param exports - Optional WASM module exports for auto-detecting byteOffset.
+   */
+  constructor(memory: WebAssembly.Memory, opts: WasmChannelOptions, exports?: WebAssembly.Exports) {
     this._memory = memory;
-    // Ring buffer data starts at offset 0 in the module's memory by convention.
-    // Modules that expose a named channel base export may override this.
-    this._byteOffset = 0;
+
+    // Resolve byteOffset using priority chain.
+    let byteOffset: number;
+    if (opts.byteOffset !== undefined) {
+      // Explicit override has highest priority.
+      byteOffset = opts.byteOffset;
+    } else {
+      // Try auto-detection via exported function.
+      const ptrExportName = `gwen_${opts.name}_ring_ptr`;
+      const ptrExport = exports?.[ptrExportName];
+      if (typeof ptrExport === 'function') {
+        byteOffset = (ptrExport as () => number)();
+      } else {
+        // Fallback: first 64 KiB page boundary, past shadow stack.
+        byteOffset = 65_536;
+      }
+    }
+
+    this._byteOffset = byteOffset;
     this._capacity = opts.capacity;
     this._itemByteSize = opts.itemByteSize;
   }

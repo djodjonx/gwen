@@ -20,11 +20,23 @@ function makeMetrics(overrides: Partial<DebugMetrics> = {}): DebugMetrics {
     maxFps: 65,
     jitter: 1.2,
     frameTimeMs: 16.67,
+    budgetMs: 16.667,
+    overBudget: false,
     frameCount: 100,
     entityCount: 42,
     memoryMB: undefined,
     isDropping: false,
     lastDropAt: 0,
+    phaseMs: {
+      tick: 0.1,
+      plugins: 1.2,
+      physics: 4.5,
+      wasm: 0.2,
+      update: 0.8,
+      render: 3.1,
+      afterTick: 0.1,
+      total: 10.0,
+    },
     ...overrides,
   };
 }
