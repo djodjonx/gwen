@@ -1,7 +1,11 @@
-import { readdirSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, statSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
+import MagicString from 'magic-string';
+import { walk } from 'oxc-walker';
+import type { VariableDeclarator } from 'oxc-parser';
 import type { GwenViteOptions } from '../types.js';
+import { parseSource, isCallTo } from '../oxc/index.js';
 
 const LAYOUTS_VIRTUAL = 'virtual:gwen/layouts';
 const RESOLVED_LAYOUTS = '\0' + LAYOUTS_VIRTUAL;
@@ -52,68 +56,66 @@ export function generateLayoutsModule(layoutMap: Map<string, string>): string {
 }
 
 /**
- * Injects debug names into `defineLayout(...)` calls using `Object.assign()`.
+ * Inject `__layoutName__` metadata into each `defineLayout(...)` call by
+ * wrapping it with `Object.assign(defineLayout(...), { __layoutName__: 'VarName' })`.
  *
- * For each `const Foo = defineLayout(...)` pattern, wraps the call with:
- * `Object.assign(defineLayout(...), { __layoutName__: 'Foo' })`
+ * Uses AST-based parsing so deeply nested callbacks inside `defineLayout` are
+ * handled correctly — the regex approach broke with `spawn(prefab(x))` patterns.
  *
- * This allows runtime tools to surface human-readable layout names for debugging.
- *
- * @param code - Source code to transform.
- * @returns Transformed source code (same reference if no patterns found).
- *
- * @internal Exported for unit tests.
- *
- * @example
- * ```ts
- * transformLayoutNames(`const Level1 = defineLayout(() => { ... })`);
- * // => `const Level1 = Object.assign(defineLayout(() => { ... }), { __layoutName__: 'Level1' })`
- * ```
+ * @param code     - TypeScript source code to transform.
+ * @param filename - File path for the parser.
+ * @returns Transformed source, or the original if no changes were made.
  */
-export function transformLayoutNames(code: string): string {
-  if (!code.includes('defineLayout')) {
-    return code;
-  }
+export function transformLayoutNames(code: string, filename = 'layout.ts'): string {
+  if (!code.includes('defineLayout')) return code;
 
-  // Strategy: Find `const Name = defineLayout` and wrap the entire expression
-  // For single-line simple cases:
-  // const Level1 = defineLayout(() => {...})
-  // becomes:
-  // const Level1 = Object.assign(defineLayout(() => {...}), { __layoutName__: 'Level1' })
+  const parsed = parseSource(filename, code);
+  if (!parsed) return code;
 
-  let result = code;
+  const s = new MagicString(code);
+  let changed = false;
 
-  // Pattern for single-line or simple multi-line defineLayout
-  // This handles: const Name = defineLayout(... potentially spanning lines)
-  const pattern = /(\bconst\s+(\w+)\s*=\s*)defineLayout(\s*\((?:[^()]*|\([^()]*\))*?\))/g;
+  walk(parsed.program, {
+    enter(node) {
+      if (node.type !== 'VariableDeclarator') return;
+      const { id, init } = node as VariableDeclarator;
+      if (id.type !== 'Identifier') return;
+      if (!init || !isCallTo(init, 'defineLayout')) return;
 
-  result = result.replace(pattern, (match, prefix, name, defCall) => {
-    return `${prefix}Object.assign(defineLayout${defCall}, { __layoutName__: '${name}' })`;
+      const varName = (id as { name: string }).name;
+      s.prependLeft(init.start, 'Object.assign(');
+      s.appendRight(init.end, `, { __layoutName__: '${varName}' })`);
+      changed = true;
+    },
   });
 
-  return result;
+  return changed ? s.toString() : code;
 }
 
 /**
- * Extracts layout names from source code by finding `defineLayout(...)` patterns.
+ * Extract all variable names bound to `defineLayout(...)` calls in the given source.
+ * Uses AST parsing to avoid false positives in comments or strings.
  *
- * Looks for:
- * - `const Name = defineLayout(...)`
- * - `export const Name = defineLayout(...)`
- *
- * @param code - Source code to scan.
- * @returns Set of found layout names.
- *
- * @internal Exported for unit tests.
+ * @param code     - TypeScript source code to scan.
+ * @param filename - File path for the parser.
+ * @returns Set of variable names found in `defineLayout` declarations.
  */
-export function extractLayoutNames(code: string): Set<string> {
+export function extractLayoutNames(code: string, filename = 'layout.ts'): Set<string> {
   const names = new Set<string>();
-  const pattern = /\b(?:export\s+)?const\s+(\w+)\s*=\s*defineLayout\s*\(/g;
-  let match: RegExpExecArray | null;
+  if (!code.includes('defineLayout')) return names;
 
-  while ((match = pattern.exec(code)) !== null) {
-    names.add(match[1]);
-  }
+  const parsed = parseSource(filename, code);
+  if (!parsed) return names;
+
+  walk(parsed.program, {
+    enter(node) {
+      if (node.type !== 'VariableDeclarator') return;
+      const { id, init } = node as VariableDeclarator;
+      if (id.type !== 'Identifier') return;
+      if (!init || !isCallTo(init, 'defineLayout')) return;
+      names.add((id as { name: string }).name);
+    },
+  });
 
   return names;
 }
@@ -209,16 +211,11 @@ export function gwenLayoutPlugin(options: GwenViteOptions): Plugin {
         for (const file of files) {
           // Read the file to extract layout names
           try {
-            // Dynamic import to read file content
-            const fs = require('node:fs');
-            const code = fs.readFileSync(file, 'utf-8');
-            const names = extractLayoutNames(code);
-
-            for (const name of names) {
-              layoutMap.set(name, file);
-            }
+            const code = readFileSync(file, 'utf-8');
+            const names = extractLayoutNames(code, file);
+            for (const name of names) layoutMap.set(name, file);
           } catch {
-            // Silently skip files that can't be read
+            // Silently skip files that cannot be read
           }
         }
       }

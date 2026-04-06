@@ -29,6 +29,58 @@ export interface ComponentEntry {
 }
 
 /**
+ * Source positions needed by BulkTransformer to rewrite an optimizable pattern.
+ * All positions are byte offsets into the original source string.
+ */
+export interface PatternPositions {
+  /** Start position of the `for` keyword in the for-of loop. */
+  readonly forOfStart: number;
+  /**
+   * Start position of the opening `{` of the for-of loop body (BlockStatement.start).
+   * Used to overwrite only the loop header when converting to a numeric for loop.
+   */
+  readonly forBodyStart: number;
+  /** End position (exclusive) of the entire for-of statement including closing `}`. */
+  readonly forOfEnd: number;
+  /** The iteration variable name (e.g. `'e'` from `for (const e of entities)`). */
+  readonly entityVar: string;
+  /**
+   * Each `const varName = useComponent(entity, ComponentName)` read declaration.
+   * start/end cover the entire VariableDeclaration statement.
+   */
+  readonly readDecls: ReadonlyArray<{
+    readonly varName: string;
+    readonly component: string;
+    readonly start: number;
+    readonly end: number;
+  }>;
+  /**
+   * Each `useComponent(entity, ComponentName, { ... })` write call.
+   * start/end cover the entire ExpressionStatement.
+   */
+  readonly writeCalls: ReadonlyArray<{
+    readonly component: string;
+    readonly fields: ReadonlyArray<{
+      readonly name: string;
+      readonly valueStart: number;
+      readonly valueEnd: number;
+    }>;
+    readonly start: number;
+    readonly end: number;
+  }>;
+  /**
+   * Each `varName.fieldName` MemberExpression inside the loop body where
+   * `varName` maps to a read component. Used to rewrite `pos.x` → `_position[_i * 2 + 0]`.
+   */
+  readonly propAccesses: ReadonlyArray<{
+    readonly varName: string;
+    readonly fieldName: string;
+    readonly start: number;
+    readonly end: number;
+  }>;
+}
+
+/**
  * A detected optimizable pattern — a `useQuery + onUpdate` block where
  * the optimizer can replace per-entity get/set calls with bulk WASM calls.
  */
@@ -41,6 +93,8 @@ export interface OptimizablePattern {
   readonly writeComponents: string[];
   /** Source location for error reporting and source map generation. */
   readonly loc: { line: number; column: number; file: string };
+  /** Populated in Phase 2 by OXC walker with exact source positions. */
+  readonly positions?: PatternPositions;
 }
 
 /**

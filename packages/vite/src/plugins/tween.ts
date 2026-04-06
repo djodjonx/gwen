@@ -1,5 +1,8 @@
 import type { Plugin } from 'vite';
+import { walk } from 'oxc-walker';
+import type { ObjectExpression, ObjectProperty, StringLiteral } from 'oxc-parser';
 import type { GwenViteOptions } from '../types.js';
+import { parseSource, getObjectProperties, getPropertyKeyName } from '../oxc/index.js';
 
 /**
  * Options for the `gwen:tween` sub-plugin.
@@ -25,15 +28,12 @@ const VIRTUAL_ID = 'virtual:gwen/used-easings';
 const RESOLVED_ID = '\0' + VIRTUAL_ID;
 
 /**
- * Extracts static easing name string literals from `easing: 'name'` patterns
- * in a source file.
+ * Extract all easing function names used in `easing: '...'` properties within
+ * the source file. Uses AST parsing to avoid false positives in comments or strings.
  *
- * Only handles statically-analysable string literals (single or double quotes,
- * no template literals). The caller is responsible for filtering to relevant
- * files before invoking this helper.
- *
- * @param code - Raw source code to scan.
- * @returns A `Set` of unique easing name strings found in the code.
+ * @param code     - TypeScript source code to scan.
+ * @param filename - File path for the parser.
+ * @returns Set of easing name strings found.
  *
  * @example
  * ```ts
@@ -43,14 +43,28 @@ const RESOLVED_ID = '\0' + VIRTUAL_ID;
  *
  * @since 1.0.0
  */
-export function extractUsedEasings(code: string): Set<string> {
+export function extractUsedEasings(code: string, filename = 'tween.ts'): Set<string> {
   const found = new Set<string>();
-  // Matches: easing: 'name' or easing: "name"
-  const pattern = /easing\s*:\s*['"]([^'"]+)['"]/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(code)) !== null) {
-    found.add(match[1]);
-  }
+  if (!code.includes('easing')) return found;
+
+  const parsed = parseSource(filename, code);
+  if (!parsed) return found;
+
+  walk(parsed.program, {
+    enter(node) {
+      if (node.type !== 'ObjectExpression') return;
+      for (const prop of getObjectProperties(node as ObjectExpression)) {
+        if (getPropertyKeyName(prop) !== 'easing') continue;
+        const { value } = prop as ObjectProperty;
+        // StringLiteral and NumericLiteral both have type: 'Literal'
+        // Distinguish by typeof value — cast only after the runtime check
+        if (value.type === 'Literal' && typeof (value as StringLiteral).value === 'string') {
+          found.add((value as StringLiteral).value);
+        }
+      }
+    },
+  });
+
   return found;
 }
 

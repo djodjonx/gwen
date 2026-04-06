@@ -1,7 +1,11 @@
 import { readdirSync, statSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
+import MagicString from 'magic-string';
+import { walk } from 'oxc-walker';
+import type { VariableDeclarator, CallExpression } from 'oxc-parser';
 import type { GwenViteOptions } from '../types.js';
+import { parseSource, isCallTo, getIdentifierName, getCallArgs } from '../oxc/index.js';
 
 const ACTORS_VIRTUAL = 'virtual:gwen/actors';
 const RESOLVED_ACTORS = '\0' + ACTORS_VIRTUAL;
@@ -30,36 +34,54 @@ export function generateActorsModule(actorFiles: string[]): string {
 }
 
 /**
- * Injects debug names into `defineActor(...)` and `definePrefab(...)` calls
- * using simple regex transforms.
+ * Transform `defineActor` and `definePrefab` variable declarations to inject
+ * name metadata as a leading comment, using AST-based parsing to avoid
+ * false positives inside string literals or comments.
  *
- * For each `const Foo = defineActor(...)` pattern, injects the variable name
- * as a comment arg so runtime tools can surface human-readable names.
- *
- * @param code - Source code to transform.
- * @returns Transformed source code (same reference if no patterns found).
- *
- * @internal Exported for unit tests.
+ * @param code     - TypeScript source code to transform.
+ * @param filename - File path for the parser (used in diagnostics).
+ * @returns Transformed source code, or the original if no changes were made.
  *
  * @example
  * ```ts
- * transformActorNames(`const EnemyActor = defineActor(EnemyPrefab, () => {});`);
- * // => `const EnemyActor = defineActor(/* __actorName__: "EnemyActor" * / EnemyPrefab, () => {});`
+ * // Input:
+ * const Hero = defineActor(config)
+ * // Output:
+ * const Hero = defineActor(/* __actorName__: "Hero" *\/ config)
  * ```
  */
-export function transformActorNames(code: string): string {
-  if (!code.includes('defineActor') && !code.includes('definePrefab')) {
-    return code;
-  }
-  return code
-    .replace(
-      /\bconst\s+(\w+)\s*=\s*defineActor\s*\(/g,
-      (_match, name: string) => `const ${name} = defineActor(/* __actorName__: "${name}" */ `,
-    )
-    .replace(
-      /\bconst\s+(\w+)\s*=\s*definePrefab\s*\(/g,
-      (_match, name: string) => `const ${name} = definePrefab(/* __prefabName__: "${name}" */ `,
-    );
+export function transformActorNames(code: string, filename = 'actor.ts'): string {
+  if (!code.includes('defineActor') && !code.includes('definePrefab')) return code;
+
+  const parsed = parseSource(filename, code);
+  if (!parsed) return code;
+
+  const s = new MagicString(code);
+  let changed = false;
+
+  walk(parsed.program, {
+    enter(node) {
+      if (node.type !== 'VariableDeclarator') return;
+      const { id, init } = node as VariableDeclarator;
+      if (id.type !== 'Identifier') return;
+      if (!init) return;
+      if (!isCallTo(init, 'defineActor') && !isCallTo(init, 'definePrefab')) return;
+
+      const varName = (id as { name: string }).name;
+      const callee = getIdentifierName((init as CallExpression).callee);
+      const metaKey = callee === 'defineActor' ? '__actorName__' : '__prefabName__';
+
+      const args = getCallArgs(init as CallExpression);
+      if (args.length > 0) {
+        s.prependLeft(args[0]!.start, `/* ${metaKey}: "${varName}" */ `);
+      } else {
+        s.prependLeft(init.end - 1, `/* ${metaKey}: "${varName}" */ `);
+      }
+      changed = true;
+    },
+  });
+
+  return changed ? s.toString() : code;
 }
 
 /**

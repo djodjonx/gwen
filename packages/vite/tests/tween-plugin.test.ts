@@ -105,6 +105,19 @@ describe('extractUsedEasings()', () => {
     }
     expect(result.size).toBe(easings.length);
   });
+
+  it('does not extract easing from a comment', () => {
+    expect([...extractUsedEasings(`// easing: 'easeInOut'`)]).toHaveLength(0);
+  });
+
+  it('does not extract easing from a string literal', () => {
+    expect([...extractUsedEasings(`const s = "easing: 'linear'";`)]).toHaveLength(0);
+  });
+
+  it('extracts easing from a real useTween() call', () => {
+    const code = `useTween({ duration: 1, easing: 'easeOutQuad' });`;
+    expect([...extractUsedEasings(code)]).toEqual(['easeOutQuad']);
+  });
 });
 
 // ── gwenTweenPlugin — virtual module ─────────────────────────────────────────

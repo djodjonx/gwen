@@ -256,6 +256,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       key: string;
     };
     const currentPairs: PairRecord[] = [];
+    // TODO perf: pre-allocate a reusable slot array and refill it each frame to avoid this spread allocation.
+    // Requires tracking a persistent `_slotsBuffer: number[]` at module scope and a clear+push pattern.
     const slots = [...bodyByEntity.keys()];
 
     for (let i = 0; i < slots.length; i++) {
@@ -1346,6 +1348,961 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     getBodyCount: () => bodyByEntity.size,
 
     isDebugEnabled: () => cfg.debug,
+
+    // ─── RFC-08: Joint API ────────────────────────────────────────────────────
+
+    addFixedJoint(opts: FixedJointOpts): JointHandle3D {
+      const slotA = toEntityIndex(opts.bodyA as EntityId);
+      const slotB = toEntityIndex(opts.bodyB as EntityId);
+      const a = opts.anchorA ?? {};
+      const b = opts.anchorB ?? {};
+
+      if (backendMode === 'wasm') {
+        const id =
+          wasmBridge!.physics3d_add_fixed_joint?.(
+            slotA,
+            slotB,
+            a.x ?? 0,
+            a.y ?? 0,
+            a.z ?? 0,
+            b.x ?? 0,
+            b.y ?? 0,
+            b.z ?? 0,
+          ) ?? 0xffffffff;
+        if (id === 0xffffffff) {
+          _emitLocalJointWarning();
+          return _makeDummyJoint();
+        }
+        return _makeJointHandle(id);
+      }
+
+      _emitLocalJointWarning();
+      return _makeDummyJoint();
+    },
+
+    addRevoluteJoint(opts: RevoluteJointOpts): JointHandle3D {
+      const slotA = toEntityIndex(opts.bodyA as EntityId);
+      const slotB = toEntityIndex(opts.bodyB as EntityId);
+      const a = opts.anchorA ?? {};
+      const b = opts.anchorB ?? {};
+      const axis = opts.axis ?? {};
+      const useLimits = opts.limits !== undefined;
+      const limitMin = opts.limits?.[0] ?? 0;
+      const limitMax = opts.limits?.[1] ?? 0;
+
+      if (backendMode === 'wasm') {
+        const id =
+          wasmBridge!.physics3d_add_revolute_joint?.(
+            slotA,
+            slotB,
+            a.x ?? 0,
+            a.y ?? 0,
+            a.z ?? 0,
+            b.x ?? 0,
+            b.y ?? 0,
+            b.z ?? 0,
+            axis.x ?? 0,
+            axis.y ?? 1,
+            axis.z ?? 0,
+            useLimits,
+            limitMin,
+            limitMax,
+          ) ?? 0xffffffff;
+        if (id === 0xffffffff) {
+          _emitLocalJointWarning();
+          return _makeDummyJoint();
+        }
+        return _makeJointHandle(id);
+      }
+
+      _emitLocalJointWarning();
+      return _makeDummyJoint();
+    },
+
+    addPrismaticJoint(opts: PrismaticJointOpts): JointHandle3D {
+      const slotA = toEntityIndex(opts.bodyA as EntityId);
+      const slotB = toEntityIndex(opts.bodyB as EntityId);
+      const a = opts.anchorA ?? {};
+      const b = opts.anchorB ?? {};
+      const axis = opts.axis ?? {};
+      const useLimits = opts.limits !== undefined;
+      const limitMin = opts.limits?.[0] ?? 0;
+      const limitMax = opts.limits?.[1] ?? 0;
+
+      if (backendMode === 'wasm') {
+        const id =
+          wasmBridge!.physics3d_add_prismatic_joint?.(
+            slotA,
+            slotB,
+            a.x ?? 0,
+            a.y ?? 0,
+            a.z ?? 0,
+            b.x ?? 0,
+            b.y ?? 0,
+            b.z ?? 0,
+            axis.x ?? 0,
+            axis.y ?? 1,
+            axis.z ?? 0,
+            useLimits,
+            limitMin,
+            limitMax,
+          ) ?? 0xffffffff;
+        if (id === 0xffffffff) {
+          _emitLocalJointWarning();
+          return _makeDummyJoint();
+        }
+        return _makeJointHandle(id);
+      }
+
+      _emitLocalJointWarning();
+      return _makeDummyJoint();
+    },
+
+    addBallJoint(opts: BallJointOpts): JointHandle3D {
+      const slotA = toEntityIndex(opts.bodyA as EntityId);
+      const slotB = toEntityIndex(opts.bodyB as EntityId);
+      const a = opts.anchorA ?? {};
+      const b = opts.anchorB ?? {};
+      const useConeLimit = opts.coneAngle !== undefined;
+      const coneAngle = opts.coneAngle ?? 0;
+
+      if (backendMode === 'wasm') {
+        const id =
+          wasmBridge!.physics3d_add_ball_joint?.(
+            slotA,
+            slotB,
+            a.x ?? 0,
+            a.y ?? 0,
+            a.z ?? 0,
+            b.x ?? 0,
+            b.y ?? 0,
+            b.z ?? 0,
+            useConeLimit,
+            coneAngle,
+          ) ?? 0xffffffff;
+        if (id === 0xffffffff) {
+          _emitLocalJointWarning();
+          return _makeDummyJoint();
+        }
+        return _makeJointHandle(id);
+      }
+
+      _emitLocalJointWarning();
+      return _makeDummyJoint();
+    },
+
+    addSpringJoint(opts: SpringJointOpts): JointHandle3D {
+      const slotA = toEntityIndex(opts.bodyA as EntityId);
+      const slotB = toEntityIndex(opts.bodyB as EntityId);
+      const a = opts.anchorA ?? {};
+      const b = opts.anchorB ?? {};
+
+      if (backendMode === 'wasm') {
+        const id =
+          wasmBridge!.physics3d_add_spring_joint?.(
+            slotA,
+            slotB,
+            a.x ?? 0,
+            a.y ?? 0,
+            a.z ?? 0,
+            b.x ?? 0,
+            b.y ?? 0,
+            b.z ?? 0,
+            opts.restLength,
+            opts.stiffness,
+            opts.damping,
+          ) ?? 0xffffffff;
+        if (id === 0xffffffff) {
+          _emitLocalJointWarning();
+          return _makeDummyJoint();
+        }
+        return _makeJointHandle(id);
+      }
+
+      _emitLocalJointWarning();
+      return _makeDummyJoint();
+    },
+
+    removeJoint(id: JointId): void {
+      if (backendMode !== 'wasm') return;
+      wasmBridge!.physics3d_remove_joint?.(id as number);
+    },
+
+    setJointMotorVelocity(id: JointId, velocity: number, maxForce: number): void {
+      if (backendMode !== 'wasm') return;
+      wasmBridge!.physics3d_set_joint_motor_velocity?.(id as number, velocity, maxForce);
+    },
+
+    setJointMotorPosition(id: JointId, target: number, stiffness: number, damping: number): void {
+      if (backendMode !== 'wasm') return;
+      wasmBridge!.physics3d_set_joint_motor_position?.(id as number, target, stiffness, damping);
+    },
+
+    setJointEnabled(id: JointId, enabled: boolean): void {
+      if (backendMode !== 'wasm') return;
+      wasmBridge!.physics3d_set_joint_enabled?.(id as number, enabled);
+    },
+
+    // ─── RFC-10: Continuous forces ────────────────────────────────────────────
+
+    addForce(entityId: Physics3DEntityId, force: Partial<Physics3DVec3>): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_add_force?.(slot, force.x ?? 0, force.y ?? 0, force.z ?? 0);
+        return;
+      }
+      const acc = localForces.get(slot) ?? { x: 0, y: 0, z: 0 };
+      localForces.set(slot, {
+        x: acc.x + (force.x ?? 0),
+        y: acc.y + (force.y ?? 0),
+        z: acc.z + (force.z ?? 0),
+      });
+    },
+
+    addTorque(entityId: Physics3DEntityId, torque: Partial<Physics3DVec3>): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_add_torque?.(slot, torque.x ?? 0, torque.y ?? 0, torque.z ?? 0);
+        return;
+      }
+      const acc = localTorques.get(slot) ?? { x: 0, y: 0, z: 0 };
+      localTorques.set(slot, {
+        x: acc.x + (torque.x ?? 0),
+        y: acc.y + (torque.y ?? 0),
+        z: acc.z + (torque.z ?? 0),
+      });
+    },
+
+    addForceAtPoint(
+      entityId: Physics3DEntityId,
+      force: Partial<Physics3DVec3>,
+      point: Partial<Physics3DVec3>,
+    ): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_add_force_at_point?.(
+          slot,
+          force.x ?? 0,
+          force.y ?? 0,
+          force.z ?? 0,
+          point.x ?? 0,
+          point.y ?? 0,
+          point.z ?? 0,
+        );
+        return;
+      }
+      // Local fallback: approximate as center-of-mass force (no torque contribution)
+      const acc = localForces.get(slot) ?? { x: 0, y: 0, z: 0 };
+      localForces.set(slot, {
+        x: acc.x + (force.x ?? 0),
+        y: acc.y + (force.y ?? 0),
+        z: acc.z + (force.z ?? 0),
+      });
+    },
+
+    // ─── RFC-10: Gravity scale ────────────────────────────────────────────────
+
+    setGravityScale(entityId: Physics3DEntityId, scale: number): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_set_gravity_scale?.(slot, scale);
+        return;
+      }
+      localGravityScales.set(slot, scale);
+    },
+
+    getGravityScale(entityId: Physics3DEntityId): number {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        return wasmBridge!.physics3d_get_gravity_scale?.(slot) ?? 1.0;
+      }
+      return localGravityScales.get(slot) ?? 1.0;
+    },
+
+    // ─── RFC-10: Axis locks ────────────────────────────────────────────────────
+
+    lockTranslations(entityId: Physics3DEntityId, x: boolean, y: boolean, z: boolean): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_lock_translations?.(slot, x, y, z);
+        return;
+      }
+      const cur = localAxisLocks.get(slot) ?? {
+        tx: false,
+        ty: false,
+        tz: false,
+        rx: false,
+        ry: false,
+        rz: false,
+      };
+      localAxisLocks.set(slot, {
+        ...cur,
+        tx: x || cur.tx,
+        ty: y || cur.ty,
+        tz: z || cur.tz,
+      });
+    },
+
+    lockRotations(entityId: Physics3DEntityId, x: boolean, y: boolean, z: boolean): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_lock_rotations?.(slot, x, y, z);
+        return;
+      }
+      const cur = localAxisLocks.get(slot) ?? {
+        tx: false,
+        ty: false,
+        tz: false,
+        rx: false,
+        ry: false,
+        rz: false,
+      };
+      localAxisLocks.set(slot, {
+        ...cur,
+        rx: x || cur.rx,
+        ry: y || cur.ry,
+        rz: z || cur.rz,
+      });
+    },
+
+    // ─── RFC-10: Sleep control ────────────────────────────────────────────────
+
+    setBodySleeping(entityId: Physics3DEntityId, sleeping: boolean): void {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_set_body_sleeping?.(slot, sleeping);
+        return;
+      }
+      if (sleeping) {
+        localSleeping.add(slot);
+      } else {
+        localSleeping.delete(slot);
+      }
+    },
+
+    isBodySleeping(entityId: Physics3DEntityId): boolean {
+      const slot = toEntityIndex(entityId as EntityId);
+      if (backendMode === 'wasm') {
+        return wasmBridge!.physics3d_is_body_sleeping?.(slot) ?? false;
+      }
+      return localSleeping.has(slot);
+    },
+
+    wakeAll(): void {
+      if (backendMode === 'wasm') {
+        wasmBridge!.physics3d_wake_all?.();
+        return;
+      }
+      localSleeping.clear();
+    },
+
+    // ─── RFC-10: Pathfinding 3D ───────────────────────────────────────────────
+
+    initNavGrid3D(opts: Pathfinding3DOptions): void {
+      if (backendMode === 'wasm') {
+        const pb = wasmBridge! as unknown as Record<string, unknown>;
+        const allocFn = pb.__wbindgen_malloc as
+          | ((size: number, align: number) => number)
+          | undefined;
+        const freeFn = pb.__wbindgen_free as
+          | ((ptr: number, size: number, align: number) => void)
+          | undefined;
+        const wasmMem = bridgeRuntime?.getLinearMemory?.();
+        if (typeof allocFn === 'function' && wasmMem) {
+          const ptr = allocFn.call(wasmBridge, opts.grid.byteLength, 1);
+          new Uint8Array(wasmMem.buffer, ptr, opts.grid.byteLength).set(opts.grid);
+          wasmBridge!.physics3d_init_navgrid_3d?.(
+            ptr,
+            opts.width,
+            opts.height,
+            opts.depth,
+            opts.cellSize,
+            opts.origin?.x ?? 0,
+            opts.origin?.y ?? 0,
+            opts.origin?.z ?? 0,
+          );
+          freeFn?.call(wasmBridge, ptr, opts.grid.byteLength, 1);
+        }
+        return;
+      }
+      // Local mode: store for JS A* use
+      _localNavGrid = opts;
+    },
+
+    findPath3D(from: Physics3DVec3, to: Physics3DVec3): PathWaypoint3D[] {
+      if (backendMode === 'wasm') {
+        const count = wasmBridge!.physics3d_find_path_3d?.(
+          from.x,
+          from.y,
+          from.z,
+          to.x,
+          to.y,
+          to.z,
+        );
+        if (!count || count === 0) return [];
+        const ptr = wasmBridge!.physics3d_get_path_buffer_ptr_3d?.();
+        if (!ptr) return [];
+        const wasmMem = bridgeRuntime?.getLinearMemory?.();
+        if (!wasmMem) return [];
+        const floats = new Float32Array(wasmMem.buffer, ptr, count * 3);
+        const path: PathWaypoint3D[] = [];
+        for (let i = 0; i < count; i++) {
+          path.push({
+            x: floats[i * 3]!,
+            y: floats[i * 3 + 1]!,
+            z: floats[i * 3 + 2]!,
+          });
+        }
+        return path;
+      }
+      return _localFindPath3D(from, to);
+    },
+
+    // ─── RFC-07: Spatial queries — imperative ─────────────────────────────────
+
+    castRay(
+      origin: Physics3DVec3,
+      direction: Physics3DVec3,
+      maxDist: number,
+      opts: { layers?: number; mask?: number; solid?: boolean } = {},
+    ): RayHit | null {
+      if (backendMode === 'wasm') {
+        const { layers = 0xffffffff, mask = 0xffffffff, solid = true } = opts;
+        const result = wasmBridge!.physics3d_cast_ray?.(
+          origin.x,
+          origin.y,
+          origin.z,
+          direction.x,
+          direction.y,
+          direction.z,
+          maxDist,
+          layers,
+          mask,
+          solid ? 1 : 0,
+        );
+        if (!result || result.length < 9 || result[0] === 0) return null;
+        const entityIndex = result[1] as number;
+        return {
+          entity: entityIndexToId(entityIndex),
+          distance: result[2]!,
+          normal: { x: result[3]!, y: result[4]!, z: result[5]! },
+          point: { x: result[6]!, y: result[7]!, z: result[8]! },
+        };
+      }
+      if (import.meta.env.DEV) {
+        console.warn('[GWEN:physics3d] castRay() not available in local mode');
+      }
+      return null;
+    },
+
+    castShape(
+      pos: Physics3DVec3,
+      rot: Physics3DQuat,
+      dir: Physics3DVec3,
+      shape: Physics3DColliderShape,
+      maxDist: number,
+      opts: { layers?: number; mask?: number } = {},
+    ): ShapeHit | null {
+      if (backendMode === 'wasm') {
+        const { layers = 0xffffffff, mask = 0xffffffff } = opts;
+        const [shapeType, p0, p1, p2] = encodeShape(shape);
+        const result = wasmBridge!.physics3d_cast_shape?.(
+          pos.x,
+          pos.y,
+          pos.z,
+          rot.x,
+          rot.y,
+          rot.z,
+          rot.w,
+          dir.x,
+          dir.y,
+          dir.z,
+          shapeType,
+          p0,
+          p1,
+          p2,
+          maxDist,
+          layers,
+          mask,
+        );
+        // 15-float result: [hit, entity, toi, nx, ny, nz, px, py, pz, waAx, waAy, waAz, waBx, waBy, waBz]
+        if (!result || result.length < 15 || result[0] === 0) return null;
+        const entityIndex = result[1] as number;
+        return {
+          entity: entityIndexToId(entityIndex),
+          distance: result[2]!,
+          normal: { x: result[3]!, y: result[4]!, z: result[5]! },
+          point: { x: result[6]!, y: result[7]!, z: result[8]! },
+          witnessA: { x: result[9]!, y: result[10]!, z: result[11]! },
+          witnessB: { x: result[12]!, y: result[13]!, z: result[14]! },
+        };
+      }
+      if (import.meta.env.DEV) {
+        console.warn('[GWEN:physics3d] castShape() not available in local mode');
+      }
+      return null;
+    },
+
+    overlapShape(
+      pos: Physics3DVec3,
+      rot: Physics3DQuat,
+      shape: Physics3DColliderShape,
+      opts: { layers?: number; mask?: number; maxResults?: number } = {},
+    ): EntityId[] {
+      if (backendMode === 'wasm') {
+        const {
+          layers = 0xffffffff,
+          mask = 0xffffffff,
+          maxResults = MAX_COMPOSABLE_OVERLAP_RESULTS,
+        } = opts;
+        const wasmMem = bridgeRuntime?.getLinearMemory?.();
+        if (!wasmMem || !overlapScratchView || overlapScratchPtr === 0) {
+          if (import.meta.env.DEV) {
+            console.warn('[GWEN:physics3d] overlapShape() scratch buffer unavailable');
+          }
+          return [];
+        }
+        const [shapeType, p0, p1, p2] = encodeShape(shape);
+        const safeMax = Math.min(maxResults, MAX_COMPOSABLE_OVERLAP_RESULTS);
+
+        // Re-create view in case WASM memory grew
+        const scratchView = new Uint32Array(
+          wasmMem.buffer,
+          overlapScratchPtr,
+          MAX_COMPOSABLE_OVERLAP_RESULTS,
+        );
+        const count =
+          wasmBridge!.physics3d_overlap_shape?.(
+            pos.x,
+            pos.y,
+            pos.z,
+            rot.x,
+            rot.y,
+            rot.z,
+            rot.w,
+            shapeType,
+            p0,
+            p1,
+            p2,
+            layers,
+            mask,
+            overlapScratchPtr,
+            safeMax,
+          ) ?? 0;
+
+        const entities: EntityId[] = [];
+        for (let i = 0; i < count; i++) {
+          entities.push(entityIndexToId(scratchView[i]!));
+        }
+        return entities;
+      }
+      if (import.meta.env.DEV) {
+        console.warn('[GWEN:physics3d] overlapShape() not available in local mode');
+      }
+      return [];
+    },
+
+    projectPoint(
+      point: Physics3DVec3,
+      opts: { layers?: number; mask?: number; solid?: boolean } = {},
+    ): PointProjection | null {
+      if (backendMode === 'wasm') {
+        const { layers = 0xffffffff, mask = 0xffffffff, solid = true } = opts;
+        const result = wasmBridge!.physics3d_project_point?.(
+          point.x,
+          point.y,
+          point.z,
+          layers,
+          mask,
+          solid ? 1 : 0,
+        );
+        // 6-float result: [hit, entity, projX, projY, projZ, isInside]
+        if (!result || result.length < 6 || result[0] === 0) return null;
+        const entityIndex = result[1] as number;
+        return {
+          entity: entityIndexToId(entityIndex),
+          point: { x: result[2]!, y: result[3]!, z: result[4]! },
+          isInside: result[5] !== 0,
+        };
+      }
+      if (import.meta.env.DEV) {
+        console.warn('[GWEN:physics3d] projectPoint() not available in local mode');
+      }
+      return null;
+    },
+
+    // ─── RFC-09: Character Controller ────────────────────────────────────────
+
+    addCharacterController(
+      entityId: EntityId,
+      opts: CharacterControllerOpts = {},
+    ): CharacterControllerHandle {
+      const {
+        stepHeight = 0.35,
+        slopeLimit = 45,
+        skinWidth = 0.02,
+        snapToGround = 0.2,
+        slideOnSteepSlopes = true,
+        applyImpulsesToDynamic = true,
+      } = opts;
+
+      const entityIndex = toEntityIndex(entityId);
+
+      if (backendMode === 'wasm') {
+        const slotIndex =
+          wasmBridge?.physics3d_add_character_controller?.(
+            entityIndex,
+            stepHeight,
+            slopeLimit,
+            skinWidth,
+            snapToGround,
+            slideOnSteepSlopes,
+            applyImpulsesToDynamic,
+          ) ?? 0xffffffff;
+
+        if (slotIndex === 0xffffffff) {
+          if (import.meta.env.DEV) {
+            console.warn('[GWEN:physics3d] addCharacterController: entity has no body registered');
+          }
+        }
+
+        ccRegistrations.set(entityIndex, { slotIndex, entityIndex });
+
+        const sabView = ccSABView;
+        const descBuf = ccDescriptorBuffer;
+        const base = slotIndex * 5;
+
+        let lastTranslation: Physics3DVec3 = { x: 0, y: 0, z: 0 };
+
+        const handle: CharacterControllerHandle = {
+          get isGrounded() {
+            return sabView.view ? sabView.view[base] !== 0 : false;
+          },
+          get groundNormal() {
+            if (!sabView.view || sabView.view[base] === 0) return null;
+            return {
+              x: sabView.view[base + 1]!,
+              y: sabView.view[base + 2]!,
+              z: sabView.view[base + 3]!,
+            };
+          },
+          get groundEntity() {
+            return null; // ground entity tracking not yet available at the Rust layer
+          },
+          get lastTranslation() {
+            return lastTranslation;
+          },
+          move(desiredVelocity: Physics3DVec3, dt: number) {
+            // Write to descriptor buffer for next-frame bulk move
+            // perf: replaced [...spread].findIndex() with manual for...of loop to avoid array allocation every frame
+            let myDescSlot = -1;
+            let _ccSlotIdx = 0;
+            for (const _ccEntry of ccRegistrations.values()) {
+              if (_ccEntry.entityIndex === entityIndex) {
+                myDescSlot = _ccSlotIdx;
+                break;
+              }
+              _ccSlotIdx++;
+            }
+            if (descBuf.view && myDescSlot >= 0) {
+              const di = myDescSlot * 4;
+              // Store entity index as bit-cast u32 in the f32 buffer slot
+              const tmp = new DataView(descBuf.view.buffer, descBuf.view.byteOffset + di * 4, 4);
+              tmp.setUint32(0, entityIndex, true);
+              descBuf.view[di + 1] = desiredVelocity.x;
+              descBuf.view[di + 2] = desiredVelocity.y;
+              descBuf.view[di + 3] = desiredVelocity.z;
+            }
+            // Immediate single-move for this frame
+            wasmBridge?.physics3d_character_controller_move?.(
+              entityIndex,
+              desiredVelocity.x,
+              desiredVelocity.y,
+              desiredVelocity.z,
+              dt,
+            );
+            lastTranslation = {
+              x: desiredVelocity.x * dt,
+              y: desiredVelocity.y * dt,
+              z: desiredVelocity.z * dt,
+            };
+          },
+        };
+        return handle;
+      }
+
+      // Local mode: return an inert handle with position-update fallback
+      let lastTranslation: Physics3DVec3 = { x: 0, y: 0, z: 0 };
+      return {
+        get isGrounded() {
+          return false;
+        },
+        get groundNormal() {
+          return null;
+        },
+        get groundEntity() {
+          return null;
+        },
+        get lastTranslation() {
+          return lastTranslation;
+        },
+        move(v: Physics3DVec3, dt: number) {
+          if (import.meta.env.DEV && !_emittedCCLocalWarning) {
+            console.warn(
+              '[GWEN:physics3d] CharacterController uses local fallback — step-up/slope not supported',
+            );
+            _emittedCCLocalWarning = true;
+          }
+          // Naive position integration via existing body state
+          const state = stateByEntity.get(entityIndex);
+          if (state) {
+            state.position = {
+              x: state.position.x + v.x * dt,
+              y: state.position.y + v.y * dt,
+              z: state.position.z + v.z * dt,
+            };
+          }
+          lastTranslation = { x: v.x * dt, y: v.y * dt, z: v.z * dt };
+        },
+      } satisfies CharacterControllerHandle;
+    },
+
+    removeCharacterController(entityId: EntityId): void {
+      const entityIndex = toEntityIndex(entityId);
+      ccRegistrations.delete(entityIndex);
+      if (backendMode === 'wasm') {
+        wasmBridge?.physics3d_remove_character_controller?.(entityIndex);
+      }
+    },
+
+    // ─── RFC-07: Composable slot registration ────────────────────────────────
+
+    registerRaycastSlot(opts: RaycastOpts, staticSlotIdx?: number): RaycastHandle {
+      const id = staticSlotIdx ?? nextRaycastSlotId++;
+      if (raycastSlots.size >= MAX_RAYCAST_SLOTS) {
+        console.warn(`[GWEN:physics3d] Maximum raycast slot count (${MAX_RAYCAST_SLOTS}) reached`);
+      }
+      const result: RaycastSlotResult = {
+        hit: false,
+        entity: 0n as EntityId,
+        distance: 0,
+        normal: { x: 0, y: 0, z: 0 },
+        point: { x: 0, y: 0, z: 0 },
+      };
+      const handle: RaycastHandle = {
+        get hit() {
+          return result.hit;
+        },
+        get entity() {
+          return result.entity;
+        },
+        get distance() {
+          return result.distance;
+        },
+        get normal() {
+          return result.normal;
+        },
+        get point() {
+          return result.point;
+        },
+        _id: id,
+      };
+      raycastSlots.set(id, {
+        opts,
+        result,
+        // Pre-compute static SAB inputs once at registration. These floats are written
+        // via view.set(_si, base+3) each frame, avoiding per-frame nullish coalescing,
+        // function calls, and _u32ToF32 invocations for direction/mask/layer/solid.
+        _si: new Float32Array([
+          opts.direction.x,
+          opts.direction.y,
+          opts.direction.z,
+          opts.maxDist ?? 100,
+          _u32ToF32(opts.layers ?? 0xffffffff),
+          _u32ToF32(opts.mask ?? 0xffffffff),
+          (opts.solid ?? true) ? 1.0 : 0.0,
+        ]),
+      });
+      // Pre-register the slot with Rust so the output SAB pointer is set up.
+      // Rust will write results to slotPtr after each step().
+      if (staticSlotIdx !== undefined && backendMode === 'wasm' && wasmBridge) {
+        const slotPtr = _raycastOutputSABPtr + staticSlotIdx * 9 * 4;
+        wasmBridge.physics3d_add_raycast_slot?.(
+          slotPtr,
+          0,
+          0,
+          0, // dummy origin — overwritten each frame via input SAB
+          opts.direction.x,
+          opts.direction.y,
+          opts.direction.z,
+          opts.maxDist ?? 100,
+          opts.layers ?? 0xffffffff,
+          opts.mask ?? 0xffffffff,
+          opts.solid ?? true,
+        );
+      }
+      return handle;
+    },
+
+    unregisterRaycastSlot(handle: RaycastHandle): void {
+      raycastSlots.delete(handle._id);
+    },
+
+    registerShapeCastSlot(opts: ShapeCastOpts, staticSlotIdx?: number): ShapeCastHandle {
+      const id = staticSlotIdx ?? nextShapeCastSlotId++;
+      if (shapeCastSlots.size >= MAX_SHAPECAST_SLOTS) {
+        console.warn(
+          `[GWEN:physics3d] Maximum shape cast slot count (${MAX_SHAPECAST_SLOTS}) reached`,
+        );
+      }
+      const result: ShapeCastSlotResult = {
+        hit: false,
+        entity: 0n as EntityId,
+        distance: 0,
+        normal: { x: 0, y: 0, z: 0 },
+        point: { x: 0, y: 0, z: 0 },
+        witnessA: { x: 0, y: 0, z: 0 },
+        witnessB: { x: 0, y: 0, z: 0 },
+      };
+      const handle: ShapeCastHandle = {
+        get hit() {
+          return result.hit;
+        },
+        get entity() {
+          return result.entity;
+        },
+        get distance() {
+          return result.distance;
+        },
+        get normal() {
+          return result.normal;
+        },
+        get point() {
+          return result.point;
+        },
+        get witnessA() {
+          return result.witnessA;
+        },
+        get witnessB() {
+          return result.witnessB;
+        },
+        _id: id,
+      };
+      shapeCastSlots.set(id, {
+        opts,
+        result,
+        // Pre-compute static SAB inputs [dx,dy,dz,shape_type,p0,p1,p2,maxDist,layers_f32,mask_f32]
+        _si: (() => {
+          const [shapeType, p0, p1, p2] = encodeShape(opts.shape);
+          return new Float32Array([
+            opts.direction.x,
+            opts.direction.y,
+            opts.direction.z,
+            shapeType,
+            p0,
+            p1,
+            p2,
+            opts.maxDist ?? 100,
+            _u32ToF32(opts.layers ?? 0xffffffff),
+            _u32ToF32(opts.mask ?? 0xffffffff),
+          ]);
+        })(),
+      });
+      // Pre-register the slot with Rust so the output SAB pointer is set up.
+      if (staticSlotIdx !== undefined && backendMode === 'wasm' && wasmBridge) {
+        const slotPtr = _shapecastOutputSABPtr + staticSlotIdx * 15 * 4;
+        const origin = opts.origin?.() ?? ZERO_VEC3;
+        const rotation = opts.rotation?.() ?? { x: 0, y: 0, z: 0, w: 1 };
+        const [shapeType, p0, p1, p2] = encodeShape(opts.shape);
+        wasmBridge.physics3d_add_shapecast_slot?.(
+          slotPtr,
+          shapeType,
+          p0,
+          p1,
+          p2,
+          origin.x,
+          origin.y,
+          origin.z,
+          rotation.x,
+          rotation.y,
+          rotation.z,
+          rotation.w,
+          opts.direction.x,
+          opts.direction.y,
+          opts.direction.z,
+          opts.maxDist ?? 100,
+          opts.layers ?? 0xffffffff,
+          opts.mask ?? 0xffffffff,
+        );
+      }
+      return handle;
+    },
+
+    unregisterShapeCastSlot(handle: ShapeCastHandle): void {
+      shapeCastSlots.delete(handle._id);
+    },
+
+    registerOverlapSlot(opts: OverlapOpts, staticSlotIdx?: number): OverlapHandle {
+      const id = staticSlotIdx ?? nextOverlapSlotId++;
+      if (overlapSlots.size >= MAX_OVERLAP_SLOTS) {
+        console.warn(`[GWEN:physics3d] Maximum overlap slot count (${MAX_OVERLAP_SLOTS}) reached`);
+      }
+      const result: OverlapSlotResult = { count: 0, entities: [] };
+      const handle: OverlapHandle = {
+        get count() {
+          return result.count;
+        },
+        get entities() {
+          return result.entities;
+        },
+        _id: id,
+      };
+      overlapSlots.set(id, {
+        opts,
+        result,
+        // Pre-compute static SAB inputs [shape_type,p0,p1,p2,maxResults_f32]
+        _si: (() => {
+          const [shapeType, p0, p1, p2] = encodeShape(opts.shape);
+          return new Float32Array([
+            shapeType,
+            p0,
+            p1,
+            p2,
+            opts.maxResults ?? MAX_COMPOSABLE_OVERLAP_RESULTS,
+          ]);
+        })(),
+      });
+      // Pre-register the slot with Rust so the per-slot output buffer pointer is set up.
+      if (staticSlotIdx !== undefined && backendMode === 'wasm' && wasmBridge) {
+        const ovStride = MAX_COMPOSABLE_OVERLAP_RESULTS + 1;
+        const slotPtr = _overlapOutputSABPtr + staticSlotIdx * ovStride * 4;
+        const origin = opts.origin();
+        const rotation = opts.rotation?.() ?? { x: 0, y: 0, z: 0, w: 1 };
+        const [shapeType, p0, p1, p2] = encodeShape(opts.shape);
+        wasmBridge.physics3d_add_overlap_slot?.(
+          slotPtr,
+          shapeType,
+          p0,
+          p1,
+          p2,
+          origin.x,
+          origin.y,
+          origin.z,
+          rotation.x,
+          rotation.y,
+          rotation.z,
+          rotation.w,
+          opts.layers ?? 0xffffffff,
+          opts.mask ?? 0xffffffff,
+          opts.maxResults ?? MAX_COMPOSABLE_OVERLAP_RESULTS,
+        );
+      }
+      return handle;
+    },
+
+    unregisterOverlapSlot(handle: OverlapHandle): void {
+      overlapSlots.delete(handle._id);
+    },
   };
 
   // ─── Plugin lifecycle ─────────────────────────────────────────────────────────

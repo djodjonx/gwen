@@ -34,9 +34,22 @@ describe('AstWalker', () => {
     expect(findings[0]!.readComponents).toContain('Velocity');
   });
 
-  it('returns empty array for code with no useQuery', () => {
+  it('returns empty array for unparseable source', () => {
     const walker = new AstWalker('test.ts');
-    const findings = walker.walk('const x = 1');
+    // Pass a string that contains 'useQuery' (to bypass the early return)
+    // but is syntactically invalid so the parser throws.
+    const findings = walker.walk('useQuery(!!!invalid syntax @@@');
+    expect(findings).toEqual([]);
+  });
+
+  it('returns empty array for source with no defineSystem', () => {
+    const walker = new AstWalker('test.ts');
+    // Valid TypeScript but no defineSystem call — no patterns should be found.
+    const source = `
+      import { useQuery } from '@gwenjs/core';
+      const result = useQuery([Position, Velocity]);
+    `;
+    const findings = walker.walk(source);
     expect(findings).toEqual([]);
   });
 });

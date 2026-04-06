@@ -107,8 +107,8 @@ export function createPhysicsKinematicSyncSystem(options: PhysicsKinematicSyncSy
         // this generic sync system relies on.
         const stringEngine = _engine as unknown as GwenEngineStringComponentAccess;
 
-        const entities = [...stringEngine.createLiveQuery([positionComponent])];
-        for (const entityId of entities) {
+        for (const entityId of stringEngine.createLiveQuery([positionComponent])) {
+          // perf: replaced [...spread] with for...of to avoid array allocation every frame
           if (!physics.hasBody(entityId)) continue;
           if (physics.getBodyKind(entityId) !== 'kinematic') continue;
 

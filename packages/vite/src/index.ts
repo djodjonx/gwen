@@ -31,6 +31,27 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn, type ChildProcess } from 'node:child_process';
 import type { Plugin, ViteDevServer } from 'vite';
+import { walk } from 'oxc-walker';
+import type {
+  ExportDefaultDeclaration,
+  ExportNamedDeclaration,
+  VariableDeclaration,
+  VariableDeclarator,
+  CallExpression,
+  PropertyDefinition,
+  StringLiteral,
+  ObjectExpression,
+  ObjectProperty,
+  ArrayExpression,
+  Class as OxcClass,
+} from 'oxc-parser';
+import {
+  parseSource,
+  isCallTo,
+  getCallArgs,
+  getObjectProperties,
+  getPropertyKeyName,
+} from './oxc/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +120,131 @@ interface SceneInfo {
   relPath: string;
 }
 
+/**
+ * Scan a single scene source file and extract class name, scene name, and export type.
+ *
+ * Handles 4 patterns:
+ * 1. `export default class FooScene { ... }` — isDefault=true
+ * 2. `export class FooScene { ... }` — named class export
+ * 3. `export const Foo = defineScene('name', ...)` — factory pattern
+ * 4. `readonly name = 'foo'` property inside a class — extracts scene name
+ *
+ * @param source       - TypeScript source code of the scene file.
+ * @param filename     - Absolute path (used for the parser).
+ * @param fallbackName - Used as class/scene name when AST extraction fails.
+ * @returns Extracted scene metadata.
+ */
+function scanSceneFile(
+  source: string,
+  filename: string,
+  fallbackName: string,
+): {
+  className: string;
+  sceneName: string;
+  isDefault: boolean;
+  isFactory: boolean;
+  isConst: boolean;
+} {
+  const parsed = parseSource(filename, source);
+  if (!parsed) {
+    return {
+      className: fallbackName,
+      sceneName: fallbackName.replace(/Scene$/, ''),
+      isDefault: false,
+      isConst: false,
+      isFactory: false,
+    };
+  }
+
+  let className = fallbackName;
+  let isDefault = false;
+  let isConst = false;
+  let isFactory = false;
+  let sceneName: string | null = null;
+
+  walk(parsed.program, {
+    enter(node) {
+      // Case 1: export default class FooScene
+      if (node.type === 'ExportDefaultDeclaration') {
+        const { declaration } = node as ExportDefaultDeclaration;
+        if (declaration.type === 'ClassDeclaration' || declaration.type === 'ClassExpression') {
+          const cls = declaration as OxcClass;
+          if (cls.id?.type === 'Identifier') {
+            className = (cls.id as { name: string }).name;
+            isDefault = true;
+          }
+        }
+        return;
+      }
+
+      // Case 2 & 3: export class / export const = defineScene(...)
+      if (node.type === 'ExportNamedDeclaration') {
+        const { declaration } = node as ExportNamedDeclaration;
+        if (!declaration) return;
+
+        if (declaration.type === 'ClassDeclaration' || declaration.type === 'ClassExpression') {
+          const cls = declaration as OxcClass;
+          if (cls.id?.type === 'Identifier') className = (cls.id as { name: string }).name;
+          return;
+        }
+
+        if (declaration.type === 'VariableDeclaration') {
+          for (const declarator of (declaration as VariableDeclaration).declarations) {
+            const { id, init } = declarator as VariableDeclarator;
+            if (id.type !== 'Identifier') continue;
+            if (!init || !isCallTo(init, 'defineScene')) continue;
+            className = (id as { name: string }).name;
+            isConst = true;
+            const args = getCallArgs(init as CallExpression);
+            if (args.length >= 1 && args[0]!.type === 'Literal') {
+              const val = (args[0] as StringLiteral).value;
+              if (typeof val === 'string') {
+                sceneName = val;
+                isFactory = true;
+              }
+            }
+          }
+          return;
+        }
+      }
+
+      // Case 3b: defineScene('name', ...) outside export
+      if (node.type === 'CallExpression' && isCallTo(node as CallExpression, 'defineScene')) {
+        if (!sceneName) {
+          const args = getCallArgs(node as CallExpression);
+          if (args.length >= 1 && args[0]!.type === 'Literal') {
+            const val = (args[0] as StringLiteral).value;
+            if (typeof val === 'string') sceneName = val;
+          }
+        }
+        return;
+      }
+
+      // Case 4: readonly name = 'Foo' inside a class
+      if (node.type === 'PropertyDefinition') {
+        const propDef = node as PropertyDefinition;
+        if (
+          propDef.key.type === 'Identifier' &&
+          (propDef.key as { name: string }).name === 'name'
+        ) {
+          if (propDef.value && propDef.value.type === 'Literal' && !sceneName) {
+            const val = (propDef.value as StringLiteral).value;
+            if (typeof val === 'string') sceneName = val;
+          }
+        }
+      }
+    },
+  });
+
+  return {
+    className,
+    sceneName: sceneName ?? className.replace(/Scene$/, ''),
+    isDefault,
+    isConst,
+    isFactory,
+  };
+}
+
 function scanScenes(projectRoot: string): SceneInfo[] {
   const scenesDir = path.join(projectRoot, 'src', 'scenes');
   if (!fs.existsSync(scenesDir)) return [];
@@ -109,32 +255,20 @@ function scanScenes(projectRoot: string): SceneInfo[] {
     .sort()
     .map((file) => {
       const base = file.replace(/\.ts$/, '');
-      const source = fs.readFileSync(path.join(scenesDir, file), 'utf-8');
+      const fullPath = path.join(scenesDir, file);
+      const source = fs.readFileSync(fullPath, 'utf-8');
 
-      const defaultMatch = source.match(/export\s+default\s+class\s+(\w+)/);
-      const classMatch = source.match(/export\s+class\s+(\w+)/);
-      const constMatch = source.match(/export\s+const\s+(\w+)/);
-      const namedMatch = classMatch ?? constMatch;
-      const className = defaultMatch?.[1] ?? namedMatch?.[1] ?? base;
-
-      // defineScene form 2 = export const + defineScene('string', factory)
-      const isFactory =
-        !!constMatch && /defineScene\s*\(\s*['"`][^'"`,]+['"`]\s*,/.test(source) && !classMatch;
-
-      // Any other exported constant is treated as a direct object (Form 1)
-      const isConst = !!constMatch && !isFactory && !classMatch;
-
-      const sceneName =
-        source.match(/defineScene\s*\(\s*['"]([^'"]+)['"]/)?.[1] ??
-        source.match(/readonly\s+name\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
-        source.match(/\bname\s*=\s*['"]([^'"]+)['"]/)?.[1] ??
-        className.replace(/Scene$/, '');
+      const { className, sceneName, isDefault, isFactory, isConst } = scanSceneFile(
+        source,
+        fullPath,
+        base,
+      );
 
       return {
         file,
         className,
         sceneName,
-        isDefault: !!defaultMatch,
+        isDefault,
         isFactory,
         isConst,
         relPath: `/src/scenes/${base}.ts`,
@@ -195,17 +329,65 @@ function generateScenesModule(scenes: SceneInfo[], mainScene: string | undefined
 }
 
 /**
- * Extracts module package names from the `modules: []` array in gwen.config.ts.
- * Uses regex — handles both string entries and [name, options] tuple entries.
- * Only scoped packages (`@scope/pkg`) and slash-containing names are extracted.
+ * Extract module package names from a `gwen.config.ts` file's `modules: [...]` array.
+ *
+ * Handles two element shapes:
+ * - `'@scope/pkg'` — plain string literal
+ * - `['@scope/pkg', options]` — tuple with package name as first element
+ *
+ * @param configPath - Absolute path to `gwen.config.ts`.
+ * @returns Array of module package name strings.
  */
 function extractModuleNamesFromConfig(configPath: string): string[] {
   if (!fs.existsSync(configPath)) return [];
   const src = fs.readFileSync(configPath, 'utf-8');
-  const match = src.match(/modules\s*:\s*\[([^\]]*)\]/s);
-  if (!match) return [];
-  // Extract string literals that look like package names (contain / or start with @)
-  return [...match[1].matchAll(/['"](@[^'"]+|[^'"@][^'"]*\/[^'"]+)['"]/g)].map((m) => m[1]);
+
+  const parsed = parseSource(configPath, src);
+  if (!parsed) return [];
+
+  const names: string[] = [];
+
+  walk(parsed.program, {
+    enter(node) {
+      if (node.type !== 'ObjectExpression') return;
+
+      for (const prop of getObjectProperties(node as ObjectExpression)) {
+        if (getPropertyKeyName(prop) !== 'modules') continue;
+
+        const { value } = prop as ObjectProperty;
+        if (value.type !== 'ArrayExpression') continue;
+
+        for (const el of (value as ArrayExpression).elements) {
+          if (!el || el.type === 'SpreadElement') continue;
+
+          // Form 1: '@scope/pkg' string literal
+          if (el.type === 'Literal' && typeof (el as StringLiteral).value === 'string') {
+            const s = (el as StringLiteral).value;
+            if (s.includes('/') || s.startsWith('@')) names.push(s);
+            continue;
+          }
+
+          // Form 2: ['@scope/pkg', opts] tuple
+          if (el.type === 'ArrayExpression') {
+            const first = (el as ArrayExpression).elements[0];
+            if (
+              first &&
+              first.type === 'Literal' &&
+              typeof (first as StringLiteral).value === 'string'
+            ) {
+              const s = (first as StringLiteral).value;
+              if (s.includes('/') || s.startsWith('@')) names.push(s);
+            }
+          }
+        }
+
+        this.skip(); // Found modules array — stop descending
+        return;
+      }
+    },
+  });
+
+  return names;
 }
 
 function generateEntryModule(hasScenesDir: boolean, moduleNames: string[] = []): string {

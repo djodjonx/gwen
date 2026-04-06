@@ -192,4 +192,16 @@ describe('transformLayoutNames', () => {
     expect(result).toContain("), { __layoutName__: 'Test' }");
     expect(result).toMatch(/\}\);$/);
   });
+
+  it('handles deeply nested parentheses in defineLayout callback', () => {
+    const code = `const Level1 = defineLayout(() => { if (f(x)) { spawn(p(opts)); } });`;
+    const result = transformLayoutNames(code);
+    expect(result).toContain('Object.assign(defineLayout(');
+    expect(result).toContain("{ __layoutName__: 'Level1' })");
+  });
+
+  it('does not transform defineLayout in a comment', () => {
+    const code = `// const Foo = defineLayout(() => {})`;
+    expect(transformLayoutNames(code)).toBe(code);
+  });
 });

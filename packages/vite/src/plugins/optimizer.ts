@@ -1,7 +1,10 @@
 import type { Plugin } from 'vite';
+import MagicString from 'magic-string';
 import { ComponentManifest } from '../optimizer/component-manifest.js';
 import { AstWalker } from '../optimizer/ast-walker.js';
 import { PatternDetector } from '../optimizer/pattern-detector.js';
+import { ComponentScanner, findComponentFiles } from '../optimizer/component-scanner.js';
+import { applyBulkTransform } from '../optimizer/bulk-transformer.js';
 import type { WasmTier } from '../optimizer/types.js';
 
 /** Options for `gwenOptimizerPlugin`. */
@@ -17,6 +20,11 @@ export interface GwenOptimizerOptions {
    * @default 'core'
    */
   tier?: WasmTier;
+  /**
+   * Directory (relative to project root) to scan for `defineComponent` calls.
+   * @default 'src'
+   */
+  componentsDir?: string;
 }
 
 /**
@@ -54,20 +62,37 @@ export function gwenOptimizerPlugin(options: GwenOptimizerOptions = {}): Plugin 
   const _tier: WasmTier = options.tier ?? 'core';
 
   const manifest = new ComponentManifest();
+  let _root = process.cwd();
 
   return {
     name: 'gwen:optimizer',
 
     /**
-     * Reset the component manifest at build start.
-     * Populated lazily in `transform` on each file encounter.
+     * Capture the resolved project root so `buildStart` can locate `componentsDir`.
+     *
+     * @internal Called by Vite after the config is resolved.
+     */
+    configResolved(config) {
+      _root = config.root;
+    },
+
+    /**
+     * Reset the component manifest at build start, then scan `componentsDir` for
+     * all `defineComponent(...)` calls and populate the manifest.
      *
      * @internal Called by Vite at build start (and on server restart in dev).
      */
     async buildStart() {
       manifest.clear();
+      const compDir = `${_root}/${options.componentsDir ?? 'src'}`;
+      const files = findComponentFiles(compDir);
+      const scanner = new ComponentScanner(manifest);
+      await scanner.scanFiles(files);
       if (debug) {
-        console.log('[gwen:optimizer] buildStart — manifest cleared, ready to scan');
+        console.log(`[gwen:optimizer] buildStart — ${manifest.size} component(s) registered`);
+        for (const entry of manifest.entries()) {
+          console.log(`  ${entry.name}: typeId=${entry.typeId}, stride=${entry.f32Stride}`);
+        }
       }
     },
 
@@ -82,7 +107,7 @@ export function gwenOptimizerPlugin(options: GwenOptimizerOptions = {}): Plugin 
      *
      * @param code - The source code of the file being transformed.
      * @param id   - The resolved file path / module ID.
-     * @returns `null` to skip (Phase 1), or `{ code, map }` in Phase 2.
+     * @returns `null` to skip, or `{ code, map }` when a pattern was transformed.
      */
     transform(code: string, id: string) {
       if (!id.endsWith('.ts') && !id.endsWith('.tsx')) return null;
@@ -94,27 +119,28 @@ export function gwenOptimizerPlugin(options: GwenOptimizerOptions = {}): Plugin 
       if (patterns.length === 0) return null;
 
       const detector = new PatternDetector(manifest);
+      const s = new MagicString(code);
+      let transformed = false;
 
       for (const pattern of patterns) {
         const result = detector.classify(pattern);
         if (!result.optimizable) {
-          if (debug) {
-            console.log(`[gwen:optimizer] Skipping pattern in ${id}: ${result.reason}`);
-          }
+          if (debug) console.log(`[gwen:optimizer] Skipping in ${id}: ${result.reason}`);
           continue;
         }
-
-        if (debug) {
+        if (debug)
           console.log(
-            `[gwen:optimizer] Optimizable pattern in ${id}:`,
+            `[gwen:optimizer] Transforming pattern in ${id}:`,
             pattern.queryComponents.join(', '),
           );
-        }
+        if (applyBulkTransform(s, pattern, manifest, _tier)) transformed = true;
       }
 
-      // Phase 1: return null — transform wiring verified, no code changes yet.
-      // Phase 2 will return { code: transformedCode, map: sourceMap }.
-      return null;
+      if (!transformed) return null;
+      return {
+        code: s.toString(),
+        map: s.generateMap({ hires: true, source: id, includeContent: true }),
+      };
     },
   };
 }
