@@ -2085,6 +2085,178 @@ impl Engine {
         }
     }
 
+    // ─── Physics 3D — RFC-09: Forces, torques, gravity scale, locks, sleep ────
+
+    /// Apply a continuous force to a dynamic body for the current simulation step.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `fx` / `fy` / `fz` — Force vector in world space (Newtons).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_force(
+        &mut self,
+        entity_index: u32,
+        fx: f32,
+        fy: f32,
+        fz: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_force(entity_index, fx, fy, fz)
+        } else {
+            false
+        }
+    }
+
+    /// Apply a continuous torque to a dynamic body for the current simulation step.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `tx` / `ty` / `tz` — Torque vector in world space (Newton-metres).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_torque(
+        &mut self,
+        entity_index: u32,
+        tx: f32,
+        ty: f32,
+        tz: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_torque(entity_index, tx, ty, tz)
+        } else {
+            false
+        }
+    }
+
+    /// Apply a continuous force at a world-space point on a dynamic body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `fx` / `fy` / `fz` — Force vector (Newtons).
+    /// * `px` / `py` / `pz` — World-space application point.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_add_force_at_point(
+        &mut self,
+        entity_index: u32,
+        fx: f32,
+        fy: f32,
+        fz: f32,
+        px: f32,
+        py: f32,
+        pz: f32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.add_force_at_point(entity_index, fx, fy, fz, px, py, pz)
+        } else {
+            false
+        }
+    }
+
+    /// Set the gravity scale multiplier for a body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `scale` — Gravity multiplier (`0.0` = weightless, `1.0` = normal).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_gravity_scale(&mut self, entity_index: u32, scale: f32) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_gravity_scale(entity_index, scale)
+        } else {
+            false
+        }
+    }
+
+    /// Read the current gravity scale multiplier of a body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    ///
+    /// Returns `1.0` if the world is uninitialised or the entity is not found.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_gravity_scale(&self, entity_index: u32) -> f32 {
+        if let Some(ref world) = self.physics3d_world {
+            world.get_gravity_scale(entity_index)
+        } else {
+            1.0
+        }
+    }
+
+    /// Additively lock translation axes for a body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `x` / `y` / `z` — Lock each axis when `true`.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_lock_translations(
+        &mut self,
+        entity_index: u32,
+        x: bool,
+        y: bool,
+        z: bool,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.lock_translations(entity_index, x, y, z)
+        } else {
+            false
+        }
+    }
+
+    /// Additively lock rotation axes for a body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `x` / `y` / `z` — Lock rotation about each axis when `true`.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_lock_rotations(
+        &mut self,
+        entity_index: u32,
+        x: bool,
+        y: bool,
+        z: bool,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.lock_rotations(entity_index, x, y, z)
+        } else {
+            false
+        }
+    }
+
+    /// Put a body to sleep (`sleeping = true`) or force it awake (`sleeping = false`).
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `sleeping`     — Desired sleep state.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_body_sleeping(&mut self, entity_index: u32, sleeping: bool) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_body_sleeping(entity_index, sleeping)
+        } else {
+            false
+        }
+    }
+
+    /// Return whether a body is currently sleeping.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    ///
+    /// Returns `false` if the world is uninitialised or the entity is not found.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_is_body_sleeping(&self, entity_index: u32) -> bool {
+        if let Some(ref world) = self.physics3d_world {
+            world.is_body_sleeping(entity_index)
+        } else {
+            false
+        }
+    }
+
+    /// Wake every dynamic body in the simulation.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_wake_all(&mut self) {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.wake_all();
+        }
+    }
+
     // ─── Physics 3D — Getters (read-only) ─────────────────────────────────────
 
     /// Return the sensor state for a 3D collider as a packed `u64`.

@@ -69,6 +69,16 @@ const physics3dSetAngularVelocity = vi.fn((idx: number, ax: number, ay: number, 
   return true;
 });
 const physics3dApplyImpulse = vi.fn().mockReturnValue(true);
+const physics3dAddForce = vi.fn();
+const physics3dAddTorque = vi.fn();
+const physics3dAddForceAtPoint = vi.fn();
+const physics3dSetGravityScale = vi.fn();
+const physics3dGetGravityScale = vi.fn().mockReturnValue(2.0);
+const physics3dLockTranslations = vi.fn();
+const physics3dLockRotations = vi.fn();
+const physics3dSetBodySleeping = vi.fn();
+const physics3dIsBodySleeping = vi.fn().mockReturnValue(false);
+const physics3dWakeAll = vi.fn();
 const physics3dGetBodyKind = vi.fn((idx: number) => wasmKind.get(idx) ?? 1);
 const physics3dSetBodyKind = vi.fn((idx: number, kind: number) => {
   wasmKind.set(idx, kind);
@@ -98,6 +108,16 @@ const mockBridge = {
     physics3d_add_box_collider: physics3dAddBoxCollider,
     physics3d_add_mesh_collider: physics3dAddMeshCollider,
     physics3d_add_convex_collider: physics3dAddConvexCollider,
+    physics3d_add_force: physics3dAddForce,
+    physics3d_add_torque: physics3dAddTorque,
+    physics3d_add_force_at_point: physics3dAddForceAtPoint,
+    physics3d_set_gravity_scale: physics3dSetGravityScale,
+    physics3d_get_gravity_scale: physics3dGetGravityScale,
+    physics3d_lock_translations: physics3dLockTranslations,
+    physics3d_lock_rotations: physics3dLockRotations,
+    physics3d_set_body_sleeping: physics3dSetBodySleeping,
+    physics3d_is_body_sleeping: physics3dIsBodySleeping,
+    physics3d_wake_all: physics3dWakeAll,
   })),
 };
 
@@ -358,5 +378,149 @@ describe('Physics3D WASM backend — mesh and convex colliders', () => {
     });
     // Optional chaining (?.) returns undefined → false
     expect(ok).toBe(false);
+  });
+});
+
+describe('Group A — RFC-09: forces, gravity, locks, sleep', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    wasmBodyState.clear();
+    wasmLinVel.clear();
+    wasmAngVel.clear();
+    wasmKind.clear();
+    physics3dAddBody.mockReturnValue(true);
+    physics3dGetGravityScale.mockReturnValue(2.0);
+    physics3dIsBodySleeping.mockReturnValue(false);
+  });
+
+  /** Creates a plugin + engine + service and registers one body at the given entity index. */
+  function setupWithBody(entityId: number = 10) {
+    const plugin = Physics3DPlugin();
+    const services = new Map<string, unknown>();
+    const engine = {
+      provide: vi.fn((name: string, v: unknown) => services.set(name, v)),
+      inject: vi.fn((name: string) => services.get(name)),
+      hooks: {
+        hook: vi.fn(() => vi.fn()),
+        callHook: vi.fn(),
+      },
+      getEntityGeneration: vi.fn(() => 0),
+      query: vi.fn(() => []),
+      getComponent: vi.fn(),
+      wasmBridge: null,
+    } as unknown as GwenEngine;
+    plugin.setup(engine);
+    const service = services.get('physics3d') as Physics3DAPI;
+    service.createBody(entityId);
+    return { service, entityId };
+  }
+
+  it('addForce delegates to physics3d_add_force with correct slot and components', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.addForce(entityId, { x: 1, y: 2, z: 3 });
+
+    expect(physics3dAddForce).toHaveBeenCalledOnce();
+    expect(physics3dAddForce).toHaveBeenCalledWith(10, 1, 2, 3);
+  });
+
+  it('addForce uses zero defaults for missing vector components', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.addForce(entityId, { x: 5 });
+
+    expect(physics3dAddForce).toHaveBeenCalledOnce();
+    expect(physics3dAddForce).toHaveBeenCalledWith(10, 5, 0, 0);
+  });
+
+  it('addTorque delegates to physics3d_add_torque with correct slot and components', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.addTorque(entityId, { x: 0, y: 1, z: 0 });
+
+    expect(physics3dAddTorque).toHaveBeenCalledOnce();
+    expect(physics3dAddTorque).toHaveBeenCalledWith(10, 0, 1, 0);
+  });
+
+  it('addForceAtPoint delegates to physics3d_add_force_at_point with force and point', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.addForceAtPoint(entityId, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+
+    expect(physics3dAddForceAtPoint).toHaveBeenCalledOnce();
+    expect(physics3dAddForceAtPoint).toHaveBeenCalledWith(10, 1, 0, 0, 0, 1, 0);
+  });
+
+  it('setGravityScale delegates to physics3d_set_gravity_scale with slot and scale', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.setGravityScale(entityId, 2.5);
+
+    expect(physics3dSetGravityScale).toHaveBeenCalledOnce();
+    expect(physics3dSetGravityScale).toHaveBeenCalledWith(10, 2.5);
+  });
+
+  it('getGravityScale returns the value reported by physics3d_get_gravity_scale', () => {
+    physics3dGetGravityScale.mockReturnValue(3.0);
+    const { service, entityId } = setupWithBody(10);
+
+    const scale = service.getGravityScale(entityId);
+
+    expect(scale).toBe(3.0);
+    expect(physics3dGetGravityScale).toHaveBeenCalledWith(10);
+  });
+
+  it('lockTranslations delegates to physics3d_lock_translations with correct axes', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.lockTranslations(entityId, true, false, true);
+
+    expect(physics3dLockTranslations).toHaveBeenCalledOnce();
+    expect(physics3dLockTranslations).toHaveBeenCalledWith(10, true, false, true);
+  });
+
+  it('lockRotations delegates to physics3d_lock_rotations with correct axes', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.lockRotations(entityId, false, true, false);
+
+    expect(physics3dLockRotations).toHaveBeenCalledOnce();
+    expect(physics3dLockRotations).toHaveBeenCalledWith(10, false, true, false);
+  });
+
+  it('setBodySleeping(true) delegates to physics3d_set_body_sleeping with sleeping=true', () => {
+    const { service, entityId } = setupWithBody(10);
+
+    service.setBodySleeping(entityId, true);
+
+    expect(physics3dSetBodySleeping).toHaveBeenCalledOnce();
+    expect(physics3dSetBodySleeping).toHaveBeenCalledWith(10, true);
+  });
+
+  it('isBodySleeping returns the value reported by physics3d_is_body_sleeping', () => {
+    physics3dIsBodySleeping.mockReturnValue(true);
+    const { service, entityId } = setupWithBody(10);
+
+    const sleeping = service.isBodySleeping(entityId);
+
+    expect(sleeping).toBe(true);
+    expect(physics3dIsBodySleeping).toHaveBeenCalledWith(10);
+  });
+
+  it('wakeAll delegates to physics3d_wake_all once', () => {
+    const { service } = setupWithBody(10);
+
+    service.wakeAll();
+
+    expect(physics3dWakeAll).toHaveBeenCalledOnce();
+  });
+
+  it('addForce does not throw when called for an entity with no registered body', () => {
+    const { service } = setupWithBody(10);
+
+    // Entity 999 was never registered — addForce has no bodyByEntity guard in WASM mode;
+    // it still delegates the call to the WASM layer without throwing.
+    expect(() => service.addForce(999, { x: 1, y: 2, z: 3 })).not.toThrow();
+    expect(physics3dAddForce).toHaveBeenCalledWith(999, 1, 2, 3);
   });
 });

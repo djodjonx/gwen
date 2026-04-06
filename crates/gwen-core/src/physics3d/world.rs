@@ -1699,6 +1699,265 @@ impl PhysicsWorld3D {
         true
     }
 
+    // ── RFC-09: Continuous forces ──────────────────────────────────────────────
+
+    /// Apply a continuous force to a dynamic body for the current simulation step.
+    ///
+    /// Unlike an impulse, this force accumulates in Rapier's force buffer and is
+    /// cleared automatically after each [`step`] call.  Call this every frame
+    /// before stepping to simulate a sustained push (e.g. thruster, wind).
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `fx` — Force component along the world X axis (Newtons).
+    /// * `fy` — Force component along the world Y axis (Newtons).
+    /// * `fz` — Force component along the world Z axis (Newtons).
+    ///
+    /// # Returns
+    /// `true` if the force was applied; `false` if no body is registered for
+    /// `entity_index` or if the body handle has been invalidated.
+    pub fn add_force(&mut self, entity_index: u32, fx: f32, fy: f32, fz: f32) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("add_force(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("add_force(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        body.add_force(vector![fx, fy, fz], true);
+        true
+    }
+
+    /// Apply a continuous torque to a dynamic body for the current simulation step.
+    ///
+    /// The torque accumulates in Rapier's torque buffer and is cleared after each
+    /// [`step`].  Apply every frame before stepping for sustained rotational
+    /// forces (e.g. spin-up, gyroscopic effect).
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `tx` — Torque component about the world X axis (Newton-metres).
+    /// * `ty` — Torque component about the world Y axis (Newton-metres).
+    /// * `tz` — Torque component about the world Z axis (Newton-metres).
+    ///
+    /// # Returns
+    /// `true` if the torque was applied; `false` if no body is registered for
+    /// `entity_index` or if the body handle has been invalidated.
+    pub fn add_torque(&mut self, entity_index: u32, tx: f32, ty: f32, tz: f32) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("add_torque(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("add_torque(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        body.add_torque(vector![tx, ty, tz], true);
+        true
+    }
+
+    /// Apply a continuous force at a specific world-space point on a dynamic body.
+    ///
+    /// The force is decomposed by Rapier into a linear component and a torque
+    /// about the body's centre of mass.  Like [`add_force`], the contribution is
+    /// cleared after each [`step`].
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `fx` — Force component along the world X axis (Newtons).
+    /// * `fy` — Force component along the world Y axis (Newtons).
+    /// * `fz` — Force component along the world Z axis (Newtons).
+    /// * `px` — World-space application point X coordinate.
+    /// * `py` — World-space application point Y coordinate.
+    /// * `pz` — World-space application point Z coordinate.
+    ///
+    /// # Returns
+    /// `true` on success; `false` if the entity is not registered.
+    pub fn add_force_at_point(
+        &mut self,
+        entity_index: u32,
+        fx: f32,
+        fy: f32,
+        fz: f32,
+        px: f32,
+        py: f32,
+        pz: f32,
+    ) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("add_force_at_point(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("add_force_at_point(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        body.add_force_at_point(vector![fx, fy, fz], point![px, py, pz], true);
+        true
+    }
+
+    /// Override the gravity scale multiplier for a body.
+    ///
+    /// A scale of `1.0` means normal gravity; `0.0` makes the body weightless;
+    /// negative values invert gravity for this body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `scale`        — Gravity multiplier to apply.
+    ///
+    /// # Returns
+    /// `true` on success; `false` if the entity is not registered.
+    pub fn set_gravity_scale(&mut self, entity_index: u32, scale: f32) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_gravity_scale(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_gravity_scale(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        body.set_gravity_scale(scale, true);
+        true
+    }
+
+    /// Read the current gravity scale multiplier of a body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    ///
+    /// # Returns
+    /// The gravity scale (`f32`), or `1.0` if the entity is not registered
+    /// (matching Rapier's default).
+    pub fn get_gravity_scale(&self, entity_index: u32) -> f32 {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            return 1.0;
+        };
+        let Some(body) = self.rigid_body_set.get(handle) else {
+            return 1.0;
+        };
+        body.gravity_scale()
+    }
+
+    /// Additively lock translation axes for a body.
+    ///
+    /// Each `true` argument locks the corresponding translation axis.  Locks are
+    /// **additive**: existing locks are preserved and the new ones are ORed in.
+    /// To unlock axes, use Rapier's `set_locked_axes` directly or remove and
+    /// re-add the body.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `x` — Lock translation along the X axis when `true`.
+    /// * `y` — Lock translation along the Y axis when `true`.
+    /// * `z` — Lock translation along the Z axis when `true`.
+    ///
+    /// # Returns
+    /// `true` on success; `false` if the entity is not registered.
+    pub fn lock_translations(&mut self, entity_index: u32, x: bool, y: bool, z: bool) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("lock_translations(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("lock_translations(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        let mut new_axes = LockedAxes::empty();
+        if x { new_axes |= LockedAxes::TRANSLATION_LOCKED_X; }
+        if y { new_axes |= LockedAxes::TRANSLATION_LOCKED_Y; }
+        if z { new_axes |= LockedAxes::TRANSLATION_LOCKED_Z; }
+        let current = body.locked_axes();
+        body.set_locked_axes(current | new_axes, true);
+        true
+    }
+
+    /// Additively lock rotation axes for a body.
+    ///
+    /// Each `true` argument locks the corresponding rotation axis.  Locks are
+    /// **additive**: existing locks are preserved and the new ones are ORed in.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `x` — Lock rotation about the X axis when `true`.
+    /// * `y` — Lock rotation about the Y axis when `true`.
+    /// * `z` — Lock rotation about the Z axis when `true`.
+    ///
+    /// # Returns
+    /// `true` on success; `false` if the entity is not registered.
+    pub fn lock_rotations(&mut self, entity_index: u32, x: bool, y: bool, z: bool) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("lock_rotations(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("lock_rotations(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        let mut new_axes = LockedAxes::empty();
+        if x { new_axes |= LockedAxes::ROTATION_LOCKED_X; }
+        if y { new_axes |= LockedAxes::ROTATION_LOCKED_Y; }
+        if z { new_axes |= LockedAxes::ROTATION_LOCKED_Z; }
+        let current = body.locked_axes();
+        body.set_locked_axes(current | new_axes, true);
+        true
+    }
+
+    /// Put a body to sleep or force it awake.
+    ///
+    /// Sleeping bodies are excluded from the simulation pipeline until disturbed,
+    /// which can significantly reduce CPU cost for large numbers of settled
+    /// objects.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index of the target body.
+    /// * `sleeping`     — `true` to put the body to sleep; `false` to wake it.
+    ///
+    /// # Returns
+    /// `true` on success; `false` if the entity is not registered.
+    pub fn set_body_sleeping(&mut self, entity_index: u32, sleeping: bool) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!("set_body_sleeping(entity={}): no registered body", entity_index);
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            debug_warn!("set_body_sleeping(entity={}): body handle became invalid", entity_index);
+            return false;
+        };
+        if sleeping {
+            body.sleep();
+        } else {
+            body.wake_up(true);
+        }
+        true
+    }
+
+    /// Query whether a body is currently sleeping.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    ///
+    /// # Returns
+    /// `true` if the body is sleeping; `false` if it is awake or not registered.
+    pub fn is_body_sleeping(&self, entity_index: u32) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get(handle) else {
+            return false;
+        };
+        body.is_sleeping()
+    }
+
+    /// Wake every dynamic body in the simulation.
+    ///
+    /// Useful after large scene changes (e.g. spawning objects, teleporting
+    /// bodies) to ensure no body remains asleep when it should be simulated.
+    pub fn wake_all(&mut self) {
+        for (_, body) in self.rigid_body_set.iter_mut() {
+            body.wake_up(true);
+        }
+    }
+
     // ── Body kind ─────────────────────────────────────────────────────────────
 
     /// Return the body kind discriminant for an entity.
@@ -2868,5 +3127,110 @@ mod tests {
         let vz = [0.0f32];
         let n = world.bulk_step_kinematics(&slots, &vx, &vy, &vz, 1.0);
         assert_eq!(n, 1, "should process min slice length");
+    }
+
+    // ── RFC-09: forces, torques, gravity scale, axis locks, sleep ─────────────
+
+    #[test]
+    fn test_rfc09_add_force_changes_linear_velocity() {
+        let mut world = world_with_one_dynamic();
+        // Step once so Rapier initialises mass properties from the builder flags.
+        world.step(1.0 / 60.0);
+
+        let vx_before = world.get_linear_velocity(0)[0];
+        assert!(vx_before.abs() < 1e-5, "initial vx should be ~zero");
+
+        assert!(world.add_force(0, 1000.0, 0.0, 0.0));
+        world.step(1.0 / 60.0);
+
+        let vx_after = world.get_linear_velocity(0)[0];
+        assert!(vx_after > 0.0, "add_force should accelerate body along X");
+    }
+
+    #[test]
+    fn test_rfc09_add_torque_changes_angular_velocity() {
+        let mut world = world_with_one_dynamic();
+        // A collider is needed for Rapier to derive a non-zero inertia tensor.
+        world.add_box_collider(0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, false, 0.5, 0.0, u32::MAX, u32::MAX, 99);
+        world.step(1.0 / 60.0);
+
+        let ay_before = world.get_angular_velocity(0)[1];
+        assert!(ay_before.abs() < 1e-5, "initial angular vy should be ~zero");
+
+        assert!(world.add_torque(0, 0.0, 1000.0, 0.0));
+        world.step(1.0 / 60.0);
+
+        let ay_after = world.get_angular_velocity(0)[1];
+        assert!(ay_after > 0.0, "add_torque should increase angular velocity about Y");
+    }
+
+    #[test]
+    fn test_rfc09_add_force_unknown_entity_returns_false() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        assert!(!world.add_force(99, 1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_rfc09_set_get_gravity_scale_roundtrip() {
+        let mut world = world_with_one_dynamic();
+        assert!(world.set_gravity_scale(0, 2.5));
+        let got = world.get_gravity_scale(0);
+        assert!((got - 2.5).abs() < 1e-6, "gravity scale should roundtrip to 2.5, got {got}");
+    }
+
+    #[test]
+    fn test_rfc09_set_gravity_scale_unknown_entity_returns_false() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        assert!(!world.set_gravity_scale(42, 0.0));
+    }
+
+    #[test]
+    fn test_rfc09_lock_translations_x_prevents_x_movement() {
+        let mut world = world_with_one_dynamic();
+        world.step(1.0 / 60.0);
+
+        assert!(world.lock_translations(0, true, false, false));
+        // Apply a strong force along X and step.
+        assert!(world.add_force(0, 10_000.0, 0.0, 0.0));
+        world.step(1.0 / 60.0);
+
+        let vx = world.get_linear_velocity(0)[0];
+        assert!(vx.abs() < 1e-4, "locked X translation should keep vx ~zero, got {vx}");
+    }
+
+    #[test]
+    fn test_rfc09_lock_rotations_y_prevents_y_rotation() {
+        let mut world = world_with_one_dynamic();
+        world.add_box_collider(0, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, false, 0.5, 0.0, u32::MAX, u32::MAX, 99);
+        world.step(1.0 / 60.0);
+
+        assert!(world.lock_rotations(0, false, true, false));
+        assert!(world.add_torque(0, 0.0, 10_000.0, 0.0));
+        world.step(1.0 / 60.0);
+
+        let ay = world.get_angular_velocity(0)[1];
+        assert!(ay.abs() < 1e-4, "locked Y rotation should keep angular vy ~zero, got {ay}");
+    }
+
+    #[test]
+    fn test_rfc09_set_body_sleeping_true_then_is_sleeping() {
+        let mut world = world_with_one_dynamic();
+        assert!(world.set_body_sleeping(0, true));
+        assert!(world.is_body_sleeping(0), "body should report sleeping after set_body_sleeping(true)");
+    }
+
+    #[test]
+    fn test_rfc09_wake_all_wakes_sleeping_body() {
+        let mut world = world_with_one_dynamic();
+        assert!(world.set_body_sleeping(0, true));
+        assert!(world.is_body_sleeping(0), "precondition: body must be asleep");
+        world.wake_all();
+        assert!(!world.is_body_sleeping(0), "wake_all should wake the sleeping body");
+    }
+
+    #[test]
+    fn test_rfc09_is_body_sleeping_unknown_entity_returns_false() {
+        let world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        assert!(!world.is_body_sleeping(77));
     }
 }
