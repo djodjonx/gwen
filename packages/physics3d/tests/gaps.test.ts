@@ -403,6 +403,19 @@ describe('CC SAB memory map', () => {
 
     expect(cc1.isGrounded).toBe(true);
   });
+  it('returns an inert handle and does not throw when CC pool is exhausted', () => {
+    // Mock Rust returning u32::MAX (0xffffffff) = pool exhausted
+    const setup = setupWasmWithCcSab();
+    setup.service.createBody(99, { kind: 'dynamic' });
+    physics3dAddCharacterController.mockReturnValueOnce(0xffffffff);
+    const handle = setup.service.addCharacterController(
+      99 as unknown as import('@gwenjs/core').EntityId,
+    );
+    expect(() => handle.move({ x: 0, y: -5, z: 0 }, 1 / 60)).not.toThrow();
+    expect(handle.isGrounded).toBe(false);
+    expect(handle.groundNormal).toBeNull();
+    expect(handle.groundEntity).toBeNull();
+  });
 });
 
 // ─── Gap 4: mesh/convex AABB from vertices ────────────────────────────────────

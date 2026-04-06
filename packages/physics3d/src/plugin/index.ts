@@ -1779,6 +1779,32 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
   // ─── Service object ───────────────────────────────────────────────────────────
 
+  /**
+   * Returns a {@link CharacterControllerHandle} whose `move()` is a no-op and
+   * all state properties return safe defaults.  Used when the Rust CC pool is
+   * exhausted (WASM returns `0xffffffff`).
+   */
+  const createInertCharacterControllerHandle = (): CharacterControllerHandle => {
+    const zero: Physics3DVec3 = { x: 0, y: 0, z: 0 };
+    return {
+      get isGrounded() {
+        return false;
+      },
+      get groundNormal() {
+        return null;
+      },
+      get groundEntity() {
+        return null;
+      },
+      get lastTranslation() {
+        return zero;
+      },
+      move(_desiredVelocity: Physics3DVec3, _dt: number) {
+        // Pool exhausted — intentional no-op.
+      },
+    } satisfies CharacterControllerHandle;
+  };
+
   const service: Physics3DAPI = {
     isReady: () => ready,
     variant: () => _variant,
@@ -2465,10 +2491,12 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
         if (slotIndex === 0xffffffff) {
           if (import.meta.env.DEV) {
-            console.warn('[GWEN:physics3d] addCharacterController: entity has no body registered');
+            console.warn(
+              '[GWEN:physics3d] addCharacterController: CC pool exhausted (max 32 controllers)',
+            );
           }
+          return createInertCharacterControllerHandle();
         }
-
         ccRegistrations.set(entityIndex, { slotIndex, entityIndex });
 
         const descBuf = ccDescriptorBuffer;
@@ -2530,9 +2558,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
                 ? { x: view[base + 1]!, y: view[base + 2]!, z: view[base + 3]! }
                 : null;
               const groundBits = view[base + 4]!;
-              const tmpDV = new DataView(new ArrayBuffer(4));
-              tmpDV.setFloat32(0, groundBits, true);
-              const groundIdx = tmpDV.getUint32(0, true);
+              _castF32[0] = groundBits;
+              const groundIdx = _castU32[0]!;
               _groundEntity =
                 _grounded && groundIdx !== 0xffffffff && groundIdx !== 0xfffffffe
                   ? entityIndexToId(groundIdx)
@@ -2962,6 +2989,8 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           const maxCC2 = wasmBridge!.physics3d_get_max_cc_entities?.() ?? 32;
           if (ccSabPtr2 > 0) {
             ccSABView.view = new Float32Array(mem.buffer, ccSabPtr2, maxCC2 * CC_STATE_STRIDE);
+          } else {
+            ccSABView.view = null;
           }
         }
       }

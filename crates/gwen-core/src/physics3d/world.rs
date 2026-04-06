@@ -81,6 +81,10 @@ macro_rules! debug_warn {
 /// Sentinel value stored in `user_data` when a collider has no explicit ID.
 const COLLIDER_ID_ABSENT: u32 = u32::MAX;
 
+/// Sentinel value written to `ground_entity_bits` when the contact is with a static
+/// world collider that has no parent `RigidBody`.
+pub const GROUND_ENTITY_STATIC: u32 = u32::MAX - 1;
+
 // ─── Collider parameters ──────────────────────────────────────────────────────
 
 /// Common configuration shared by every collider variant.
@@ -268,6 +272,12 @@ pub struct PhysicsWorld3D {
     cc_slot_indices: HashMap<u32, u32>,
     /// Counter for assigning compact CC slot indices.
     next_cc_slot: u32,
+    /// Recycled CC slot indices freed by [`remove_character_controller`].
+    ///
+    /// Slots are pushed here on removal and popped before allocating a fresh
+    /// slot, keeping usage below [`MAX_CC_ENTITIES`] even through many
+    /// add/remove cycles.
+    cc_free_slots: Vec<u32>,
     /// Reverse map: `RigidBodyHandle → entity_index` for O(1) ground-entity
     /// look-up in [`character_controller_move`].
     ///
@@ -311,6 +321,7 @@ impl PhysicsWorld3D {
             cc_controllers: HashMap::new(),
             cc_slot_indices: HashMap::new(),
             next_cc_slot: 0,
+            cc_free_slots: Vec::new(),
             handle_to_entity: HashMap::new(),
         };
         // Apply the default quality preset so solver parameters are consistent.
@@ -2618,8 +2629,10 @@ impl PhysicsWorld3D {
     ///                              bodies it collides with.
     ///
     /// # Returns
-    /// The `entity_index` on success, or [`u32::MAX`] if the entity has no
-    /// registered rigid body.
+    /// The assigned compact slot index (0 .. [`MAX_CC_ENTITIES`]) on success,
+    /// [`u32::MAX`] if the entity has no registered rigid body, or [`u32::MAX`]
+    /// if the CC pool is exhausted (all [`MAX_CC_ENTITIES`] slots occupied and
+    /// none have been freed).
     pub fn add_character_controller(
         &mut self,
         entity_index: u32,
@@ -2657,9 +2670,21 @@ impl PhysicsWorld3D {
             None
         };
         self.cc_controllers.insert(entity_index, (cc, apply_impulses_to_dynamic));
-        let slot = self.next_cc_slot;
+        let slot = if let Some(recycled) = self.cc_free_slots.pop() {
+            recycled
+        } else {
+            if self.next_cc_slot >= MAX_CC_ENTITIES as u32 {
+                eprintln!(
+                    "[gwen-core] add_character_controller: CC pool exhausted (max {})",
+                    MAX_CC_ENTITIES
+                );
+                return u32::MAX;
+            }
+            let s = self.next_cc_slot;
+            self.next_cc_slot += 1;
+            s
+        };
         self.cc_slot_indices.insert(entity_index, slot);
-        self.next_cc_slot = (self.next_cc_slot + 1).min(MAX_CC_ENTITIES as u32 - 1);
         slot
     }
 
@@ -2794,7 +2819,7 @@ impl PhysicsWorld3D {
             let col = &collisions[0];
             // `normal2` is the outward normal on the hit (ground) collider.
             let n = col.hit.normal2;
-            let mut ground_entity_bits = u32::MAX - 1; // default: static world
+            let mut ground_entity_bits = GROUND_ENTITY_STATIC; // default: static world
 
             if let Some(col_ref) = self.collider_set.get(col.handle) {
                 if let Some(rb_handle) = col_ref.parent() {
@@ -2803,7 +2828,7 @@ impl PhysicsWorld3D {
                         ground_entity_bits = ent_idx;
                     }
                 }
-                // else: static collider (no parent body) → keep u32::MAX - 1
+                // else: static collider (no parent body) → keep GROUND_ENTITY_STATIC
             }
 
             unsafe {
@@ -2827,7 +2852,9 @@ impl PhysicsWorld3D {
     /// * `entity_index` — ECS entity slot index.
     pub fn remove_character_controller(&mut self, entity_index: u32) {
         self.cc_controllers.remove(&entity_index);
-        self.cc_slot_indices.remove(&entity_index);
+        if let Some(slot) = self.cc_slot_indices.remove(&entity_index) {
+            self.cc_free_slots.push(slot);
+        }
     }
 }
 
