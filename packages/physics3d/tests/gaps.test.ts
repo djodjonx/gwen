@@ -473,4 +473,66 @@ describe('Gap 5: local-mode 3D A* pathfinding', () => {
     const last = path[path.length - 1]!;
     expect(last.x).toBeCloseTo(14);
   });
+
+  it('finds path in large grid within 50ms', () => {
+    const { service } = setupLocal();
+    // 30×1×30 open corridor = 900 cells
+    const W = 30,
+      H = 1,
+      D = 30;
+    const grid = new Uint8Array(W * H * D); // all zeros = walkable
+    service.initNavGrid3D({ grid, width: W, height: H, depth: D, cellSize: 1 });
+
+    const t0 = performance.now();
+    const path = service.findPath3D({ x: 0, y: 0, z: 0 }, { x: 28, y: 0, z: 28 });
+    const elapsed = performance.now() - t0;
+
+    expect(path.length).toBeGreaterThan(1);
+    expect(elapsed).toBeLessThan(50); // must complete in < 50ms
+  });
+});
+
+// ─── MinHeap via _localFindPath3D ─────────────────────────────────────────────
+
+describe('MinHeap via _localFindPath3D', () => {
+  let physics: Physics3DAPI;
+
+  beforeEach(() => {
+    physics = setupLocal().service;
+  });
+
+  it('returns correct ordered path on 5×1×1 corridor', () => {
+    const grid = new Uint8Array(5); // all walkable
+    physics.initNavGrid3D({ grid, width: 5, height: 1, depth: 1, cellSize: 1 });
+    const path = physics.findPath3D({ x: 0, y: 0, z: 0 }, { x: 4, y: 0, z: 0 });
+    expect(path.length).toBeGreaterThanOrEqual(2);
+    expect(path[0]!.x).toBeCloseTo(0, 0);
+    expect(path[path.length - 1]!.x).toBeCloseTo(4, 0);
+  });
+
+  it('navigates around a wall in 5×1×5 grid', () => {
+    const W = 5,
+      H = 1,
+      D = 5;
+    const grid = new Uint8Array(W * H * D);
+    // Wall at x=2 for z=0..3 (block index = x + 0*W + z*W*H = 2 + z*5)
+    for (let z = 0; z < 4; z++) grid[2 + z * W] = 1;
+    physics.initNavGrid3D({ grid, width: W, height: H, depth: D, cellSize: 1 });
+    const path = physics.findPath3D({ x: 0, y: 0, z: 0 }, { x: 4, y: 0, z: 0 });
+    // Must find a path around the wall
+    expect(path.length).toBeGreaterThan(2);
+  });
+
+  it('returns fallback [from, to] when no path exists', () => {
+    // fully blocked map
+    const W = 3,
+      H = 1,
+      D = 3;
+    const grid = new Uint8Array(W * H * D).fill(1);
+    grid[0] = 0; // only start walkable, target is blocked
+    physics.initNavGrid3D({ grid, width: W, height: H, depth: D, cellSize: 1 });
+    const path = physics.findPath3D({ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 2 });
+    // Fallback: [from, to]
+    expect(path.length).toBe(2);
+  });
 });

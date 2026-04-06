@@ -89,6 +89,74 @@ import {
   aabbOverlap,
 } from './physics3d-utils';
 
+// ─── MinHeap ───────────────────────────────────────────────────────────────────
+
+/**
+ * A generic binary min-heap for A* open sets.
+ *
+ * push and pop are both O(log n).
+ *
+ * @typeParam T - The value type stored alongside each priority.
+ */
+class MinHeap<T> {
+  private readonly _data: Array<{ priority: number; value: T }> = [];
+
+  /** Number of elements in the heap. */
+  get size(): number {
+    return this._data.length;
+  }
+
+  /**
+   * Insert `value` with the given `priority`. O(log n).
+   * @param value    - The value to store.
+   * @param priority - Lower values are popped first.
+   */
+  push(value: T, priority: number): void {
+    this._data.push({ priority, value });
+    this._bubbleUp(this._data.length - 1);
+  }
+
+  /**
+   * Remove and return the minimum-priority value. O(log n).
+   * Returns `undefined` if the heap is empty.
+   */
+  pop(): T | undefined {
+    if (this._data.length === 0) return undefined;
+    const top = this._data[0]!.value;
+    const last = this._data.pop();
+    if (last !== undefined && this._data.length > 0) {
+      this._data[0] = last;
+      this._siftDown(0);
+    }
+    return top;
+  }
+
+  private _bubbleUp(i: number): void {
+    const data = this._data;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (data[parent]!.priority <= data[i]!.priority) break;
+      [data[parent], data[i]] = [data[i]!, data[parent]!];
+      i = parent;
+    }
+  }
+
+  private _siftDown(i: number): void {
+    const data = this._data;
+    const n = data.length;
+    while (true) {
+      let min = i;
+      const l = 2 * i + 1;
+      const r = 2 * i + 2;
+      if (l < n && data[l]!.priority < data[min]!.priority) min = l;
+      if (r < n && data[r]!.priority < data[min]!.priority) min = r;
+      if (min === i) break;
+      [data[i], data[min]] = [data[min]!, data[i]!];
+      i = min;
+    }
+  }
+}
+
 // ─── Plugin implementation ──────────────────────────────────────────────────────
 
 /**
@@ -421,27 +489,21 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     const gScore = new Map<CellKey, number>();
     const cameFrom = new Map<CellKey, CellKey>();
     type OpenEntry = { f: number; key: CellKey; cx: number; cy: number; cz: number };
-    const openArr: OpenEntry[] = [];
-    const inOpen = new Set<CellKey>();
+    const heap = new MinHeap<OpenEntry>();
     const closed = new Set<CellKey>();
 
     const startKey = `${sx},${sy},${sz}`;
     gScore.set(startKey, 0);
     const h0 = Math.abs(sx - gx) + Math.abs(sy - gy) + Math.abs(sz - gz);
-    openArr.push({ f: h0, key: startKey, cx: sx, cy: sy, cz: sz });
-    inOpen.add(startKey);
+    heap.push({ f: h0, key: startKey, cx: sx, cy: sy, cz: sz }, h0);
 
     const MAX_ITER = 4096;
     let found = false;
 
-    for (let iter = 0; iter < MAX_ITER && openArr.length > 0; iter++) {
-      // Pop the entry with the lowest f score
-      let minIdx = 0;
-      for (let i = 1; i < openArr.length; i++) {
-        if (openArr[i]!.f < openArr[minIdx]!.f) minIdx = i;
-      }
-      const cur = openArr.splice(minIdx, 1)[0]!;
-      inOpen.delete(cur.key);
+    for (let iter = 0; iter < MAX_ITER && heap.size > 0; iter++) {
+      const cur = heap.pop()!;
+      // Skip stale entries (node was already settled with a better path)
+      if (closed.has(cur.key)) continue;
       closed.add(cur.key);
 
       if (cur.key === goalKey) {
@@ -469,10 +531,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           gScore.set(nk, tentG);
           cameFrom.set(nk, cur.key);
           const h = Math.abs(nx - gx) + Math.abs(ny - gy) + Math.abs(nz - gz);
-          if (!inOpen.has(nk)) {
-            openArr.push({ f: tentG + h, key: nk, cx: nx, cy: ny, cz: nz });
-            inOpen.add(nk);
-          }
+          heap.push({ f: tentG + h, key: nk, cx: nx, cy: ny, cz: nz }, tentG + h);
         }
       }
     }
