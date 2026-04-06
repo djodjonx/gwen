@@ -97,6 +97,13 @@ import {
  * push and pop are both O(log n).
  *
  * @typeParam T - The value type stored alongside each priority.
+ * @example
+ * ```typescript
+ * const heap = new MinHeap<string>();
+ * heap.push('b', 10);
+ * heap.push('a', 5);
+ * heap.pop(); // 'a'
+ * ```
  */
 class MinHeap<T> {
   private readonly _data: Array<{ priority: number; value: T }> = [];
@@ -488,14 +495,14 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     type CellKey = string;
     const gScore = new Map<CellKey, number>();
     const cameFrom = new Map<CellKey, CellKey>();
-    type OpenEntry = { f: number; key: CellKey; cx: number; cy: number; cz: number };
+    type OpenEntry = { key: CellKey; cx: number; cy: number; cz: number };
     const heap = new MinHeap<OpenEntry>();
     const closed = new Set<CellKey>();
 
     const startKey = `${sx},${sy},${sz}`;
     gScore.set(startKey, 0);
     const h0 = Math.abs(sx - gx) + Math.abs(sy - gy) + Math.abs(sz - gz);
-    heap.push({ f: h0, key: startKey, cx: sx, cy: sy, cz: sz }, h0);
+    heap.push({ key: startKey, cx: sx, cy: sy, cz: sz }, h0);
 
     const MAX_ITER = 4096;
     let found = false;
@@ -531,7 +538,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
           gScore.set(nk, tentG);
           cameFrom.set(nk, cur.key);
           const h = Math.abs(nx - gx) + Math.abs(ny - gy) + Math.abs(nz - gz);
-          heap.push({ f: tentG + h, key: nk, cx: nx, cy: ny, cz: nz }, tentG + h);
+          heap.push({ key: nk, cx: nx, cy: ny, cz: nz }, tentG + h);
         }
       }
     }

@@ -521,6 +521,10 @@ describe('MinHeap via _localFindPath3D', () => {
     const path = physics.findPath3D({ x: 0, y: 0, z: 0 }, { x: 4, y: 0, z: 0 });
     // Must find a path around the wall
     expect(path.length).toBeGreaterThan(2);
+    for (const wp of path) {
+      const onWall = Math.round(wp.x) === 2 && Math.round(wp.z) < 4;
+      expect(onWall).toBe(false);
+    }
   });
 
   it('returns fallback [from, to] when no path exists', () => {
