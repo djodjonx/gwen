@@ -17,6 +17,15 @@ export interface Physics3DWasmBridge {
   physics3d_step?: (delta: number) => void;
   physics3d_set_quality?: (preset: number) => void;
   physics3d_set_event_coalescing?: (enabled: number) => void;
+  /**
+   * Set the number of additional solver iterations for a specific body.
+   * Overrides the world-level quality preset for that body.
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param iterations  - Number of additional solver iterations (0 = world default).
+   * @returns `true` on success.
+   */
+  physics3d_set_body_solver_iterations?: (entityIndex: number, iterations: number) => boolean;
 
   // Body lifecycle
   physics3d_add_body?: (
@@ -564,7 +573,7 @@ export interface Physics3DWasmBridge {
     vy: number,
     vz: number,
     dt: number,
-  ) => void;
+  ) => Float32Array | undefined;
 
   /** Remove the character controller for an entity. */
   physics3d_remove_character_controller?: (entityIndex: number) => void;

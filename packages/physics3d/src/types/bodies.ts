@@ -59,6 +59,19 @@ export interface Physics3DBodyOptions {
    * Colliders to attach immediately after body creation.
    */
   colliders?: Physics3DColliderOptions[];
+  /**
+   * When `true`, locks all rotational degrees of freedom for this body.
+   * Prevents the body from tumbling due to torque or collision.
+   * @default false
+   */
+  fixedRotation?: boolean;
+  /**
+   * Per-body physics quality preset controlling additional solver iterations.
+   * Overrides the world-level quality preset for this body alone.
+   * Maps to Rapier's `additional_solver_iterations`.
+   * @default undefined (uses world preset)
+   */
+  quality?: import('./config').Physics3DQualityPreset;
 }
 
 /** Opaque handle returned by `createBody`, stored internally. */

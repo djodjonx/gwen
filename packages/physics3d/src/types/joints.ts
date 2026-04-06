@@ -246,10 +246,13 @@ export interface CharacterControllerHandle {
    */
   readonly groundNormal: Physics3DVec3 | null;
   /**
-   * Entity the controller is standing on, or `null`.
-   * Ground entity tracking is not yet available at the Rust layer.
+   * Entity the controller is standing on, or `null` when airborne or when ground
+   * entity tracking is unavailable.
+   *
+   * Populated from the 5-float return value of `physics3d_character_controller_move`
+   * when the WASM layer supports it.
    */
-  readonly groundEntity: null;
+  readonly groundEntity: import('./bodies').Physics3DEntityId | null;
   /**
    * The actual translation applied during the last `move()` call (metres).
    * May differ from `desiredVelocity × dt` due to collision response.

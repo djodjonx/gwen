@@ -251,6 +251,11 @@ pub struct PhysicsWorld3D {
     /// [`remove_character_controller`]. One controller per entity is supported;
     /// inserting a second controller for the same entity replaces the first.
     cc_controllers: HashMap<u32, (KinematicCharacterController, bool)>,
+    /// Reverse map: `RigidBodyHandle → entity_index` for O(1) ground-entity
+    /// look-up in [`character_controller_move`].
+    ///
+    /// Kept in sync with [`entity_handles`] by [`add_body`] and [`remove_body`].
+    handle_to_entity: HashMap<RigidBodyHandle, u32>,
 }
 
 // ─── Shape type constants for the compound batch buffer ─────────────────────
@@ -287,6 +292,7 @@ impl PhysicsWorld3D {
             next_joint_id: 0,
             joint_handles: HashMap::new(),
             cc_controllers: HashMap::new(),
+            handle_to_entity: HashMap::new(),
         };
         // Apply the default quality preset so solver parameters are consistent.
         world.apply_quality_config(quality_solver_config_3d(PhysicsQualityPreset3D::Medium));
@@ -555,6 +561,7 @@ impl PhysicsWorld3D {
 
         let handle = self.rigid_body_set.insert(builder.build());
         self.entity_handles.insert(entity_index, handle);
+        self.handle_to_entity.insert(handle, entity_index);
         true
     }
 
@@ -570,6 +577,8 @@ impl PhysicsWorld3D {
     /// `true` if a body was found and removed, `false` if none was registered.
     pub fn remove_body(&mut self, entity_index: u32) -> bool {
         if let Some(handle) = self.entity_handles.remove(&entity_index) {
+            // Keep the reverse map in sync.
+            self.handle_to_entity.remove(&handle);
             // Remove all collider handle entries that belong to this entity so
             // the map stays consistent with the collider set.
             self.collider_handles
@@ -1993,6 +2002,39 @@ impl PhysicsWorld3D {
         }
     }
 
+    /// Sets the number of additional solver iterations for the rigid body at `entity_index`.
+    ///
+    /// # Description
+    /// Higher values improve simulation accuracy for fast-moving or heavily
+    /// constrained bodies at the cost of extra CPU time per step.
+    ///
+    /// Maps from the TypeScript `Physics3DQualityPreset`:
+    /// - `low`    → `0`
+    /// - `medium` → `0`
+    /// - `high`   → `1`
+    /// - `ultra`  → `2`
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `iterations`   — Number of additional solver iterations (0–255).
+    ///
+    /// # Returns
+    /// `true` on success, `false` if the entity has no registered body.
+    pub fn set_body_solver_iterations(&mut self, entity_index: u32, iterations: u32) -> bool {
+        let Some(&handle) = self.entity_handles.get(&entity_index) else {
+            debug_warn!(
+                "set_body_solver_iterations: unknown entity {}",
+                entity_index
+            );
+            return false;
+        };
+        let Some(body) = self.rigid_body_set.get_mut(handle) else {
+            return false;
+        };
+        body.set_additional_solver_iterations(iterations as usize);
+        true
+    }
+
     // ── RFC-07: Spatial queries ───────────────────────────────────────────────
 
     /// Build a Rapier [`SharedShape`] from a compact 4-value encoding.
@@ -2616,6 +2658,20 @@ impl PhysicsWorld3D {
     /// * `entity_index` — ECS entity slot index.
     /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
     /// * `dt`           — Simulation time-step (seconds).
+    ///
+    /// # Returns
+    /// A 5-element `Vec<f32>` with the layout:
+    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_as_f32_bits]`
+    ///
+    /// - `grounded` — `1.0` if the character is grounded, `0.0` otherwise.
+    /// - `normal_x/y/z` — Outward surface normal of the first ground contact,
+    ///   or `(0, 1, 0)` when not grounded.
+    /// - `ground_entity_as_f32_bits` — The entity index of the colliding body
+    ///   bit-cast to `f32` via `f32::from_bits`. Use `u32::MAX - 1` for static
+    ///   world colliders (no parent body), and `u32::MAX` when not grounded.
+    ///
+    /// Always returns exactly 5 elements even on early-exit paths (unknown entity,
+    /// missing CC, missing collider).
     pub fn character_controller_move(
         &mut self,
         entity_index: u32,
@@ -2623,18 +2679,28 @@ impl PhysicsWorld3D {
         vy: f32,
         vz: f32,
         dt: f32,
-    ) {
+    ) -> Vec<f32> {
+        /// Sentinel value returned on every early-exit path (not grounded, no contact).
+        const NO_HIT: [f32; 5] = [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            // f32::from_bits(u32::MAX) — bit-pattern sentinel for "no entity"
+            f32::from_bits(u32::MAX),
+        ];
+
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
             debug_warn!("character_controller_move: unknown entity {}", entity_index);
-            return;
+            return NO_HIT.to_vec();
         };
         let Some((cc, apply_impulses)) = self.cc_controllers.get(&entity_index) else {
             debug_warn!("character_controller_move: no CC for entity {}", entity_index);
-            return;
+            return NO_HIT.to_vec();
         };
         let apply_impulses = *apply_impulses;
         let Some(body) = self.rigid_body_set.get(handle) else {
-            return;
+            return NO_HIT.to_vec();
         };
         let position = *body.position();
         let desired = Vector::new(vx * dt, vy * dt, vz * dt);
@@ -2642,10 +2708,10 @@ impl PhysicsWorld3D {
         // Use the first collider attached to the body to determine the shape.
         let Some(collider_handle) = body.colliders().first().copied() else {
             debug_warn!("character_controller_move: entity {} has no collider", entity_index);
-            return;
+            return NO_HIT.to_vec();
         };
         let Some(collider) = self.collider_set.get(collider_handle) else {
-            return;
+            return NO_HIT.to_vec();
         };
         let shape = collider.shape();
 
@@ -2653,7 +2719,7 @@ impl PhysicsWorld3D {
         // controller does not collide with itself.
         let filter = QueryFilter::default().exclude_rigid_body(handle);
 
-        // Collect collisions for optional impulse application.
+        // Collect collisions for optional impulse application and ground detection.
         let mut collisions: Vec<rapier3d::control::CharacterCollision> = Vec::new();
         let movement = cc.move_shape(
             dt,
@@ -2684,11 +2750,45 @@ impl PhysicsWorld3D {
 
         // Write the resolved position back as a kinematic interpolation target.
         let Some(body_mut) = self.rigid_body_set.get_mut(handle) else {
-            return;
+            return NO_HIT.to_vec();
         };
         let mut new_pos = *body_mut.position();
         new_pos.translation.vector += movement.translation;
         body_mut.set_next_kinematic_position(new_pos);
+
+        // ── Determine ground contact info ──────────────────────────────────────
+        //
+        // `movement.grounded` is set by Rapier's character controller when the
+        // character is resting on or near a surface beneath it.  We scan the
+        // first recorded collision to extract the outward surface normal
+        // (`hit.normal2`) and attempt an O(1) reverse look-up from the
+        // collider's parent `RigidBodyHandle` to the owning entity index.
+        if movement.grounded && !collisions.is_empty() {
+            let col = &collisions[0];
+            // `normal2` is the outward normal on the hit (ground) collider.
+            let n = col.hit.normal2;
+            let mut ground_entity_bits = u32::MAX - 1; // default: static world
+
+            if let Some(col_ref) = self.collider_set.get(col.handle) {
+                if let Some(rb_handle) = col_ref.parent() {
+                    // Dynamic / kinematic body — look up entity index in O(1).
+                    if let Some(&ent_idx) = self.handle_to_entity.get(&rb_handle) {
+                        ground_entity_bits = ent_idx;
+                    }
+                }
+                // else: static collider (no parent body) → keep u32::MAX - 1
+            }
+
+            vec![
+                1.0_f32,
+                n.x,
+                n.y,
+                n.z,
+                f32::from_bits(ground_entity_bits),
+            ]
+        } else {
+            NO_HIT.to_vec()
+        }
     }
 
     /// Removes the registered character controller for `entity_index`.
@@ -4242,5 +4342,67 @@ mod tests {
             next_y < initial_y,
             "next_y ({next_y}) should be below initial_y ({initial_y}) after downward move"
         );
+    }
+
+    // ── Gap 2: set_body_solver_iterations ────────────────────────────────────
+
+    #[test]
+    fn test_rfc_set_body_solver_iterations_unknown_entity_returns_false() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        assert!(!world.set_body_solver_iterations(99, 2));
+    }
+
+    #[test]
+    fn test_rfc_set_body_solver_iterations_known_entity_returns_true() {
+        let mut world = world_with_one_dynamic();
+        assert!(world.set_body_solver_iterations(0, 1));
+    }
+
+    // ── Gap 3: character_controller_move returns 5 floats ────────────────────
+
+    #[test]
+    fn test_rfc_character_controller_move_returns_5_floats() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        // No CC registered — should return 5-element no-hit result.
+        let result = world.character_controller_move(0, 0.0, -1.0, 0.0, 1.0 / 60.0);
+        assert_eq!(result.len(), 5, "character_controller_move must always return exactly 5 floats");
+    }
+
+    #[test]
+    fn test_rfc_character_controller_move_no_entity_returns_no_hit() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+        let result = world.character_controller_move(42, 0.0, -1.0, 0.0, 1.0 / 60.0);
+        assert_eq!(result.len(), 5);
+        // grounded flag must be 0.0 when entity unknown
+        assert_eq!(result[0], 0.0_f32, "unknown entity must report not grounded");
+    }
+
+    #[test]
+    fn test_rfc_character_controller_move_grounded_flag() {
+        let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
+
+        // Add a kinematic body for the character (kind 3 = KinematicPositionBased).
+        assert!(world.add_body(0, 0.0, 2.0, 0.0, 3, 1.0, 0.0, 0.0));
+        let h = world.entity_handles[&0];
+        let col = rapier3d::prelude::ColliderBuilder::capsule_y(0.5, 0.3).build();
+        world.collider_set.insert_with_parent(col, h, &mut world.rigid_body_set);
+        world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+
+        // Add a static floor at y ≈ 0 so the character can land.
+        let floor = rapier3d::prelude::ColliderBuilder::cuboid(5.0, 0.1, 5.0)
+            .translation(rapier3d::na::Vector3::new(0.0, -0.1, 0.0))
+            .build();
+        world.collider_set.insert(floor);
+
+        // Warm up the query pipeline.
+        world.step(1.0 / 60.0);
+
+        // Drive the character downward for up to 120 frames; verify no panic
+        // and that every result has exactly 5 floats.
+        for _ in 0..120 {
+            let r = world.character_controller_move(0, 0.0, -5.0, 0.0, 1.0 / 60.0);
+            assert_eq!(r.len(), 5, "result must always be 5 floats");
+            world.step(1.0 / 60.0);
+        }
     }
 }

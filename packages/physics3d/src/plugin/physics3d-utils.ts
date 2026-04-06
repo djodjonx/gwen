@@ -182,11 +182,54 @@ export function computeColliderAABB(pos: Physics3DVec3, col: Physics3DColliderOp
     hx = shape.radius;
     hy = shape.radius + shape.halfHeight;
     hz = shape.radius;
+  } else if (shape.type === 'mesh' || shape.type === 'convex') {
+    // Compute a tight AABB from the vertex array for accurate local-mode collision.
+    // The vertices Float32Array contains interleaved (x, y, z) triples.
+    const verts = shape.vertices;
+    if (verts.length >= 3) {
+      let minX = verts[0]!;
+      let maxX = verts[0]!;
+      let minY = verts[1]!;
+      let maxY = verts[1]!;
+      let minZ = verts[2]!;
+      let maxZ = verts[2]!;
+      for (let i = 3; i < verts.length; i += 3) {
+        const vx = verts[i]!;
+        const vy = verts[i + 1]!;
+        const vz = verts[i + 2]!;
+        if (vx < minX) minX = vx;
+        if (vx > maxX) maxX = vx;
+        if (vy < minY) minY = vy;
+        if (vy > maxY) maxY = vy;
+        if (vz < minZ) minZ = vz;
+        if (vz > maxZ) maxZ = vz;
+      }
+      // Half-extents from the vertex bounds
+      hx = (maxX - minX) / 2;
+      hy = (maxY - minY) / 2;
+      hz = (maxZ - minZ) / 2;
+      // Offset centre by the mesh's own geometric centre
+      const meshCx = cx + (minX + maxX) / 2;
+      const meshCy = cy + (minY + maxY) / 2;
+      const meshCz = cz + (minZ + maxZ) / 2;
+      return {
+        minX: meshCx - hx,
+        maxX: meshCx + hx,
+        minY: meshCy - hy,
+        maxY: meshCy + hy,
+        minZ: meshCz - hz,
+        maxZ: meshCz + hz,
+      };
+    }
+    // Fallback if no vertices: unit AABB
+    hx = 0.5;
+    hy = 0.5;
+    hz = 0.5;
   } else {
-    // mesh/convex: use a unit AABB as a conservative placeholder
-    hx = 1;
-    hy = 1;
-    hz = 1;
+    // heightfield and other shapes: conservative unit AABB
+    hx = 0.5;
+    hy = 0.5;
+    hz = 0.5;
   }
 
   return {

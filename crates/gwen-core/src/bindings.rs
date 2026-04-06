@@ -1155,6 +1155,81 @@ impl Engine {
         crate::physics2d::pathfinding::get_path_buffer_ptr() as *const f32
     }
 
+    // ─── Physics 3D — Pathfinding (RFC pathfinding-3d) ───────────────────────
+
+    /// Upload a voxel navigation grid for 3D A* pathfinding.
+    ///
+    /// The grid memory at `ptr` is immediately copied into Rust-owned storage —
+    /// the caller may free the source buffer after this returns.
+    ///
+    /// # Arguments
+    /// * `ptr`       — WASM linear-memory pointer to the flat `u8` cell array.
+    /// * `width`     — Cell count along X.
+    /// * `height`    — Cell count along Y.
+    /// * `depth`     — Cell count along Z.
+    /// * `cell_size` — World-space size of one cubic cell in metres.
+    /// * `origin_x`  — World-space X origin of the first cell.
+    /// * `origin_y`  — World-space Y origin of the first cell.
+    /// * `origin_z`  — World-space Z origin of the first cell.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_init_navgrid_3d(
+        &mut self,
+        ptr: u32,
+        width: u32,
+        height: u32,
+        depth: u32,
+        cell_size: f32,
+        origin_x: f32,
+        origin_y: f32,
+        origin_z: f32,
+    ) {
+        crate::physics3d::pathfinding::init_navgrid_3d(
+            ptr as *const u8,
+            width as usize,
+            height as usize,
+            depth as usize,
+            cell_size,
+            origin_x,
+            origin_y,
+            origin_z,
+        );
+    }
+
+    /// Find a path in the uploaded 3D voxel grid using A*.
+    ///
+    /// Returns the number of waypoints written to the static path buffer.
+    /// Read the results via [`physics3d_get_path_buffer_ptr_3d`].
+    ///
+    /// # Arguments
+    /// * `from_x/from_y/from_z` — World-space start position.
+    /// * `to_x/to_y/to_z`       — World-space goal position.
+    ///
+    /// # Returns
+    /// Waypoint count (0 if no grid has been uploaded).
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_find_path_3d(
+        &mut self,
+        from_x: f32,
+        from_y: f32,
+        from_z: f32,
+        to_x: f32,
+        to_y: f32,
+        to_z: f32,
+    ) -> u32 {
+        crate::physics3d::pathfinding::find_path_3d(from_x, from_y, from_z, to_x, to_y, to_z)
+            as u32
+    }
+
+    /// Returns the WASM linear-memory pointer to the 3D path waypoint buffer.
+    ///
+    /// Each waypoint is stored as three consecutive `f32` values `(x, y, z)`.
+    /// Wrap the returned pointer in a `Float32Array` view over WASM linear memory.
+    /// Valid until the next [`physics3d_find_path_3d`] call.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_path_buffer_ptr_3d(&mut self) -> u32 {
+        crate::physics3d::pathfinding::get_path_buffer_ptr_3d() as u32
+    }
+
     // ─── Physics 3D — World lifecycle ─────────────────────────────────────────
 
     #[cfg(feature = "physics3d")]
@@ -2257,6 +2332,30 @@ impl Engine {
         }
     }
 
+    /// Sets additional per-body solver iterations for better simulation accuracy.
+    ///
+    /// A value of `0` uses the world-level default. Higher values increase accuracy
+    /// for fast-moving or heavily constrained bodies at additional CPU cost.
+    ///
+    /// # Arguments
+    /// * `entity_index` — ECS entity slot index.
+    /// * `iterations`   — Number of additional iterations (0 = world default).
+    ///
+    /// # Returns
+    /// `true` on success, `false` if the entity has no registered body.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_set_body_solver_iterations(
+        &mut self,
+        entity_index: u32,
+        iterations: u32,
+    ) -> bool {
+        if let Some(ref mut world) = self.physics3d_world {
+            world.set_body_solver_iterations(entity_index, iterations)
+        } else {
+            false
+        }
+    }
+
     // ─── Physics 3D — Spatial queries (RFC-07) ────────────────────────────────
 
     /// Cast a ray and return the first hit.
@@ -2397,6 +2496,17 @@ impl Engine {
     /// * `entity_index` — ECS entity slot index.
     /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
     /// * `dt`           — Simulation time-step (seconds).
+    ///
+    /// # Returns
+    /// A 5-element `Vec<f32>`:
+    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_as_f32_bits]`
+    ///
+    /// - `grounded` — `1.0` if the character is standing on a surface, `0.0` otherwise.
+    /// - `normal_x/y/z` — Outward surface normal of the first ground contact
+    ///   (defaults to `(0, 1, 0)` when not grounded).
+    /// - `ground_entity_as_f32_bits` — Entity index of the colliding body bit-cast to
+    ///   `f32` via `f32::from_bits`. `u32::MAX - 1` for static world colliders;
+    ///   `u32::MAX` when not grounded.
     #[cfg(feature = "physics3d")]
     pub fn physics3d_character_controller_move(
         &mut self,
@@ -2405,9 +2515,11 @@ impl Engine {
         vy: f32,
         vz: f32,
         dt: f32,
-    ) {
+    ) -> Vec<f32> {
         if let Some(ref mut world) = self.physics3d_world {
-            world.character_controller_move(entity_index, vx, vy, vz, dt);
+            world.character_controller_move(entity_index, vx, vy, vz, dt)
+        } else {
+            vec![0.0_f32, 0.0, 1.0, 0.0, f32::from_bits(u32::MAX)]
         }
     }
 

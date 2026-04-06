@@ -365,22 +365,132 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   };
 
   /**
-   * Local-mode pathfinding stub.
+   * Local-mode 3D A* pathfinding on the uploaded voxel grid.
    *
-   * Returns a single-waypoint path (the destination) as a placeholder.
-   * Full A* support requires the WASM physics3d variant.
+   * Converts world-space `from`/`to` positions to grid cells, runs A* with a
+   * 6-connected neighbourhood and Manhattan-3D heuristic, then converts the
+   * resulting cell path back to world-space waypoints.
    *
-   * @param _from - Unused start position.
-   * @param to    - Destination position used as the single returned waypoint.
-   * @returns An array with one {@link PathWaypoint3D} at `to`.
+   * Falls back to a two-point path when no grid is available or when A* cannot
+   * find a route within the iteration budget.
+   *
+   * @param from - World-space start position.
+   * @param to   - World-space destination.
+   * @returns Array of {@link PathWaypoint3D} waypoints from `from` to `to`.
    */
-  const _localFindPath3D = (_from: Physics3DVec3, to: Physics3DVec3): PathWaypoint3D[] => {
-    if (import.meta.env.DEV) {
-      console.warn(
-        '[GWEN:physics3d] findPath3D() uses local stub — full pathfinding requires WASM physics3d variant',
-      );
+  const _localFindPath3D = (from: Physics3DVec3, to: Physics3DVec3): PathWaypoint3D[] => {
+    if (!_localNavGrid) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          '[GWEN:physics3d] findPath3D(): no nav grid uploaded — call initNavGrid3D() first',
+        );
+      }
+      return [{ x: to.x, y: to.y, z: to.z }];
     }
-    return [{ x: to.x, y: to.y, z: to.z }];
+
+    const { grid, width, height, depth, cellSize } = _localNavGrid;
+    const ox = _localNavGrid.origin?.x ?? 0;
+    const oy = _localNavGrid.origin?.y ?? 0;
+    const oz = _localNavGrid.origin?.z ?? 0;
+
+    /** Convert world position to nearest grid cell (clamped to bounds). */
+    const worldToCell = (wx: number, wy: number, wz: number): [number, number, number] => [
+      Math.max(0, Math.min(width - 1, Math.round((wx - ox) / cellSize))),
+      Math.max(0, Math.min(height - 1, Math.round((wy - oy) / cellSize))),
+      Math.max(0, Math.min(depth - 1, Math.round((wz - oz) / cellSize))),
+    ];
+
+    /** Convert a grid cell back to world-space centre. */
+    const cellToWorld = (cx: number, cy: number, cz: number): PathWaypoint3D => ({
+      x: ox + cx * cellSize,
+      y: oy + cy * cellSize,
+      z: oz + cz * cellSize,
+    });
+
+    /** Returns true when cell is within bounds and walkable (grid value === 0). */
+    const isWalkable = (cx: number, cy: number, cz: number): boolean => {
+      if (cx < 0 || cy < 0 || cz < 0 || cx >= width || cy >= height || cz >= depth) return false;
+      return grid[cx + cy * width + cz * width * height] === 0;
+    };
+
+    const [sx, sy, sz] = worldToCell(from.x, from.y, from.z);
+    const [gx, gy, gz] = worldToCell(to.x, to.y, to.z);
+    const goalKey = `${gx},${gy},${gz}`;
+
+    type CellKey = string;
+    const gScore = new Map<CellKey, number>();
+    const cameFrom = new Map<CellKey, CellKey>();
+    type OpenEntry = { f: number; key: CellKey; cx: number; cy: number; cz: number };
+    const openArr: OpenEntry[] = [];
+    const inOpen = new Set<CellKey>();
+    const closed = new Set<CellKey>();
+
+    const startKey = `${sx},${sy},${sz}`;
+    gScore.set(startKey, 0);
+    const h0 = Math.abs(sx - gx) + Math.abs(sy - gy) + Math.abs(sz - gz);
+    openArr.push({ f: h0, key: startKey, cx: sx, cy: sy, cz: sz });
+    inOpen.add(startKey);
+
+    const MAX_ITER = 4096;
+    let found = false;
+
+    for (let iter = 0; iter < MAX_ITER && openArr.length > 0; iter++) {
+      // Pop the entry with the lowest f score
+      let minIdx = 0;
+      for (let i = 1; i < openArr.length; i++) {
+        if (openArr[i]!.f < openArr[minIdx]!.f) minIdx = i;
+      }
+      const cur = openArr.splice(minIdx, 1)[0]!;
+      inOpen.delete(cur.key);
+      closed.add(cur.key);
+
+      if (cur.key === goalKey) {
+        found = true;
+        break;
+      }
+
+      // 6-connected neighbourhood
+      const nb6: [number, number, number][] = [
+        [cur.cx + 1, cur.cy, cur.cz],
+        [cur.cx - 1, cur.cy, cur.cz],
+        [cur.cx, cur.cy + 1, cur.cz],
+        [cur.cx, cur.cy - 1, cur.cz],
+        [cur.cx, cur.cy, cur.cz + 1],
+        [cur.cx, cur.cy, cur.cz - 1],
+      ];
+      const curG = gScore.get(cur.key) ?? 0;
+
+      for (const [nx, ny, nz] of nb6) {
+        if (!isWalkable(nx, ny, nz)) continue;
+        const nk = `${nx},${ny},${nz}`;
+        if (closed.has(nk)) continue;
+        const tentG = curG + 1;
+        if (tentG < (gScore.get(nk) ?? Infinity)) {
+          gScore.set(nk, tentG);
+          cameFrom.set(nk, cur.key);
+          const h = Math.abs(nx - gx) + Math.abs(ny - gy) + Math.abs(nz - gz);
+          if (!inOpen.has(nk)) {
+            openArr.push({ f: tentG + h, key: nk, cx: nx, cy: ny, cz: nz });
+            inOpen.add(nk);
+          }
+        }
+      }
+    }
+
+    if (!found) {
+      // No path found — return direct two-point fallback
+      return [cellToWorld(sx, sy, sz), cellToWorld(gx, gy, gz)];
+    }
+
+    // Reconstruct path by walking back through cameFrom
+    const path: PathWaypoint3D[] = [];
+    let cur: CellKey | undefined = goalKey;
+    while (cur !== undefined) {
+      const parts = cur.split(',');
+      path.unshift(cellToWorld(Number(parts[0]), Number(parts[1]), Number(parts[2])));
+      cur = cameFrom.get(cur);
+    }
+    return path;
   };
 
   // ─── Local simulation ─────────────────────────────────────────────────────────
@@ -405,6 +515,20 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       linearVelocity: vec3(options.initialLinearVelocity),
       angularVelocity: vec3(options.initialAngularVelocity),
     });
+
+    // Apply fixedRotation: lock all rotation axes in local mode
+    if (options.fixedRotation) {
+      const cur = localAxisLocks.get(slot) ?? {
+        tx: false,
+        ty: false,
+        tz: false,
+        rx: false,
+        ry: false,
+        rz: false,
+      };
+      localAxisLocks.set(slot, { ...cur, rx: true, ry: true, rz: true });
+    }
+
     return handle;
   };
 
@@ -667,6 +791,26 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         av.y ?? 0,
         av.z ?? 0,
       );
+    }
+
+    // Apply fixedRotation: lock all rotation axes when requested
+    if (options.fixedRotation) {
+      wasmBridge!.physics3d_lock_rotations?.(idx, true, true, true);
+    }
+
+    // Apply per-body quality preset (additional solver iterations)
+    if (options.quality !== undefined) {
+      /** Mapping from quality preset to additional solver iterations. */
+      const QUALITY_ITER_MAP: Record<import('../types/config').Physics3DQualityPreset, number> = {
+        low: 0,
+        medium: 0,
+        high: 1,
+        esport: 2,
+      };
+      const iters = QUALITY_ITER_MAP[options.quality] ?? 0;
+      if (iters > 0) {
+        wasmBridge!.physics3d_set_body_solver_iterations?.(idx, iters);
+      }
     }
 
     bodyByEntity.set(idx, handle);
@@ -2263,21 +2407,20 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         const base = slotIndex * 5;
 
         let lastTranslation: Physics3DVec3 = { x: 0, y: 0, z: 0 };
+        // Per-move result state (updated from CC move return value)
+        let _grounded = false;
+        let _groundNormal: Physics3DVec3 | null = null;
+        let _groundEntity: EntityId | null = null;
 
         const handle: CharacterControllerHandle = {
           get isGrounded() {
-            return sabView.view ? sabView.view[base] !== 0 : false;
+            return _grounded;
           },
           get groundNormal() {
-            if (!sabView.view || sabView.view[base] === 0) return null;
-            return {
-              x: sabView.view[base + 1]!,
-              y: sabView.view[base + 2]!,
-              z: sabView.view[base + 3]!,
-            };
+            return _groundNormal;
           },
           get groundEntity() {
-            return null; // ground entity tracking not yet available at the Rust layer
+            return _groundEntity;
           },
           get lastTranslation() {
             return lastTranslation;
@@ -2303,14 +2446,42 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
               descBuf.view[di + 2] = desiredVelocity.y;
               descBuf.view[di + 3] = desiredVelocity.z;
             }
-            // Immediate single-move for this frame
-            wasmBridge?.physics3d_character_controller_move?.(
+            // Immediate single-move for this frame; parse 5-float result:
+            // [grounded, nx, ny, nz, groundEntityBits]
+            const result = wasmBridge?.physics3d_character_controller_move?.(
               entityIndex,
               desiredVelocity.x,
               desiredVelocity.y,
               desiredVelocity.z,
               dt,
             );
+
+            if (result && result.length >= 5) {
+              _grounded = result[0] !== 0;
+              _groundNormal = _grounded ? { x: result[1]!, y: result[2]!, z: result[3]! } : null;
+              // Decode ground entity: f32 bit-cast of u32 entity index
+              const groundBits = result[4]!;
+              const tmpView = new DataView(new ArrayBuffer(4));
+              tmpView.setFloat32(0, groundBits, true);
+              const groundIdx = tmpView.getUint32(0, true);
+              _groundEntity =
+                _grounded && groundIdx !== 0xffffffff && groundIdx !== 0xfffffffe
+                  ? entityIndexToId(groundIdx)
+                  : null;
+            } else {
+              // SAB-backed fallback when WASM does not return a result array
+              _grounded = sabView.view ? sabView.view[base] !== 0 : false;
+              _groundNormal =
+                _grounded && sabView.view
+                  ? {
+                      x: sabView.view[base + 1]!,
+                      y: sabView.view[base + 2]!,
+                      z: sabView.view[base + 3]!,
+                    }
+                  : null;
+              _groundEntity = null;
+            }
+
             lastTranslation = {
               x: desiredVelocity.x * dt,
               y: desiredVelocity.y * dt,

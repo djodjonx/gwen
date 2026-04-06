@@ -41,17 +41,6 @@ export function useDynamicBody(options: DynamicBodyOptions3D = {}): DynamicBodyH
   const physics = usePhysics3D();
   const entityId = _getActorEntityId() as unknown as EntityId;
 
-  if (options.fixedRotation) {
-    console.warn(
-      '[gwen:physics3d] fixedRotation is not yet supported by Physics3DAPI — option accepted but has no effect.',
-    );
-  }
-  if (options.quality !== undefined) {
-    console.warn(
-      '[gwen:physics3d] quality is not yet supported by Physics3DAPI — option accepted but has no effect.',
-    );
-  }
-
   const creationOptions: Physics3DBodyOptions = {
     kind: 'dynamic',
     mass: options.mass,
@@ -63,6 +52,8 @@ export function useDynamicBody(options: DynamicBodyOptions3D = {}): DynamicBodyH
     initialRotation: options.initialRotation,
     initialLinearVelocity: options.initialLinearVelocity,
     initialAngularVelocity: options.initialAngularVelocity,
+    fixedRotation: options.fixedRotation,
+    quality: options.quality,
   };
 
   let _handle = physics.createBody(entityId, creationOptions);

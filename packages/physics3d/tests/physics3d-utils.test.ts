@@ -542,41 +542,45 @@ describe('computeColliderAABB', () => {
     });
   });
 
-  it('uses unit AABB for mesh collider', () => {
+  it('computes tight AABB from mesh vertices (replaces old unit-AABB placeholder)', () => {
     const pos: Physics3DVec3 = { x: 0, y: 0, z: 0 };
     const col: Physics3DColliderOptions = {
       shape: {
         type: 'mesh',
+        // A single degenerate vertex — AABB collapses to zero size at origin
         vertices: new Float32Array([0, 0, 0]),
         indices: new Uint32Array([0]),
       },
     };
     const aabb = computeColliderAABB(pos, col);
 
+    // Single vertex at (0,0,0): zero-size AABB at origin is correct
     expect(aabb).toEqual({
-      minX: -1,
-      maxX: 1,
-      minY: -1,
-      maxY: 1,
-      minZ: -1,
-      maxZ: 1,
+      minX: 0,
+      maxX: 0,
+      minY: 0,
+      maxY: 0,
+      minZ: 0,
+      maxZ: 0,
     });
   });
 
-  it('uses unit AABB for convex collider', () => {
+  it('computes tight AABB from convex vertices (replaces old unit-AABB placeholder)', () => {
     const pos: Physics3DVec3 = { x: 10, y: 20, z: 30 };
     const col: Physics3DColliderOptions = {
+      // Single degenerate vertex in local space — AABB collapses to zero at body position
       shape: { type: 'convex', vertices: new Float32Array([0, 0, 0]) },
     };
     const aabb = computeColliderAABB(pos, col);
 
+    // Vertex at local (0,0,0), body at (10,20,30): AABB is zero-size at body position
     expect(aabb).toEqual({
-      minX: 9,
-      maxX: 11,
-      minY: 19,
-      maxY: 21,
-      minZ: 29,
-      maxZ: 31,
+      minX: 10,
+      maxX: 10,
+      minY: 20,
+      maxY: 20,
+      minZ: 30,
+      maxZ: 30,
     });
   });
 });
