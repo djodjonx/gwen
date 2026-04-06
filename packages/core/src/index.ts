@@ -128,6 +128,7 @@ export {
   FLAGS_OFFSET,
   FLAGS3D_OFFSET,
   SENTINEL,
+  MAX_SAB_BYTES,
 } from './wasm/shared-memory';
 export type { MemoryRegion } from './wasm/shared-memory';
 

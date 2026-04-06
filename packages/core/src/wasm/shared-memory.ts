@@ -38,9 +38,19 @@
  * ```
  */
 
+import { GwenConfigError } from '../engine/config-error.js';
 import type { WasmBridge } from '../engine/wasm-bridge';
 
 // ─── Public constants ─────────────────────────────────────────────────────────
+
+/**
+ * Maximum allowed SharedArrayBuffer size in bytes (256 MiB).
+ *
+ * Enough for approximately 2 million entities × 128 bytes each.
+ * Raise this constant only if you understand the memory implications
+ * for the target browser/runtime environment.
+ */
+export const MAX_SAB_BYTES = 256 * 1024 * 1024; // 256 MiB
 
 /** Bytes per entity slot in the shared 2D transform buffer. */
 export const TRANSFORM_STRIDE = 32;
@@ -171,6 +181,20 @@ export class SharedMemoryManager {
     // In practice GWEN v1 has at most a handful of plugins, so 1 KB is generous.
     const sentinelHeadroom = 1024;
     const totalBytes = maxEntities * TRANSFORM_STRIDE + sentinelHeadroom;
+
+    // ── Overallocation guard ─────────────────────────────────────────────────
+    // Prevent silent OOM crashes from absurdly large maxEntities values.
+    if (totalBytes > MAX_SAB_BYTES) {
+      const mb = (totalBytes / 1024 / 1024).toFixed(1);
+      const maxMb = (MAX_SAB_BYTES / 1024 / 1024).toFixed(0);
+      throw new GwenConfigError(
+        'maxEntities',
+        maxEntities,
+        `Requested ${mb} MiB of shared memory exceeds the ${maxMb} MiB limit. ` +
+          `Reduce maxEntities or increase MAX_SAB_BYTES if you know what you're doing.`,
+      );
+    }
+
     const ptr = bridge.allocSharedBuffer(totalBytes);
 
     if (ptr === 0) {
