@@ -340,8 +340,9 @@ export class SharedMemoryManager {
   }
 
   /**
-   * Byte offset of the transform buffer in WASM linear memory.
-   * Used by community plugins via `buildTransformImports()` to locate entity transform data.
+   * Absolute address of the transform buffer in WASM linear memory
+   * (identical to the raw pointer returned by `alloc_shared_buffer`).
+   * Pass directly to {@link buildTransformImports} as `transformPtr`.
    */
   get transformBufferPtr(): number {
     return this.basePtr;

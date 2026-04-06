@@ -1092,6 +1092,7 @@ class GwenEngineImpl implements GwenEngine {
       // Lazily create shared memory manager so community plugins can read transform data.
       // Only initialize if the WASM bridge is active.
       const transformPtr = this._getOrCreateTransformPtr();
+      // V1: always 2D stride. For 3D support, expose options.stride and thread it through here.
       // Build transform buffer accessors for community plugins (RFC-GAP2 V1)
       const gwenImports = buildTransformImports(
         transformPtr,
@@ -1388,12 +1389,11 @@ class GwenEngineImpl implements GwenEngine {
   private _getOrCreateTransformPtr(): number {
     const bridge = getWasmBridge();
     if (!bridge.isActive()) {
-      // Bridge not initialized yet — return placeholder. This can happen in tests
-      // or when loadWasmModule() is called before the full engine is ready.
-      // Community plugins will receive ptr=0, which they should handle gracefully.
-      return 0;
+      throw new Error(
+        '[GWEN] loadWasmModule() was called before initWasm() completed. ' +
+          'Await initWasm() (or createEngine()) before loading community WASM modules.',
+      );
     }
-
     if (!this._sharedMemory) {
       this._sharedMemory = SharedMemoryManager.create(bridge, this.maxEntities);
     }

@@ -19,13 +19,6 @@ describe('buildTransformImports', () => {
     expect(typeof imports.max_entities).toBe('function');
   });
 
-  it('each accessor is a function', () => {
-    const imports = buildTransformImports(1024, 32, 10_000);
-    expect(typeof imports.transform_buffer_ptr).toBe('function');
-    expect(typeof imports.transform_stride).toBe('function');
-    expect(typeof imports.max_entities).toBe('function');
-  });
-
   it('returns transform_buffer_ptr that returns the given ptr', () => {
     const ptr = 2048;
     const imports = buildTransformImports(ptr, 32, 10_000);
@@ -74,23 +67,19 @@ describe('buildTransformImports', () => {
     }
   });
 
-  it('each accessor is independent (different instances)', () => {
-    const imports1 = buildTransformImports(1024, 32, 10_000);
-    const imports2 = buildTransformImports(2048, 48, 5_000);
+  it('isolates values between separate imports objects', () => {
+    const importsA = buildTransformImports(100, 32, 1_000);
+    const importsB = buildTransformImports(200, 48, 2_000);
 
-    expect(imports1.transform_buffer_ptr()).toBe(1024);
-    expect(imports2.transform_buffer_ptr()).toBe(2048);
+    // Modifying importsA should not affect importsB (functions are independent closures)
+    expect(importsA.transform_buffer_ptr()).toBe(100);
+    expect(importsB.transform_buffer_ptr()).toBe(200);
 
-    expect(imports1.transform_stride()).toBe(32);
-    expect(imports2.transform_stride()).toBe(48);
+    expect(importsA.transform_stride()).toBe(32);
+    expect(importsB.transform_stride()).toBe(48);
 
-    expect(imports1.max_entities()).toBe(10_000);
-    expect(imports2.max_entities()).toBe(5_000);
-  });
-
-  it('returns correct type for GwenTransformImports', () => {
-    const imports: GwenTransformImports = buildTransformImports(1024, 32, 10_000);
-    expect(imports).toBeDefined();
+    expect(importsA.max_entities()).toBe(1_000);
+    expect(importsB.max_entities()).toBe(2_000);
   });
 
   it('handles negative values (no validation — caller responsibility)', () => {
@@ -100,17 +89,6 @@ describe('buildTransformImports', () => {
     expect(imports.transform_buffer_ptr()).toBe(-1);
     expect(imports.transform_stride()).toBe(-1);
     expect(imports.max_entities()).toBe(-1);
-  });
-
-  it('multiple calls to same accessor return same value', () => {
-    const imports = buildTransformImports(1024, 32, 10_000);
-
-    // Call each accessor multiple times
-    for (let i = 0; i < 100; i++) {
-      expect(imports.transform_buffer_ptr()).toBe(1024);
-      expect(imports.transform_stride()).toBe(32);
-      expect(imports.max_entities()).toBe(10_000);
-    }
   });
 
   it('accessors return fresh values each call (not cached stale)', () => {
@@ -141,20 +119,5 @@ describe('buildTransformImports', () => {
       importObject.gwen.transform_stride();
       importObject.gwen.max_entities();
     }).not.toThrow();
-  });
-
-  it('isolates values between separate imports objects', () => {
-    const importsA = buildTransformImports(100, 32, 1_000);
-    const importsB = buildTransformImports(200, 48, 2_000);
-
-    // Modifying importsA should not affect importsB (functions are independent closures)
-    expect(importsA.transform_buffer_ptr()).toBe(100);
-    expect(importsB.transform_buffer_ptr()).toBe(200);
-
-    expect(importsA.transform_stride()).toBe(32);
-    expect(importsB.transform_stride()).toBe(48);
-
-    expect(importsA.max_entities()).toBe(1_000);
-    expect(importsB.max_entities()).toBe(2_000);
   });
 });

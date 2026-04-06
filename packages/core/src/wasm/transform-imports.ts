@@ -11,9 +11,9 @@
 /**
  * Accessor functions provided by the host engine to a community WASM plugin.
  *
- * Each function returns a fresh value (no caching on the JS side) so Rust can
- * safely cache the results once at module init. The WASM instance has exclusive
- * write access to the transform buffer; JS reads only for diagnostics/sync.
+ * Each function returns a stable value captured at construction time.
+ * Rust plugins should call these once during `init()` and cache the results
+ * locally — calling them on the hot path incurs unnecessary JS↔WASM overhead.
  */
 export interface GwenTransformImports extends WebAssembly.ModuleImports {
   /**
@@ -54,12 +54,12 @@ export interface GwenTransformImports extends WebAssembly.ModuleImports {
  * await WebAssembly.instantiate(buffer, { gwen: gwenImports })
  * ```
  *
+ * This function never throws; it is a pure closure factory.
+ *
  * @param transformPtr - Byte offset of the transform buffer (from `SharedMemoryManager.transformBufferPtr`)
  * @param stride - Byte stride per entity transform entry (e.g., `TRANSFORM_STRIDE` = 32 for 2D)
  * @param maxEntities - Maximum entity count (e.g., engine config `maxEntities`)
  * @returns `GwenTransformImports` object to pass as `importObject.gwen`
- *
- * @throws Nothing — purely a factory for JavaScript accessor closures.
  *
  * @example
  * ```typescript

@@ -21,6 +21,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createEngine } from '../src/index.js';
 import type { GwenEngine, GwenPlugin, WasmModuleHandle } from '../src/index.js';
+import { getWasmBridge } from '../src/engine/wasm-bridge.js';
+import { SharedMemoryManager } from '../src/wasm/shared-memory.js';
 
 // ─── Minimal valid WASM binary ────────────────────────────────────────────────
 // A wasm module that exports nothing (but is syntactically valid):
@@ -424,6 +426,14 @@ describe('RFC-008 — Frame Loop v2', () => {
   describe('loadWasmModule()', () => {
     beforeEach(() => {
       mockFetch(MINIMAL_WASM);
+      // Mock the WASM bridge to be active for these tests (they don't test actual WASM initialization,
+      // just the loadWasmModule mechanism and WasmModuleHandle properties)
+      const bridge = getWasmBridge();
+      vi.spyOn(bridge, 'isActive').mockReturnValue(true);
+      // Mock SharedMemoryManager.create to avoid needing actual WASM initialization
+      vi.spyOn(SharedMemoryManager, 'create').mockReturnValue({
+        transformBufferPtr: 1024,
+      } as any);
     });
 
     it('returns a WasmModuleHandle with the correct name', async () => {
@@ -498,8 +508,18 @@ describe('RFC-008 — Frame Loop v2', () => {
   // ── WasmModuleHandle — getWasmModule ────────────────────────────────────────
 
   describe('getWasmModule()', () => {
-    it('returns the handle after it has been loaded', async () => {
+    beforeEach(() => {
       mockFetch(MINIMAL_WASM);
+      // Mock the WASM bridge to be active for these tests
+      const bridge = getWasmBridge();
+      vi.spyOn(bridge, 'isActive').mockReturnValue(true);
+      // Mock SharedMemoryManager.create to avoid needing actual WASM initialization
+      vi.spyOn(SharedMemoryManager, 'create').mockReturnValue({
+        transformBufferPtr: 1024,
+      } as any);
+    });
+
+    it('returns the handle after it has been loaded', async () => {
       const engine = await makeEngine();
       const loaded = await engine.loadWasmModule({ name: 'g', url: 'http://x/g.wasm' });
       const retrieved = engine.getWasmModule('g');
@@ -524,8 +544,18 @@ describe('RFC-008 — Frame Loop v2', () => {
   // ── Phase 4 — WASM module step ──────────────────────────────────────────────
 
   describe('Phase 4 — WASM module step', () => {
-    it('calls the step function with the handle and dt each frame', async () => {
+    beforeEach(() => {
       mockFetch(MINIMAL_WASM);
+      // Mock the WASM bridge to be active for these tests
+      const bridge = getWasmBridge();
+      vi.spyOn(bridge, 'isActive').mockReturnValue(true);
+      // Mock SharedMemoryManager.create to avoid needing actual WASM initialization
+      vi.spyOn(SharedMemoryManager, 'create').mockReturnValue({
+        transformBufferPtr: 1024,
+      } as any);
+    });
+
+    it('calls the step function with the handle and dt each frame', async () => {
       const engine = await makeEngine();
 
       const stepFn = vi.fn();
@@ -542,7 +572,6 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('calls step for multiple modules in registration order', async () => {
-      mockFetch(MINIMAL_WASM);
       const engine = await makeEngine();
       const order: string[] = [];
 
@@ -567,7 +596,6 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('step runs in Phase 4, after onBeforeUpdate and before onUpdate', async () => {
-      mockFetch(MINIMAL_WASM);
       const engine = await makeEngine();
       const order: string[] = [];
 
@@ -601,7 +629,6 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('skips step for modules loaded without a step function', async () => {
-      mockFetch(MINIMAL_WASM);
       const engine = await makeEngine();
 
       // Should not throw even with no step
@@ -610,7 +637,6 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('passes the capped dt to the step function', async () => {
-      mockFetch(MINIMAL_WASM);
       const engine = await makeEngine({ maxDeltaSeconds: 0.05 }); // cap = 50 ms
       const receivedDts: number[] = [];
 
@@ -631,8 +657,18 @@ describe('RFC-008 — Frame Loop v2', () => {
   // ── Handle type safety ──────────────────────────────────────────────────────
 
   describe('WasmModuleHandle type contracts', () => {
-    it('handle.name matches the options.name', async () => {
+    beforeEach(() => {
       mockFetch(MINIMAL_WASM);
+      // Mock the WASM bridge to be active for these tests
+      const bridge = getWasmBridge();
+      vi.spyOn(bridge, 'isActive').mockReturnValue(true);
+      // Mock SharedMemoryManager.create to avoid needing actual WASM initialization
+      vi.spyOn(SharedMemoryManager, 'create').mockReturnValue({
+        transformBufferPtr: 1024,
+      } as any);
+    });
+
+    it('handle.name matches the options.name', async () => {
       const engine = await makeEngine();
       const handle = await engine.loadWasmModule({ name: 'typed', url: 'http://x/t.wasm' });
 
@@ -640,7 +676,6 @@ describe('RFC-008 — Frame Loop v2', () => {
     });
 
     it('handle is readonly — name cannot be reassigned (type-level check)', async () => {
-      mockFetch(MINIMAL_WASM);
       const engine = await makeEngine();
       const handle: WasmModuleHandle = await engine.loadWasmModule({
         name: 'ro',
