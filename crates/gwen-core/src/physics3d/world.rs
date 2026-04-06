@@ -45,6 +45,19 @@ use crate::physics3d::events::{
     get_collision_events_ptr_3d, get_collision_event_count_3d,
 };
 
+/// Maximum number of simultaneously active character controllers.
+pub const MAX_CC_ENTITIES: usize = 32;
+
+/// f32 fields per CC slot: [grounded, normal_x, normal_y, normal_z, ground_entity_bits].
+pub const CC_STATE_STRIDE: usize = 5;
+
+/// Output buffer written by [`PhysicsWorld3D::character_controller_move`].
+///
+/// Indexed as `CC_STATE_BUFFER[slot_index * CC_STATE_STRIDE]`.
+/// JS reads this via a `Float32Array` view into WASM linear memory.
+static mut CC_STATE_BUFFER: [f32; MAX_CC_ENTITIES * CC_STATE_STRIDE] =
+    [0.0_f32; MAX_CC_ENTITIES * CC_STATE_STRIDE];
+
 // ─── Debug logging macros ─────────────────────────────────────────────────────
 
 /// Log a debug warning message to the browser console.
@@ -251,6 +264,10 @@ pub struct PhysicsWorld3D {
     /// [`remove_character_controller`]. One controller per entity is supported;
     /// inserting a second controller for the same entity replaces the first.
     cc_controllers: HashMap<u32, (KinematicCharacterController, bool)>,
+    /// Compact slot index for each CC entity (entity_index → 0..MAX_CC_ENTITIES).
+    cc_slot_indices: HashMap<u32, u32>,
+    /// Counter for assigning compact CC slot indices.
+    next_cc_slot: u32,
     /// Reverse map: `RigidBodyHandle → entity_index` for O(1) ground-entity
     /// look-up in [`character_controller_move`].
     ///
@@ -292,6 +309,8 @@ impl PhysicsWorld3D {
             next_joint_id: 0,
             joint_handles: HashMap::new(),
             cc_controllers: HashMap::new(),
+            cc_slot_indices: HashMap::new(),
+            next_cc_slot: 0,
             handle_to_entity: HashMap::new(),
         };
         // Apply the default quality preset so solver parameters are consistent.
@@ -2638,7 +2657,10 @@ impl PhysicsWorld3D {
             None
         };
         self.cc_controllers.insert(entity_index, (cc, apply_impulses_to_dynamic));
-        entity_index
+        let slot = self.next_cc_slot;
+        self.cc_slot_indices.insert(entity_index, slot);
+        self.next_cc_slot = (self.next_cc_slot + 1).min(MAX_CC_ENTITIES as u32 - 1);
+        slot
     }
 
     /// Moves the character controller for `entity_index` by `(vx, vy, vz) * dt`,
@@ -2659,19 +2681,9 @@ impl PhysicsWorld3D {
     /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
     /// * `dt`           — Simulation time-step (seconds).
     ///
-    /// # Returns
-    /// A 5-element `Vec<f32>` with the layout:
-    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_as_f32_bits]`
-    ///
-    /// - `grounded` — `1.0` if the character is grounded, `0.0` otherwise.
-    /// - `normal_x/y/z` — Outward surface normal of the first ground contact,
-    ///   or `(0, 1, 0)` when not grounded.
-    /// - `ground_entity_as_f32_bits` — The entity index of the colliding body
-    ///   bit-cast to `f32` via `f32::from_bits`. Use `u32::MAX - 1` for static
-    ///   world colliders (no parent body), and `u32::MAX` when not grounded.
-    ///
-    /// Always returns exactly 5 elements even on early-exit paths (unknown entity,
-    /// missing CC, missing collider).
+    /// Results are written to [`CC_STATE_BUFFER`] at the slot index assigned
+    /// by [`add_character_controller`]. Buffer layout per slot (stride 5):
+    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_bits]`
     pub fn character_controller_move(
         &mut self,
         entity_index: u32,
@@ -2679,8 +2691,8 @@ impl PhysicsWorld3D {
         vy: f32,
         vz: f32,
         dt: f32,
-    ) -> Vec<f32> {
-        /// Sentinel value returned on every early-exit path (not grounded, no contact).
+    ) {
+        /// Sentinel written on every early-exit path (not grounded, no contact).
         const NO_HIT: [f32; 5] = [
             0.0,
             0.0,
@@ -2690,17 +2702,35 @@ impl PhysicsWorld3D {
             f32::from_bits(u32::MAX),
         ];
 
+        /// Write NO_HIT sentinel into the buffer at `base`.
+        #[inline(always)]
+        unsafe fn write_no_hit(buf: *mut [f32; MAX_CC_ENTITIES * CC_STATE_STRIDE], base: usize) {
+            (*buf)[base] = NO_HIT[0];
+            (*buf)[base + 1] = NO_HIT[1];
+            (*buf)[base + 2] = NO_HIT[2];
+            (*buf)[base + 3] = NO_HIT[3];
+            (*buf)[base + 4] = NO_HIT[4];
+        }
+
+        let Some(&slot) = self.cc_slot_indices.get(&entity_index) else {
+            return;
+        };
+        let base = slot as usize * CC_STATE_STRIDE;
+
         let Some(&handle) = self.entity_handles.get(&entity_index) else {
             debug_warn!("character_controller_move: unknown entity {}", entity_index);
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let Some((cc, apply_impulses)) = self.cc_controllers.get(&entity_index) else {
             debug_warn!("character_controller_move: no CC for entity {}", entity_index);
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let apply_impulses = *apply_impulses;
         let Some(body) = self.rigid_body_set.get(handle) else {
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let position = *body.position();
         let desired = Vector::new(vx * dt, vy * dt, vz * dt);
@@ -2708,10 +2738,12 @@ impl PhysicsWorld3D {
         // Use the first collider attached to the body to determine the shape.
         let Some(collider_handle) = body.colliders().first().copied() else {
             debug_warn!("character_controller_move: entity {} has no collider", entity_index);
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let Some(collider) = self.collider_set.get(collider_handle) else {
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let shape = collider.shape();
 
@@ -2750,19 +2782,14 @@ impl PhysicsWorld3D {
 
         // Write the resolved position back as a kinematic interpolation target.
         let Some(body_mut) = self.rigid_body_set.get_mut(handle) else {
-            return NO_HIT.to_vec();
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
+            return;
         };
         let mut new_pos = *body_mut.position();
         new_pos.translation.vector += movement.translation;
         body_mut.set_next_kinematic_position(new_pos);
 
-        // ── Determine ground contact info ──────────────────────────────────────
-        //
-        // `movement.grounded` is set by Rapier's character controller when the
-        // character is resting on or near a surface beneath it.  We scan the
-        // first recorded collision to extract the outward surface normal
-        // (`hit.normal2`) and attempt an O(1) reverse look-up from the
-        // collider's parent `RigidBodyHandle` to the owning entity index.
+        // ── Determine ground contact info and write to CC_STATE_BUFFER ────────
         if movement.grounded && !collisions.is_empty() {
             let col = &collisions[0];
             // `normal2` is the outward normal on the hit (ground) collider.
@@ -2779,15 +2806,16 @@ impl PhysicsWorld3D {
                 // else: static collider (no parent body) → keep u32::MAX - 1
             }
 
-            vec![
-                1.0_f32,
-                n.x,
-                n.y,
-                n.z,
-                f32::from_bits(ground_entity_bits),
-            ]
+            unsafe {
+                let buf = &raw mut CC_STATE_BUFFER;
+                (*buf)[base] = 1.0_f32;
+                (*buf)[base + 1] = n.x;
+                (*buf)[base + 2] = n.y;
+                (*buf)[base + 3] = n.z;
+                (*buf)[base + 4] = f32::from_bits(ground_entity_bits);
+            }
         } else {
-            NO_HIT.to_vec()
+            unsafe { write_no_hit(&raw mut CC_STATE_BUFFER, base) };
         }
     }
 
@@ -2799,7 +2827,20 @@ impl PhysicsWorld3D {
     /// * `entity_index` — ECS entity slot index.
     pub fn remove_character_controller(&mut self, entity_index: u32) {
         self.cc_controllers.remove(&entity_index);
+        self.cc_slot_indices.remove(&entity_index);
     }
+}
+
+/// Returns a raw pointer to the start of the CC state buffer in WASM linear memory.
+///
+/// Layout per slot (stride 5): [grounded, nx, ny, nz, ground_entity_bits].
+pub fn get_cc_sab_ptr() -> *const f32 {
+    std::ptr::addr_of!(CC_STATE_BUFFER) as *const f32
+}
+
+/// Returns the maximum number of simultaneous character controllers.
+pub fn max_cc_entities() -> u32 {
+    MAX_CC_ENTITIES as u32
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -4281,10 +4322,10 @@ mod tests {
     }
 
     #[test]
-    fn test_rfc09d_add_character_controller_returns_entity_index() {
+    fn test_rfc09d_add_character_controller_returns_compact_slot() {
         let mut world = world_with_kinematic_body();
-        let result = world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
-        assert_eq!(result, 0, "should return the entity_index on success");
+        let slot = world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+        assert_eq!(slot, 0, "first CC should get compact slot 0");
     }
 
     #[test]
@@ -4309,6 +4350,7 @@ mod tests {
         assert!(!world.cc_controllers.is_empty(), "controller should exist before removal");
         world.remove_character_controller(0);
         assert!(world.cc_controllers.is_empty(), "cc_controllers should be empty after removal");
+        assert!(world.cc_slot_indices.is_empty(), "cc_slot_indices should be empty after removal");
     }
 
     #[test]
@@ -4358,23 +4400,31 @@ mod tests {
         assert!(world.set_body_solver_iterations(0, 1));
     }
 
-    // ── Gap 3: character_controller_move returns 5 floats ────────────────────
+    // ── Gap 3: CC SAB buffer — void move, buffer writes ──────────────────────
 
     #[test]
-    fn test_rfc_character_controller_move_returns_5_floats() {
+    fn test_rfc_character_controller_move_no_panic_no_cc() {
         let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
-        // No CC registered — should return 5-element no-hit result.
-        let result = world.character_controller_move(0, 0.0, -1.0, 0.0, 1.0 / 60.0);
-        assert_eq!(result.len(), 5, "character_controller_move must always return exactly 5 floats");
+        // No CC registered — must not panic.
+        world.character_controller_move(0, 0.0, -1.0, 0.0, 1.0 / 60.0);
     }
 
     #[test]
-    fn test_rfc_character_controller_move_no_entity_returns_no_hit() {
+    fn test_rfc_character_controller_move_no_entity_no_panic() {
         let mut world = PhysicsWorld3D::new(0.0, -9.81, 0.0);
-        let result = world.character_controller_move(42, 0.0, -1.0, 0.0, 1.0 / 60.0);
-        assert_eq!(result.len(), 5);
-        // grounded flag must be 0.0 when entity unknown
-        assert_eq!(result[0], 0.0_f32, "unknown entity must report not grounded");
+        world.character_controller_move(42, 0.0, -1.0, 0.0, 1.0 / 60.0);
+    }
+
+    #[test]
+    fn test_rfc_character_controller_move_writes_no_hit_sentinel_to_sab() {
+        let mut world = world_with_kinematic_body();
+        world.add_character_controller(0, 0.35, 45.0, 0.02, 0.2, true, true);
+        world.step(1.0 / 60.0);
+        // Move in empty scene — no floor, so not grounded.
+        world.character_controller_move(0, 0.0, -5.0, 0.0, 1.0 / 60.0);
+        // Slot 0: grounded flag must be 0.0
+        let grounded = unsafe { CC_STATE_BUFFER[0] };
+        assert_eq!(grounded, 0.0_f32, "no-hit sentinel must set grounded=0.0");
     }
 
     #[test]
@@ -4397,12 +4447,13 @@ mod tests {
         // Warm up the query pipeline.
         world.step(1.0 / 60.0);
 
-        // Drive the character downward for up to 120 frames; verify no panic
-        // and that every result has exactly 5 floats.
+        // Drive the character downward for up to 120 frames; verify no panic.
         for _ in 0..120 {
-            let r = world.character_controller_move(0, 0.0, -5.0, 0.0, 1.0 / 60.0);
-            assert_eq!(r.len(), 5, "result must always be 5 floats");
+            world.character_controller_move(0, 0.0, -5.0, 0.0, 1.0 / 60.0);
             world.step(1.0 / 60.0);
         }
+        // Grounded flag is 0.0 or 1.0 — just verify no panic and valid float.
+        let grounded = unsafe { CC_STATE_BUFFER[0] };
+        assert!(grounded == 0.0 || grounded == 1.0, "grounded must be 0.0 or 1.0");
     }
 }

@@ -2487,26 +2487,8 @@ impl Engine {
         }
     }
 
-    /// Moves the character controller for `entity_index` by desired velocity × dt.
-    ///
-    /// Collision resolution is handled internally; the resolved translation is
-    /// applied to the body as a kinematic next-position update.
-    ///
-    /// # Arguments
-    /// * `entity_index` — ECS entity slot index.
-    /// * `vx/vy/vz`     — Desired velocity in world space (m/s).
-    /// * `dt`           — Simulation time-step (seconds).
-    ///
-    /// # Returns
-    /// A 5-element `Vec<f32>`:
-    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_as_f32_bits]`
-    ///
-    /// - `grounded` — `1.0` if the character is standing on a surface, `0.0` otherwise.
-    /// - `normal_x/y/z` — Outward surface normal of the first ground contact
-    ///   (defaults to `(0, 1, 0)` when not grounded).
-    /// - `ground_entity_as_f32_bits` — Entity index of the colliding body bit-cast to
-    ///   `f32` via `f32::from_bits`. `u32::MAX - 1` for static world colliders;
-    ///   `u32::MAX` when not grounded.
+    /// Drive a character controller for one frame.
+    /// Results are written to the CC SAB buffer; read via [`physics3d_get_cc_sab_ptr`].
     #[cfg(feature = "physics3d")]
     pub fn physics3d_character_controller_move(
         &mut self,
@@ -2515,12 +2497,27 @@ impl Engine {
         vy: f32,
         vz: f32,
         dt: f32,
-    ) -> Vec<f32> {
+    ) {
         if let Some(ref mut world) = self.physics3d_world {
-            world.character_controller_move(entity_index, vx, vy, vz, dt)
-        } else {
-            vec![0.0_f32, 0.0, 1.0, 0.0, f32::from_bits(u32::MAX)]
+            world.character_controller_move(entity_index, vx, vy, vz, dt);
         }
+    }
+
+    /// Returns the WASM linear-memory pointer to the CC state buffer.
+    ///
+    /// Layout per slot (stride = 5 f32):
+    /// `[grounded, normal_x, normal_y, normal_z, ground_entity_bits]`
+    ///
+    /// Slot index is returned by [`physics3d_add_character_controller`].
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_cc_sab_ptr(&self) -> u32 {
+        crate::physics3d::world::get_cc_sab_ptr() as u32
+    }
+
+    /// Returns the maximum number of concurrent character controllers.
+    #[cfg(feature = "physics3d")]
+    pub fn physics3d_get_max_cc_entities(&self) -> u32 {
+        crate::physics3d::world::max_cc_entities()
     }
 
     /// Removes the character controller registered for `entity_index`.
