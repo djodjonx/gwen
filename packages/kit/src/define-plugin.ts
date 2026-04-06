@@ -105,6 +105,11 @@ export type GwenPluginFactory<Options, P extends GwenPlugin> = [Options] extends
  *   teardown() {
  *     if (opts.debug) console.log('[MyPlugin] teardown')
  *   },
+ *   onError(error, context) {
+ *     if (context.phase === 'onRender') {
+ *       context.recover() // suppress — render errors are non-fatal for this plugin
+ *     }
+ *   },
  * }))
  *
  * // Instantiate and register:

@@ -1135,7 +1135,9 @@ export async function initWasm(
     _wasmEngine = null;
     _wasmModule = null;
     _wasmExports = null;
-    throw err;
+    const tagged = err instanceof Error ? err : new Error(String(err));
+    (tagged as Error & { code?: string }).code = 'CORE:WASM_LOAD_ERROR';
+    throw tagged;
   });
 
   return _initPromise;

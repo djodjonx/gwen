@@ -350,3 +350,67 @@ This is a **no-op in non-browser environments** (Node.js, SSR, etc.), so it's sa
 | `ConsoleReporter`                             | Built-in reporter for console output                                |
 | `SentryReporter`                              | Built-in reporter for Sentry (if @sentry/browser is installed)     |
 | `WebhookReporter`                             | Built-in reporter for batched webhook delivery                      |
+
+## Engine Logger
+
+Every engine instance exposes a structured logger accessible in any plugin:
+
+```typescript
+setup(engine: GwenEngine) {
+  const log = engine.logger.child('@my/plugin')
+  log.debug('initialized', { config })
+  log.warn('canvas not found')
+}
+```
+
+The logger is a no-op for `debug` and `info` levels by default. Enable verbose
+output by passing `debug: true` to `createEngine`:
+
+```typescript
+const engine = await createEngine({ debug: true })
+```
+
+### Redirecting logs to an external service
+
+```typescript
+engine.logger.setSink((entry) => {
+  if (entry.level === 'error') {
+    Sentry.captureMessage(entry.message, { extra: entry.data })
+  }
+})
+```
+
+The logger is also injectable via `engine.inject('logger')` and accessible in
+composables via `useService('logger')`.
+
+## Plugin Error Handling
+
+By default, an error thrown inside a plugin's lifecycle hook is caught, reported
+to the error bus, and the frame continues. Other plugins are unaffected.
+
+To handle an error inside your own plugin:
+
+```typescript
+definePlugin(() => ({
+  name: '@my/renderer',
+
+  onError(error, context) {
+    if (context.phase === 'onRender' && error instanceof DOMException) {
+      context.recover() // mark as handled — error bus is not notified
+      reinitCanvas()
+    }
+  },
+}))
+```
+
+`context.recover()` suppresses error bus emission. If you don't call it, the
+error is forwarded with code `CORE:PLUGIN_RUNTIME_ERROR` and the plugin name
+as source.
+
+You can also observe plugin errors globally via the `plugin:error` hook:
+
+```typescript
+engine.hooks.hook('plugin:error', ({ pluginName, phase, error, frame }) => {
+  analytics.track('plugin_crash', { pluginName, phase })
+})
+```

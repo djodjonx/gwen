@@ -25,8 +25,13 @@ export type {
   WasmRingBuffer,
   EngineErrorBus,
   PlacementBridge,
+  PluginErrorContext,
 } from './engine/gwen-engine';
 export type { WasmMemoryRegion, WasmMemoryOptions, WasmChannelOptions } from './engine/gwen-engine';
+
+// Logger (RFC-011)
+export { createLogger } from './logger/index.js';
+export type { GwenLogger, LogLevel, LogEntry } from './logger/index.js';
 
 // RFC-003: Runtime hooks interface (augmentable)
 export type { GwenRuntimeHooks, EngineErrorPayload } from './engine/runtime-hooks';

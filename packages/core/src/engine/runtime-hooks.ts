@@ -57,6 +57,24 @@ export interface GwenRuntimeHooks {
   'engine:error': (payload: EngineErrorPayload) => void;
 
   /**
+   * Fired when a plugin lifecycle hook throws and the error is not recovered
+   * via `context.recover()`.
+   *
+   * @example
+   * ```typescript
+   * engine.hooks.hook('plugin:error', ({ pluginName, phase, error }) => {
+   *   analytics.track('plugin_crash', { pluginName, phase })
+   * })
+   * ```
+   */
+  'plugin:error': (payload: {
+    pluginName: string;
+    phase: 'setup' | 'onBeforeUpdate' | 'onUpdate' | 'onAfterUpdate' | 'onRender' | 'teardown';
+    error: unknown;
+    frame: number;
+  }) => void;
+
+  /**
    * Fired to trigger plugin-specific setup when an entity is created from a
    * prefab declaration. Pass the entity id and the prefab's `extensions` map.
    * Plugins (e.g. Physics2D) subscribe to this to create rigid bodies, etc.

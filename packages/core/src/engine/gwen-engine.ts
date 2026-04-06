@@ -24,6 +24,8 @@
 import { createHooks, type Hookable } from 'hookable';
 import type { GwenRuntimeHooks, EngineErrorPayload } from './runtime-hooks.js';
 import { engineContext } from '../context.js';
+import { createLogger } from '../logger/index';
+import type { GwenLogger } from '../logger/index';
 import { WasmRegionView, WasmRingBuffer } from './wasm-module-handle.js';
 import { EntityManager, ComponentRegistry, QueryEngine } from '../core/ecs.js';
 import { getWasmBridge } from './wasm-bridge.js';
@@ -275,6 +277,7 @@ export interface EngineErrorBus {
 export const CoreErrorCodes = {
   FRAME_LOOP_ERROR: 'CORE:FRAME_LOOP_ERROR',
   PLUGIN_SETUP_ERROR: 'CORE:PLUGIN_SETUP_ERROR',
+  PLUGIN_RUNTIME_ERROR: 'CORE:PLUGIN_RUNTIME_ERROR',
   WASM_LOAD_ERROR: 'CORE:WASM_LOAD_ERROR',
   WASM_TIMEOUT: 'CORE:WASM_TIMEOUT',
   WASM_PANIC: 'CORE:WASM_PANIC',
@@ -314,6 +317,14 @@ export interface GwenEngineOptions {
    * Create one with `createErrorBus()` from `@gwenjs/kit`.
    */
   errorBus?: EngineErrorBus;
+
+  /**
+   * Enable debug mode for the engine and all plugins.
+   * When `true`: activates verbose logging, per-frame sentinel checks,
+   * phase timing warnings, and plugin setup logs.
+   * @default false
+   */
+  debug?: boolean;
 }
 
 /**
@@ -333,6 +344,8 @@ export interface GwenEngineOptions {
 export interface GwenProvides {
   /** The engine-level error bus. Inject via `engine.inject('errors')`. */
   errors: EngineErrorBus;
+  /** The engine-level structured logger. Inject via `engine.inject('logger')`. */
+  logger: GwenLogger;
 }
 
 /**
@@ -386,6 +399,22 @@ export class GwenPluginNotFoundError extends Error {
 }
 
 /**
+ * Context passed to a plugin's {@link GwenPlugin.onError} hook.
+ */
+export interface PluginErrorContext {
+  /** Frame loop phase in which the error occurred. */
+  phase: 'setup' | 'onBeforeUpdate' | 'onUpdate' | 'onAfterUpdate' | 'onRender' | 'teardown';
+  /** Engine frame index at the time of the error. */
+  frame: number;
+  /**
+   * Mark this error as handled.
+   * When called, the error is **not** forwarded to the engine error bus.
+   * The frame continues normally.
+   */
+  recover(): void;
+}
+
+/**
  * A GWEN plugin. Registered via {@link GwenEngine.use}.
  *
  * @example
@@ -414,6 +443,22 @@ export interface GwenPlugin {
   onAfterUpdate?(dt: number): void;
   /** Called every frame at the render phase. */
   onRender?(): void;
+  /**
+   * Called when an error is thrown inside this plugin's lifecycle hooks.
+   * Implement to handle or recover from plugin-specific errors gracefully.
+   *
+   * Call `context.recover()` to suppress forwarding to the engine error bus.
+   *
+   * @example
+   * ```typescript
+   * onError(error, context) {
+   *   if (context.phase === 'onRender' && error instanceof DOMException) {
+   *     context.recover() // canvas context lost — handled
+   *   }
+   * }
+   * ```
+   */
+  onError?(error: unknown, context: PluginErrorContext): void;
 }
 
 /**
@@ -672,6 +717,16 @@ export interface GwenEngine {
    */
   readonly variant: 'light' | 'physics2d' | 'physics3d';
 
+  /** Whether debug mode is active. Reflects the `debug` option passed to `createEngine()`. */
+  readonly debug: boolean;
+
+  /**
+   * Structured logger for this engine instance.
+   * Call `engine.logger.child('@my/plugin')` to get a scoped child logger.
+   * The logger is also injectable: `engine.inject('logger')`.
+   */
+  readonly logger: GwenLogger;
+
   // ─── Stats ──────────────────────────────────────────────────────────────
   readonly deltaTime: number;
   readonly frameCount: number;
@@ -724,6 +779,8 @@ class GwenEngineImpl implements GwenEngine {
   readonly targetFPS: number;
   readonly maxDeltaSeconds: number;
   readonly variant: 'light' | 'physics2d' | 'physics3d';
+  readonly debug: boolean;
+  readonly logger: GwenLogger;
 
   // ─── Internal state ───────────────────────────────────────────────────────
   private readonly _plugins: GwenPlugin[] = [];
@@ -839,6 +896,9 @@ class GwenEngineImpl implements GwenEngine {
     this.targetFPS = opts.targetFPS ?? 60;
     this.maxDeltaSeconds = opts.maxDeltaSeconds ?? 0.1;
     this.variant = opts.variant ?? 'light';
+    this.debug = opts.debug ?? false;
+    this.logger = createLogger('gwen:core', this.debug, () => this._frameCountOwn);
+    this.provide('logger', this.logger);
     this._entityManager = new EntityManager(this.maxEntities);
     this._componentRegistry = new ComponentRegistry();
     this._queryEngine = new QueryEngine();
@@ -869,14 +929,29 @@ class GwenEngineImpl implements GwenEngine {
     const scopedHooks = this._createScopedHooks(plugin.name);
     const engineWithScopedHooks = this._withScopedHooks(scopedHooks);
 
-    // Run setup inside engine context so useEngine() resolves to this instance.
-    // engineContext.call() saves and restores the previous context (safe for nesting).
-    const setupResult = engineContext.call(this, () => plugin.setup(engineWithScopedHooks));
-    if (setupResult instanceof Promise) await setupResult;
+    try {
+      // Run setup inside engine context so useEngine() resolves to this instance.
+      // engineContext.call() saves and restores the previous context (safe for nesting).
+      const setupResult = engineContext.call(this, () => plugin.setup(engineWithScopedHooks));
+      if (setupResult instanceof Promise) await setupResult;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this._errorBus?.emit({
+        level: 'fatal',
+        code: CoreErrorCodes.PLUGIN_SETUP_ERROR,
+        message: `[${plugin.name}] setup failed: ${message}`,
+        source: plugin.name,
+        error: err,
+      });
+      throw err; // setup failure is fatal — re-throw
+    }
 
     this._plugins.push(plugin);
     this._pluginNames.add(plugin.name);
     await this.hooks.callHook('plugin:registered', plugin.name);
+    if (this.debug) {
+      this.logger.debug(`plugin registered: ${plugin.name}`);
+    }
   }
 
   async unuse(name: string): Promise<void> {
@@ -1402,6 +1477,60 @@ class GwenEngineImpl implements GwenEngine {
 
   // ─── 8-phase frame runner ─────────────────────────────────────────────────
 
+  /**
+   * Report an error thrown by a plugin lifecycle hook.
+   *
+   * Calls `plugin.onError` if defined, giving the plugin a chance to recover.
+   * If the plugin does not call `context.recover()`, logs the error via the
+   * engine logger and forwards it to the error bus and the `plugin:error` hook.
+   *
+   * @param plugin - The plugin whose hook threw.
+   * @param phase - The lifecycle phase in which the error occurred.
+   * @param error - The thrown value.
+   */
+  private async _reportPluginError(
+    plugin: GwenPlugin,
+    phase: PluginErrorContext['phase'],
+    error: unknown,
+  ): Promise<void> {
+    let recovered = false;
+    const context: PluginErrorContext = {
+      phase,
+      frame: this._frameCountOwn,
+      recover: () => {
+        recovered = true;
+      },
+    };
+
+    try {
+      plugin.onError?.(error, context);
+    } catch {
+      // onError itself threw — ignore to avoid infinite loops
+    }
+
+    if (!recovered) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${plugin.name}] ${phase} threw: ${message}`, {
+        phase,
+        frame: this._frameCountOwn,
+      });
+      this._errorBus?.emit({
+        level: 'error',
+        code: CoreErrorCodes.PLUGIN_RUNTIME_ERROR,
+        message: `[${plugin.name}] ${phase} threw: ${message}`,
+        source: plugin.name,
+        error,
+        context: { phase, frame: this._frameCountOwn },
+      });
+      await this.hooks.callHook('plugin:error', {
+        pluginName: plugin.name,
+        phase,
+        error,
+        frame: this._frameCountOwn,
+      });
+    }
+  }
+
   private async _runFrame(dt: number): Promise<void> {
     // All 8 frame phases run inside this engine's context.
     // engineContext.set(this, true) makes useEngine() resolve to this instance
@@ -1418,36 +1547,95 @@ class GwenEngineImpl implements GwenEngine {
 
       // Phase 2 — onBeforeUpdate (all plugins, registration order)
       for (const plugin of this._plugins) {
-        plugin.onBeforeUpdate?.(dt);
+        try {
+          plugin.onBeforeUpdate?.(dt);
+        } catch (err) {
+          await this._reportPluginError(plugin, 'onBeforeUpdate', err);
+        }
       }
       const t3 = performance.now();
 
       // Phase 3 — built-in physics step (Cas A: wasmBridge physics)
-      if (this.wasmBridge.physics2d.enabled) this.wasmBridge.physics2d.step(dt);
-      if (this.wasmBridge.physics3d.enabled) this.wasmBridge.physics3d.step(dt);
+      try {
+        if (this.wasmBridge.physics2d.enabled) this.wasmBridge.physics2d.step(dt);
+        if (this.wasmBridge.physics3d.enabled) this.wasmBridge.physics3d.step(dt);
+      } catch (err) {
+        const code =
+          err instanceof WebAssembly.RuntimeError
+            ? CoreErrorCodes.WASM_PANIC
+            : CoreErrorCodes.FRAME_LOOP_ERROR;
+        this._errorBus?.emit({
+          level: 'fatal',
+          code,
+          message: `WASM step failed: ${err instanceof Error ? err.message : String(err)}`,
+          source: 'gwen_core.wasm',
+          error: err,
+          context: { frame: this._frameCountOwn },
+        });
+      }
       const t4 = performance.now();
 
       // Phase 4 — community WASM modules step (Cas B: user WASM, registration order)
-      for (const entry of this._wasmModules.values()) {
-        entry.step?.(entry.handle, dt);
+      for (const [name, entry] of this._wasmModules.entries()) {
+        try {
+          entry.step?.(entry.handle, dt);
+        } catch (err) {
+          const code =
+            err instanceof WebAssembly.RuntimeError
+              ? CoreErrorCodes.WASM_PANIC
+              : CoreErrorCodes.FRAME_LOOP_ERROR;
+          this._errorBus?.emit({
+            level: 'error',
+            code,
+            message: `WASM module "${name}" step failed: ${err instanceof Error ? err.message : String(err)}`,
+            source: `wasm:${name}`,
+            error: err,
+            context: { frame: this._frameCountOwn },
+          });
+        }
       }
       const t5 = performance.now();
+
+      // Debug sentinel check — verifies WASM memory boundaries were not overrun.
+      // Only runs in debug mode and only when a SharedMemoryManager is active.
+      if (this.debug && this._sharedMemory) {
+        try {
+          const bridge = getWasmBridge();
+          this._sharedMemory.checkSentinels(bridge);
+        } catch (err) {
+          this.logger.error('WASM memory sentinel violation', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
 
       // Phase 5 — ECS query flush (dirty component marks resolved)
       // Handled internally by the WASM core; stub for future explicit flush API.
 
       // Phase 6 — onUpdate (all plugins, registration order)
       for (const plugin of this._plugins) {
-        plugin.onUpdate?.(dt);
+        try {
+          plugin.onUpdate?.(dt);
+        } catch (err) {
+          await this._reportPluginError(plugin, 'onUpdate', err);
+        }
       }
       const t6 = performance.now();
 
       // Phase 7 — onAfterUpdate + onRender (all plugins, registration order)
       for (const plugin of this._plugins) {
-        plugin.onAfterUpdate?.(dt);
+        try {
+          plugin.onAfterUpdate?.(dt);
+        } catch (err) {
+          await this._reportPluginError(plugin, 'onAfterUpdate', err);
+        }
       }
       for (const plugin of this._plugins) {
-        plugin.onRender?.();
+        try {
+          plugin.onRender?.();
+        } catch (err) {
+          await this._reportPluginError(plugin, 'onRender', err);
+        }
       }
       const t7 = performance.now();
 
@@ -1467,6 +1655,23 @@ class GwenEngineImpl implements GwenEngine {
         afterTick: t8 - t7,
         total: t8 - t0,
       };
+
+      // Debug over-budget phase warning — logs when any individual phase
+      // consumes more than 50% of the per-frame time budget.
+      if (this.debug) {
+        const budget = 1000 / this.targetFPS;
+        for (const [phase, ms] of Object.entries(this._lastPhaseMs)) {
+          if (phase === 'total') continue;
+          if ((ms as number) > budget * 0.5) {
+            this.logger.warn(`phase "${phase}" exceeded 50% of frame budget`, {
+              phase,
+              ms: (ms as number).toFixed(2),
+              budgetMs: budget.toFixed(2),
+              frame: this._frameCountOwn,
+            });
+          }
+        }
+      }
     } finally {
       engineContext.unset();
     }
