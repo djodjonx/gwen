@@ -34,6 +34,7 @@ import type { ComponentDefinition, ComponentSchema, InferComponent } from '../sc
 import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
 import { buildTransformImports } from '../wasm/transform-imports.js';
 import { SharedMemoryManager, TRANSFORM_STRIDE } from '../wasm/shared-memory.js';
+import { validateEngineConfig } from './engine-config-validator.js';
 export type {
   WasmMemoryRegion,
   WasmMemoryOptions,
@@ -325,6 +326,12 @@ export interface GwenEngineOptions {
    * @default false
    */
   debug?: boolean;
+
+  /**
+   * Number of pre-allocated tween slots.
+   * @default 256
+   */
+  tweenPoolSize?: number;
 }
 
 /**
@@ -1741,6 +1748,7 @@ class GwenEngineImpl implements GwenEngine {
  * ```
  */
 export async function createEngine(options?: GwenEngineOptions): Promise<GwenEngine> {
+  validateEngineConfig(options ?? {});
   return new GwenEngineImpl(options ?? {});
 }
 

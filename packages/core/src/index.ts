@@ -10,6 +10,7 @@ export type { GwenHooks, GwenHookable } from './hooks';
 
 // RFC-001: New GwenEngine interface & createEngine() factory
 export { createEngine, GwenPluginNotFoundError, CoreErrorCodes } from './engine/gwen-engine';
+export { GwenConfigError } from './errors';
 export type {
   GwenEngine,
   // GwenPlugin is the RFC-001 interface (setup/teardown) — the primary plugin contract.

@@ -75,6 +75,12 @@ export interface EngineConfig {
    * ```
    */
   plugins?: GwenPlugin[];
+
+  /**
+   * Number of pre-allocated tween slots.
+   * @default 256
+   */
+  tweenPoolSize?: number;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────

@@ -7,3 +7,4 @@
 
 export { GwenContextError } from './context.js';
 export { GwenPluginNotFoundError } from './engine/gwen-engine.js';
+export { GwenConfigError } from './engine/config-error.js';
