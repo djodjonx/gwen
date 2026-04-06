@@ -125,4 +125,14 @@ describe('PhysicsQueryWalker', () => {
     const patterns = walker.walk(NON_PHYSICS_SOURCE);
     expect(patterns).toEqual([]);
   });
+
+  it('does NOT flag someOtherService.castRay() inside onUpdate', () => {
+    const src = `
+      export const sys = defineSystem(() => {
+        onUpdate(() => { renderer.castRay(opts); });
+      });
+    `;
+    const walker = new PhysicsQueryWalker('test.ts');
+    expect(walker.walk(src)).toHaveLength(0);
+  });
 });

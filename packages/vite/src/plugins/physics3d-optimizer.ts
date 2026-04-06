@@ -9,6 +9,7 @@
 
 import type { Plugin } from 'vite';
 import { PhysicsQueryWalker } from '../optimizer/physics-walker.js';
+import type { PhysicsMethod } from '../optimizer/physics-walker.js';
 
 // ─── Options ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,18 @@ export interface GwenPhysics3DOptimizerOptions {
   extensions?: string[];
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Maps each imperative physics method to its composable equivalent.
+ * Used to produce actionable warning messages.
+ */
+const METHOD_TO_COMPOSABLE: Record<PhysicsMethod, string> = {
+  castRay: 'useRaycast',
+  castShape: 'useShapeCast',
+  overlapShape: 'useOverlap',
+};
+
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 
 /**
@@ -72,7 +85,14 @@ export interface GwenPhysics3DOptimizerOptions {
  * @returns A Vite plugin instance.
  */
 export function gwenPhysics3DOptimizerPlugin(options: GwenPhysics3DOptimizerOptions = {}): Plugin {
-  const { debug = false, extensions = ['.ts', '.tsx'] } = options;
+  const { mode = 'warn', debug = false, extensions = ['.ts', '.tsx'] } = options;
+
+  if (mode === 'transform') {
+    console.warn(
+      '[gwen:physics3d-optimizer] mode: "transform" is not yet implemented. ' +
+        'Falling back to mode: "warn".',
+    );
+  }
 
   return {
     name: 'gwen:physics3d-optimizer',
@@ -111,8 +131,7 @@ export function gwenPhysics3DOptimizerPlugin(options: GwenPhysics3DOptimizerOpti
           `[gwen:physics3d-optimizer] Imperative physics query detected in hot path. ` +
           `physics.${pattern.method}() was called inside ${pattern.callbackType}() ` +
           `in ${pattern.filename} (offset ${pattern.start}–${pattern.end}). ` +
-          `Consider using the composable equivalent (e.g. useRaycast / useShapeCast) ` +
-          `to avoid per-frame WASM boundary overhead.`;
+          `Replace with \`${METHOD_TO_COMPOSABLE[pattern.method]}()\` for zero-copy SAB reads.`;
 
         if (debug) {
           console.warn(message);

@@ -16,6 +16,10 @@ import type {
   ExpressionStatement,
   StaticMemberExpression,
   IdentifierName,
+  Statement,
+  VariableDeclaration,
+  VariableDeclarator,
+  IfStatement,
 } from 'oxc-parser';
 import { parseSource, isCallTo, getCallArgs, getFunctionBodyStatements } from '../oxc/index.js';
 
@@ -32,15 +36,15 @@ export type PhysicsCallbackType = 'onUpdate' | 'onBeforeUpdate' | 'onAfterUpdate
  */
 export interface PhysicsQueryPattern {
   /** The physics method that was called imperatively. */
-  method: PhysicsMethod;
+  readonly method: PhysicsMethod;
   /** The frame-loop callback that contains the call. */
-  callbackType: PhysicsCallbackType;
+  readonly callbackType: PhysicsCallbackType;
   /** Byte offset of the start of the call expression in the source. */
-  start: number;
+  readonly start: number;
   /** Byte offset of the end of the call expression in the source. */
-  end: number;
+  readonly end: number;
   /** The source file path this pattern was found in. */
-  filename: string;
+  readonly filename: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -177,7 +181,7 @@ function getDirectCalleeName(call: CallExpression): string | null {
  * @param out          - Accumulator array for detected patterns.
  */
 function collectPhysicsCalls(
-  node: import('oxc-parser').Statement,
+  node: Statement,
   callbackType: PhysicsCallbackType,
   filename: string,
   out: PhysicsQueryPattern[],
@@ -191,9 +195,9 @@ function collectPhysicsCalls(
       break;
     }
     case 'VariableDeclaration': {
-      const varDecl = node as import('oxc-parser').VariableDeclaration;
+      const varDecl = node as VariableDeclaration;
       for (const decl of varDecl.declarations) {
-        const d = decl as import('oxc-parser').VariableDeclarator;
+        const d = decl as VariableDeclarator;
         if (d.init && d.init.type === 'CallExpression') {
           checkCallExprForPhysics(d.init as CallExpression, callbackType, filename, out);
         }
@@ -201,17 +205,24 @@ function collectPhysicsCalls(
       break;
     }
     case 'BlockStatement': {
-      const block = node as unknown as { body: import('oxc-parser').Statement[] };
+      const block = node as unknown as { body: Statement[] };
       for (const s of block.body) {
         collectPhysicsCalls(s, callbackType, filename, out);
       }
       break;
     }
     case 'IfStatement': {
-      const ifStmt = node as import('oxc-parser').IfStatement;
+      const ifStmt = node as IfStatement;
       collectPhysicsCalls(ifStmt.consequent, callbackType, filename, out);
       if (ifStmt.alternate) {
         collectPhysicsCalls(ifStmt.alternate, callbackType, filename, out);
+      }
+      break;
+    }
+    case 'ReturnStatement': {
+      const retStmt = node as unknown as { argument?: Statement };
+      if (retStmt.argument) {
+        collectPhysicsCalls(retStmt.argument, callbackType, filename, out);
       }
       break;
     }
@@ -220,7 +231,7 @@ function collectPhysicsCalls(
     case 'ForStatement':
     case 'WhileStatement':
     case 'DoWhileStatement': {
-      const loopStmt = node as unknown as { body: import('oxc-parser').Statement };
+      const loopStmt = node as unknown as { body: Statement };
       collectPhysicsCalls(loopStmt.body, callbackType, filename, out);
       break;
     }
@@ -249,6 +260,11 @@ function checkCallExprForPhysics(
   // Cast to StaticMemberExpression: only non-computed member access (physics.method)
   const mem = call.callee as StaticMemberExpression;
   if (mem.computed) return;
+
+  // Only flag calls on the physics service object (physics or physics3d).
+  if (mem.object.type !== 'Identifier') return;
+  const objectName = (mem.object as IdentifierName).name;
+  if (objectName !== 'physics' && objectName !== 'physics3d') return;
 
   const methodName = mem.property.name;
   if (!PHYSICS_METHODS.has(methodName)) return;
