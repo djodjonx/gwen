@@ -338,4 +338,12 @@ export class SharedMemoryManager {
   get allRegions(): MemoryRegion[] {
     return Array.from(this.regions.values());
   }
+
+  /**
+   * Byte offset of the transform buffer in WASM linear memory.
+   * Used by community plugins via `buildTransformImports()` to locate entity transform data.
+   */
+  get transformBufferPtr(): number {
+    return this.basePtr;
+  }
 }

@@ -30,6 +30,8 @@ import { getWasmBridge } from './wasm-bridge.js';
 import type { EntityId } from './engine-api.js';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema.js';
 import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
+import { buildTransformImports } from '../wasm/transform-imports.js';
+import { TRANSFORM_STRIDE } from '../wasm/shared-memory.js';
 export type {
   WasmMemoryRegion,
   WasmMemoryOptions,
@@ -78,6 +80,68 @@ export interface WasmModuleOptions<Exports extends WebAssembly.Exports = WebAsse
    * @param dt - Delta time in milliseconds since the last frame.
    */
   readonly step?: (handle: WasmModuleHandle<Exports>, dt: number) => void;
+  /**
+   * Expected plugin API version (encoded as major * 1_000_000 + minor * 1_000 + patch).
+   * When provided, the engine compares this against the `gwen_plugin_api_version` export.
+   * Defaults to GWEN_PLUGIN_API_VERSION if omitted.
+   *
+   * @example
+   * ```typescript
+   * // Check against version 1.2.3
+   * expectedVersion: 1_002_003
+   * ```
+   */
+  readonly expectedVersion?: number;
+  /**
+   * Policy for version mismatches:
+   * - 'warn' (default): logs a console.warn but continues loading
+   * - 'throw': throws an Error, preventing the module from loading
+   * - 'ignore': silently continues regardless of version
+   */
+  readonly versionPolicy?: 'warn' | 'throw' | 'ignore';
+}
+
+/** Current GWEN plugin API version. Encoded as major * 1_000_000 + minor * 1_000 + patch. */
+export const GWEN_PLUGIN_API_VERSION = 1_000_000; // v1.0.0
+
+/**
+ * Checks the plugin API version exported by a WASM module against the expected version.
+ *
+ * @param exports - The WebAssembly module exports to inspect
+ * @param moduleName - Module name for error/warning messages
+ * @param expectedVersion - The version to check against (defaults to GWEN_PLUGIN_API_VERSION)
+ * @param policy - How to handle mismatches: 'warn' | 'throw' | 'ignore'
+ * @returns true if versions match or no version export found, false if mismatch with 'warn'/'ignore'
+ * @throws {Error} When policy is 'throw' and versions don't match
+ *
+ * @example
+ * ```typescript
+ * checkPluginApiVersion(instance.exports, 'myPlugin', 1_000_000, 'throw');
+ * // Throws if the plugin's gwen_plugin_api_version doesn't match 1.0.0
+ * ```
+ */
+export function checkPluginApiVersion(
+  exports: WebAssembly.Exports,
+  moduleName: string,
+  expectedVersion = GWEN_PLUGIN_API_VERSION,
+  policy: 'warn' | 'throw' | 'ignore' = 'warn',
+): boolean {
+  const versionFn = exports['gwen_plugin_api_version'];
+  if (typeof versionFn !== 'function') {
+    return true; // No version export — old plugin, skip check
+  }
+  const actual = (versionFn as () => number)();
+  if (actual === expectedVersion) {
+    return true;
+  }
+  const msg = `[GWEN] Plugin "${moduleName}" was compiled against API version ${actual} but engine expects ${expectedVersion}.`;
+  if (policy === 'throw') {
+    throw new Error(msg);
+  }
+  if (policy === 'warn') {
+    console.warn(msg);
+  }
+  return false;
 }
 
 /**
@@ -1018,7 +1082,13 @@ class GwenEngineImpl implements GwenEngine {
         );
       }
       const buffer = await response.arrayBuffer();
-      const result = await WebAssembly.instantiate(buffer, {});
+      // Build transform buffer accessors for community plugins (RFC-GAP2 V1)
+      const gwenImports = buildTransformImports(
+        /* transformPtr */ 0, // Placeholder: in v2, will be SharedMemoryManager.transformBufferPtr
+        /* stride */ TRANSFORM_STRIDE,
+        /* maxEntities */ this.maxEntities,
+      );
+      const result = await WebAssembly.instantiate(buffer, { gwen: gwenImports });
       instance = result.instance;
     } catch (err) {
       throw new Error(
@@ -1026,6 +1096,14 @@ class GwenEngineImpl implements GwenEngine {
           `Cause: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+
+    // Check plugin API version compatibility if configured
+    checkPluginApiVersion(
+      instance.exports,
+      options.name,
+      options.expectedVersion,
+      options.versionPolicy,
+    );
 
     const memory =
       instance.exports['memory'] instanceof WebAssembly.Memory
