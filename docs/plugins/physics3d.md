@@ -50,6 +50,45 @@ The 3D API mirrors the 2D one. Key differences:
 | `physics3d.applyForce(entityId, vec3)`        | Apply a continuous force this frame.                  |
 | `physics3d.setGravityScale(entityId, scale)`  | Per-body gravity multiplier.                          |
 
+### Joints
+
+| Method | Description |
+| --- | --- |
+| `physics3d.addFixedJoint(slotA, slotB, anchorA, anchorB)` | Weld two bodies. |
+| `physics3d.addRevoluteJoint(slotA, slotB, opts)` | Hinge joint with optional limits. |
+| `physics3d.addPrismaticJoint(slotA, slotB, opts)` | Slide joint along an axis. |
+| `physics3d.addBallJoint(slotA, slotB, anchorA, anchorB)` | Ball-and-socket joint. |
+| `physics3d.addSpringJoint(slotA, slotB, rest, k, d)` | Spring between two bodies. |
+| `physics3d.removeJoint(jointId)` | Destroy a joint. |
+| `physics3d.setJointMotorVelocity(jointId, vel, maxForce)` | Drive at target velocity. |
+| `physics3d.setJointMotorPosition(jointId, target, k, d)` | Drive to target angle/displacement. |
+| `physics3d.setJointEnabled(jointId, enabled)` | Enable/disable a joint. |
+
+### Spatial Queries
+
+> Prefer `useRaycast`, `useShapeCast`, `useOverlap` composables inside `defineSystem` for zero-copy SAB reads.
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `physics3d.castRay(opts)` | `RaycastResult3D \| null` | Immediate raycast. |
+| `physics3d.castShape(opts)` | `ShapeCastResult3D \| null` | Immediate shape-cast. |
+| `physics3d.overlapShape(opts)` | `number[]` | Immediate overlap query. |
+
+### Character Controller
+
+| Method | Description |
+| --- | --- |
+| `physics3d.addCharacterController(entityId, opts)` | Create CC; returns compact slot. |
+| `physics3d.characterControllerMove(slot, dx, dy, dz, dt)` | Move and write results to SAB. |
+| `physics3d.removeCharacterController(slot)` | Destroy CC and release SAB slot. |
+
+### Pathfinding
+
+| Method | Description |
+| --- | --- |
+| `physics3d.initNavGrid3D(opts)` | Initialise the A\* grid. |
+| `physics3d.findPath3D(from, to, opts?)` | Returns `Vec3[]` waypoints or `null`. |
+
 ### Collider shapes
 
 ```typescript

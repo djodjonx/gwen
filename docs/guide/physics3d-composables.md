@@ -27,6 +27,13 @@ RFC-06 adds a set of composable functions that mirror the developer experience o
 | `onContact()`          | Per-frame contact event callbacks              |
 | `onSensorEnter()`      | Sensor zone entry callbacks                    |
 | `onSensorExit()`       | Sensor zone exit callbacks                     |
+| `useRaycast()`               | Zero-copy SAB raycast slot (result read from SharedArrayBuffer each frame) |
+| `useShapeCast()`             | Zero-copy SAB shape-cast slot                                              |
+| `useOverlap()`               | Zero-copy SAB overlap slot (max 16 overlapping entities per query)         |
+| `useJoint()`                 | Impulse joint between two entities (fixed/revolute/prismatic/ball/spring)  |
+| `useCharacterController()`   | Kinematic character controller with ground detection and slope limiting    |
+| `initNavGrid3D()`            | Initialise a 3D A\* navigation grid from world bounds                      |
+| `findPath3D()`               | Find a path between two world-space points using A\*                       |
 
 All composables are automatically imported when you add the `@gwenjs/physics3d` module to your GWEN config.
 
@@ -109,6 +116,8 @@ function useDynamicBody(options?: DynamicBodyOptions3D): DynamicBodyHandle3D;
 | `initialRotation`        | `Partial<Physics3DQuat>` | —       | Initial orientation (unit quaternion)             |
 | `initialLinearVelocity`  | `Partial<Physics3DVec3>` | —       | Initial velocity in m/s                           |
 | `initialAngularVelocity` | `Partial<Physics3DVec3>` | —       | Initial angular velocity in rad/s                 |
+| `fixedRotation`  | `boolean`                                      | `false`     | Lock all rotational degrees of freedom (ideal for upright characters). |
+| `quality`        | `'low' \| 'medium' \| 'high' \| 'esport'`     | `'medium'`  | Per-body solver iteration budget override. Overrides the plugin-level `qualityPreset`. |
 
 ### Handle
 
@@ -735,4 +744,322 @@ const CheckpointActor = defineActor(CheckpointPrefab, () => {
     game.triggerCheckpoint(entityId);
   });
 });
+```
+
+---
+
+## `useRaycast`
+
+Register a **zero-copy SAB raycast slot** for the current actor. The slot is evaluated during `physics3d_step`; results are available at the start of the next `onUpdate` via the `result` reactive object — no WASM call in the hot path.
+
+> **Performance:** Use `useRaycast` instead of `physics.castRay()` inside `onUpdate`. Imperative calls cross the WASM boundary once per call per frame; SAB slots are filled in batch during the physics step.
+
+### Signature
+
+```typescript
+function useRaycast(options: RaycastOptions3D): RaycastHandle3D;
+```
+
+### `RaycastOptions3D`
+
+| Option        | Type               | Default     | Description                                              |
+| ------------- | ------------------ | ----------- | -------------------------------------------------------- |
+| `origin`      | `Vec3 \| () => Vec3` | required  | World-space ray origin. Pass a getter for dynamic origin. |
+| `direction`   | `Vec3 \| () => Vec3` | required  | Ray direction (need not be normalised).                  |
+| `maxDistance` | `number`           | `100`       | Maximum ray distance (metres).                           |
+| `layer`       | `number`           | `0xFFFFFFFF`| Layer bitmask to include.                                |
+| `mask`        | `number`           | `0xFFFFFFFF`| Collision mask.                                          |
+| `solid`       | `boolean`          | `true`      | Whether a ray starting inside a collider counts as a hit.|
+
+### `RaycastHandle3D`
+
+| Property             | Type      | Description                                        |
+| -------------------- | --------- | -------------------------------------------------- |
+| `result.hit`         | `boolean` | True if the ray hit something this frame.          |
+| `result.entityId`    | `number`  | Entity index of the hit body (`-1` if no hit).     |
+| `result.distance`    | `number`  | Distance to the hit point (metres).                |
+| `result.normalX/Y/Z` | `number`  | Hit surface normal in world space.                 |
+| `result.pointX/Y/Z`  | `number`  | World-space hit point.                             |
+| `unregister()`       | `() => void` | Release the SAB slot (called automatically on actor destroy). |
+
+### Example
+
+```typescript
+export const EnemyAI = defineSystem(() => {
+  const ray = useRaycast({
+    origin: () => transform.position,
+    direction: { x: 0, y: -1, z: 0 },
+    maxDistance: 2,
+    layer: Layers.ground,
+  });
+
+  onUpdate(() => {
+    if (ray.result.hit) {
+      // character is within 2m of the ground
+    }
+  });
+});
+```
+
+---
+
+## `useShapeCast`
+
+Register a **zero-copy SAB shape-cast slot**. A shape-cast sweeps a convex shape along a direction and reports the first hit, including time-of-impact (TOI) and contact normal.
+
+### Signature
+
+```typescript
+function useShapeCast(options: ShapeCastOptions3D): ShapeCastHandle3D;
+```
+
+### `ShapeCastOptions3D`
+
+| Option        | Type                 | Default     | Description                                     |
+| ------------- | -------------------- | ----------- | ----------------------------------------------- |
+| `origin`      | `Vec3 \| () => Vec3` | required    | Shape-cast start position.                      |
+| `rotation`    | `Quat \| () => Quat` | identity    | Shape orientation.                              |
+| `direction`   | `Vec3 \| () => Vec3` | required    | Cast direction vector.                          |
+| `shape`       | `ShapeDescriptor3D`  | required    | Shape to cast (box, sphere, or capsule).        |
+| `maxDistance` | `number`             | `50`        | Maximum sweep distance (metres).                |
+| `layer`       | `number`             | `0xFFFFFFFF`| Layer bitmask.                                  |
+| `mask`        | `number`             | `0xFFFFFFFF`| Collision mask.                                 |
+
+### `ShapeDescriptor3D`
+
+```typescript
+{ type: 'box';    halfExtents: { x: number; y: number; z: number } }
+{ type: 'sphere'; radius: number }
+{ type: 'capsule'; halfHeight: number; radius: number }
+```
+
+### `ShapeCastHandle3D`
+
+| Property             | Type      | Description                                          |
+| -------------------- | --------- | ---------------------------------------------------- |
+| `result.hit`         | `boolean` | True if the swept shape hit something.               |
+| `result.entityId`    | `number`  | Hit entity index.                                    |
+| `result.toi`         | `number`  | Time-of-impact (0 = at origin, 1 = at maxDistance).  |
+| `result.normalX/Y/Z` | `number`  | Contact normal at TOI.                               |
+| `unregister()`       | `() => void` | Release the SAB slot.                             |
+
+### Example
+
+```typescript
+const sweep = useShapeCast({
+  origin: () => transform.position,
+  direction: { x: 0, y: -1, z: 0 },
+  shape: { type: 'capsule', halfHeight: 0.8, radius: 0.3 },
+  maxDistance: 0.2,
+});
+
+onUpdate(() => {
+  const isGrounded = sweep.result.hit && sweep.result.toi < 0.15;
+});
+```
+
+---
+
+## `useOverlap`
+
+Register a **zero-copy SAB overlap slot** that reports all colliders intersecting a query shape each frame. Returns up to `maxResults` entity indices.
+
+### Signature
+
+```typescript
+function useOverlap(options: OverlapOptions3D): OverlapHandle3D;
+```
+
+### `OverlapOptions3D`
+
+| Option        | Type                 | Default     | Description                                    |
+| ------------- | -------------------- | ----------- | ---------------------------------------------- |
+| `origin`      | `Vec3 \| () => Vec3` | required    | Query shape centre.                            |
+| `rotation`    | `Quat \| () => Quat` | identity    | Shape orientation.                             |
+| `shape`       | `ShapeDescriptor3D`  | required    | Query shape (box, sphere, or capsule).         |
+| `layer`       | `number`             | `0xFFFFFFFF`| Layer bitmask.                                 |
+| `mask`        | `number`             | `0xFFFFFFFF`| Collision mask.                                |
+| `maxResults`  | `number`             | `16`        | Maximum overlapping entities to report.        |
+
+### `OverlapHandle3D`
+
+| Property           | Type         | Description                                         |
+| ------------------ | ------------ | --------------------------------------------------- |
+| `result.count`     | `number`     | Number of overlapping entities this frame.          |
+| `result.entities`  | `Int32Array` | Entity indices (first `count` entries are valid).   |
+| `unregister()`     | `() => void` | Release the SAB slot.                              |
+
+### Example
+
+```typescript
+const aoe = useOverlap({
+  origin: () => transform.position,
+  shape: { type: 'sphere', radius: 5 },
+  layer: Layers.enemy,
+  maxResults: 32,
+});
+
+onUpdate(() => {
+  for (let i = 0; i < aoe.result.count; i++) {
+    const enemyId = aoe.result.entities[i]!;
+    health.damage(enemyId, 10 * dt);
+  }
+});
+```
+
+---
+
+## `useJoint`
+
+Attach an **impulse joint** between two physics entities. The joint is automatically removed when the actor is destroyed.
+
+### Signature
+
+```typescript
+function useJoint(type: JointType3D, options: JointOptions3D): JointHandle3D;
+```
+
+### `JointType3D`
+
+`'fixed' | 'revolute' | 'prismatic' | 'ball' | 'spring'`
+
+### `JointOptions3D`
+
+| Option       | Type      | Default    | Description                                                       |
+| ------------ | --------- | ---------- | ----------------------------------------------------------------- |
+| `entityA`    | `number`  | required   | First body entity index.                                          |
+| `entityB`    | `number`  | required   | Second body entity index.                                         |
+| `anchorA`    | `Vec3`    | `{0,0,0}`  | Anchor in body A local space.                                     |
+| `anchorB`    | `Vec3`    | `{0,0,0}`  | Anchor in body B local space.                                     |
+| `axisA`      | `Vec3`    | `{0,1,0}`  | Joint axis in body A local space (revolute/prismatic).            |
+| `axisB`      | `Vec3`    | `{0,1,0}`  | Joint axis in body B local space (revolute/prismatic).            |
+| `useLimits`  | `boolean` | `false`    | Enable angular/linear limits (revolute/prismatic).                |
+| `limitMin`   | `number`  | `0`        | Minimum angle (rad) or displacement (m).                          |
+| `limitMax`   | `number`  | `0`        | Maximum angle (rad) or displacement (m).                          |
+| `restLength` | `number`  | `1`        | Natural rest length (spring only).                                |
+| `stiffness`  | `number`  | `100`      | Spring stiffness (spring only).                                   |
+| `damping`    | `number`  | `10`       | Spring damping (spring only).                                     |
+
+### `JointHandle3D`
+
+| Method / Property              | Description                                                      |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `id`                           | Internal joint ID.                                               |
+| `setEnabled(enabled)`          | Enable/disable the joint at runtime.                             |
+| `setMotorVelocity(vel, force)` | Drive revolute/prismatic at target velocity.                     |
+| `setMotorPosition(target, k, d)`| Drive joint to target angle/displacement.                       |
+| `remove()`                     | Destroy the joint early.                                         |
+
+### Examples
+
+```typescript
+// Fixed joint — weld two bodies
+useJoint('fixed', { entityA: bodyA, entityB: bodyB });
+
+// Revolute joint with motor (door hinge)
+const hinge = useJoint('revolute', {
+  entityA: doorFrame, entityB: door,
+  axisA: { x: 0, y: 1, z: 0 }, axisB: { x: 0, y: 1, z: 0 },
+  useLimits: true, limitMin: 0, limitMax: Math.PI * 0.75,
+});
+hinge.setMotorVelocity(2, 50);
+
+// Spring joint
+useJoint('spring', { entityA: anchor, entityB: bob, restLength: 3, stiffness: 80, damping: 5 });
+```
+
+---
+
+## `useCharacterController`
+
+Attach a **kinematic character controller** to a capsule-collider body. Results (grounded state, ground normal, ground entity) are written to a `SharedArrayBuffer` slot during `physics3d_step` — reading them in `onUpdate` costs zero WASM calls.
+
+### Signature
+
+```typescript
+function useCharacterController(options?: CCOptions3D): CCHandle3D;
+```
+
+### `CCOptions3D`
+
+| Option           | Type      | Default  | Description                                                                     |
+| ---------------- | --------- | -------- | ------------------------------------------------------------------------------- |
+| `stepHeight`     | `number`  | `0.3`    | Maximum stair step height (metres).                                             |
+| `slopeLimit`     | `number`  | `0.785`  | Maximum walkable slope (radians). Default ≈ 45°.                               |
+| `skinWidth`      | `number`  | `0.01`   | Collision skin width (metres). Prevents jitter.                                 |
+| `snapToGround`   | `boolean` | `true`   | Snap to ground if within `stepHeight`.                                          |
+| `slideOnSlopes`  | `boolean` | `true`   | Slide along surfaces instead of stopping.                                       |
+| `applyImpulses`  | `boolean` | `true`   | Push dynamic bodies the character walks into.                                   |
+
+### `CCHandle3D`
+
+| Property / Method      | Type      | Description                                             |
+| ---------------------- | --------- | ------------------------------------------------------- |
+| `move(dx, dy, dz, dt)` | `void`    | Submit desired displacement for this frame (metres).    |
+| `isGrounded`           | `boolean` | True if the CC was on the ground after the last move.   |
+| `groundNormalX/Y/Z`    | `number`  | World-space normal of the surface under the character.  |
+| `groundEntity`         | `number`  | Entity index of the ground body (`-1` if airborne).     |
+| `remove()`             | `void`    | Destroy the CC slot.                                    |
+
+### Example
+
+```typescript
+export const PlayerMovement = defineSystem(() => {
+  const input = useInput();
+  const cc = useCharacterController({ stepHeight: 0.4, slopeLimit: Math.PI / 4 });
+
+  onUpdate((dt) => {
+    const moveX = input.axis('horizontal') * 5;
+    const moveZ = input.axis('vertical') * 5;
+    const gravity = cc.isGrounded ? 0 : -9.81 * dt;
+    cc.move(moveX * dt, gravity, moveZ * dt, dt);
+  });
+});
+```
+
+---
+
+## Pathfinding — `initNavGrid3D` / `findPath3D`
+
+GWEN ships a lightweight grid-based **A\* pathfinder** (O(n log n) with binary min-heap) for 3D navigation.
+
+### `initNavGrid3D`
+
+```typescript
+function initNavGrid3D(options: NavGridOptions3D): void;
+```
+
+| Option     | Type                                       | Default | Description                          |
+| ---------- | ------------------------------------------ | ------- | ------------------------------------ |
+| `minX`     | `number`                                   | required| World-space minimum X extent.        |
+| `minZ`     | `number`                                   | required| World-space minimum Z extent.        |
+| `maxX`     | `number`                                   | required| World-space maximum X extent.        |
+| `maxZ`     | `number`                                   | required| World-space maximum Z extent.        |
+| `cellSize` | `number`                                   | `1`     | Grid cell size (metres).             |
+| `walkable` | `(x: number, z: number) => boolean`        | `() => true` | Returns false for blocked cells.|
+
+### `findPath3D`
+
+```typescript
+function findPath3D(from: Vec3, to: Vec3, options?: PathfindOptions3D): Vec3[] | null;
+```
+
+Returns waypoints from `from` to `to`, or `null` if no path exists.
+
+| Option        | Type      | Default | Description                                              |
+| ------------- | --------- | ------- | -------------------------------------------------------- |
+| `maxNodes`    | `number`  | `512`   | Maximum A\* nodes to expand.                            |
+| `allowDiagonal` | `boolean` | `true` | Allow diagonal grid moves.                             |
+
+### Example
+
+```typescript
+initNavGrid3D({ minX: 0, minZ: 0, maxX: 30, maxZ: 30, cellSize: 1,
+  walkable: (x, z) => !tileMap.isWall(x, z) });
+
+const path = findPath3D(enemy.position, player.position);
+if (path && path.length > 1) {
+  const next = path[1]!;
+  cc.move((next.x - enemy.position.x) * speed * dt, 0, (next.z - enemy.position.z) * speed * dt, dt);
+}
 ```
