@@ -6,6 +6,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { checkPluginApiVersion, GWEN_PLUGIN_API_VERSION } from '../../src/engine/gwen-engine';
 
 describe('checkPluginApiVersion', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('returns true when no gwen_plugin_api_version export exists', () => {
     const exports = {} as WebAssembly.Exports; // Empty exports
     const result = checkPluginApiVersion(exports, 'oldPlugin');
@@ -37,8 +41,6 @@ describe('checkPluginApiVersion', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       '[GWEN] Plugin "myPlugin" was compiled against API version 1002003 but engine expects 1000000.',
     );
-
-    warnSpy.mockRestore();
   });
 
   it('throws on mismatch with policy=throw', () => {
@@ -73,8 +75,6 @@ describe('checkPluginApiVersion', () => {
 
     expect(result).toBe(false);
     expect(warnSpy).not.toHaveBeenCalled();
-
-    warnSpy.mockRestore();
   });
 
   it('uses GWEN_PLUGIN_API_VERSION as default expected version', () => {
@@ -97,8 +97,6 @@ describe('checkPluginApiVersion', () => {
 
     expect(result).toBe(false);
     expect(warnSpy).toHaveBeenCalled();
-
-    warnSpy.mockRestore();
   });
 
   it('handles version encoding correctly (major * 1_000_000 + minor * 1_000 + patch)', () => {
@@ -113,7 +111,7 @@ describe('checkPluginApiVersion', () => {
     expect(checkPluginApiVersion(exports, 'plugin', 1_002_002)).toBe(false);
   });
 
-  it('reports correct versions in error message with format: major.minor.patch', () => {
+  it('includes raw encoded integer versions in the warning message', () => {
     // v1.2.3 = 1_002_003
     // v2.3.4 = 2_003_004
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -126,8 +124,6 @@ describe('checkPluginApiVersion', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       '[GWEN] Plugin "testPlugin" was compiled against API version 2003004 but engine expects 1002003.',
     );
-
-    warnSpy.mockRestore();
   });
 
   it('correctly types gwen_plugin_api_version as a function', () => {
@@ -158,6 +154,7 @@ describe('GWEN_PLUGIN_API_VERSION', () => {
 
   it('uses encoding: major * 1_000_000 + minor * 1_000 + patch', () => {
     // v1.0.0 = 1*1_000_000 + 0*1_000 + 0 = 1_000_000
+    // oxlint-disable-next-line erasing-op
     expect(GWEN_PLUGIN_API_VERSION).toBe(1 * 1_000_000 + 0 * 1_000 + 0);
   });
 });

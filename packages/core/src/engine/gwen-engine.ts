@@ -1098,7 +1098,8 @@ class GwenEngineImpl implements GwenEngine {
     }
 
     // Check plugin API version compatibility if configured
-    checkPluginApiVersion(
+    // Version check: side-effects only (warn/throw). Module loads regardless unless policy='throw'.
+    void checkPluginApiVersion(
       instance.exports,
       options.name,
       options.expectedVersion,
