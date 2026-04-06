@@ -39,7 +39,7 @@
  */
 
 import { GwenConfigError } from '../engine/config-error.js';
-import type { WasmBridge } from '../engine/wasm-bridge';
+import type { WasmBridge } from '../engine/wasm-bridge.js';
 
 // ─── Public constants ─────────────────────────────────────────────────────────
 
@@ -312,7 +312,12 @@ export class SharedMemoryManager {
 
   /**
    * Write the sentinel values into the shared buffer.
-   * Called automatically by `allocateRegion()` — no need to call manually.
+   *
+   * Must be called **once**, after all regions have been allocated via
+   * {@link allocateRegion} and before the first {@link checkSentinels} call.
+   * Typically invoked during engine initialisation, after all plugins have
+   * registered their regions.
+   *
    * Re-exposed for testing purposes.
    *
    * @param bridge  Active WasmBridge.
