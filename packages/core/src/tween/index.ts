@@ -9,7 +9,7 @@
 
 export * from './easing.js';
 export * from './tween-types.js';
-export { TweenPool, type TweenSlot } from './tween-pool.js';
+export { TweenPool, type TweenSlot, type TweenPoolPolicy } from './tween-pool.js';
 export { TweenManager, getTweenManager } from './tween-manager.js';
 export { useTween } from './use-tween.js';
 export { defineSequence } from './define-sequence.js';

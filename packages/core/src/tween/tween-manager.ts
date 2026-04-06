@@ -11,6 +11,8 @@ import { useEngine } from '../context.js';
 import type { GwenEngine } from '../engine/gwen-engine.js';
 import type { TweenOptions, TweenableValue } from './tween-types.js';
 import { TweenPool, type TweenSlot } from './tween-pool.js';
+import type { TweenPoolPolicy } from './tween-pool.js';
+import type { GwenLogger } from '../logger/types.js';
 
 // ── Cache symbol ────────────────────────────────────────────────────────────
 
@@ -55,10 +57,17 @@ export class TweenManager {
    *
    * @param engine - The GWEN engine instance
    * @param poolSize - Number of tween slots to pre-allocate (default: 256)
+   * @param policy - Growth / exhaustion policy for the underlying {@link TweenPool}
+   * @param logger - Optional structured logger for capacity warnings
    * @since 1.0.0
    */
-  constructor(engine: GwenEngine, poolSize: number = 256) {
-    this._pool = new TweenPool(poolSize);
+  constructor(
+    engine: GwenEngine,
+    poolSize: number = 256,
+    policy?: TweenPoolPolicy,
+    logger?: GwenLogger,
+  ) {
+    this._pool = new TweenPool(poolSize, policy, logger);
 
     // Register the tick hook on the engine
     // The hook fires at the start of every frame with the delta time
@@ -73,12 +82,16 @@ export class TweenManager {
    * The returned slot is not yet playing — call {@link TweenHandle.play}
    * to start the animation.
    *
+   * Returns `null` when the pool policy is `'drop'` and all slots are in use.
+   * In all other cases either a slot is returned or an error is thrown.
+   *
    * @param options - Tween configuration (duration, easing, loop, yoyo)
-   * @returns A configured tween slot ready to play
-   * @throws If the pool is exhausted
+   * @returns A configured tween slot ready to play, or `null` when policy is `'drop'`
+   * @throws {GwenConfigError} If the pool is exhausted and the policy is `'throw'`
+   *   or `'grow'` but `maxSize` has been reached.
    * @since 1.0.0
    */
-  claim(options: TweenOptions<TweenableValue>): TweenSlot {
+  claim(options: TweenOptions<TweenableValue>): TweenSlot | null {
     return this._pool.claim(options);
   }
 
@@ -158,14 +171,19 @@ export function getTweenManager(engine?: GwenEngine): TweenManager {
   }
 
   // Check if manager already exists on engine
-  const cached = (resolvedEngine as any)[TWEEN_MANAGER_KEY];
+  const cached = (resolvedEngine as unknown as Record<symbol, unknown>)[TWEEN_MANAGER_KEY];
   if (cached instanceof TweenManager) {
     return cached;
   }
 
   // Create and cache new manager
-  const manager = new TweenManager(resolvedEngine);
-  (resolvedEngine as any)[TWEEN_MANAGER_KEY] = manager;
+  const manager = new TweenManager(
+    resolvedEngine,
+    resolvedEngine.tweenPoolSize,
+    resolvedEngine.tweenPoolPolicy,
+    resolvedEngine.logger.child('@gwenjs/core/tween'),
+  );
+  (resolvedEngine as unknown as Record<symbol, unknown>)[TWEEN_MANAGER_KEY] = manager;
 
   return manager;
 }

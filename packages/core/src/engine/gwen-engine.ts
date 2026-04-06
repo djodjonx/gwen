@@ -35,6 +35,7 @@ import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
 import { buildTransformImports } from '../wasm/transform-imports.js';
 import { SharedMemoryManager, TRANSFORM_STRIDE } from '../wasm/shared-memory.js';
 import { validateEngineConfig } from './engine-config-validator.js';
+import type { TweenPoolPolicy } from '../tween/tween-pool.js';
 export type {
   WasmMemoryRegion,
   WasmMemoryOptions,
@@ -332,6 +333,13 @@ export interface GwenEngineOptions {
    * @default 256
    */
   tweenPoolSize?: number;
+
+  /**
+   * Growth and exhaustion policy for the tween pool.
+   * Controls what happens when all tween slots are in use.
+   * @default `{ onExhausted: 'grow' }`
+   */
+  tweenPoolPolicy?: TweenPoolPolicy;
 }
 
 /**
@@ -727,6 +735,12 @@ export interface GwenEngine {
   /** Whether debug mode is active. Reflects the `debug` option passed to `createEngine()`. */
   readonly debug: boolean;
 
+  /** Number of pre-allocated tween slots. Reflects `tweenPoolSize` from `createEngine()`. */
+  readonly tweenPoolSize: number;
+
+  /** Growth and exhaustion policy for the tween pool. Reflects `tweenPoolPolicy` from `createEngine()`. */
+  readonly tweenPoolPolicy: TweenPoolPolicy;
+
   /**
    * Structured logger for this engine instance.
    * Call `engine.logger.child('@my/plugin')` to get a scoped child logger.
@@ -787,6 +801,8 @@ class GwenEngineImpl implements GwenEngine {
   readonly maxDeltaSeconds: number;
   readonly variant: 'light' | 'physics2d' | 'physics3d';
   readonly debug: boolean;
+  readonly tweenPoolSize: number;
+  readonly tweenPoolPolicy: TweenPoolPolicy;
   readonly logger: GwenLogger;
 
   // ─── Internal state ───────────────────────────────────────────────────────
@@ -904,6 +920,8 @@ class GwenEngineImpl implements GwenEngine {
     this.maxDeltaSeconds = opts.maxDeltaSeconds ?? 0.1;
     this.variant = opts.variant ?? 'light';
     this.debug = opts.debug ?? false;
+    this.tweenPoolSize = opts.tweenPoolSize ?? 256;
+    this.tweenPoolPolicy = opts.tweenPoolPolicy ?? { onExhausted: 'grow' };
     this.logger = createLogger('gwen:core', this.debug, () => this._frameCountOwn);
     this.provide('logger', this.logger);
     this._entityManager = new EntityManager(this.maxEntities);

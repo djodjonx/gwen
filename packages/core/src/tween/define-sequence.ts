@@ -112,7 +112,7 @@ export function defineSequence(steps: SequenceStep[]): SequenceHandle {
       // The slot is released immediately after completion so it returns to
       // the pool without occupying a slot between steps.
       const waitDuration = step.wait;
-      _activeWaitSlot = manager.claim({ duration: waitDuration });
+      _activeWaitSlot = manager.claim({ duration: waitDuration })!;
       _activeWaitSlot.play({ from: 0 as TweenableValue, to: 1 as TweenableValue });
       _activeWaitSlot.onComplete(() => {
         manager.release(_activeWaitSlot!);

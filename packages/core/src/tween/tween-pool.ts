@@ -11,6 +11,62 @@
 import { EASING_MAP, type EasingName } from './easing.js';
 import type { TweenHandle, TweenOptions, TweenableValue } from './tween-types.js';
 import { lerp } from '@gwenjs/math';
+import type { GwenLogger } from '../logger/types.js';
+import { GwenConfigError } from '../engine/config-error.js';
+
+// ── TweenPoolPolicy ──────────────────────────────────────────────────────────
+
+/**
+ * Controls how {@link TweenPool} responds when all slots are in use.
+ *
+ * @example
+ * ```typescript
+ * const pool = new TweenPool(64, { onExhausted: 'grow', growthFactor: 2, maxSize: 512 });
+ * ```
+ *
+ * @since 1.0.0
+ */
+export interface TweenPoolPolicy {
+  /**
+   * Strategy to apply when every slot is claimed:
+   * - `'grow'`  — allocate more slots (up to `maxSize`) and emit a warn log (default)
+   * - `'throw'` — throw {@link GwenConfigError} immediately
+   * - `'drop'`  — silently return `null`; the caller must handle the null return value
+   */
+  onExhausted: 'grow' | 'throw' | 'drop';
+  /**
+   * Multiplier applied to the current pool size when growing.
+   * @default 2
+   */
+  growthFactor?: number;
+  /**
+   * Hard upper bound on the pool size. Growth stops when this is reached.
+   * @default Infinity
+   */
+  maxSize?: number;
+  /**
+   * Fraction of capacity at which a `debug` log is emitted as an early warning.
+   * For example `0.75` fires when 75 % of slots are claimed.
+   * @default 0.75
+   */
+  warnAt?: number;
+}
+
+/**
+ * Resolved (all fields present) version of {@link TweenPoolPolicy}.
+ * Used internally after merging user-supplied policy with defaults.
+ *
+ * @internal
+ */
+type ResolvedTweenPoolPolicy = Required<TweenPoolPolicy>;
+
+/** Default policy applied when none is provided to the {@link TweenPool} constructor. */
+const DEFAULT_POLICY: ResolvedTweenPoolPolicy = {
+  onExhausted: 'grow',
+  growthFactor: 2,
+  maxSize: Infinity,
+  warnAt: 0.75,
+} as const;
 
 // ── Type Aliases ─────────────────────────────────────────────────────────────
 
@@ -357,19 +413,37 @@ export class TweenPool {
   private _available: TweenSlot[] = [];
   private _active: Set<TweenSlot> = new Set();
   /** Pre-allocated buffer for zero-alloc tick iteration. @since 1.0.0 */
-  private readonly _tickBuffer: TweenSlot[];
+  private _tickBuffer: TweenSlot[];
+  /** Resolved growth policy for this pool instance. @internal */
+  private readonly _policy: ResolvedTweenPoolPolicy;
+  /** Optional structured logger for capacity warnings. @internal */
+  private readonly _logger: GwenLogger | undefined;
 
   /**
-   * Create a new TweenPool with a fixed capacity.
+   * Create a new TweenPool with a fixed initial capacity and optional growth policy.
    *
    * @param size - Number of pre-allocated slots (default: 256)
-   * @throws If size is less than 1
+   * @param policy - Growth / exhaustion policy (default: `{ onExhausted: 'grow' }`)
+   * @param logger - Optional {@link GwenLogger} for capacity warnings and debug output
+   * @throws {GwenConfigError} If `size` is less than 1
    * @since 1.0.0
    */
-  constructor(size: number = 256) {
+  constructor(size: number = 256, policy?: TweenPoolPolicy, logger?: GwenLogger) {
     if (size < 1) {
-      throw new Error('[GWEN] TweenPool size must be >= 1');
+      throw new GwenConfigError(
+        'tweenPoolSize',
+        size,
+        'TweenPool size must be >= 1. Use at least 1 slot.',
+      );
     }
+
+    this._policy = {
+      onExhausted: policy?.onExhausted ?? DEFAULT_POLICY.onExhausted,
+      growthFactor: policy?.growthFactor ?? DEFAULT_POLICY.growthFactor,
+      maxSize: policy?.maxSize ?? DEFAULT_POLICY.maxSize,
+      warnAt: policy?.warnAt ?? DEFAULT_POLICY.warnAt,
+    };
+    this._logger = logger;
 
     // Pre-allocate all slots
     for (let i = 0; i < size; i++) {
@@ -384,21 +458,64 @@ export class TweenPool {
 
   /**
    * Claim an available slot from the pool.
+   *
    * The slot is removed from the available pool and marked as active.
+   * Exhaustion behaviour is governed by the {@link TweenPoolPolicy} passed
+   * to the constructor:
+   * - `'grow'`  — the pool expands automatically; throws {@link GwenConfigError}
+   *               only when `maxSize` is already reached.
+   * - `'throw'` — throws {@link GwenConfigError} immediately when exhausted.
+   * - `'drop'`  — returns `null`; the caller is responsible for handling it.
+   *
+   * When active usage reaches the `warnAt` fraction of total capacity a
+   * `debug` log is emitted via the injected {@link GwenLogger}.
    *
    * @param options - Tween configuration
-   * @returns A configured {@link TweenSlot} ready to use
-   * @throws If the pool is exhausted (no available slots)
+   * @returns A configured {@link TweenSlot} ready to use, or `null` when
+   *   policy is `'drop'` and the pool is exhausted.
+   * @throws {GwenConfigError} When policy is `'throw'` and the pool is
+   *   exhausted, or when policy is `'grow'` but `maxSize` has been reached.
    * @since 1.0.0
    */
-  claim(options: TweenOptions<TweenableValue>): TweenSlot {
+  claim(options: TweenOptions<TweenableValue>): TweenSlot | null {
     if (this._available.length === 0) {
-      throw new Error('[GWEN] TweenPool exhausted: no available slots. Increase pool size.');
+      switch (this._policy.onExhausted) {
+        case 'grow': {
+          this._grow();
+          if (this._available.length === 0) {
+            // maxSize reached and still exhausted — escalate to error
+            throw new GwenConfigError(
+              'tweenPoolSize',
+              this._slots.length,
+              'Increase tweenPoolSize or set maxSize to Infinity',
+            );
+          }
+          break;
+        }
+        case 'throw': {
+          throw new GwenConfigError(
+            'tweenPoolSize',
+            this._slots.length,
+            'Increase tweenPoolSize or set maxSize to Infinity',
+          );
+        }
+        case 'drop': {
+          return null;
+        }
+      }
     }
 
     const slot = this._available.pop()!;
     slot._configure(options);
     this._active.add(slot);
+
+    // Emit a debug warning when approaching capacity (warnAt threshold)
+    const used = this._active.size;
+    const capacity = this._slots.length;
+    if (this._logger && used >= Math.ceil(capacity * this._policy.warnAt)) {
+      this._logger.debug('[TweenPool] Approaching capacity', { used, capacity });
+    }
+
     return slot;
   }
 
@@ -426,6 +543,47 @@ export class TweenPool {
    */
   get activeCount(): number {
     return this._active.size;
+  }
+
+  /**
+   * Grow the pool by allocating additional {@link TweenSlot} objects.
+   *
+   * Computes the new size as:
+   * ```
+   * newSize = Math.min(Math.ceil(currentSize * growthFactor), maxSize)
+   * ```
+   * New slots are appended to `_slots` and `_available`. The `_tickBuffer`
+   * is resized to match. If `newSize === currentSize` (already at `maxSize`)
+   * this is a no-op.
+   *
+   * @internal
+   */
+  private _grow(): void {
+    const currentSize = this._slots.length;
+    const newSize = Math.min(
+      Math.ceil(currentSize * this._policy.growthFactor),
+      this._policy.maxSize,
+    );
+    const addCount = newSize - currentSize;
+
+    if (addCount <= 0) {
+      // Already at maxSize — cannot grow further
+      return;
+    }
+
+    for (let i = 0; i < addCount; i++) {
+      const slot = new TweenSlot();
+      this._slots.push(slot);
+      this._available.push(slot);
+    }
+
+    // Resize tick buffer to cover the new capacity
+    this._tickBuffer = Array.from({ length: newSize }) as TweenSlot[];
+
+    this._logger?.warn('[TweenPool] Pool exhausted, growing …', {
+      from: currentSize,
+      to: newSize,
+    });
   }
 
   /**

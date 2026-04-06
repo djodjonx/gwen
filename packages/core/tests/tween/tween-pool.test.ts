@@ -4,17 +4,35 @@
  * Verifies:
  * - TweenPool construction (default and custom sizes)
  * - claim() / release() lifecycle
- * - Pool exhaustion throws
+ * - Pool exhaustion: grow / throw / drop policies
  * - activeCount tracking
  * - TweenSlot.tick() value interpolation
  * - TweenSlot loop / yoyo / loop+yoyo modes
  * - onComplete fires correctly
  * - pause() / resume() halts and continues progress
  * - reset() returns to `from` value
+ * - Logger injection: warn on grow, debug at warnAt threshold
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { TweenPool } from '../../src/tween/tween-pool';
+import type { GwenLogger } from '../../src/logger/types';
+
+// ── Helper: build a minimal mock GwenLogger ───────────────────────────────────
+
+/**
+ * Create a mock {@link GwenLogger} spy for use in policy tests.
+ */
+function mockLogger(): GwenLogger {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+    setSink: vi.fn(),
+  };
+}
 
 // ── TweenPool construction ────────────────────────────────────────────────────
 
@@ -39,10 +57,11 @@ describe('TweenPool construction', () => {
 describe('TweenPool claim() and release()', () => {
   it('claim() returns a TweenSlot', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     expect(slot).toBeDefined();
-    expect(typeof slot.tick).toBe('function');
-    expect(typeof slot.play).toBe('function');
+    expect(slot).not.toBeNull();
+    expect(typeof slot!.tick).toBe('function');
+    expect(typeof slot!.play).toBe('function');
   });
 
   it('claim() increases activeCount', () => {
@@ -54,40 +73,104 @@ describe('TweenPool claim() and release()', () => {
 
   it('release() decreases activeCount', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     pool.claim({ duration: 1 });
-    pool.release(slot);
+    pool.release(slot!);
     expect(pool.activeCount).toBe(1);
   });
 
   it('released slot can be re-claimed', () => {
     const pool = new TweenPool(1);
-    const slot = pool.claim({ duration: 1 });
-    pool.release(slot);
-    const slot2 = pool.claim({ duration: 2 });
+    const slot = pool.claim({ duration: 1 })!;
+    pool.release(slot!);
+    const slot2 = pool.claim({ duration: 2 })!;
     expect(slot2).toBeDefined();
   });
 
   it('release() is idempotent — releasing twice does not corrupt count', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
-    pool.release(slot);
-    pool.release(slot); // second release should be a no-op
+    const slot = pool.claim({ duration: 1 })!;
+    pool.release(slot!);
+    pool.release(slot!); // second release should be a no-op
     expect(pool.activeCount).toBe(0);
   });
 
-  it('throws when pool is exhausted', () => {
-    const pool = new TweenPool(2);
+  it('throws when pool is exhausted (throw policy)', () => {
+    const pool = new TweenPool(2, { onExhausted: 'throw' });
     pool.claim({ duration: 1 });
     pool.claim({ duration: 1 });
     expect(() => pool.claim({ duration: 1 })).toThrow('[GWEN]');
   });
 
   it('exhausted pool can accept a claim after a release', () => {
-    const pool = new TweenPool(1);
-    const slot = pool.claim({ duration: 1 });
-    pool.release(slot);
+    const pool = new TweenPool(1, { onExhausted: 'throw' });
+    const slot = pool.claim({ duration: 1 })!;
+    pool.release(slot!);
     expect(() => pool.claim({ duration: 1 })).not.toThrow();
+  });
+});
+
+// ── TweenPool growth policy ───────────────────────────────────────────────────
+
+describe('TweenPool growth policy', () => {
+  it('uses grow policy by default — pool grows when exhausted', () => {
+    const pool = new TweenPool(2);
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 });
+    // With default 'grow' policy, a third claim should NOT throw
+    expect(() => pool.claim({ duration: 1 })).not.toThrow();
+    // After growing, activeCount should reflect the extra slot
+    expect(pool.activeCount).toBe(3);
+  });
+
+  it('respects throw policy — throws GwenConfigError when exhausted', async () => {
+    const { GwenConfigError } = await import('../../src/engine/config-error');
+    const pool = new TweenPool(2, { onExhausted: 'throw' });
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 });
+    expect(() => pool.claim({ duration: 1 })).toThrow(GwenConfigError);
+  });
+
+  it('respects drop policy — returns null when exhausted', () => {
+    const pool = new TweenPool(2, { onExhausted: 'drop' });
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 });
+    const result = pool.claim({ duration: 1 });
+    expect(result).toBeNull();
+  });
+
+  it('emits warn via logger when growing', () => {
+    const logger = mockLogger();
+    const pool = new TweenPool(2, { onExhausted: 'grow' }, logger);
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 }); // triggers grow
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('[TweenPool]'),
+      expect.objectContaining({ from: 2 }),
+    );
+  });
+
+  it('respects maxSize cap in grow policy — throws GwenConfigError when maxSize reached', async () => {
+    const { GwenConfigError } = await import('../../src/engine/config-error');
+    // pool of 2 with maxSize 2 — cannot grow beyond 2
+    const pool = new TweenPool(2, { onExhausted: 'grow', growthFactor: 2, maxSize: 2 });
+    pool.claim({ duration: 1 });
+    pool.claim({ duration: 1 });
+    expect(() => pool.claim({ duration: 1 })).toThrow(GwenConfigError);
+  });
+
+  it('emits debug at warnAt threshold', () => {
+    const logger = mockLogger();
+    // Pool of 4 with warnAt = 0.5 → debug fires when 2 or more slots are active
+    const pool = new TweenPool(4, { onExhausted: 'grow', warnAt: 0.5 }, logger);
+    pool.claim({ duration: 1 }); // 1/4 = 25% — below threshold
+    expect(logger.debug).not.toHaveBeenCalled();
+    pool.claim({ duration: 1 }); // 2/4 = 50% — at threshold → should fire
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('[TweenPool]'),
+      expect.objectContaining({ used: 2, capacity: 4 }),
+    );
   });
 });
 
@@ -96,13 +179,13 @@ describe('TweenPool claim() and release()', () => {
 describe('TweenSlot initial state after claim()', () => {
   it('is not playing after claim()', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     expect(slot.playing).toBe(false);
   });
 
   it('value is 0 before play()', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     expect(slot.value).toBe(0);
   });
 });
@@ -112,7 +195,7 @@ describe('TweenSlot initial state after claim()', () => {
 describe('TweenSlot number interpolation via tick()', () => {
   it('value equals `from` immediately after play()', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     expect(slot.value).toBe(0);
     expect(slot.playing).toBe(true);
@@ -120,7 +203,7 @@ describe('TweenSlot number interpolation via tick()', () => {
 
   it('value interpolates linearly at t=0.5', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.5);
     expect(slot.value).toBeCloseTo(50, 3);
@@ -128,7 +211,7 @@ describe('TweenSlot number interpolation via tick()', () => {
 
   it('value equals `to` at t=1.0', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0);
     expect(slot.value).toBeCloseTo(100, 3);
@@ -136,7 +219,7 @@ describe('TweenSlot number interpolation via tick()', () => {
 
   it('stops playing after duration for non-loop tween', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0);
     expect(slot.playing).toBe(false);
@@ -144,7 +227,7 @@ describe('TweenSlot number interpolation via tick()', () => {
 
   it('uses easeInQuad easing correctly at t=0.5', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'easeInQuad' });
+    const slot = pool.claim({ duration: 1, easing: 'easeInQuad' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.5);
     // easeInQuad(0.5) = 0.25
@@ -154,7 +237,7 @@ describe('TweenSlot number interpolation via tick()', () => {
   it('accepts a custom easing function', () => {
     const pool = new TweenPool(4);
     const customEasing = (t: number) => t * t * t; // cubic
-    const slot = pool.claim({ duration: 1, easing: customEasing });
+    const slot = pool.claim({ duration: 1, easing: customEasing })!;
     slot.play({ from: 0, to: 8 });
     slot.tick(0.5);
     // cubic(0.5) = 0.125, lerp(0, 8, 0.125) = 1
@@ -167,7 +250,7 @@ describe('TweenSlot number interpolation via tick()', () => {
 describe('TweenSlot loop mode', () => {
   it('continues playing after one full cycle', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, loop: true });
+    const slot = pool.claim({ duration: 1, loop: true })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0); // complete first cycle
     expect(slot.playing).toBe(true);
@@ -175,7 +258,7 @@ describe('TweenSlot loop mode', () => {
 
   it('value is at mid-point 1.5 cycles in (loop)', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear', loop: true });
+    const slot = pool.claim({ duration: 1, easing: 'linear', loop: true })!;
     slot.play({ from: 0, to: 100 });
     // tick(1.5) lands value at end of cycle (100) with elapsed reset to 0.5;
     // the value is not re-computed after the elapsed reset — use two ticks instead.
@@ -186,7 +269,7 @@ describe('TweenSlot loop mode', () => {
 
   it('fires onComplete once per loop cycle', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, loop: true });
+    const slot = pool.claim({ duration: 1, loop: true })!;
     slot.play({ from: 0, to: 100 });
     const cb = vi.fn();
     slot.onComplete(cb);
@@ -201,7 +284,7 @@ describe('TweenSlot loop mode', () => {
 describe('TweenSlot yoyo mode (no loop)', () => {
   it('value reverses on return leg', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true });
+    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0); // end of forward leg: switches to return leg
     // At start of return leg, elapsed=0 so tick another 0.5 to reach midpoint
@@ -211,7 +294,7 @@ describe('TweenSlot yoyo mode (no loop)', () => {
 
   it('stops after return leg completes (yoyo-only, no loop)', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true });
+    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     // tick(2.0) in a single call doesn't re-process the return-leg overflow;
     // use two separate ticks of duration length instead.
@@ -222,7 +305,7 @@ describe('TweenSlot yoyo mode (no loop)', () => {
 
   it('value returns to `from` after full yoyo cycle', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true });
+    const slot = pool.claim({ duration: 1, easing: 'linear', yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0); // forward leg → value reaches 100
     slot.tick(1.0); // return leg → value returns to 0
@@ -231,7 +314,7 @@ describe('TweenSlot yoyo mode (no loop)', () => {
 
   it('fires onComplete twice: once for forward leg, once for return leg', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 0.5, easing: 'linear', yoyo: true });
+    const slot = pool.claim({ duration: 0.5, easing: 'linear', yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     const cb = vi.fn();
     slot.onComplete(cb);
@@ -246,7 +329,7 @@ describe('TweenSlot yoyo mode (no loop)', () => {
 describe('TweenSlot loop + yoyo mode', () => {
   it('oscillates continuously', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear', loop: true, yoyo: true });
+    const slot = pool.claim({ duration: 1, easing: 'linear', loop: true, yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(1.0); // end of forward leg — starts return
     expect(slot.playing).toBe(true);
@@ -258,7 +341,7 @@ describe('TweenSlot loop + yoyo mode', () => {
 
   it('fires onComplete on each half-cycle (loop + yoyo)', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 0.5, easing: 'linear', loop: true, yoyo: true });
+    const slot = pool.claim({ duration: 0.5, easing: 'linear', loop: true, yoyo: true })!;
     slot.play({ from: 0, to: 100 });
     const cb = vi.fn();
     slot.onComplete(cb);
@@ -275,7 +358,7 @@ describe('TweenSlot loop + yoyo mode', () => {
 describe('TweenSlot onComplete callback', () => {
   it('fires exactly once for a non-loop tween', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     slot.play({ from: 0, to: 100 });
     const cb = vi.fn();
     slot.onComplete(cb);
@@ -286,7 +369,7 @@ describe('TweenSlot onComplete callback', () => {
 
   it('onComplete fires synchronously within tick()', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 0.5 });
+    const slot = pool.claim({ duration: 0.5 })!;
     slot.play({ from: 0, to: 1 });
     const log: string[] = [];
     slot.onComplete(() => log.push('complete'));
@@ -296,7 +379,7 @@ describe('TweenSlot onComplete callback', () => {
 
   it('multiple onComplete callbacks all fire', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     slot.play({ from: 0, to: 1 });
     const cb1 = vi.fn();
     const cb2 = vi.fn();
@@ -309,7 +392,7 @@ describe('TweenSlot onComplete callback', () => {
 
   it('play() clears previous onComplete listeners', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     const cb = vi.fn();
     slot.play({ from: 0, to: 1 });
     slot.onComplete(cb);
@@ -326,7 +409,7 @@ describe('TweenSlot onComplete callback', () => {
 describe('TweenSlot pause() and resume()', () => {
   it('pause() stops progress', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.25); // at 25%
     slot.pause();
@@ -338,7 +421,7 @@ describe('TweenSlot pause() and resume()', () => {
 
   it('resume() continues from paused position', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.25); // 25%
     slot.pause();
@@ -354,7 +437,7 @@ describe('TweenSlot pause() and resume()', () => {
 describe('TweenSlot reset()', () => {
   it('reset() stops playing', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1 });
+    const slot = pool.claim({ duration: 1 })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.5);
     slot.reset();
@@ -363,7 +446,7 @@ describe('TweenSlot reset()', () => {
 
   it('reset() returns value to `from`', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 10, to: 100 });
     slot.tick(0.5);
     slot.reset();
@@ -372,7 +455,7 @@ describe('TweenSlot reset()', () => {
 
   it('reset() allows play() to restart from scratch', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: 0, to: 100 });
     slot.tick(0.5);
     slot.reset();
@@ -387,8 +470,8 @@ describe('TweenSlot reset()', () => {
 describe('TweenPool.tick()', () => {
   it('advances all active slots', () => {
     const pool = new TweenPool(4);
-    const s1 = pool.claim({ duration: 1, easing: 'linear' });
-    const s2 = pool.claim({ duration: 1, easing: 'linear' });
+    const s1 = pool.claim({ duration: 1, easing: 'linear' })!;
+    const s2 = pool.claim({ duration: 1, easing: 'linear' })!;
     s1.play({ from: 0, to: 100 });
     s2.play({ from: 0, to: 200 });
     pool.tick(0.5);
@@ -398,7 +481,7 @@ describe('TweenPool.tick()', () => {
 
   it('does not tick inactive (non-playing) slots', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     // Not calling play() — slot is not active/playing
     pool.tick(0.5);
     expect(slot.value).toBe(0); // unchanged
@@ -406,7 +489,7 @@ describe('TweenPool.tick()', () => {
 
   it('allows release() from within onComplete without corrupting iteration', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 0.5 });
+    const slot = pool.claim({ duration: 0.5 })!;
     slot.play({ from: 0, to: 1 });
     slot.onComplete(() => {
       pool.release(slot); // release during tick
@@ -421,7 +504,7 @@ describe('TweenPool.tick()', () => {
 describe('TweenSlot Vec2 interpolation', () => {
   it('interpolates x and y components independently', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({
       from: { x: 0, y: 0 },
       to: { x: 100, y: 200 },
@@ -434,7 +517,7 @@ describe('TweenSlot Vec2 interpolation', () => {
 
   it('returns same object reference (zero-alloc)', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     slot.play({ from: { x: 0, y: 0 }, to: { x: 1, y: 1 } });
     slot.tick(0.1);
     const ref1 = slot.value;
@@ -450,7 +533,7 @@ describe('TweenSlot Vec2 interpolation', () => {
 describe('TweenSlot Color interpolation', () => {
   it('interpolates Color values correctly', () => {
     const pool = new TweenPool(4);
-    const slot = pool.claim({ duration: 1, easing: 'linear' });
+    const slot = pool.claim({ duration: 1, easing: 'linear' })!;
     const from = { r: 0, g: 0, b: 0, a: 0 };
     const to = { r: 1, g: 0.5, b: 0.25, a: 1 };
     slot.play({ from, to });
