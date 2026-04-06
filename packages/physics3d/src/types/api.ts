@@ -13,6 +13,29 @@ import type {
 } from './index';
 import type { BulkStaticBoxesOptions, BulkStaticBoxesResult } from './bulk';
 import type { CompoundColliderOptions3D, CompoundColliderHandle3D } from './colliders';
+import type {
+  FixedJointOpts,
+  RevoluteJointOpts,
+  PrismaticJointOpts,
+  BallJointOpts,
+  SpringJointOpts,
+  JointHandle3D,
+  JointId,
+  RayHit,
+  ShapeHit,
+  PointProjection,
+  Pathfinding3DOptions,
+  PathWaypoint3D,
+  CharacterControllerOpts,
+  CharacterControllerHandle,
+  RaycastOpts,
+  RaycastHandle,
+  ShapeCastOpts,
+  ShapeCastHandle,
+  OverlapOpts,
+  OverlapHandle,
+} from './joints';
+import type { Physics3DColliderShape } from './colliders';
 
 // ─── Service API ───────────────────────────────────────────────────────────────
 
@@ -477,4 +500,366 @@ export interface Physics3DAPI {
    * @since 1.0.0
    */
   isDebugEnabled(): boolean;
+
+  // ─── RFC-08: Joints ──────────────────────────────────────────────────────────
+
+  /**
+   * Create a **fixed (weld)** joint that locks two bodies together with no
+   * relative movement.
+   *
+   * In local-simulation mode returns a no-op dummy handle.
+   *
+   * @param opts - Joint options including the two body identifiers and optional anchors.
+   * @returns An opaque joint handle. Pass it to `removeJoint` to destroy the joint.
+   */
+  addFixedJoint(opts: FixedJointOpts): JointHandle3D;
+
+  /**
+   * Create a **revolute (hinge)** joint that allows rotation around a single axis.
+   *
+   * @param opts - Joint options; includes optional axis and angular limits.
+   * @returns An opaque joint handle.
+   */
+  addRevoluteJoint(opts: RevoluteJointOpts): JointHandle3D;
+
+  /**
+   * Create a **prismatic (slider)** joint that allows translation along one axis.
+   *
+   * @param opts - Joint options; includes optional slide axis and linear limits.
+   * @returns An opaque joint handle.
+   */
+  addPrismaticJoint(opts: PrismaticJointOpts): JointHandle3D;
+
+  /**
+   * Create a **ball (spherical)** joint that allows unrestricted rotation.
+   *
+   * @param opts - Joint options; includes optional cone-angle limit.
+   * @returns An opaque joint handle.
+   */
+  addBallJoint(opts: BallJointOpts): JointHandle3D;
+
+  /**
+   * Create a **spring** joint connecting two bodies with configurable stiffness
+   * and damping.
+   *
+   * @param opts - Joint options including rest length, stiffness, and damping.
+   * @returns An opaque joint handle.
+   */
+  addSpringJoint(opts: SpringJointOpts): JointHandle3D;
+
+  /**
+   * Destroy a previously created joint.
+   *
+   * No-op in local-simulation mode.
+   *
+   * @param id - The joint handle returned by one of the `addXxxJoint` methods.
+   */
+  removeJoint(id: JointId): void;
+
+  /**
+   * Set a motor target velocity on a revolute or prismatic joint.
+   *
+   * No-op in local-simulation mode.
+   *
+   * @param id       - Joint handle.
+   * @param velocity - Target velocity in rad/s (revolute) or m/s (prismatic).
+   * @param maxForce - Maximum force/torque the motor can exert.
+   */
+  setJointMotorVelocity(id: JointId, velocity: number, maxForce: number): void;
+
+  /**
+   * Set a motor target position on a revolute or prismatic joint.
+   *
+   * No-op in local-simulation mode.
+   *
+   * @param id        - Joint handle.
+   * @param target    - Target angle (rad) or position (m).
+   * @param stiffness - Position motor stiffness.
+   * @param damping   - Position motor damping.
+   */
+  setJointMotorPosition(id: JointId, target: number, stiffness: number, damping: number): void;
+
+  /**
+   * Enable or disable a joint without destroying it.
+   *
+   * No-op in local-simulation mode.
+   *
+   * @param id      - Joint handle.
+   * @param enabled - `true` to enable; `false` to disable.
+   */
+  setJointEnabled(id: JointId, enabled: boolean): void;
+
+  // ─── RFC-09: Continuous forces ────────────────────────────────────────────────
+
+  /**
+   * Apply a continuous linear force to a body in N (accumulates each step).
+   *
+   * In WASM mode delegates to Rapier's force accumulator.
+   * In local mode accumulates the force internally and applies it next step.
+   *
+   * @param entityId - Target entity.
+   * @param force    - Force vector in N. Missing components default to `0`.
+   */
+  addForce(entityId: Physics3DEntityId, force: Partial<Physics3DVec3>): void;
+
+  /**
+   * Apply a continuous torque to a body in N·m (accumulates each step).
+   *
+   * @param entityId - Target entity.
+   * @param torque   - Torque vector in N·m. Missing components default to `0`.
+   */
+  addTorque(entityId: Physics3DEntityId, torque: Partial<Physics3DVec3>): void;
+
+  /**
+   * Apply a force at a specific world-space point, generating both a linear
+   * force and a torque around the centre of mass.
+   *
+   * In local mode approximated as a centre-of-mass force (no torque contribution).
+   *
+   * @param entityId - Target entity.
+   * @param force    - Force vector in N.
+   * @param point    - World-space application point.
+   */
+  addForceAtPoint(
+    entityId: Physics3DEntityId,
+    force: Partial<Physics3DVec3>,
+    point: Partial<Physics3DVec3>,
+  ): void;
+
+  /**
+   * Override the per-body gravity scale multiplier.
+   *
+   * `0` disables gravity; `1` is normal; negative values invert it.
+   *
+   * @param entityId - Target entity.
+   * @param scale    - New gravity scale.
+   */
+  setGravityScale(entityId: Physics3DEntityId, scale: number): void;
+
+  /**
+   * Read the current gravity scale for a body.
+   *
+   * @param entityId - Target entity.
+   * @returns Current gravity scale, or `1.0` when not set.
+   */
+  getGravityScale(entityId: Physics3DEntityId): number;
+
+  /**
+   * Lock translation degrees of freedom on a body.
+   *
+   * In WASM mode delegates to Rapier's axis-lock API.
+   * In local mode stores the lock state for use in the local integrator.
+   *
+   * @param entityId - Target entity.
+   * @param x        - Lock translation along the world X axis.
+   * @param y        - Lock translation along the world Y axis.
+   * @param z        - Lock translation along the world Z axis.
+   */
+  lockTranslations(entityId: Physics3DEntityId, x: boolean, y: boolean, z: boolean): void;
+
+  /**
+   * Lock rotation degrees of freedom on a body.
+   *
+   * @param entityId - Target entity.
+   * @param x        - Lock rotation around the world X axis.
+   * @param y        - Lock rotation around the world Y axis.
+   * @param z        - Lock rotation around the world Z axis.
+   */
+  lockRotations(entityId: Physics3DEntityId, x: boolean, y: boolean, z: boolean): void;
+
+  /**
+   * Manually put a body to sleep or wake it up.
+   *
+   * Sleeping bodies are excluded from the simulation until woken.
+   *
+   * @param entityId - Target entity.
+   * @param sleeping - `true` to sleep; `false` to wake.
+   */
+  setBodySleeping(entityId: Physics3DEntityId, sleeping: boolean): void;
+
+  /**
+   * Returns `true` when the body is currently sleeping.
+   *
+   * @param entityId - Target entity.
+   */
+  isBodySleeping(entityId: Physics3DEntityId): boolean;
+
+  /**
+   * Wake every sleeping body in the physics world.
+   */
+  wakeAll(): void;
+
+  // ─── RFC-09: Pathfinding ──────────────────────────────────────────────────────
+
+  /**
+   * Upload a voxel navigation grid to the physics world.
+   *
+   * In WASM mode the grid is transferred to Rapier's A* pathfinder.
+   * In local mode the grid is stored for JavaScript A* use.
+   *
+   * @param opts - Grid dimensions, cell size, origin, and the raw voxel data.
+   */
+  initNavGrid3D(opts: Pathfinding3DOptions): void;
+
+  /**
+   * Find a path between two world-space points using the uploaded navigation grid.
+   *
+   * Returns an ordered list of waypoints from `from` to `to`.
+   * Returns an empty array when no path exists or the grid is not initialized.
+   *
+   * @param from - Start position in world space.
+   * @param to   - End position in world space.
+   */
+  findPath3D(from: Physics3DVec3, to: Physics3DVec3): PathWaypoint3D[];
+
+  // ─── RFC-07: Spatial queries (imperative) ────────────────────────────────────
+
+  /**
+   * Cast a ray from `origin` in `direction` and return the nearest hit.
+   *
+   * Not available in local-simulation mode (returns `null`).
+   *
+   * @param origin    - Ray origin in world space.
+   * @param direction - Ray direction (should be normalized).
+   * @param maxDist   - Maximum travel distance in metres.
+   * @param opts      - Optional layer filter and solid-hit flag.
+   * @returns The nearest {@link RayHit}, or `null` when nothing was struck.
+   */
+  castRay(
+    origin: Physics3DVec3,
+    direction: Physics3DVec3,
+    maxDist: number,
+    opts?: { layers?: number; mask?: number; solid?: boolean },
+  ): RayHit | null;
+
+  /**
+   * Sweep a convex shape through the scene and return the first contact.
+   *
+   * Not available in local-simulation mode (returns `null`).
+   *
+   * @param pos     - Starting position of the shape in world space.
+   * @param rot     - Starting rotation of the shape.
+   * @param dir     - Sweep direction.
+   * @param shape   - Convex shape to cast.
+   * @param maxDist - Maximum sweep distance in metres.
+   * @param opts    - Optional layer filter.
+   * @returns The first {@link ShapeHit}, or `null` when nothing was struck.
+   */
+  castShape(
+    pos: Physics3DVec3,
+    rot: Physics3DQuat,
+    dir: Physics3DVec3,
+    shape: Physics3DColliderShape,
+    maxDist: number,
+    opts?: { layers?: number; mask?: number },
+  ): ShapeHit | null;
+
+  /**
+   * Return all entities whose colliders overlap with a shape placed at `pos`/`rot`.
+   *
+   * Not available in local-simulation mode (returns `[]`).
+   *
+   * @param pos   - Query position in world space.
+   * @param rot   - Query rotation.
+   * @param shape - Shape to test for overlap.
+   * @param opts  - Optional layer filter and result cap.
+   * @returns Array of overlapping entity IDs.
+   */
+  overlapShape(
+    pos: Physics3DVec3,
+    rot: Physics3DQuat,
+    shape: Physics3DColliderShape,
+    opts?: { layers?: number; mask?: number; maxResults?: number },
+  ): Physics3DEntityId[];
+
+  /**
+   * Project a point onto the nearest collider surface.
+   *
+   * Not available in local-simulation mode (returns `null`).
+   *
+   * @param point - World-space point to project.
+   * @param opts  - Optional layer filter and solid-hit flag.
+   * @returns A {@link PointProjection} with the projected position, or `null`.
+   */
+  projectPoint(
+    point: Physics3DVec3,
+    opts?: { layers?: number; mask?: number; solid?: boolean },
+  ): PointProjection | null;
+
+  // ─── RFC-09: Character Controller ────────────────────────────────────────────
+
+  /**
+   * Create and register a character controller for an entity.
+   *
+   * The entity must have a body registered via `createBody` before calling this.
+   * In local-simulation mode returns an inert handle that performs naive position integration.
+   *
+   * @param entityId - Target entity.
+   * @param opts     - Controller parameters (step height, slope limit, etc.).
+   * @returns A {@link CharacterControllerHandle} for driving the controller each frame.
+   */
+  addCharacterController(
+    entityId: Physics3DEntityId,
+    opts?: CharacterControllerOpts,
+  ): CharacterControllerHandle;
+
+  /**
+   * Remove the character controller associated with an entity.
+   *
+   * @param entityId - Target entity whose controller should be destroyed.
+   */
+  removeCharacterController(entityId: Physics3DEntityId): void;
+
+  // ─── RFC-07: Composable slot registration ────────────────────────────────────
+
+  /**
+   * Register a persistent per-frame raycast slot.
+   *
+   * The slot is evaluated once per physics step and its result is accessible
+   * through the returned handle without any allocation.
+   *
+   * @param opts          - Raycast configuration.
+   * @param staticSlotIdx - Optional pre-assigned slot index for SAB-backed casts.
+   * @returns A {@link RaycastHandle} whose properties reflect the latest result.
+   */
+  registerRaycastSlot(opts: RaycastOpts, staticSlotIdx?: number): RaycastHandle;
+
+  /**
+   * Remove a previously registered raycast slot.
+   *
+   * @param handle - The handle returned by `registerRaycastSlot`.
+   */
+  unregisterRaycastSlot(handle: RaycastHandle): void;
+
+  /**
+   * Register a persistent per-frame shape-cast slot.
+   *
+   * @param opts          - Shape-cast configuration.
+   * @param staticSlotIdx - Optional pre-assigned slot index.
+   * @returns A {@link ShapeCastHandle} whose properties reflect the latest result.
+   */
+  registerShapeCastSlot(opts: ShapeCastOpts, staticSlotIdx?: number): ShapeCastHandle;
+
+  /**
+   * Remove a previously registered shape-cast slot.
+   *
+   * @param handle - The handle returned by `registerShapeCastSlot`.
+   */
+  unregisterShapeCastSlot(handle: ShapeCastHandle): void;
+
+  /**
+   * Register a persistent per-frame overlap slot.
+   *
+   * @param opts          - Overlap configuration.
+   * @param staticSlotIdx - Optional pre-assigned slot index.
+   * @returns An {@link OverlapHandle} whose properties reflect the latest result.
+   */
+  registerOverlapSlot(opts: OverlapOpts, staticSlotIdx?: number): OverlapHandle;
+
+  /**
+   * Remove a previously registered overlap slot.
+   *
+   * @param handle - The handle returned by `registerOverlapSlot`.
+   */
+  unregisterOverlapSlot(handle: OverlapHandle): void;
 }

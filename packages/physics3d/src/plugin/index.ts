@@ -16,6 +16,32 @@ import type {
   CompoundShapeSpec,
   BulkStaticBoxesOptions,
   BulkStaticBoxesResult,
+  Physics3DVec3,
+  Physics3DQuat,
+  Physics3DColliderShape,
+  FixedJointOpts,
+  RevoluteJointOpts,
+  PrismaticJointOpts,
+  BallJointOpts,
+  SpringJointOpts,
+  JointHandle3D,
+  JointId,
+  RayHit,
+  ShapeHit,
+  PointProjection,
+  Pathfinding3DOptions,
+  PathWaypoint3D,
+  CharacterControllerOpts,
+  CharacterControllerHandle,
+  RaycastOpts,
+  RaycastHandle,
+  RaycastSlotResult,
+  ShapeCastOpts,
+  ShapeCastHandle,
+  ShapeCastSlotResult,
+  OverlapOpts,
+  OverlapHandle,
+  OverlapSlotResult,
 } from '../types';
 
 import {
@@ -136,6 +162,225 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     const slot = toEntityIndex(entityId);
     const existing = localColliders.get(slot);
     return existing ? existing.length : 0;
+  };
+
+  // ─── RFC-08/09/10: Additional local state ────────────────────────────────────
+
+  /** Per-entity accumulated forces (local mode only). */
+  const localForces = new Map<number, { x: number; y: number; z: number }>();
+
+  /** Per-entity accumulated torques (local mode only). */
+  const localTorques = new Map<number, { x: number; y: number; z: number }>();
+
+  /** Per-entity axis-lock state (local mode only). */
+  const localAxisLocks = new Map<
+    number,
+    { tx: boolean; ty: boolean; tz: boolean; rx: boolean; ry: boolean; rz: boolean }
+  >();
+
+  /** Set of entity slot indices that are sleeping (local mode only). */
+  const localSleeping = new Set<number>();
+
+  /** Per-entity gravity scale overrides (local mode only). */
+  const localGravityScales = new Map<number, number>();
+
+  /** Character controller registrations — slot index → { slotIndex, entityIndex }. */
+  const ccRegistrations = new Map<number, { slotIndex: number; entityIndex: number }>();
+
+  /**
+   * Wrapper object for the SAB-backed Float32Array view used to read CC state
+   * (isGrounded, groundNormal). The `.view` property is mutated when the SAB
+   * is (re-)allocated, so closures capture the wrapper rather than the array.
+   */
+  const ccSABView: { view: Float32Array | null } = { view: null };
+
+  /**
+   * Wrapper object for the descriptor Float32Array used to write per-frame CC
+   * move commands. The `.view` property is mutated on (re-)allocation.
+   */
+  const ccDescriptorBuffer: { view: Float32Array | null } = { view: null };
+
+  /** Suppresses the local-mode CC warning after the first emission. */
+  let _emittedCCLocalWarning = false;
+
+  // ─── Raycast slots ────────────────────────────────────────────────────────────
+
+  /** Maximum number of persistent raycast slots. */
+  const MAX_RAYCAST_SLOTS = 64;
+
+  /** Counter used to assign unique ids to raycast slots. */
+  let nextRaycastSlotId = 0;
+
+  /** Registered raycast slots: id → { opts, result, _si }. */
+  const raycastSlots = new Map<
+    number,
+    { opts: RaycastOpts; result: RaycastSlotResult; _si: Float32Array }
+  >();
+
+  /** WASM linear-memory pointer to the raycast SAB output region. */
+  let _raycastOutputSABPtr = 0;
+
+  // ─── Shape-cast slots ─────────────────────────────────────────────────────────
+
+  /** Maximum number of persistent shape-cast slots. */
+  const MAX_SHAPECAST_SLOTS = 64;
+
+  /** Counter used to assign unique ids to shape-cast slots. */
+  let nextShapeCastSlotId = 0;
+
+  /** Registered shape-cast slots: id → { opts, result, _si }. */
+  const shapeCastSlots = new Map<
+    number,
+    { opts: ShapeCastOpts; result: ShapeCastSlotResult; _si: Float32Array }
+  >();
+
+  /** WASM linear-memory pointer to the shape-cast SAB output region. */
+  let _shapecastOutputSABPtr = 0;
+
+  // ─── Overlap slots ────────────────────────────────────────────────────────────
+
+  /** Maximum number of persistent overlap slots. */
+  const MAX_OVERLAP_SLOTS = 64;
+
+  /** Maximum number of results per composable overlap query. */
+  const MAX_COMPOSABLE_OVERLAP_RESULTS = 16;
+
+  /** Counter used to assign unique ids to overlap slots. */
+  let nextOverlapSlotId = 0;
+
+  /** Registered overlap slots: id → { opts, result, _si }. */
+  const overlapSlots = new Map<
+    number,
+    { opts: OverlapOpts; result: OverlapSlotResult; _si: Float32Array }
+  >();
+
+  /** WASM linear-memory pointer to the overlap SAB output region. */
+  let _overlapOutputSABPtr = 0;
+
+  /** DataView over the single-query overlap scratch buffer (WASM mode). */
+  let overlapScratchView: DataView | null = null;
+
+  /** WASM linear-memory pointer to the single-query overlap scratch buffer. */
+  let overlapScratchPtr = 0;
+
+  // ─── Pathfinding ──────────────────────────────────────────────────────────────
+
+  /** Navigation grid stored for local-mode A* use. */
+  let _localNavGrid: Pathfinding3DOptions | null = null;
+
+  // ─── Shared zero vector ───────────────────────────────────────────────────────
+
+  /** Reusable zero vector — used as a default when no origin callback is set. */
+  const ZERO_VEC3: Physics3DVec3 = { x: 0, y: 0, z: 0 };
+
+  // ─── RFC-08/09 helper functions ───────────────────────────────────────────────
+
+  /**
+   * Emit a one-time warning that a joint operation is unavailable in local mode.
+   */
+  const _emitLocalJointWarning = (): void => {
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[GWEN:physics3d] Joint API requires WASM physics3d variant — not available in local mode',
+      );
+    }
+  };
+
+  /**
+   * Create a no-op dummy joint handle for use in local mode or WASM failure paths.
+   *
+   * @returns A sentinel joint handle (`0xFFFFFFFF`).
+   */
+  const _makeDummyJoint = (): JointHandle3D => 0xffffffff;
+
+  /**
+   * Wrap a WASM numeric joint id in a {@link JointHandle3D}.
+   *
+   * @param id - Raw joint id returned by a WASM joint-creation call.
+   * @returns The id cast to `JointHandle3D`.
+   */
+  const _makeJointHandle = (id: number): JointHandle3D => id;
+
+  /**
+   * Convert a raw entity slot index back to a typed `EntityId`.
+   *
+   * Uses `bridgeRuntime.getEntityGeneration` when available so the returned id
+   * carries the correct generation bits (consistent with existing event handling).
+   *
+   * @param index - Entity slot index.
+   * @returns A packed `EntityId` (bigint).
+   */
+  const entityIndexToId = (index: number): EntityId => {
+    if (bridgeRuntime?.getEntityGeneration) {
+      const gen = bridgeRuntime.getEntityGeneration(index);
+      if (gen !== undefined) return createEntityId(index, gen);
+    }
+    return BigInt(index) as EntityId;
+  };
+
+  /** Shared typed-array views for `_u32ToF32` bit-casting (allocated once). */
+  const _castU32 = new Uint32Array(1);
+  const _castF32 = new Float32Array(_castU32.buffer);
+
+  /**
+   * Bit-cast an unsigned 32-bit integer to its IEEE-754 float32 representation.
+   *
+   * Used to store bitmask values (layers, mask) inside Float32Array SAB slots
+   * without numeric precision loss.
+   *
+   * @param val - Unsigned 32-bit integer value.
+   * @returns The same 32 bits reinterpreted as a float32.
+   */
+  const _u32ToF32 = (val: number): number => {
+    _castU32[0] = val >>> 0;
+    return _castF32[0]!;
+  };
+
+  /**
+   * Encode a {@link Physics3DColliderShape} into the 4-float tuple expected by
+   * WASM spatial query functions: `[shapeType, p0, p1, p2]`.
+   *
+   * Shape type encoding:
+   * - `0` — box (`p0=halfX, p1=halfY, p2=halfZ`)
+   * - `1` — sphere (`p0=radius, p1=0, p2=0`)
+   * - `2` — capsule (`p0=radius, p1=halfHeight, p2=0`)
+   *
+   * Non-primitive shapes (mesh, convex, heightfield) fall back to a unit sphere.
+   *
+   * @param shape - Collider shape descriptor.
+   * @returns `[shapeType, p0, p1, p2]`.
+   */
+  const encodeShape = (shape: Physics3DColliderShape): [number, number, number, number] => {
+    switch (shape.type) {
+      case 'box':
+        return [0, shape.halfX, shape.halfY, shape.halfZ];
+      case 'sphere':
+        return [1, shape.radius, 0, 0];
+      case 'capsule':
+        return [2, shape.radius, shape.halfHeight, 0];
+      default:
+        // Mesh, convex, heightfield: not supported for spatial queries — fall back to unit sphere
+        return [1, 0.5, 0, 0];
+    }
+  };
+
+  /**
+   * Local-mode pathfinding stub.
+   *
+   * Returns a single-waypoint path (the destination) as a placeholder.
+   * Full A* support requires the WASM physics3d variant.
+   *
+   * @param _from - Unused start position.
+   * @param to    - Destination position used as the single returned waypoint.
+   * @returns An array with one {@link PathWaypoint3D} at `to`.
+   */
+  const _localFindPath3D = (_from: Physics3DVec3, to: Physics3DVec3): PathWaypoint3D[] => {
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[GWEN:physics3d] findPath3D() uses local stub — full pathfinding requires WASM physics3d variant',
+      );
+    }
+    return [{ x: to.x, y: to.y, z: to.z }];
   };
 
   // ─── Local simulation ─────────────────────────────────────────────────────────

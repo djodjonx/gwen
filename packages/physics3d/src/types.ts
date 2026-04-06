@@ -8,6 +8,7 @@
  * - `./types/colliders` - Collider shapes, materials, and handles
  * - `./types/bulk` - Bulk operation types
  * - `./types/events` - Collision and sensor event types, hooks, and prefab extensions
+ * - `./types/joints` - Joint, query, pathfinding, and character controller types (RFC-07/08/09)
  * - `./types/api` - The Physics3DAPI service interface
  */
 
@@ -16,4 +17,5 @@ export * from './types/bodies';
 export * from './types/colliders';
 export * from './types/bulk';
 export * from './types/events';
+export * from './types/joints';
 export * from './types/api';

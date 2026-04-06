@@ -291,6 +291,343 @@ export interface Physics3DWasmBridge {
 
   // Memory
   memory?: WebAssembly.Memory;
+
+  // ─── RFC-08: Joints ──────────────────────────────────────────────────────────
+
+  /** Create a fixed (weld) joint. Returns the joint id, or 0xFFFFFFFF on failure. */
+  physics3d_add_fixed_joint?: (
+    slotA: number,
+    slotB: number,
+    anchorAx: number,
+    anchorAy: number,
+    anchorAz: number,
+    anchorBx: number,
+    anchorBy: number,
+    anchorBz: number,
+  ) => number;
+
+  /** Create a revolute (hinge) joint. Returns the joint id, or 0xFFFFFFFF on failure. */
+  physics3d_add_revolute_joint?: (
+    slotA: number,
+    slotB: number,
+    anchorAx: number,
+    anchorAy: number,
+    anchorAz: number,
+    anchorBx: number,
+    anchorBy: number,
+    anchorBz: number,
+    axisX: number,
+    axisY: number,
+    axisZ: number,
+    useLimits: boolean,
+    limitMin: number,
+    limitMax: number,
+  ) => number;
+
+  /** Create a prismatic (slider) joint. Returns the joint id, or 0xFFFFFFFF on failure. */
+  physics3d_add_prismatic_joint?: (
+    slotA: number,
+    slotB: number,
+    anchorAx: number,
+    anchorAy: number,
+    anchorAz: number,
+    anchorBx: number,
+    anchorBy: number,
+    anchorBz: number,
+    axisX: number,
+    axisY: number,
+    axisZ: number,
+    useLimits: boolean,
+    limitMin: number,
+    limitMax: number,
+  ) => number;
+
+  /** Create a ball (spherical) joint. Returns the joint id, or 0xFFFFFFFF on failure. */
+  physics3d_add_ball_joint?: (
+    slotA: number,
+    slotB: number,
+    anchorAx: number,
+    anchorAy: number,
+    anchorAz: number,
+    anchorBx: number,
+    anchorBy: number,
+    anchorBz: number,
+    useConeLimit: boolean,
+    coneAngle: number,
+  ) => number;
+
+  /** Create a spring joint. Returns the joint id, or 0xFFFFFFFF on failure. */
+  physics3d_add_spring_joint?: (
+    slotA: number,
+    slotB: number,
+    anchorAx: number,
+    anchorAy: number,
+    anchorAz: number,
+    anchorBx: number,
+    anchorBy: number,
+    anchorBz: number,
+    restLength: number,
+    stiffness: number,
+    damping: number,
+  ) => number;
+
+  /** Destroy a joint by its numeric id. */
+  physics3d_remove_joint?: (id: number) => void;
+
+  /** Set a motor velocity target on a revolute or prismatic joint. */
+  physics3d_set_joint_motor_velocity?: (id: number, velocity: number, maxForce: number) => void;
+
+  /** Set a motor position target on a revolute or prismatic joint. */
+  physics3d_set_joint_motor_position?: (
+    id: number,
+    target: number,
+    stiffness: number,
+    damping: number,
+  ) => void;
+
+  /** Enable or disable a joint. */
+  physics3d_set_joint_enabled?: (id: number, enabled: boolean) => void;
+
+  // ─── RFC-09: Continuous forces ────────────────────────────────────────────────
+
+  /** Apply a linear force to a body (accumulates per step). */
+  physics3d_add_force?: (entityIndex: number, fx: number, fy: number, fz: number) => void;
+
+  /** Apply a torque to a body (accumulates per step). */
+  physics3d_add_torque?: (entityIndex: number, tx: number, ty: number, tz: number) => void;
+
+  /** Apply a force at a specific world-space point. */
+  physics3d_add_force_at_point?: (
+    entityIndex: number,
+    fx: number,
+    fy: number,
+    fz: number,
+    px: number,
+    py: number,
+    pz: number,
+  ) => void;
+
+  /** Set the per-body gravity scale multiplier. */
+  physics3d_set_gravity_scale?: (entityIndex: number, scale: number) => void;
+
+  /** Read the per-body gravity scale multiplier. */
+  physics3d_get_gravity_scale?: (entityIndex: number) => number;
+
+  /** Lock translation axes on a body. */
+  physics3d_lock_translations?: (entityIndex: number, x: boolean, y: boolean, z: boolean) => void;
+
+  /** Lock rotation axes on a body. */
+  physics3d_lock_rotations?: (entityIndex: number, x: boolean, y: boolean, z: boolean) => void;
+
+  /** Put a body to sleep or wake it up. */
+  physics3d_set_body_sleeping?: (entityIndex: number, sleeping: boolean) => void;
+
+  /** Returns `true` when the body is sleeping. */
+  physics3d_is_body_sleeping?: (entityIndex: number) => boolean;
+
+  /** Wake every sleeping body in the world. */
+  physics3d_wake_all?: () => void;
+
+  // ─── RFC-09: Pathfinding ──────────────────────────────────────────────────────
+
+  /** Upload a voxel navigation grid. */
+  physics3d_init_navgrid_3d?: (
+    ptr: number,
+    width: number,
+    height: number,
+    depth: number,
+    cellSize: number,
+    originX: number,
+    originY: number,
+    originZ: number,
+  ) => void;
+
+  /**
+   * Find a path from `from` to `to` using the uploaded navigation grid.
+   * Returns the number of waypoints written to the path buffer.
+   */
+  physics3d_find_path_3d?: (
+    fromX: number,
+    fromY: number,
+    fromZ: number,
+    toX: number,
+    toY: number,
+    toZ: number,
+  ) => number;
+
+  /** Return the WASM linear-memory pointer to the path waypoint buffer. */
+  physics3d_get_path_buffer_ptr_3d?: () => number;
+
+  // ─── RFC-07: Spatial queries ──────────────────────────────────────────────────
+
+  /**
+   * Cast a ray. Returns a Float32Array:
+   * `[hit, entityIndex, distance, nx, ny, nz, px, py, pz]`.
+   * `result[0] === 0` means no hit.
+   */
+  physics3d_cast_ray?: (
+    originX: number,
+    originY: number,
+    originZ: number,
+    dirX: number,
+    dirY: number,
+    dirZ: number,
+    maxDist: number,
+    layers: number,
+    mask: number,
+    solid: number,
+  ) => Float32Array;
+
+  /**
+   * Cast a convex shape. Returns a 15-float Float32Array:
+   * `[hit, entityIndex, toi, nx, ny, nz, px, py, pz, waAx, waAy, waAz, waBx, waBy, waBz]`.
+   * `result[0] === 0` means no hit.
+   */
+  physics3d_cast_shape?: (
+    posX: number,
+    posY: number,
+    posZ: number,
+    rotX: number,
+    rotY: number,
+    rotZ: number,
+    rotW: number,
+    dirX: number,
+    dirY: number,
+    dirZ: number,
+    shapeType: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    maxDist: number,
+    layers: number,
+    mask: number,
+  ) => Float32Array;
+
+  /**
+   * Test a shape for overlap against all colliders.
+   * Writes up to `maxResults` entity slot indices into the scratch buffer at
+   * `outPtr`. Returns the number of overlapping entities found.
+   */
+  physics3d_overlap_shape?: (
+    posX: number,
+    posY: number,
+    posZ: number,
+    rotX: number,
+    rotY: number,
+    rotZ: number,
+    rotW: number,
+    shapeType: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    layers: number,
+    mask: number,
+    outPtr: number,
+    maxResults: number,
+  ) => number;
+
+  /**
+   * Project a world-space point onto the nearest collider.
+   * Returns a 6-float Float32Array:
+   * `[hit, entityIndex, projX, projY, projZ, isInside]`.
+   * `result[0] === 0` means no hit.
+   */
+  physics3d_project_point?: (
+    pointX: number,
+    pointY: number,
+    pointZ: number,
+    layers: number,
+    mask: number,
+    solid: number,
+  ) => Float32Array;
+
+  // ─── RFC-09: Character Controller ────────────────────────────────────────────
+
+  /**
+   * Create a character controller for the given entity slot.
+   * Returns the controller's SAB slot index, or 0xFFFFFFFF on failure.
+   */
+  physics3d_add_character_controller?: (
+    entityIndex: number,
+    stepHeight: number,
+    slopeLimit: number,
+    skinWidth: number,
+    snapToGround: number,
+    slideOnSteepSlopes: boolean,
+    applyImpulsesToDynamic: boolean,
+  ) => number;
+
+  /** Drive a character controller by a desired velocity for one frame. */
+  physics3d_character_controller_move?: (
+    entityIndex: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    dt: number,
+  ) => void;
+
+  /** Remove the character controller for an entity. */
+  physics3d_remove_character_controller?: (entityIndex: number) => void;
+
+  // ─── RFC-07: Composable persistent slots ─────────────────────────────────────
+
+  /**
+   * Pre-register a raycast slot so Rust writes results to `slotPtr` each step.
+   */
+  physics3d_add_raycast_slot?: (
+    slotPtr: number,
+    originX: number,
+    originY: number,
+    originZ: number,
+    dirX: number,
+    dirY: number,
+    dirZ: number,
+    maxDist: number,
+    layers: number,
+    mask: number,
+    solid: boolean,
+  ) => void;
+
+  /** Pre-register a shape-cast slot so Rust writes results to `slotPtr` each step. */
+  physics3d_add_shapecast_slot?: (
+    slotPtr: number,
+    shapeType: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    originX: number,
+    originY: number,
+    originZ: number,
+    rotX: number,
+    rotY: number,
+    rotZ: number,
+    rotW: number,
+    dirX: number,
+    dirY: number,
+    dirZ: number,
+    maxDist: number,
+    layers: number,
+    mask: number,
+  ) => void;
+
+  /** Pre-register an overlap slot so Rust writes results to `slotPtr` each step. */
+  physics3d_add_overlap_slot?: (
+    slotPtr: number,
+    shapeType: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    originX: number,
+    originY: number,
+    originZ: number,
+    rotX: number,
+    rotY: number,
+    rotZ: number,
+    rotW: number,
+    layers: number,
+    mask: number,
+    maxResults: number,
+  ) => void;
 }
 
 /** Minimal bridge runtime shape returned by getWasmBridge(). */
