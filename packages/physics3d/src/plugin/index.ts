@@ -412,6 +412,11 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
     const slot = toEntityIndex(entityId);
     stateByEntity.delete(slot);
     localColliders.delete(slot);
+    localForces.delete(slot);
+    localTorques.delete(slot);
+    localAxisLocks.delete(slot);
+    localSleeping.delete(slot);
+    localGravityScales.delete(slot);
     return bodyByEntity.delete(slot);
   };
 
@@ -420,15 +425,55 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       const state = stateByEntity.get(slot);
       if (!state) continue;
 
+      // Skip sleeping bodies — they do not integrate
+      if (localSleeping.has(slot)) continue;
+
       if (handle.kind === 'dynamic') {
+        // Per-body gravity scale (default 1.0)
+        const gs = localGravityScales.get(slot) ?? 1.0;
         state.linearVelocity = {
-          x: state.linearVelocity.x + cfg.gravity.x * deltaSeconds,
-          y: state.linearVelocity.y + cfg.gravity.y * deltaSeconds,
-          z: state.linearVelocity.z + cfg.gravity.z * deltaSeconds,
+          x: state.linearVelocity.x + cfg.gravity.x * gs * deltaSeconds,
+          y: state.linearVelocity.y + cfg.gravity.y * gs * deltaSeconds,
+          z: state.linearVelocity.z + cfg.gravity.z * gs * deltaSeconds,
         };
+
+        // Apply accumulated forces: F = m*a → a = F/m → Δv = a*dt
+        const force = localForces.get(slot);
+        if (force) {
+          const invMass = 1 / handle.mass;
+          state.linearVelocity = {
+            x: state.linearVelocity.x + force.x * invMass * deltaSeconds,
+            y: state.linearVelocity.y + force.y * invMass * deltaSeconds,
+            z: state.linearVelocity.z + force.z * invMass * deltaSeconds,
+          };
+          localForces.delete(slot);
+        }
+
+        // Apply accumulated torques: τ = I*α → α = τ/I (use unit inertia for local mode)
+        const torque = localTorques.get(slot);
+        if (torque) {
+          const invInertia = 1 / handle.mass; // simplified unit-sphere inertia
+          state.angularVelocity = {
+            x: state.angularVelocity.x + torque.x * invInertia * deltaSeconds,
+            y: state.angularVelocity.y + torque.y * invInertia * deltaSeconds,
+            z: state.angularVelocity.z + torque.z * invInertia * deltaSeconds,
+          };
+          localTorques.delete(slot);
+        }
       }
 
       if (handle.kind === 'fixed') continue;
+
+      // Apply axis locks: zero out locked velocity components before damping/integration
+      const locks = localAxisLocks.get(slot);
+      if (locks) {
+        if (locks.tx) state.linearVelocity = { ...state.linearVelocity, x: 0 };
+        if (locks.ty) state.linearVelocity = { ...state.linearVelocity, y: 0 };
+        if (locks.tz) state.linearVelocity = { ...state.linearVelocity, z: 0 };
+        if (locks.rx) state.angularVelocity = { ...state.angularVelocity, x: 0 };
+        if (locks.ry) state.angularVelocity = { ...state.angularVelocity, y: 0 };
+        if (locks.rz) state.angularVelocity = { ...state.angularVelocity, z: 0 };
+      }
 
       if (handle.linearDamping > 0) {
         const f = Math.max(0, 1 - handle.linearDamping * deltaSeconds);
