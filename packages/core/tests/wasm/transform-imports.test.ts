@@ -19,6 +19,13 @@ describe('buildTransformImports', () => {
     expect(typeof imports.max_entities).toBe('function');
   });
 
+  it('each accessor is a function', () => {
+    const imports = buildTransformImports(1024, 32, 10_000);
+    expect(typeof imports.transform_buffer_ptr).toBe('function');
+    expect(typeof imports.transform_stride).toBe('function');
+    expect(typeof imports.max_entities).toBe('function');
+  });
+
   it('returns transform_buffer_ptr that returns the given ptr', () => {
     const ptr = 2048;
     const imports = buildTransformImports(ptr, 32, 10_000);
@@ -104,6 +111,17 @@ describe('buildTransformImports', () => {
       expect(imports.transform_stride()).toBe(32);
       expect(imports.max_entities()).toBe(10_000);
     }
+  });
+
+  it('accessors return fresh values each call (not cached stale)', () => {
+    const imports = buildTransformImports(1024, 32, 10_000);
+    // Each call should return the same value (closure stability)
+    expect(imports.transform_buffer_ptr()).toBe(1024);
+    expect(imports.transform_buffer_ptr()).toBe(1024);
+    expect(imports.transform_stride()).toBe(32);
+    expect(imports.transform_stride()).toBe(32);
+    expect(imports.max_entities()).toBe(10_000);
+    expect(imports.max_entities()).toBe(10_000);
   });
 
   it('integrates with WebAssembly import pattern', () => {

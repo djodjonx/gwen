@@ -31,7 +31,7 @@ import type { EntityId } from './engine-api.js';
 import type { ComponentDefinition, ComponentSchema, InferComponent } from '../schema.js';
 import type { ComponentDef, LiveQuery, EntityAccessor } from '../system.js';
 import { buildTransformImports } from '../wasm/transform-imports.js';
-import { TRANSFORM_STRIDE } from '../wasm/shared-memory.js';
+import { SharedMemoryManager, TRANSFORM_STRIDE } from '../wasm/shared-memory.js';
 export type {
   WasmMemoryRegion,
   WasmMemoryOptions,
@@ -752,6 +752,13 @@ class GwenEngineImpl implements GwenEngine {
     }
   >();
 
+  /**
+   * Lazily-created shared memory manager for community WASM plugin transform access.
+   * Created on first `loadWasmModule()` call. Null until then.
+   * @internal
+   */
+  private _sharedMemory: SharedMemoryManager | null = null;
+
   // ─── Frame scheduler ─────────────────────────────────────────────────────
   /**
    * Schedule the next animation frame.
@@ -1082,9 +1089,12 @@ class GwenEngineImpl implements GwenEngine {
         );
       }
       const buffer = await response.arrayBuffer();
+      // Lazily create shared memory manager so community plugins can read transform data.
+      // Only initialize if the WASM bridge is active.
+      const transformPtr = this._getOrCreateTransformPtr();
       // Build transform buffer accessors for community plugins (RFC-GAP2 V1)
       const gwenImports = buildTransformImports(
-        /* transformPtr */ 0, // Placeholder: in v2, will be SharedMemoryManager.transformBufferPtr
+        transformPtr,
         /* stride */ TRANSFORM_STRIDE,
         /* maxEntities */ this.maxEntities,
       );
@@ -1361,6 +1371,33 @@ class GwenEngineImpl implements GwenEngine {
       budgetMs,
       overBudget: this._lastPhaseMs.total > budgetMs,
     };
+  }
+
+  // ─── Shared memory transform pointer accessor ────────────────────────────
+
+  /**
+   * Get or create the transform buffer pointer for community WASM plugins.
+   *
+   * If the WASM bridge is not initialized, returns `0` (null pointer placeholder).
+   * Otherwise lazily initializes `SharedMemoryManager` and returns its transform pointer.
+   *
+   * @returns The transform buffer pointer (base address in WASM linear memory)
+   *          or `0` if the bridge is not yet initialized.
+   * @internal
+   */
+  private _getOrCreateTransformPtr(): number {
+    const bridge = getWasmBridge();
+    if (!bridge.isActive()) {
+      // Bridge not initialized yet — return placeholder. This can happen in tests
+      // or when loadWasmModule() is called before the full engine is ready.
+      // Community plugins will receive ptr=0, which they should handle gracefully.
+      return 0;
+    }
+
+    if (!this._sharedMemory) {
+      this._sharedMemory = SharedMemoryManager.create(bridge, this.maxEntities);
+    }
+    return this._sharedMemory.transformBufferPtr;
   }
 
   // ─── 8-phase frame runner ─────────────────────────────────────────────────
