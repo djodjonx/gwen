@@ -76,3 +76,8 @@ Service types flow from your config into `GwenDefaultServices` automatically aft
 ## Community Plugins
 
 You can build and publish your own plugins using the same `GwenPlugin` interface. See the [Plugin Authoring guide](/kit/overview) for the full API contract and conventions.
+
+## Custom WASM Plugins
+
+To extend GWEN with your own Rust WASM module, see the
+[Custom WASM Plugin guide](/plugins/custom-wasm-plugin).

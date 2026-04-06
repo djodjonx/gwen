@@ -367,3 +367,64 @@ Gap 3 — No memory layout versioning
 
 > ⚠️ `TRANSFORM_STRIDE` and `TRANSFORM_SAB_TYPE_ID` are defined in **both** Rust and TypeScript.
 > They must be kept in sync manually — there is no compile-time check enforcing this.
+
+---
+
+## Fixed Gaps (implemented)
+
+### GAP 1 — Ring buffer placement
+
+**Root cause:** `WasmRingBuffer._byteOffset = 0` wrote at WASM shadow stack offset 0.
+
+**Fix:** The `gwen_channel!()` macro in `crates/gwen-wasm-utils` declares
+`static mut [u8; N]` in the data segment and exports its address as
+`gwen_{name}_ring_ptr() -> i32`. The TypeScript `WasmRingBuffer` constructor
+reads this export and uses the returned value as `_byteOffset`.
+
+**Byte-offset resolution priority:**
+1. `WasmChannelOptions.byteOffset` — explicit override (highest priority)
+2. `exports.gwen_{name}_ring_ptr()` — auto-detection via `gwen_channel!()` macro
+3. `65_536` — first 64 KiB page boundary (past the shadow stack, fallback)
+
+---
+
+### GAP 2 — Cross-WASM transform buffer access (V1)
+
+**Root cause:** Community plugins (separate WASM modules) cannot directly
+access gwen-core's linear memory.
+
+**V1 fix (host function imports):** The engine always injects three JavaScript
+functions into the WASM import object under the `gwen` namespace:
+
+| Import | Rust signature | Description |
+|---|---|---|
+| `gwen.transform_buffer_ptr` | `fn gwen_transform_buffer_ptr() -> i32` | Absolute address of transform buffer in WASM linear memory |
+| `gwen.transform_stride` | `fn gwen_transform_stride() -> i32` | 32 bytes (2D stride) |
+| `gwen.max_entities` | `fn gwen_max_entities() -> i32` | Engine `maxEntities` |
+
+Plugins call these once in `init()` and cache the values in `static mut` fields.
+
+**V2 migration path (future):** When `Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp` headers are available, replace host
+functions with `new WebAssembly.Memory({ shared: true })` passed to both gwen-core
+and community plugins. Zero-copy, zero JS overhead.
+
+---
+
+### GAP 3 — Plugin API versioning
+
+**Fix:** Community plugins export `gwen_plugin_api_version() -> i32`.
+Use `gwen_channel!(name, cap, size, version = N)` to generate this automatically.
+
+**Version encoding:** `major * 1_000_000 + minor * 1_000 + patch`.
+Example: `1.2.3 → 1_002_003`.
+
+**TypeScript gate:**
+```typescript
+await engine.loadWasmModule({
+  name: 'my-plugin',
+  url: '/my-plugin.wasm',
+  expectedVersion: 1_000_000,  // expect v1.0.0
+  versionPolicy: 'throw',      // throw if mismatch
+});
+```
