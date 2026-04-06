@@ -15,6 +15,7 @@
 import { defineCommand } from 'citty';
 import { scaffoldPluginCommand } from './plugin.js';
 import { scaffoldModuleCommand } from './module.js';
+import { scaffoldPackageCommand } from './package.js';
 
 /**
  * The `scaffold` command exposes sub-commands for code generation.
@@ -23,10 +24,11 @@ import { scaffoldModuleCommand } from './module.js';
 export default defineCommand({
   meta: {
     name: 'scaffold',
-    description: 'Scaffold artefacts (plugin, module)',
+    description: 'Scaffold artefacts (plugin, module, package)',
   },
   subCommands: {
     plugin: scaffoldPluginCommand,
     module: scaffoldModuleCommand,
+    package: scaffoldPackageCommand,
   },
 });
