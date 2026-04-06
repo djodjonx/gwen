@@ -2,7 +2,7 @@
  * @file Tests for WasmRingBuffer byteOffset resolution and WasmRegionView.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { WasmRingBuffer, WasmRegionView } from '../../src/engine/wasm-module-handle';
 
 describe('WasmRingBuffer byteOffset resolution', () => {
@@ -32,23 +32,28 @@ describe('WasmRingBuffer byteOffset resolution', () => {
         undefined, // No exports
       );
 
-      // Verify the buffer is initialized (no direct way to check _byteOffset,
-      // but we can verify it can push/pop without errors at the explicit offset).
+      // Push data and verify it appears at the explicit offset, not elsewhere.
       const data = new Uint32Array([42]);
       expect(buffer.push(data)).toBe(true);
-      expect(buffer.length).toBe(1);
 
-      // Pop and verify content was stored/retrieved correctly.
-      const dest = new Uint32Array(1);
-      expect(buffer.pop(dest)).toBe(true);
-      expect(dest[0]).toBe(42);
+      // Inspect raw memory at the explicit offset to confirm data landed there.
+      const dataView = new DataView(memory.buffer as ArrayBuffer);
+      // Ring buffer stores items after the head/tail indices at [byteOffset + slot*itemByteSize].
+      // First item should be at byteOffset + 0 * itemByteSize = byteOffset.
+      const valueAtOffset = dataView.getUint32(explicitOffset, true); // little-endian
+      expect(valueAtOffset).toBe(42);
+
+      // Also verify that offset 65536 (the fallback) remains untouched (zero).
+      const fallbackValue = dataView.getUint32(65536, true);
+      expect(fallbackValue).toBe(0);
     });
 
     it('calls gwen_{name}_ring_ptr() export when available', () => {
       const memory = createMockMemory();
       const detectedOffset = 1024; // Well within our 256KB buffer
+      const ptrFn = vi.fn(() => detectedOffset);
       const mockExports = {
-        gwen_test_ring_ptr: () => detectedOffset,
+        gwen_test_ring_ptr: ptrFn,
       } as unknown as WebAssembly.Exports;
 
       const buffer = new WasmRingBuffer(
@@ -62,17 +67,25 @@ describe('WasmRingBuffer byteOffset resolution', () => {
         mockExports,
       );
 
-      // Verify the buffer works (uses the detected offset).
+      // Push data and verify the export was called.
       const data = new Uint32Array([123]);
       expect(buffer.push(data)).toBe(true);
-      expect(buffer.length).toBe(1);
+      expect(ptrFn).toHaveBeenCalledOnce();
 
-      const dest = new Uint32Array(1);
-      expect(buffer.pop(dest)).toBe(true);
-      expect(dest[0]).toBe(123);
+      // Inspect raw memory to confirm data landed at the detected offset.
+      const dataView = new DataView(memory.buffer as ArrayBuffer);
+      const valueAtDetectedOffset = dataView.getUint32(detectedOffset, true); // little-endian
+      expect(valueAtDetectedOffset).toBe(123);
+
+      // Verify that offset 512 (alternative) and 65536 (fallback) remain untouched.
+      expect(dataView.getUint32(512, true)).toBe(0);
+      expect(dataView.getUint32(65536, true)).toBe(0);
     });
 
-    it('falls back to 65536 when no export and no explicit offset', () => {
+    it.each([
+      ['no export in exports object', {} as WebAssembly.Exports],
+      ['undefined exports parameter', undefined],
+    ])('falls back to 65536 when %s', (_label, exports) => {
       const memory = createMockMemory();
       const buffer = new WasmRingBuffer(
         memory,
@@ -82,39 +95,21 @@ describe('WasmRingBuffer byteOffset resolution', () => {
           capacity: 10,
           itemByteSize: 4,
         },
-        {}, // Empty exports
+        exports,
       );
 
       // Verify the buffer works (uses fallback offset of 65536).
       const data = new Uint32Array([999]);
       expect(buffer.push(data)).toBe(true);
-      expect(buffer.length).toBe(1);
 
-      const dest = new Uint32Array(1);
-      expect(buffer.pop(dest)).toBe(true);
-      expect(dest[0]).toBe(999);
-    });
+      // Inspect raw memory to confirm data landed at the fallback offset.
+      const dataView = new DataView(memory.buffer as ArrayBuffer);
+      const valueAtFallback = dataView.getUint32(65536, true); // little-endian
+      expect(valueAtFallback).toBe(999); // First item at offset + 0*itemByteSize
 
-    it('falls back to 65536 when exports is undefined', () => {
-      const memory = createMockMemory();
-      const buffer = new WasmRingBuffer(
-        memory,
-        {
-          name: 'test',
-          direction: 'ts→wasm',
-          capacity: 10,
-          itemByteSize: 4,
-        },
-        undefined, // No exports provided
-      );
-
-      // Verify the buffer works (uses fallback offset of 65536).
-      const data = new Uint32Array([777]);
-      expect(buffer.push(data)).toBe(true);
-
-      const dest = new Uint32Array(1);
-      expect(buffer.pop(dest)).toBe(true);
-      expect(dest[0]).toBe(777);
+      // Verify that offset 512 (explicit) and 1024 (export) remain untouched (zero).
+      expect(dataView.getUint32(512, true)).toBe(0);
+      expect(dataView.getUint32(1024, true)).toBe(0);
     });
 
     it('prefers opts.byteOffset over exports', () => {
@@ -137,13 +132,17 @@ describe('WasmRingBuffer byteOffset resolution', () => {
         mockExports,
       );
 
-      // Verify the buffer works and uses the explicit offset (not the export).
+      // Push data and verify it uses the explicit offset, not the export.
       const data = new Uint32Array([555]);
       expect(buffer.push(data)).toBe(true);
 
-      const dest = new Uint32Array(1);
-      expect(buffer.pop(dest)).toBe(true);
-      expect(dest[0]).toBe(555);
+      // Inspect raw memory to confirm data landed at the explicit offset.
+      const dataView = new DataView(memory.buffer as ArrayBuffer);
+      const valueAtExplicit = dataView.getUint32(explicitOffset, true); // little-endian
+      expect(valueAtExplicit).toBe(555);
+
+      // Verify that offset 1024 (what export would return) remains zero.
+      expect(dataView.getUint32(detectedOffset, true)).toBe(0);
     });
 
     it('handles non-function exports gracefully (ignores them)', () => {
@@ -368,7 +367,7 @@ describe('WasmRingBuffer byteOffset resolution', () => {
       expect(Math.abs(f32[0] - 3.14159) < 0.001).toBe(true);
     });
 
-    it('buffer property returns a copy of the region', () => {
+    it('buffer property returns a copy, not a live view', () => {
       const memory = createMockMemory();
       const view = new WasmRegionView(memory, {
         name: 'test-region',
@@ -377,10 +376,15 @@ describe('WasmRingBuffer byteOffset resolution', () => {
         type: 'u8',
       });
 
-      const buffer = view.buffer;
-      expect(buffer.byteLength).toBe(16);
-      // buffer should be an ArrayBuffer-like object with byteLength
-      expect(typeof buffer === 'object' && buffer !== null && 'byteLength' in buffer).toBe(true);
+      // Write to region
+      view.u8[0] = 42;
+      const snapshot = view.buffer; // copy taken here
+
+      // Mutate after snapshot
+      view.u8[0] = 99;
+
+      // Snapshot must not reflect the later mutation
+      expect(new Uint8Array(snapshot as ArrayBuffer)[0]).toBe(42);
     });
   });
 });

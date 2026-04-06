@@ -1035,10 +1035,16 @@ class GwenEngineImpl implements GwenEngine {
     // Build region and channel maps from options.
     const regionMap = new Map((options.memory?.regions ?? []).map((r) => [r.name, r]));
     const channelMap = new Map(
-      (options.channels ?? []).map((c) => [
-        c.name,
-        new WasmRingBuffer(memory ?? new WebAssembly.Memory({ initial: 1 }), c, instance.exports),
-      ]),
+      (options.channels ?? []).map((c) => {
+        if (!memory) {
+          throw new Error(
+            `[GWEN] loadWasmModule("${options.name}"): channel '${c.name}' declared but ` +
+              `the WASM binary does not export "memory". ` +
+              `Add "(export \\"memory\\" (memory ...))" to your WASM module.`,
+          );
+        }
+        return [c.name, new WasmRingBuffer(memory, c, instance.exports)];
+      }),
     );
 
     const handle: WasmModuleHandle<Exports> = {
