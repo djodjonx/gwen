@@ -401,6 +401,12 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   const _castF32 = new Float32Array(_castU32.buffer);
 
   /**
+   * Reusable slot buffer for `detectLocalCollisions`.
+   * Refilled each frame via `clear + push` to avoid per-frame spread allocation.
+   */
+  const _slotsBuffer: number[] = [];
+
+  /**
    * Bit-cast an unsigned 32-bit integer to its IEEE-754 float32 representation.
    *
    * Used to store bitmask values (layers, mask) inside Float32Array SAB slots
@@ -739,9 +745,10 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       key: string;
     };
     const currentPairs: PairRecord[] = [];
-    // TODO perf: pre-allocate a reusable slot array and refill it each frame to avoid this spread allocation.
-    // Requires tracking a persistent `_slotsBuffer: number[]` at module scope and a clear+push pattern.
-    const slots = [...bodyByEntity.keys()];
+    // Refill the pre-allocated slot buffer to avoid a per-frame spread allocation.
+    _slotsBuffer.length = 0;
+    for (const key of bodyByEntity.keys()) _slotsBuffer.push(key);
+    const slots = _slotsBuffer;
 
     for (let i = 0; i < slots.length; i++) {
       const slotA = slots[i]!;
