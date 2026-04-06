@@ -296,7 +296,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   >();
 
   /** WASM linear-memory pointer to the raycast SAB output region. */
-  let _raycastOutputSABPtr = 0;
+  const _raycastOutputSABPtr = 0;
 
   // ─── Shape-cast slots ─────────────────────────────────────────────────────────
 
@@ -313,7 +313,7 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   >();
 
   /** WASM linear-memory pointer to the shape-cast SAB output region. */
-  let _shapecastOutputSABPtr = 0;
+  const _shapecastOutputSABPtr = 0;
 
   // ─── Overlap slots ────────────────────────────────────────────────────────────
 
@@ -333,13 +333,13 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   >();
 
   /** WASM linear-memory pointer to the overlap SAB output region. */
-  let _overlapOutputSABPtr = 0;
+  const _overlapOutputSABPtr = 0;
 
   /** DataView over the single-query overlap scratch buffer (WASM mode). */
-  let overlapScratchView: DataView | null = null;
+  const overlapScratchView: DataView | null = null;
 
   /** WASM linear-memory pointer to the single-query overlap scratch buffer. */
-  let overlapScratchPtr = 0;
+  const overlapScratchPtr = 0;
 
   // ─── Pathfinding ──────────────────────────────────────────────────────────────
 

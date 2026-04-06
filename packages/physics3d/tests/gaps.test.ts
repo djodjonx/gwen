@@ -61,7 +61,7 @@ const mockBridge = {
 };
 
 /** Local-mode bridge: omits physics3d_add_body to force local simulation. */
-const mockLocalBridge = {
+const _mockLocalBridge = {
   variant: 'physics3d' as const,
   getLinearMemory: vi.fn(() => null),
   getPhysicsBridge: vi.fn(() => ({
@@ -223,7 +223,7 @@ describe('Gap 1: fixedRotation in createBody', () => {
     service.createBody(10, { fixedRotation: true });
     service.setAngularVelocity(10, { x: 5, y: 5, z: 5 });
     // After integration, rotation should remain at identity because rotation is locked
-    const hooks = (
+    const _hooks = (
       makeEngine() as unknown as { hookMap: Map<string, (...a: unknown[]) => unknown> }
     ).hookMap;
     // Directly verify body exists and lockRotations equivalent was applied

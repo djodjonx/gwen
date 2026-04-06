@@ -564,7 +564,7 @@ describe('Physics3D TypeScript fallback', () => {
       service.lockRotations(8n, false, true, false); // lock Y
       plugin.onBeforeUpdate!(1 / 60);
       plugin.onUpdate!();
-      const state = service.getBodyState(8n)!;
+      const _state = service.getBodyState(8n)!;
       // Y angular velocity was zeroed — quaternion should not have rotated on Y axis
       // Simple check: angularVelocity.y was cleared before integration
       expect(service.getAngularVelocity(8n)!.y).toBeCloseTo(0, 3);
