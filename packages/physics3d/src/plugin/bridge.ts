@@ -566,17 +566,37 @@ export interface Physics3DWasmBridge {
     applyImpulsesToDynamic: boolean,
   ) => number;
 
-  /** Drive a character controller by a desired velocity for one frame. */
+  /**
+   * Drive a character controller for one frame.
+   * Results are written to the CC SAB buffer (see `physics3d_get_cc_sab_ptr`).
+   *
+   * @param entityIndex - ECS entity slot index.
+   * @param vx - Desired velocity X component (m/s).
+   * @param vy - Desired velocity Y component (m/s).
+   * @param vz - Desired velocity Z component (m/s).
+   * @param dt - Frame delta time in seconds.
+   */
   physics3d_character_controller_move?: (
     entityIndex: number,
     vx: number,
     vy: number,
     vz: number,
     dt: number,
-  ) => Float32Array | undefined;
+  ) => void;
 
   /** Remove the character controller for an entity. */
   physics3d_remove_character_controller?: (entityIndex: number) => void;
+
+  /**
+   * Returns the WASM linear-memory byte offset of the CC state buffer.
+   *
+   * Buffer layout per slot (stride = 5 × f32):
+   * `[grounded, normal_x, normal_y, normal_z, ground_entity_bits]`
+   */
+  physics3d_get_cc_sab_ptr?: () => number;
+
+  /** Returns the maximum number of concurrent character controllers (default: 32). */
+  physics3d_get_max_cc_entities?: () => number;
 
   // ─── RFC-07: Composable persistent slots ─────────────────────────────────────
 

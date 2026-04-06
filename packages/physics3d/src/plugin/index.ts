@@ -283,6 +283,9 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
   /** Maximum number of persistent raycast slots. */
   const MAX_RAYCAST_SLOTS = 64;
 
+  /** f32 fields per CC slot in the WASM CC state buffer. */
+  const CC_STATE_STRIDE = 5 as const;
+
   /** Counter used to assign unique ids to raycast slots. */
   let nextRaycastSlotId = 0;
 
@@ -2468,12 +2471,10 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
 
         ccRegistrations.set(entityIndex, { slotIndex, entityIndex });
 
-        const sabView = ccSABView;
         const descBuf = ccDescriptorBuffer;
-        const base = slotIndex * 5;
 
         let lastTranslation: Physics3DVec3 = { x: 0, y: 0, z: 0 };
-        // Per-move result state (updated from CC move return value)
+        // Per-move result state (updated from CC SAB buffer reads)
         let _grounded = false;
         let _groundNormal: Physics3DVec3 | null = null;
         let _groundEntity: EntityId | null = null;
@@ -2512,39 +2513,33 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
               descBuf.view[di + 2] = desiredVelocity.y;
               descBuf.view[di + 3] = desiredVelocity.z;
             }
-            // Immediate single-move for this frame; parse 5-float result:
-            // [grounded, nx, ny, nz, groundEntityBits]
-            const result = wasmBridge?.physics3d_character_controller_move?.(
+            // Drive the character controller — results are written to CC_STATE_BUFFER (void return)
+            wasmBridge?.physics3d_character_controller_move?.(
               entityIndex,
               desiredVelocity.x,
               desiredVelocity.y,
               desiredVelocity.z,
               dt,
             );
-
-            if (result && result.length >= 5) {
-              _grounded = result[0] !== 0;
-              _groundNormal = _grounded ? { x: result[1]!, y: result[2]!, z: result[3]! } : null;
-              // Decode ground entity: f32 bit-cast of u32 entity index
-              const groundBits = result[4]!;
-              const tmpView = new DataView(new ArrayBuffer(4));
-              tmpView.setFloat32(0, groundBits, true);
-              const groundIdx = tmpView.getUint32(0, true);
+            // Read result from SAB (populated after WASM init)
+            const view = ccSABView.view;
+            if (view !== null) {
+              const base = slotIndex * CC_STATE_STRIDE;
+              _grounded = view[base] !== 0;
+              _groundNormal = _grounded
+                ? { x: view[base + 1]!, y: view[base + 2]!, z: view[base + 3]! }
+                : null;
+              const groundBits = view[base + 4]!;
+              const tmpDV = new DataView(new ArrayBuffer(4));
+              tmpDV.setFloat32(0, groundBits, true);
+              const groundIdx = tmpDV.getUint32(0, true);
               _groundEntity =
                 _grounded && groundIdx !== 0xffffffff && groundIdx !== 0xfffffffe
                   ? entityIndexToId(groundIdx)
                   : null;
             } else {
-              // SAB-backed fallback when WASM does not return a result array
-              _grounded = sabView.view ? sabView.view[base] !== 0 : false;
-              _groundNormal =
-                _grounded && sabView.view
-                  ? {
-                      x: sabView.view[base + 1]!,
-                      y: sabView.view[base + 2]!,
-                      z: sabView.view[base + 3]!,
-                    }
-                  : null;
+              _grounded = false;
+              _groundNormal = null;
               _groundEntity = null;
             }
 
@@ -2874,6 +2869,16 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
       if (typeof pb.physics3d_add_body === 'function') {
         backendMode = 'wasm';
         wasmBridge = pb;
+
+        // Populate CC SAB view from WASM linear memory
+        const ccSabPtr = pb.physics3d_get_cc_sab_ptr?.() ?? 0;
+        const maxCC = pb.physics3d_get_max_cc_entities?.() ?? 32;
+        if (ccSabPtr > 0) {
+          const mem = bridgeRuntime?.getLinearMemory?.() ?? null;
+          if (mem) {
+            ccSABView.view = new Float32Array(mem.buffer, ccSabPtr, maxCC * CC_STATE_STRIDE);
+          }
+        }
       }
 
       ready = true;
@@ -2946,6 +2951,18 @@ export const Physics3DPlugin = definePlugin((config: Physics3DConfig = {}) => {
         if (memory && eventsBufferRef !== memory.buffer) {
           eventsView = null;
           eventsBufferRef = null;
+        }
+      }
+
+      // Re-validate CC SAB view after WASM memory.grow
+      if (ccSABView.view !== null && backendMode === 'wasm') {
+        const mem = bridgeRuntime?.getLinearMemory?.() ?? null;
+        if (mem !== null && ccSABView.view.buffer !== mem.buffer) {
+          const ccSabPtr2 = wasmBridge!.physics3d_get_cc_sab_ptr?.() ?? 0;
+          const maxCC2 = wasmBridge!.physics3d_get_max_cc_entities?.() ?? 32;
+          if (ccSabPtr2 > 0) {
+            ccSABView.view = new Float32Array(mem.buffer, ccSabPtr2, maxCC2 * CC_STATE_STRIDE);
+          }
         }
       }
 
